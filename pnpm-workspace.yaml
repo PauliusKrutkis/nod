@@ -1,5 +1,7 @@
+# esbuild's install script fetches its platform binary; vite cannot build
+# without it. Every other dependency stays script-less by omission.
 allowBuilds:
-  esbuild: set this to true or false
+  esbuild: true
 
 # Quarantine freshly published versions for a week. This is the control that
 # actually matters: the common attack is a compromised maintainer account
