@@ -601,6 +601,11 @@ worth it after validation.
       package-manager install-format mismatch as the item above; investigate.
 - [ ] ⏸ Crash reporting — see [July 2026 batch · Sentry](#july-2026-batch).
 
+> Linux does not use this updater. Only the AppImage can self-update, and
+> [11d](#11d-linux-install--update-path-2026-07-25) rejects the AppImage as the
+> recommended format — Linux updates come from the user's package manager
+> instead.
+
 ### 11c. Commercial launch
 
 Full plan in [`docs/RELEASING.md` — Commercial launch](./RELEASING.md#commercial-launch).
@@ -631,6 +636,109 @@ have used the app for one week and retention is plausible.
 
 **Rejected:** deterministic license keys (stateless, simple engineering, ugly UX —
 conflicts with zero-friction product goal).
+
+### 11d. Linux install & update path (2026-07-25)
+
+**Trigger:** updating a v0.3.x install to v0.4.0 on Arch took ~15 minutes of
+manual work — the binary was a bare `nod` symlink with no `--version` and no
+metadata, the repo had to be found by `strings`-scanning the binary, and the
+`.deb` had to be unpacked by hand (`ar x` + `tar -xzf`) because Arch has no
+`dpkg`. None of that is the user's fault: we ship four Linux assets with no
+guidance and only one of them can ever update itself.
+
+**Decision: native packages are the Linux path. The AppImage is a fallback, not
+the recommendation.** The AppImage is the only format Tauri's updater can replace
+in place, which makes it tempting — but it loses on the two things this product
+sells. Performance: it runs from a squashfs image mounted over FUSE, so cold
+start pays mount + decompression and the shared libraries never hit the normal
+page cache the way an installed binary does; on Wayland it additionally needs the
+LD_PRELOAD EGL wrapper (see PR #15). Integration: no `.desktop` entry, no icon in
+the launcher, no MIME/scheme registration for `prflow://`
+([11a](#11a-opening-prs-from-githubgitlab-links--staged) depends on this) unless
+the user separately installs AppImageLauncher. The `.deb`/`.rpm` install gets all
+of that from the packaging system for free. Trading measurable startup cost and
+desktop integration for updater convenience is the wrong trade for Nod.
+
+**What that means concretely:** we stop trying to self-update on Linux and let
+the package manager do it. `apt` / `pacman` / `dnf` / `flatpak` all already
+update installed software on a schedule the user has opted into — that is both
+the standard and the smoothest possible UX, since there is no Nod-specific step
+at all.
+
+**The good news — this is a metadata problem, not a packaging problem.** Every
+release already publishes `Nod_<v>_amd64.deb` and `Nod-<v>-1.x86_64.rpm`
+(`targets: "all"`, verified on v0.4.0). An apt or dnf repo is just an index over
+artifacts that already exist; AUR needs no hosting from us whatsoever. Nothing
+below requires changing how the app is built.
+
+**Tier 0 — do now (docs + one flag, no infrastructure)**
+
+- [ ] 🔴 **One honest recommendation per distro** — README (`README.md:221`),
+      release notes and the Phase 0 landing page list `.msi` / `.deb` /
+      `.AppImage` flat with no guidance. Replace with a per-distro table:
+      Debian/Ubuntu → apt repo, Arch → AUR, Fedora → dnf repo, everything else →
+      `.deb`/`.rpm` direct, AppImage last and labelled "portable, slower cold
+      start, no desktop integration".
+- [ ] 🔴 **`nod --version` / `--help`** — an installed binary must be able to
+      describe itself. Print version, detected install format (system package vs
+      AppImage vs unmanaged copy) and the exact upgrade command for that format.
+      This alone removes most of the discovery cost that triggered this section.
+- [ ] 🟡 **Format-aware update notice** — supersedes the passive notice queued in
+      [11b](#11b-auto-updates): on package installs, don't just suppress the CTA,
+      show the copy-pasteable command for the detected package manager
+      (`sudo apt upgrade nod`, `yay -Syu nod-bin`, `sudo dnf upgrade nod`).
+
+**Tier 1 — the package repos (this is the actual fix)**
+
+- [ ] 🔴 **AUR `nod-bin`** — start here: no hosting, no signing key, covers
+      Arch/Manjaro/EndeavourOS, and it fixes the maintainer's own machine, which
+      is the dogfood case. A PKGBUILD that pulls the release `.deb`/tarball plus
+      a CI job bumping `pkgver` + `sha256` on tag — same shape as the existing
+      `update-tap` job in `release.yml`, so the pattern is proven. Users then get
+      updates from `yay -Syu` with zero Nod-specific steps.
+- [ ] 🔴 **APT repo** — biggest coverage win (Debian/Ubuntu/Mint/Pop/elementary).
+      `aptly` or `reprepro` in CI generating a signed `dists/stable/…` tree,
+      hosted on GitHub Pages (or the Phase 0 domain once it exists). Users add
+      the repo once and `apt upgrade` carries them forever. ~half a day. Adds a
+      long-lived GPG signing key that needs the same backup discipline as the
+      minisign key (see the `release.yml` header) — note the existing `.deb.sig`
+      is a *minisign updater* signature and does **not** satisfy apt.
+- [ ] 🟡 **DNF/YUM repo** — `createrepo_c` over the existing `.rpm` on the same
+      host as the apt repo; covers Fedora/RHEL/openSUSE. Cheap once the apt repo
+      and GPG key exist, so do it in the same pass. Fedora COPR is the
+      alternative if we'd rather not host metadata.
+- [ ] 🟢 **`install.sh` one-liner** — `curl -fsSL https://…/install.sh | sh` that
+      detects distro + arch and *wires up the right repo* (adds the apt/dnf
+      source, or points Arch users at the AUR) rather than dropping a loose
+      binary. Convenience wrapper over Tier 1, worth nothing before it exists —
+      a one-liner that installs an unmanaged binary recreates the exact dead end
+      that triggered this section.
+
+**Tier 2 — Flatpak / Flathub (defer, and verify the perf claim first)**
+
+- [ ] ⏸ **Flatpak + Flathub** — covers immutable and everything-else distros
+      (Silverblue, SteamOS, Bazzite) and updates via GNOME Software / KDE
+      Discover with no maintenance from us. Not a cold-start regression the way
+      AppImage is — it's a real installed tree with a `.desktop` entry, not a
+      FUSE mount. Two open questions before committing: (1) **WebKitGTK comes
+      from the Flatpak runtime, not the host** — given the WebKitGTK performance
+      gap noted in [Performance architecture](#performance-architecture--decisions-queued-2026-07-05),
+      pinning a newer runtime could be a *win*, but it must be benchmarked
+      against a `.deb` install, not assumed; (2) sandbox holes for what Nod needs
+      — secret-service (token keychain), browser-open for OAuth, `prflow://`
+      registration — plus the updater plugin disabled in that build. Take it once
+      Linux users exist in number, consistent with the dogfood-first gate in
+      [11c](#11c-commercial-launch).
+
+**Order:** Tier 0 now (docs, a flag, and the notice already queued in 11b) → AUR
+(no infrastructure, fixes our own machine) → APT + DNF repos in one pass, sharing
+the GPG key → `install.sh` on top → Flathub only after the release gate, and only
+if it benchmarks at parity with `.deb`.
+
+**Rejected:** AppImage as the recommended Linux format — self-updating is not
+worth the cold-start cost, the missing desktop entry, or the lost `prflow://`
+registration. It stays published as a portable escape hatch, and it stays the
+only format the in-app updater touches.
 
 ---
 
