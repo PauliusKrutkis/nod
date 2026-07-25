@@ -1108,10 +1108,10 @@ link interception · Universal Links.
       exactly at the bottom edge of the screen; also the scroll doesn't fully
       capture the bottom line (it lands mid-line, cut in half) — it should
       scroll enough that the destination line is always fully visible.
-- [ ] **Cursor doesn't follow after `e`** — pressing `e` advances to the next
-      file/page, but the cursor position doesn't move with it, so pressing
-      `f` afterward scrolls from the previous file's old cursor position
-      instead of the new file.
+- [x] **Cursor doesn't follow after `e`** — **done**; every file jump
+      (`scrollToFile` — `e`, `r`/`t`, Tab, sidebar, file search) now seeds the
+      line cursor on the target file's first nav row, so `f`/`g`/`j`/`k` step
+      inside the file you landed on.
 - [ ] **Merge button in PR view** — add a way to merge the PR directly from
       the review screen instead of switching to GitHub/GitLab.
 - [ ] **Multi-line comment highlighting still broken in full-file view** —

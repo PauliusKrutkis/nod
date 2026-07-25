@@ -2169,6 +2169,15 @@ function useReviewFileNavigation(args: {
   setOccSpec: (next: OccState | null) => void;
   setSelection: (s: LineSelection | null) => void;
 }) {
+  /**
+   * The single way the review jumps to a file (`e`, `r`/`t`, Tab, the sidebar,
+   * and the file search all route through here). It also seeds the line cursor
+   * on the target file's first nav row, because everything the cursor drives
+   * afterwards — `f`/`g`, `j`/`k`, `c`, selection — steps from wherever the
+   * cursor is, and leaving it on the file we just left makes those keys act on
+   * the wrong file. Files with no nav rows (image, binary, fully collapsed)
+   * keep the previous cursor rather than clearing it.
+   */
   const scrollToFile = (i: number) => {
     if (args.fileCountRef.current === 0) {
       return;
@@ -2182,6 +2191,11 @@ function useReviewFileNavigation(args: {
     args.setOccSpec(null);
     args.setSelection(null);
     args.listRef.current?.scrollToFileStart(target);
+    const entry = args.modelRef.current.nav.find((n) => n.fileIndex === target);
+    if (entry) {
+      markKeyboardNavigation(args);
+      args.setCursor({ anchor: entry.anchor, fileIndex: entry.fileIndex });
+    }
   };
 
   const fileDeltaRef = useRef(0);
@@ -2273,17 +2287,6 @@ function useReviewFileNavigation(args: {
     );
   };
 
-  const selectFileFromSearch = (fileIndex: number) => {
-    scrollToFile(fileIndex);
-    const entry = args.modelRef.current.nav.find(
-      (n) => n.fileIndex === fileIndex
-    );
-    if (entry) {
-      markKeyboardNavigation(args);
-      args.setCursor({ anchor: entry.anchor, fileIndex: entry.fileIndex });
-    }
-  };
-
   return {
     commentAtCursor,
     cycleFile,
@@ -2294,7 +2297,6 @@ function useReviewFileNavigation(args: {
     pageScroll,
     prevFile,
     scrollToFile,
-    selectFileFromSearch,
   };
 }
 
@@ -2842,7 +2844,6 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     pageScroll,
     prevFile,
     scrollToFile,
-    selectFileFromSearch,
   } = useReviewFileNavigation({
     activeIndexRef,
     cursorMoverRefs,
@@ -3367,7 +3368,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
         files={files}
         mode={prSearch ?? "files"}
         onClose={onClosePrSearch}
-        onSelectFile={selectFileFromSearch}
+        onSelectFile={scrollToFile}
         onSelectLine={selectLine}
         open={prSearch !== null}
       />
