@@ -679,9 +679,15 @@ conflicts with zero-friction product goal).
       `f` / `g` (Fast down/up) cover jumping through the diff.
 - [x] 🟢 **P07** — Restore archived (`e`-archived) inbox
       PRs — **done** (archived view toggle + restore).
-- [ ] 🟢 **`e` skips viewed files** — when marking viewed + next, jump to the
-      next *unviewed* file instead of blindly advancing (next may already be
-      viewed).
+- [ ] 🟢 **`e` skips viewed files** — the forward half **already shipped** in
+      `a98b9c2` (2026-07-15); the checkbox was never ticked.
+      `markViewedAndNext` walks forward to the next unviewed file, covered by
+      `e2e/viewed.spec.ts`. What remains is the fallback: when nothing ahead
+      is unviewed, `target` stays `from + 1` — an already-viewed file — and
+      pressing `e` there hits `wasViewed → toggleViewedWithFp() → return`,
+      i.e. it **un-marks** it. So leaning on `e` near the end of a PR
+      silently un-ticks files you already reviewed. Needs a circular walk
+      plus a stay-put terminal state.
 - [ ] 🟢 **Pending comment discard hotkey** — keyboard shortcut for discard;
       improve discard button visibility (border/contrast is too subtle today).
 - [x] 🟢 **Go to next/previous comment** — **done**; `]c` / `[c` bound in the
