@@ -29,6 +29,7 @@ dist-ssr
 .playwright-mcp/
 test-results/
 playwright-report/
+evidence/
 
 # Claude Code local state (worktrees are per-machine; skills are shared)
 .claude/*

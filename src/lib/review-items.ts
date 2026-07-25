@@ -8,7 +8,8 @@
  * turns item indexes into fractions.
  */
 import type { ChangedFile, PendingComment, ReviewComment } from "../types.ts";
-import { type DiffHunk, type DiffRow, parsePatch } from "./diff.ts";
+import { type DiffHunk, type DiffRow, parsePatch, rowAnchor } from "./diff.ts";
+import { markBlockCommentRows } from "./highlight.ts";
 import {
   detectIndentUnit,
   guideLevelsForHunk,
@@ -26,8 +27,16 @@ export function fileAnchorKey(fileIndex: number, anchor: string): string {
   return `${fileIndex}:${anchor}`;
 }
 
-/** Resolve the comment target for a diff row. */
+/**
+ * Resolve the comment target for a diff row. Synthetic rows (full-file
+ * expansion) have real line numbers but are not part of the patch, and the
+ * forges reject comments outside it — no target, so every comment affordance
+ * (plus button, `c`, drag selection) skips them by the existing target checks.
+ */
 function rowTarget(row: DiffRow): { line: number; side: string } | null {
+  if (row.synthetic) {
+    return null;
+  }
   if (row.type === "del") {
     return row.oldLine === null ? null : { line: row.oldLine, side: "LEFT" };
   }
@@ -194,6 +203,7 @@ export interface ReviewListModel {
 export interface BuildReviewItemsInput {
   collapsed: ReadonlyMap<number, ReadonlySet<number>>;
   commentsByFile: ReadonlyMap<string, ReviewComment[]>;
+  expandedRows: ReadonlyMap<number, readonly DiffRow[]>;
   files: readonly ChangedFile[];
   isImage: (file: ChangedFile) => boolean;
   openBoxes: ReadonlyMap<string, number | null>;
@@ -252,7 +262,7 @@ function appendCommentBlock(
 
 function appendHunkRow(ctx: HunkBuildContext, row: DiffRow): void {
   const target = rowTarget(row);
-  const anchor = target ? anchorKey(target.side, target.line) : null;
+  const anchor = target ? anchorKey(target.side, target.line) : rowAnchor(row);
   if (anchor !== null) {
     ctx.contentByAnchor.set(anchor, row.content);
   }
@@ -307,6 +317,23 @@ function appendHunkRows(ctx: HunkBuildContext, hunk: DiffHunk): void {
   }
 }
 
+/**
+ * One expanded file's rows (expand-file.ts) as a single headerless run —
+ * context is continuous, so hunk separators would be noise. hunkIndex 0 for
+ * every row; selection adjacency still can't cross a change boundary because
+ * the synthesized rows between hunks have no target.
+ */
+function appendExpandedRows(
+  ctx: HunkBuildContext,
+  rows: readonly DiffRow[]
+): void {
+  for (const row of rows) {
+    if (row.type !== "hunk") {
+      appendHunkRow(ctx, row);
+    }
+  }
+}
+
 export function buildReviewItems(
   input: BuildReviewItemsInput
 ): ReviewListModel {
@@ -314,6 +341,7 @@ export function buildReviewItems(
     files,
     isImage,
     collapsed,
+    expandedRows,
     openBoxes,
     commentsByFile,
     pendingByFile,
@@ -355,6 +383,28 @@ export function buildReviewItems(
       const arr = pendingByAnchor.get(k) ?? [];
       arr.push(p);
       pendingByAnchor.set(k, arr);
+    }
+
+    const expanded = expandedRows.get(fileIndex);
+    if (expanded) {
+      appendExpandedRows(
+        {
+          anchorItem,
+          commentItems,
+          contentByAnchor: new Map<string, string>(),
+          fileIndex,
+          hunkIndex: 0,
+          items,
+          nav,
+          navIndexOf,
+          openBoxes,
+          pendingByAnchor,
+          threads,
+        },
+        expanded
+      );
+      groupCounts.push(items.length - startCount);
+      return;
     }
 
     const fileCollapsed = collapsed.get(fileIndex);
@@ -406,21 +456,29 @@ export function buildReviewItems(
 
 /**
  * Intraline emphasis, indent guides, and the indent unit are derived from the
- * parsed hunks. parsePatch caches by patch string, so the hunks array identity
- * is stable — a WeakMap keyed by it gives every rendered row O(1) access
- * without recomputing per render or per item.
+ * parsed hunks alone, but commentByRow also depends on filename (language).
+ * parsePatch caches by patch string, so the hunks array identity is stable —
+ * a WeakMap keyed by it, nested under filename, gives every rendered row
+ * O(1) access without recomputing per render or per item, while still
+ * keeping distinct results for two files whose patch text happens to match
+ * byte-for-byte but whose languages differ.
  */
 export interface FileRenderMeta {
+  commentByRow: ReadonlyMap<DiffRow, boolean>;
   guideByRow: ReadonlyMap<DiffRow, number>;
   indentUnit: IndentUnit;
   intraByRow: ReadonlyMap<DiffRow, IntralineRanges>;
 }
 
-const metaCache = new WeakMap<object, FileRenderMeta>();
+const metaCache = new WeakMap<object, Map<string, FileRenderMeta>>();
 
-export function fileRenderMeta(patch: string): FileRenderMeta {
+export function fileRenderMeta(
+  patch: string,
+  filename: string
+): FileRenderMeta {
   const hunks: DiffHunk[] = parsePatch(patch);
-  const hit = metaCache.get(hunks);
+  let byFilename = metaCache.get(hunks);
+  const hit = byFilename?.get(filename);
   if (hit) {
     return hit;
   }
@@ -436,10 +494,15 @@ export function fileRenderMeta(patch: string): FileRenderMeta {
     });
   }
   const meta: FileRenderMeta = {
+    commentByRow: markBlockCommentRows(hunks, filename),
     guideByRow,
     indentUnit,
     intraByRow: intralinePairs(hunks),
   };
-  metaCache.set(hunks, meta);
+  if (!byFilename) {
+    byFilename = new Map<string, FileRenderMeta>();
+    metaCache.set(hunks, byFilename);
+  }
+  byFilename.set(filename, meta);
   return meta;
 }

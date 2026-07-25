@@ -1,5 +1,5 @@
 import type { BucketFixture, InboxFixture } from "./fixtures.ts";
-import { ACCOUNT, DETAIL, INBOX } from "./fixtures.ts";
+import { ACCOUNT, DETAIL, FULL_FILES, INBOX } from "./fixtures.ts";
 import type { Page } from "./types.ts";
 
 /**
@@ -9,29 +9,42 @@ import type { Page } from "./types.ts";
  */
 
 export interface AppOptions {
+  detail?: unknown;
+  appVersion?: string;
   detailByCall?: unknown[];
   detailByLoad?: unknown[];
+  fileBlobs?: Record<string, string>;
+  fileBlobDelayMs?: number;
   hangIssueComment?: boolean;
   hasToken?: boolean;
+  releases?:
+    | { tag: string; publishedAt: string | null; notes: string | null }[]
+    | null;
   inbox?: InboxFixture;
   inboxByCall?: unknown[];
   repoHits?: { fullName: string; description: string }[];
   subscribed?: BucketFixture;
+  subscribedDelayMs?: number;
   watchedRepos?: string[];
 }
 
 export async function setupApp(page: Page, opts: AppOptions = {}) {
   const config = {
     account: ACCOUNT,
-    detail: DETAIL,
+    appVersion: opts.appVersion ?? "1.0.0",
+    detail: (opts.detail ?? DETAIL) as typeof DETAIL,
     detailByCall: opts.detailByCall ?? null,
     detailByLoad: opts.detailByLoad ?? null,
+    fileBlobs: opts.fileBlobs ?? FULL_FILES,
+    fileBlobDelayMs: opts.fileBlobDelayMs ?? 0,
     hangIssueComment: opts.hangIssueComment ?? false,
     hasToken: opts.hasToken ?? true,
+    releases: opts.releases ?? [],
     inbox: opts.inbox ?? INBOX,
     inboxByCall: opts.inboxByCall ?? null,
     repoHits: opts.repoHits ?? [],
     subscribed: opts.subscribed ?? { count: 0, prs: [] },
+    subscribedDelayMs: opts.subscribedDelayMs ?? 0,
     watchedRepos: opts.watchedRepos ?? [],
   };
 
@@ -72,9 +85,41 @@ export async function setupApp(page: Page, opts: AppOptions = {}) {
           user: "me",
           userAvatarUrl: "",
         }),
+        delete_issue_comment: (args) => {
+          cfg.detail.issueComments = (
+            cfg.detail.issueComments as Array<{ id: number }>
+          ).filter(
+            (c) => c.id !== args.commentId
+          ) as typeof cfg.detail.issueComments;
+          localStorage.setItem("e2e:lastConvoDelete", JSON.stringify(args));
+          return null;
+        },
+        delete_review_comment: (args) => {
+          cfg.detail.comments = (
+            cfg.detail.comments as Array<{ id: number }>
+          ).filter(
+            (c) => c.id !== args.commentId
+          ) as typeof cfg.detail.comments;
+          localStorage.setItem("e2e:lastCommentDelete", JSON.stringify(args));
+          return null;
+        },
+        get_app_version: () => cfg.appVersion,
         get_cached_inbox: () => null,
         get_cached_pull_request_detail: () => null,
         get_cached_subscribed: () => null,
+        get_file_blob: (args) => {
+          const text = cfg.fileBlobs[args.path as string];
+          if (text === undefined) {
+            throw new Error(`no blob fixture for ${String(args.path)}`);
+          }
+          const blob = { base64: btoa(text), size: text.length };
+          if (cfg.fileBlobDelayMs > 0) {
+            return new Promise((resolve) =>
+              setTimeout(() => resolve(blob), cfg.fileBlobDelayMs)
+            );
+          }
+          return blob;
+        },
         get_pull_request_detail: () => {
           const result = seq(cfg.detailByCall, detailCalls, detail);
           detailCalls += 1;
@@ -95,7 +140,13 @@ export async function setupApp(page: Page, opts: AppOptions = {}) {
           inboxCalls += 1;
           return result;
         },
-        list_subscribed: () => cfg.subscribed,
+        list_releases: () => cfg.releases,
+        list_subscribed: () =>
+          cfg.subscribedDelayMs > 0
+            ? new Promise((resolve) =>
+                setTimeout(() => resolve(cfg.subscribed), cfg.subscribedDelayMs)
+              )
+            : cfg.subscribed,
         "plugin:opener|open": () => null,
         "plugin:opener|open_url": () => null,
         resolve_thread: (args) => {
@@ -120,6 +171,30 @@ export async function setupApp(page: Page, opts: AppOptions = {}) {
         set_watched_repos: () => null,
         submit_review: (args) => {
           localStorage.setItem("e2e:lastReview", JSON.stringify(args));
+          return null;
+        },
+        update_issue_comment: (args) => {
+          for (const c of cfg.detail.issueComments as Array<{
+            id: number;
+            body: string;
+          }>) {
+            if (c.id === args.commentId) {
+              c.body = args.body as string;
+            }
+          }
+          localStorage.setItem("e2e:lastConvoEdit", JSON.stringify(args));
+          return null;
+        },
+        update_review_comment: (args) => {
+          for (const c of cfg.detail.comments as Array<{
+            id: number;
+            body: string;
+          }>) {
+            if (c.id === args.commentId) {
+              c.body = args.body as string;
+            }
+          }
+          localStorage.setItem("e2e:lastCommentEdit", JSON.stringify(args));
           return null;
         },
       };

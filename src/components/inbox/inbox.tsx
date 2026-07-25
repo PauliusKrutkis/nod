@@ -1,3 +1,19 @@
+/**
+ * Tabs hide when empty (and not active) so the bar reflects where work
+ * actually is; digit hotkeys (1-5) still reach a hidden tab directly, so
+ * InboxTabButton keeps its digit hint tied to the tab's fixed position in
+ * TABS rather than its slot among the visible ones. cycleTab walks only the
+ * visible tabs, falling back to index 0 when the active tab is itself
+ * hidden. Watching repos is a separate action (the "w" hotkey, command
+ * palette, and docked Watch button all open the same dialog), so the
+ * Watching tab follows the same visibility rule as every other tab.
+ *
+ * On cold start, if the active tab turns out empty, `autoTabSelected` guards
+ * a one-shot correction to the first tab with content — a module-level flag
+ * rather than a ref, since Inbox unmounts/remounts on every Esc-to-inbox
+ * visit and re-running the correction on each remount would boomerang a
+ * deliberate visit to an empty tab back to whichever tab has content.
+ */
 import {
   Archive,
   ArchiveRestore,
@@ -24,6 +40,7 @@ import { Avatar } from "../ui/avatar.tsx";
 import { Kbd } from "../ui/kbd.tsx";
 import { Spinner } from "../ui/spinner.tsx";
 import { TicketTitle } from "../ui/ticket-title.tsx";
+import { Tooltip } from "../ui/tooltip.tsx";
 import { PRListItem } from "./pr-list-item.tsx";
 import { WatchReposDialog } from "./watch-repos-dialog.tsx";
 
@@ -53,6 +70,8 @@ const EMPTY: InboxData = {
   involved: { count: 0, prs: [] },
   reviewRequested: { count: 0, prs: [] },
 };
+
+let autoTabSelected = false;
 
 const keyFor = (pr: PullRequest) =>
   prKey({ name: pr.name, number: pr.number, owner: pr.owner });
@@ -139,6 +158,26 @@ export function Inbox() {
     return m;
   })();
 
+  const tabsLoaded = data !== null;
+  const visibleTabs = TABS.filter(
+    (t) => !tabsLoaded || visibleCounts[t.key] > 0 || t.key === tab
+  );
+
+  const inboxDataLoaded = data !== undefined && subscribedData !== undefined;
+  useEffect(() => {
+    if (autoTabSelected || !inboxDataLoaded) {
+      return;
+    }
+    autoTabSelected = true;
+    if (visibleCounts[tab] > 0) {
+      return;
+    }
+    const firstNonEmpty = TABS.find((t) => visibleCounts[t.key] > 0);
+    if (firstNonEmpty) {
+      setTab(firstNonEmpty.key);
+    }
+  }, [inboxDataLoaded, visibleCounts, tab, setTab]);
+
   const selectedIndex = (() => {
     if (!selectedKey) {
       return 0;
@@ -166,9 +205,13 @@ export function Inbox() {
   };
 
   const cycleTab = (dir: number) => {
-    const order = TABS.map((t) => t.key);
+    const order = visibleTabs.map((t) => t.key);
+    if (order.length === 0) {
+      return;
+    }
     const i = order.indexOf(tab);
-    selectTab(order[(i + dir + order.length) % order.length]);
+    const from = i < 0 ? 0 : i;
+    selectTab(order[(from + dir + order.length) % order.length]);
   };
 
   const moveTo = (index: number) => {
@@ -313,9 +356,11 @@ export function Inbox() {
         archivedActive={showArchived}
         archivedCount={archivedList.length}
         counts={visibleCounts}
+        onOpenWatch={openWatchDialog}
         onSelectTab={selectTab}
         onToggleArchived={toggleArchived}
         tab={tab}
+        tabs={visibleTabs}
       />
 
       <InboxMainContent
@@ -488,48 +533,64 @@ function useInboxHotkeys({
 
 function InboxTabBar({
   tab,
+  tabs,
   counts,
   onSelectTab,
   archivedActive,
   archivedCount,
   onToggleArchived,
+  onOpenWatch,
 }: {
   tab: InboxTabKey;
+  tabs: (typeof TABS)[number][];
   counts: Record<InboxTabKey, number>;
   onSelectTab: (key: InboxTabKey) => void;
   archivedActive: boolean;
   archivedCount: number;
   onToggleArchived: () => void;
+  onOpenWatch: () => void;
 }) {
   return (
     <div className="qi-tabs shrink-0 border-line border-b px-3">
-      {TABS.map((t, i) => (
+      {tabs.map((t) => (
         <InboxTabButton
           active={t.key === tab}
           count={counts[t.key]}
-          index={i}
+          index={TABS.findIndex((d) => d.key === t.key)}
           key={t.key}
           onSelectTab={onSelectTab}
           tabDef={t}
         />
       ))}
-      <button
-        className="qi-archived-toggle"
-        data-state={archivedActive ? "active" : "inactive"}
-        onClick={onToggleArchived}
-        title={
-          archivedActive
-            ? "Back to the inbox (u)"
-            : "Show archived pull requests (u)"
+      <Tooltip anchorClassName="ml-auto" combo="w" label="Watch repositories…">
+        <button className="qi-watch-button" onClick={onOpenWatch} type="button">
+          <Eye size={14} />
+          Watch
+        </button>
+      </Tooltip>
+      <Tooltip
+        combo="u"
+        label={
+          archivedActive ? "Back to the inbox" : "Show archived pull requests"
         }
-        type="button"
       >
-        {archivedActive ? <ArchiveRestore size={14} /> : <Archive size={14} />}
-        Archived
-        {archivedCount > 0 && (
-          <span className="qi-tab-count">{archivedCount}</span>
-        )}
-      </button>
+        <button
+          className="qi-archived-toggle"
+          data-state={archivedActive ? "active" : "inactive"}
+          onClick={onToggleArchived}
+          type="button"
+        >
+          {archivedActive ? (
+            <ArchiveRestore size={14} />
+          ) : (
+            <Archive size={14} />
+          )}
+          Archived
+          {archivedCount > 0 && (
+            <span className="qi-tab-count">{archivedCount}</span>
+          )}
+        </button>
+      </Tooltip>
     </div>
   );
 }
@@ -552,16 +613,17 @@ function InboxTabButton({
   };
 
   return (
-    <button
-      className="qi-tab"
-      data-state={active ? "active" : "inactive"}
-      onClick={handleClick}
-      title={`${tabDef.hint} (${index + 1})`}
-      type="button"
-    >
-      {tabDef.label}
-      <span className="qi-tab-count">{count}</span>
-    </button>
+    <Tooltip combo={String(index + 1)} label={tabDef.hint}>
+      <button
+        className="qi-tab"
+        data-state={active ? "active" : "inactive"}
+        onClick={handleClick}
+        type="button"
+      >
+        {tabDef.label}
+        <span className="qi-tab-count">{count}</span>
+      </button>
+    </Tooltip>
   );
 }
 
@@ -943,7 +1005,9 @@ function InboxDetail({
         {body ? (
           <>
             <div className="qi-detail-kicker">Description</div>
-            <Markdown>{body}</Markdown>
+            <Markdown owner={pr.owner} repo={pr.name}>
+              {body}
+            </Markdown>
           </>
         ) : (
           <p className="qi-detail-none">No description provided.</p>
