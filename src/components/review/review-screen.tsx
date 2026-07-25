@@ -597,7 +597,11 @@ function jumpFromOccMark(
   }
   const column = codeColumnOf(code, textNode);
   const at = column === null ? -1 : occNav.indexAt(anchor, column);
-  occNav.jumpTo((at >= 0 ? at : occNavRef.current) + 1);
+  /* Land on the clicked occurrence, not the one after it: pointing at a match
+     is already the "go there" gesture, and jumping past it left a match the
+     user aimed at half-clipped. Only when the mark can't be resolved back to
+     an index does this fall back to stepping forward, as `n` would. */
+  occNav.jumpTo(at >= 0 ? at : occNavRef.current + 1);
   return true;
 }
 

@@ -275,7 +275,8 @@ test("occurrence navigation: n/p and mark clicks jump between occurrences", asyn
   await page.keyboard.press("p");
   await expect(flash).toContainText("return gamma");
 
-  const markBox = await marks.nth(1).boundingBox();
+  // a click lands on the occurrence under the pointer, not the one after it
+  const markBox = await marks.nth(0).boundingBox();
   if (!markBox) {
     throw new Error("occurrence mark bounding box not found");
   }
