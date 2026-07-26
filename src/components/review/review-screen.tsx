@@ -1,3 +1,13 @@
+/**
+ * `scrollToFile` (in `useReviewFileNavigation`) is the single entry point
+ * every file jump routes through — `e`, `r`/`t`, Tab, the sidebar, and the
+ * file search all call it. It also seeds the line cursor on the target
+ * file's first nav row, because everything the cursor drives afterwards
+ * (`f`/`g`, `j`/`k`, `c`, selection) steps from wherever the cursor is, and
+ * leaving it on the file just left makes those keys act on the wrong file.
+ * Files with no nav rows (image, binary, fully collapsed) keep the previous
+ * cursor rather than clearing it.
+ */
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   ArrowDown,
@@ -2169,15 +2179,6 @@ function useReviewFileNavigation(args: {
   setOccSpec: (next: OccState | null) => void;
   setSelection: (s: LineSelection | null) => void;
 }) {
-  /**
-   * The single way the review jumps to a file (`e`, `r`/`t`, Tab, the sidebar,
-   * and the file search all route through here). It also seeds the line cursor
-   * on the target file's first nav row, because everything the cursor drives
-   * afterwards — `f`/`g`, `j`/`k`, `c`, selection — steps from wherever the
-   * cursor is, and leaving it on the file we just left makes those keys act on
-   * the wrong file. Files with no nav rows (image, binary, fully collapsed)
-   * keep the previous cursor rather than clearing it.
-   */
   const scrollToFile = (i: number) => {
     if (args.fileCountRef.current === 0) {
       return;
