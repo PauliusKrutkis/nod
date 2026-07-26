@@ -342,21 +342,29 @@ hotkey collapses.
 
 | Key | Action |
 | --- | --- |
-| **`n`** / **`p`** | Next / prev file |
-| **`j`** / **`k`** (or `↑` / `↓`) | Next / prev line (cursor) |
-| **`Space`** | Page down |
+| **`j`** / **`k`** (or `↓` / `↑`) | Next / prev line (cursor) |
+| **`shift+j`** / **`shift+k`** | Extend selection down / up |
+| **`f`** / **`g`** | Fast down / up |
+| **`Space`** / **`PageUp`** | Page down / up |
+| **`r`** / **`t`** | Next file (or reply to the active thread) / prev file |
+| **`Tab`** / **`shift+Tab`** | Cycle files forward / back |
+| **`e`** / **`v`** | Mark viewed + next · toggle file viewed |
+| **`shift+v`** | Expand full file ↔ diff only |
+| **`b`** | Toggle file tree |
 | **`]c`** / **`[c`** | Next / prev comment thread |
-| **`c`** | Comment on the cursor line |
-| **`e`** | Mark viewed + next file |
-| **`v`** | Toggle file viewed |
-| **`o`** / **`y`** | Open on GitHub · copy PR link |
-| **`i`** | Toggle info panel |
+| **`c`** / **`shift+c`** | Comment on the cursor line / on the PR |
+| **`x`** / **`shift+e`** / **`z`** | Resolve · edit your comment · expand/collapse thread |
+| **`i`** / **`shift+i`** | Toggle info panel / widen it |
+| **`o`** / **`y`** / **`mod+shift+c`** | Open on host · copy PR link · copy file path |
 | **`s`** | Submit review |
+| **`mod+t`** / **`mod+r`** / **`mod+f`** | Find a file · search code · find in diff |
+| **`n`** / **`p`** | Next / prev occurrence (only while one is selected) |
 | **`mod+k`** | **Jump to PR** + commands |
-| **`Esc`** | Inbox |
+| **`Esc`** | Clear selection → close find → close panel → inbox |
 
-> Shipped keys, matching the app. `mod+t`/`mod+f` (files · find) and `Tab`
-> (Code ↔ Info) remain proposed — see § layout.
+> Shipped keys, verified against `review-screen.tsx`. `Tab` cycles files;
+> the proposed Code ↔ Info toggle therefore needs a different key — see
+> § layout.
 
 ---
 
@@ -601,6 +609,11 @@ worth it after validation.
       package-manager install-format mismatch as the item above; investigate.
 - [ ] ⏸ Crash reporting — see [July 2026 batch · Sentry](#july-2026-batch).
 
+> Linux does not use this updater. Only the AppImage can self-update, and
+> [11d](#11d-linux-install--update-path-2026-07-25) rejects the AppImage as the
+> recommended format — Linux updates come from the user's package manager
+> instead.
+
 ### 11c. Commercial launch
 
 Full plan in [`docs/RELEASING.md` — Commercial launch](./RELEASING.md#commercial-launch).
@@ -631,6 +644,109 @@ have used the app for one week and retention is plausible.
 
 **Rejected:** deterministic license keys (stateless, simple engineering, ugly UX —
 conflicts with zero-friction product goal).
+
+### 11d. Linux install & update path (2026-07-25)
+
+**Trigger:** updating a v0.3.x install to v0.4.0 on Arch took ~15 minutes of
+manual work — the binary was a bare `nod` symlink with no `--version` and no
+metadata, the repo had to be found by `strings`-scanning the binary, and the
+`.deb` had to be unpacked by hand (`ar x` + `tar -xzf`) because Arch has no
+`dpkg`. None of that is the user's fault: we ship four Linux assets with no
+guidance and only one of them can ever update itself.
+
+**Decision: native packages are the Linux path. The AppImage is a fallback, not
+the recommendation.** The AppImage is the only format Tauri's updater can replace
+in place, which makes it tempting — but it loses on the two things this product
+sells. Performance: it runs from a squashfs image mounted over FUSE, so cold
+start pays mount + decompression and the shared libraries never hit the normal
+page cache the way an installed binary does; on Wayland it additionally needs the
+LD_PRELOAD EGL wrapper (see PR #15). Integration: no `.desktop` entry, no icon in
+the launcher, no MIME/scheme registration for `prflow://`
+([11a](#11a-opening-prs-from-githubgitlab-links--staged) depends on this) unless
+the user separately installs AppImageLauncher. The `.deb`/`.rpm` install gets all
+of that from the packaging system for free. Trading measurable startup cost and
+desktop integration for updater convenience is the wrong trade for Nod.
+
+**What that means concretely:** we stop trying to self-update on Linux and let
+the package manager do it. `apt` / `pacman` / `dnf` / `flatpak` all already
+update installed software on a schedule the user has opted into — that is both
+the standard and the smoothest possible UX, since there is no Nod-specific step
+at all.
+
+**The good news — this is a metadata problem, not a packaging problem.** Every
+release already publishes `Nod_<v>_amd64.deb` and `Nod-<v>-1.x86_64.rpm`
+(`targets: "all"`, verified on v0.4.0). An apt or dnf repo is just an index over
+artifacts that already exist; AUR needs no hosting from us whatsoever. Nothing
+below requires changing how the app is built.
+
+**Tier 0 — do now (docs + one flag, no infrastructure)**
+
+- [ ] 🔴 **One honest recommendation per distro** — README (`README.md:221`),
+      release notes and the Phase 0 landing page list `.msi` / `.deb` /
+      `.AppImage` flat with no guidance. Replace with a per-distro table:
+      Debian/Ubuntu → apt repo, Arch → AUR, Fedora → dnf repo, everything else →
+      `.deb`/`.rpm` direct, AppImage last and labelled "portable, slower cold
+      start, no desktop integration".
+- [ ] 🔴 **`nod --version` / `--help`** — an installed binary must be able to
+      describe itself. Print version, detected install format (system package vs
+      AppImage vs unmanaged copy) and the exact upgrade command for that format.
+      This alone removes most of the discovery cost that triggered this section.
+- [ ] 🟡 **Format-aware update notice** — supersedes the passive notice queued in
+      [11b](#11b-auto-updates): on package installs, don't just suppress the CTA,
+      show the copy-pasteable command for the detected package manager
+      (`sudo apt upgrade nod`, `yay -Syu nod-bin`, `sudo dnf upgrade nod`).
+
+**Tier 1 — the package repos (this is the actual fix)**
+
+- [ ] 🔴 **AUR `nod-bin`** — start here: no hosting, no signing key, covers
+      Arch/Manjaro/EndeavourOS, and it fixes the maintainer's own machine, which
+      is the dogfood case. A PKGBUILD that pulls the release `.deb`/tarball plus
+      a CI job bumping `pkgver` + `sha256` on tag — same shape as the existing
+      `update-tap` job in `release.yml`, so the pattern is proven. Users then get
+      updates from `yay -Syu` with zero Nod-specific steps.
+- [ ] 🔴 **APT repo** — biggest coverage win (Debian/Ubuntu/Mint/Pop/elementary).
+      `aptly` or `reprepro` in CI generating a signed `dists/stable/…` tree,
+      hosted on GitHub Pages (or the Phase 0 domain once it exists). Users add
+      the repo once and `apt upgrade` carries them forever. ~half a day. Adds a
+      long-lived GPG signing key that needs the same backup discipline as the
+      minisign key (see the `release.yml` header) — note the existing `.deb.sig`
+      is a *minisign updater* signature and does **not** satisfy apt.
+- [ ] 🟡 **DNF/YUM repo** — `createrepo_c` over the existing `.rpm` on the same
+      host as the apt repo; covers Fedora/RHEL/openSUSE. Cheap once the apt repo
+      and GPG key exist, so do it in the same pass. Fedora COPR is the
+      alternative if we'd rather not host metadata.
+- [ ] 🟢 **`install.sh` one-liner** — `curl -fsSL https://…/install.sh | sh` that
+      detects distro + arch and *wires up the right repo* (adds the apt/dnf
+      source, or points Arch users at the AUR) rather than dropping a loose
+      binary. Convenience wrapper over Tier 1, worth nothing before it exists —
+      a one-liner that installs an unmanaged binary recreates the exact dead end
+      that triggered this section.
+
+**Tier 2 — Flatpak / Flathub (defer, and verify the perf claim first)**
+
+- [ ] ⏸ **Flatpak + Flathub** — covers immutable and everything-else distros
+      (Silverblue, SteamOS, Bazzite) and updates via GNOME Software / KDE
+      Discover with no maintenance from us. Not a cold-start regression the way
+      AppImage is — it's a real installed tree with a `.desktop` entry, not a
+      FUSE mount. Two open questions before committing: (1) **WebKitGTK comes
+      from the Flatpak runtime, not the host** — given the WebKitGTK performance
+      gap noted in [Performance architecture](#performance-architecture--decisions-queued-2026-07-05),
+      pinning a newer runtime could be a *win*, but it must be benchmarked
+      against a `.deb` install, not assumed; (2) sandbox holes for what Nod needs
+      — secret-service (token keychain), browser-open for OAuth, `prflow://`
+      registration — plus the updater plugin disabled in that build. Take it once
+      Linux users exist in number, consistent with the dogfood-first gate in
+      [11c](#11c-commercial-launch).
+
+**Order:** Tier 0 now (docs, a flag, and the notice already queued in 11b) → AUR
+(no infrastructure, fixes our own machine) → APT + DNF repos in one pass, sharing
+the GPG key → `install.sh` on top → Flathub only after the release gate, and only
+if it benchmarks at parity with `.deb`.
+
+**Rejected:** AppImage as the recommended Linux format — self-updating is not
+worth the cold-start cost, the missing desktop entry, or the lost `prflow://`
+registration. It stays published as a portable escape hatch, and it stays the
+only format the in-app updater touches.
 
 ---
 
@@ -682,14 +798,22 @@ conflicts with zero-friction product goal).
 
 ### Wave 3 — review surfaces
 
-- [ ] 🟡 **P08** — Show approvals / changes-requested in
-      the review header (data already on detail payload).
-- [ ] 🟡 **P09** — Pipelines / CI status pill in review
-      header (+ per-check list in drawer later).
-- [ ] 🔴 **P10** — Edit own comments (inline review
-      comments first, PR-level in info drawer second).
-- [ ] 🟡 **P11** — View full file at head SHA (`shift+v`
-      modal first; hunk context expansion later — ties to §9 snapshot layer 1).
+- [x] 🟡 **P08** — Show approvals / changes-requested in the review header —
+      **done**; `ReviewVerdicts` renders two quiet pills (approved / changes
+      requested) fronted by reviewer avatars in the header actions
+      (`review-verdicts.tsx`), silent until someone casts a verdict.
+- [x] 🟡 **P09** — Pipelines / CI status — **done**, split across two
+      surfaces: a colour-coded `qf-ci-dot` on the header info button
+      (`review-screen.tsx`) plus a clickable `CiPill` (state + check count,
+      opens the host's checks page) in the info drawer (`ci-pill.tsx`).
+      *Remaining:* the per-check list inside the drawer — see the follow-up
+      in § keyboard/review surfaces below.
+- [x] 🔴 **P10** — Edit own comments — **done** in both surfaces; see
+      §5d, and `shift+e` edits the active thread's comment from the keyboard.
+- [x] 🟡 **P11** — View full file at head SHA — **done**, but *not* as a
+      modal: `shift+v` expands the file in place with synthesized head-blob
+      context rows. See § "Full-file context expansion"; the modal approach
+      was tried and dropped 2026-07-15.
 - [ ] 🟡 **P12** — "What's new" card on first launch after
       an update (release notes via Rust command).
 - [ ] 🟢 **Distinct file header** — hard to tell when starting a new file; make
@@ -698,9 +822,11 @@ conflicts with zero-friction product goal).
       highlighting; extend the language map in `highlight.ts`.
 - [ ] 🟡 **Render SVG previews** — SVG files in diffs show raw markup instead
       of a rendered image preview.
-- [ ] 🟢 **Approvals indicator tooltip** — add a tooltip to the approve /
-      changes-requested indicators in the review header (ties to P08) naming
-      who approved.
+- [ ] 🟢 **Approvals indicator tooltip** — the P08 verdict pills carry a
+      native `title` listing reviewers (`review-verdicts.tsx`); convert it to
+      the app-wide `<Tooltip>` component like the rest of the header did.
+- [ ] 🟡 **Per-check list in the drawer** — P09 follow-up: `CiPill` links out
+      to the host's checks page; list the individual checks inline instead.
 - [ ] 🟢 **File tooltip positioning** — the file-path tooltip is centered on
       the row; consider anchoring it near the filename's end instead (keep
       the large click target).
@@ -726,8 +852,8 @@ conflicts with zero-friction product goal).
       also §7 GitHub notifications gate).
 - [ ] 🔴 **P17** — Apply suggestion as commit (GitLab
       native first; GitHub contents-API path second — needs product decision).
-- [ ] 🟢 **P18** — Info drawer wide mode (`shift+i` while
-      open).
+- [x] 🟢 **P18** — Info drawer wide mode — **done**; `shift+i` widens the
+      panel, persisted under `pr-flow:drawerWide`.
 
 ### Anytime — hygiene & design
 
@@ -768,14 +894,23 @@ conflicts with zero-friction product goal).
 
 ### Keyboard, focus & composer UX
 
-- [ ] 🟡 **`Tab` cycles files** — `Tab` should move to the next/previous changed
-      file unless a focused control captures it; today it opens comment reply in
-      some contexts. Reconcile with § layout Code ↔ Info (`Tab`) — may need
-      `shift+Tab` or a different Info toggle once file cycling ships.
+- [x] 🟡 **`Tab` cycles files** — **done**; `Tab` / `shift+Tab` wrap forward
+      and back through changed files (`cycleFile`), and the reply collision is
+      gone — reply moved to `r` ("reply to the active thread, else next file").
+      *Still open:* § layout wants `Tab` for Code ↔ Info, so that toggle needs
+      a different key — decide when the Info tab ships.
 - [ ] 🟡 **Focus comment threads from keyboard** — arrow keys and `f`/`g` should
       be able to focus a comment thread; focused thread activates the reply box
       and shows reply/resolve hints (same as hover). `f`/`g` must not skip the
       inline comment composer when it is open.
+      *Where it stands:* `]c`/`[c` (`goToComment`) already centers a thread
+      **and** sets `activeThreadRef`, which is what `r`/`x`/`z`/`shift+e` act
+      on — so thread "activation" exists. What's missing is (a) threads as
+      stops in the cursor stream: `buildCursorMover` walks `model.nav`, which
+      holds row anchors only, and (b) a visual focused state — outside `]c`,
+      `activeThreadRef` is only ever written by *hover*
+      (`reviewListOnThreadHover`). Decide against P22's selection-vs-focus
+      convention before adding a `tabIndex` here.
 - [x] 🟡 **Composer: suggestions** — shipped with the composer toolbar PR:
       Tab indents / Shift-Tab dedents inside code blocks (caret or whole
       selected lines) instead of flipping the batch/now mode, and
@@ -1104,11 +1239,16 @@ link interception · Universal Links.
       unlike keyboard occurrence stepping, clicking directly on the next
       occurrence when it's only partially in view fails to scroll it into
       frame.
-- [ ] **`f`/`g` scroll offset and line-clipping** — scrolling via `f`/`g`
+- [ ] 🟢 **`f`/`g` scroll offset and line-clipping** — scrolling via `f`/`g`
       should leave ~4 lines of context above the fold instead of landing
       exactly at the bottom edge of the screen; also the scroll doesn't fully
       capture the bottom line (it lands mid-line, cut in half) — it should
       scroll enough that the destination line is always fully visible.
+      *Root cause:* `cursorViewLocation` (`review-list.tsx`) deliberately
+      parks the target flush against the fold — `align: "end", offset: 4`,
+      i.e. a 4 **px** margin, not 4 rows. Both symptoms come from that one
+      branch; `scrollItemToReadingLine` / `READING_LINE_FRACTION` in the same
+      file is the pattern to borrow.
 - [x] **Cursor doesn't follow after `e`** — **done**; every file jump
       (`scrollToFile` — `e`, `r`/`t`, Tab, sidebar, file search) now seeds the
       line cursor on the target file's first nav row, so `f`/`g`/`j`/`k` step

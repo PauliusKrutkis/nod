@@ -176,6 +176,25 @@ const HEADER_FALLBACK_PX = 36;
  */
 const READING_LINE_FRACTION = 1 / 3;
 
+/**
+ * How close to a fold the cursor may sit before a nudge is worth doing. Kept
+ * deliberately tight so `f`/`g`/`n`/`p` stay still whenever the row is already
+ * comfortably in frame — this is the trigger only, never where the row lands.
+ */
+const CURSOR_EDGE_EPSILON_PX = 4;
+
+/**
+ * Rows of breathing room a nudge leaves between the cursor and the fold it was
+ * pushed away from. Landing flush against the edge read as "stuck to the
+ * bottom" with nothing to scan into, and Virtuoso's item geometry is estimated
+ * often enough that flush also meant the destination row arrived sliced in
+ * half; a few rows of slack buys the context and absorbs that error.
+ */
+const CURSOR_CONTEXT_ROWS = 4;
+
+/** Pre-measure fallback for one code row; see codeRowPx. */
+const ROW_FALLBACK_PX = 26;
+
 function glyphFor(status: string): { letter: string; cls: string } {
   switch (status) {
     case "added":
@@ -1029,6 +1048,13 @@ export function ReviewList({
     return el?.offsetHeight ?? HEADER_FALLBACK_PX;
   }
 
+  function codeRowPx(): number {
+    const el = scrollerRef.current?.querySelector<HTMLElement>(
+      ".qf-row:not(.qf-row-hunk)"
+    );
+    return el?.offsetHeight ?? ROW_FALLBACK_PX;
+  }
+
   const cursorViewLocation: CalculateViewLocation = ({
     itemTop,
     itemBottom,
@@ -1036,12 +1062,18 @@ export function ReviewList({
     viewportBottom,
     locationParams: { behavior, align: _align, ...rest },
   }) => {
-    const headerPx = stickyHeaderPx() + 4;
-    if (itemTop < viewportTop + headerPx) {
-      return { ...rest, align: "start", behavior, offset: -headerPx };
+    const headerPx = stickyHeaderPx();
+    const contextPx = codeRowPx() * CURSOR_CONTEXT_ROWS;
+    if (itemTop < viewportTop + headerPx + CURSOR_EDGE_EPSILON_PX) {
+      return {
+        ...rest,
+        align: "start",
+        behavior,
+        offset: -(headerPx + contextPx),
+      };
     }
-    if (itemBottom > viewportBottom - 4) {
-      return { ...rest, align: "end", behavior, offset: 4 };
+    if (itemBottom > viewportBottom - CURSOR_EDGE_EPSILON_PX) {
+      return { ...rest, align: "end", behavior, offset: contextPx };
     }
     return null;
   };
