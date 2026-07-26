@@ -1,3 +1,7 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
 # esbuild's install script fetches its platform binary; vite cannot build
 # without it. Every other dependency stays script-less by omission.
 allowBuilds:
