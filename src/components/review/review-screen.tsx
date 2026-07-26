@@ -1,3 +1,13 @@
+/**
+ * `scrollToFile` (in `useReviewFileNavigation`) is the single entry point
+ * every file jump routes through — `e`, `r`/`t`, Tab, the sidebar, and the
+ * file search all call it. It also seeds the line cursor on the target
+ * file's first nav row, because everything the cursor drives afterwards
+ * (`f`/`g`, `j`/`k`, `c`, selection) steps from wherever the cursor is, and
+ * leaving it on the file just left makes those keys act on the wrong file.
+ * Files with no nav rows (image, binary, fully collapsed) keep the previous
+ * cursor rather than clearing it.
+ */
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   ArrowDown,
@@ -2182,6 +2192,11 @@ function useReviewFileNavigation(args: {
     args.setOccSpec(null);
     args.setSelection(null);
     args.listRef.current?.scrollToFileStart(target);
+    const entry = args.modelRef.current.nav.find((n) => n.fileIndex === target);
+    if (entry) {
+      markKeyboardNavigation(args);
+      args.setCursor({ anchor: entry.anchor, fileIndex: entry.fileIndex });
+    }
   };
 
   const fileDeltaRef = useRef(0);
@@ -2273,17 +2288,6 @@ function useReviewFileNavigation(args: {
     );
   };
 
-  const selectFileFromSearch = (fileIndex: number) => {
-    scrollToFile(fileIndex);
-    const entry = args.modelRef.current.nav.find(
-      (n) => n.fileIndex === fileIndex
-    );
-    if (entry) {
-      markKeyboardNavigation(args);
-      args.setCursor({ anchor: entry.anchor, fileIndex: entry.fileIndex });
-    }
-  };
-
   return {
     commentAtCursor,
     cycleFile,
@@ -2294,8 +2298,30 @@ function useReviewFileNavigation(args: {
     pageScroll,
     prevFile,
     scrollToFile,
-    selectFileFromSearch,
   };
+}
+
+/**
+ * Where `e` should land after marking the file at `from` viewed: the next file
+ * the reviewer still has to review, walking forward and wrapping past the end
+ * of the list — files get skipped over by the sidebar, `mod+p` file search and
+ * `r`/`t`, so unreviewed work is not always ahead of you. `from` is never a
+ * candidate (it was just marked), so `e` can't bounce in place. `null` when
+ * nothing is left: `e` then stays put instead of parking the reviewer on an
+ * already-viewed file, where another `e` would silently unmark it.
+ */
+function nextUnviewedFileIndex(
+  files: readonly ChangedFile[],
+  viewedSet: ReadonlySet<string>,
+  from: number
+): number | null {
+  for (let step = 1; step < files.length; step += 1) {
+    const index = (from + step) % files.length;
+    if (!viewedSet.has(files[index].filename)) {
+      return index;
+    }
+  }
+  return null;
 }
 
 function useReviewSubmitActions(args: {
@@ -2334,15 +2360,14 @@ function useReviewSubmitActions(args: {
     if (wasViewed) {
       return;
     }
-    const from = args.activeIndexRef.current;
-    let target = from + 1;
-    for (let i = from + 1; i < args.files.length; i += 1) {
-      if (!args.viewedSet.has(args.files[i].filename)) {
-        target = i;
-        break;
-      }
+    const target = nextUnviewedFileIndex(
+      args.files,
+      args.viewedSet,
+      args.activeIndexRef.current
+    );
+    if (target !== null) {
+      args.scrollToFile(target);
     }
-    args.scrollToFile(target);
   };
 
   const copyLink = () => {
@@ -2842,7 +2867,6 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     pageScroll,
     prevFile,
     scrollToFile,
-    selectFileFromSearch,
   } = useReviewFileNavigation({
     activeIndexRef,
     cursorMoverRefs,
@@ -3367,7 +3391,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
         files={files}
         mode={prSearch ?? "files"}
         onClose={onClosePrSearch}
-        onSelectFile={selectFileFromSearch}
+        onSelectFile={scrollToFile}
         onSelectLine={selectLine}
         open={prSearch !== null}
       />

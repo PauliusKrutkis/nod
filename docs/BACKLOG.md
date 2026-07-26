@@ -787,15 +787,10 @@ only format the in-app updater touches.
       `f` / `g` (Fast down/up) cover jumping through the diff.
 - [x] 🟢 **P07** — Restore archived (`e`-archived) inbox
       PRs — **done** (archived view toggle + restore).
-- [ ] 🟢 **`e` skips viewed files** — the forward half **already shipped** in
-      `a98b9c2` (2026-07-15); the checkbox was never ticked.
-      `markViewedAndNext` walks forward to the next unviewed file, covered by
-      `e2e/viewed.spec.ts`. What remains is the fallback: when nothing ahead
-      is unviewed, `target` stays `from + 1` — an already-viewed file — and
-      pressing `e` there hits `wasViewed → toggleViewedWithFp() → return`,
-      i.e. it **un-marks** it. So leaning on `e` near the end of a PR
-      silently un-ticks files you already reviewed. Needs a circular walk
-      plus a stay-put terminal state.
+- [x] 🟢 **`e` skips viewed files** — **done**; `e` walks forward to the next
+      unviewed file, wraps past the end to pick up files skipped earlier, and
+      stays put once every file is viewed instead of parking on a viewed file
+      where the next `e` would unmark it (`review-screen.tsx`).
 - [ ] 🟢 **Pending comment discard hotkey** — keyboard shortcut for discard;
       improve discard button visibility (border/contrast is too subtle today).
 - [x] 🟢 **Go to next/previous comment** — **done**; `]c` / `[c` bound in the
@@ -1254,10 +1249,10 @@ link interception · Universal Links.
       i.e. a 4 **px** margin, not 4 rows. Both symptoms come from that one
       branch; `scrollItemToReadingLine` / `READING_LINE_FRACTION` in the same
       file is the pattern to borrow.
-- [ ] **Cursor doesn't follow after `e`** — pressing `e` advances to the next
-      file/page, but the cursor position doesn't move with it, so pressing
-      `f` afterward scrolls from the previous file's old cursor position
-      instead of the new file.
+- [x] **Cursor doesn't follow after `e`** — **done**; every file jump
+      (`scrollToFile` — `e`, `r`/`t`, Tab, sidebar, file search) now seeds the
+      line cursor on the target file's first nav row, so `f`/`g`/`j`/`k` step
+      inside the file you landed on.
 - [ ] **Merge button in PR view** — add a way to merge the PR directly from
       the review screen instead of switching to GitHub/GitLab.
 - [ ] **Multi-line comment highlighting still broken in full-file view** —

@@ -61,6 +61,46 @@ test("f and g fast-move the cursor without scrolling when still in view", async 
   await expect(active).toHaveAttribute("data-anchor", anchor0 ?? "");
 });
 
+test("e carries the line cursor to the file it advances to", async ({
+  page,
+}) => {
+  const active = page.locator(".qf-row-active");
+
+  await page.keyboard.press("j");
+  await expect(active).toHaveAttribute("data-file-index", "0");
+
+  await page.keyboard.press("e");
+  await expect(page.locator(".qf-file-active")).toHaveAttribute(
+    "data-file-index",
+    "1"
+  );
+  await expect(active).toHaveAttribute("data-file-index", "1");
+  await expect(active).toHaveAttribute("data-anchor", "RIGHT:1");
+  await page.screenshot({ path: "evidence/cursorfollow-after-e.png" });
+});
+
+test("after a file jump, f steps inside the file the cursor landed on", async ({
+  page,
+}) => {
+  const active = page.locator(".qf-row-active");
+
+  await page.keyboard.press("j");
+  await page.keyboard.press("r");
+  await expect(active).toHaveAttribute("data-file-index", "1");
+
+  await page.keyboard.press("r");
+  await expect(active).toHaveAttribute("data-file-index", "2");
+  const landed = await active.getAttribute("data-anchor");
+
+  await page.keyboard.press("f");
+  await expect(active).toHaveAttribute("data-file-index", "2");
+  await expect(active).not.toHaveAttribute("data-anchor", landed ?? "");
+  await page.screenshot({ path: "evidence/cursorfollow-f-after-jump.png" });
+
+  await page.keyboard.press("t");
+  await expect(active).toHaveAttribute("data-file-index", "1");
+});
+
 test("c opens the composer; adding batches a pending card", async ({
   page,
 }) => {
