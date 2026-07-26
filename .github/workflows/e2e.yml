@@ -12,13 +12,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile --trust-lockfile
       - name: Install Playwright browsers
         # webkit runs the perf specs (playwright.config.ts webkit-perf): the
         # app ships on Tauri's WebKitGTK, and Chromium-only budgets can pass
