@@ -2300,6 +2300,29 @@ function useReviewFileNavigation(args: {
   };
 }
 
+/**
+ * Where `e` should land after marking the file at `from` viewed: the next file
+ * the reviewer still has to review, walking forward and wrapping past the end
+ * of the list — files get skipped over by the sidebar, `mod+p` file search and
+ * `r`/`t`, so unreviewed work is not always ahead of you. `from` is never a
+ * candidate (it was just marked), so `e` can't bounce in place. `null` when
+ * nothing is left: `e` then stays put instead of parking the reviewer on an
+ * already-viewed file, where another `e` would silently unmark it.
+ */
+function nextUnviewedFileIndex(
+  files: readonly ChangedFile[],
+  viewedSet: ReadonlySet<string>,
+  from: number
+): number | null {
+  for (let step = 1; step < files.length; step += 1) {
+    const index = (from + step) % files.length;
+    if (!viewedSet.has(files[index].filename)) {
+      return index;
+    }
+  }
+  return null;
+}
+
 function useReviewSubmitActions(args: {
   activeFile: ChangedFile | undefined;
   activeIndexRef: React.RefObject<number>;
@@ -2336,15 +2359,14 @@ function useReviewSubmitActions(args: {
     if (wasViewed) {
       return;
     }
-    const from = args.activeIndexRef.current;
-    let target = from + 1;
-    for (let i = from + 1; i < args.files.length; i += 1) {
-      if (!args.viewedSet.has(args.files[i].filename)) {
-        target = i;
-        break;
-      }
+    const target = nextUnviewedFileIndex(
+      args.files,
+      args.viewedSet,
+      args.activeIndexRef.current
+    );
+    if (target !== null) {
+      args.scrollToFile(target);
     }
-    args.scrollToFile(target);
   };
 
   const copyLink = () => {

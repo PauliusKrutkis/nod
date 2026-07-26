@@ -671,9 +671,10 @@ conflicts with zero-friction product goal).
       `f` / `g` (Fast down/up) cover jumping through the diff.
 - [x] 🟢 **P07** — Restore archived (`e`-archived) inbox
       PRs — **done** (archived view toggle + restore).
-- [ ] 🟢 **`e` skips viewed files** — when marking viewed + next, jump to the
-      next *unviewed* file instead of blindly advancing (next may already be
-      viewed).
+- [x] 🟢 **`e` skips viewed files** — **done**; `e` walks forward to the next
+      unviewed file, wraps past the end to pick up files skipped earlier, and
+      stays put once every file is viewed instead of parking on a viewed file
+      where the next `e` would unmark it (`review-screen.tsx`).
 - [ ] 🟢 **Pending comment discard hotkey** — keyboard shortcut for discard;
       improve discard button visibility (border/contrast is too subtle today).
 - [x] 🟢 **Go to next/previous comment** — **done**; `]c` / `[c` bound in the
