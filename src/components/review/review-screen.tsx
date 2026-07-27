@@ -211,7 +211,6 @@ function applyLineSelection(args: {
   fileIndex: number;
   flashKey: string;
   setActiveIndex: React.Dispatch<React.SetStateAction<number>>;
-  setCommentIndex: React.Dispatch<React.SetStateAction<number>>;
   setCursor: React.Dispatch<React.SetStateAction<CursorPos | null>>;
   setFlashKey: React.Dispatch<React.SetStateAction<string | null>>;
   setInputMode: React.Dispatch<React.SetStateAction<"keyboard" | "mouse">>;
@@ -219,7 +218,6 @@ function applyLineSelection(args: {
 }) {
   const { anchor, clearOccurrences, fileIndex, flashKey } = args;
   args.setActiveIndex((cur) => (cur === fileIndex ? cur : fileIndex));
-  args.setCommentIndex((cur) => (cur === 0 ? cur : 0));
   if (clearOccurrences) {
     args.setOccSpec((cur) => (cur === null ? cur : null));
   }
@@ -1772,14 +1770,14 @@ function useReviewHotkeys(config: {
       description: "Next comment",
       group: "Comments",
       icon: MessageSquare,
-      keys: "]c",
+      keys: "q",
       run: () => config.goToComment(1),
     },
     {
       description: "Previous comment",
       group: "Comments",
       icon: MessageSquare,
-      keys: "[c",
+      keys: "w",
       run: () => config.goToComment(-1),
     },
     {
@@ -2007,11 +2005,54 @@ function flashCommentThread(
   requestAnimationFrame(land);
 }
 
+/**
+ * The thread `r`/`x`/`z`/`shift+e` should act on once the cursor is at
+ * `itemIndex` — the block's first thread, or null when it holds only a pending
+ * comment or an open composer. Shared by every path that moves the cursor onto
+ * a comment block so keyboard nav and `q`/`w` cannot arm different things.
+ */
+function armedThreadAt(
+  m: ReviewListModel,
+  files: ChangedFile[],
+  itemIndex: number
+): { rootId: number; path: string } | null {
+  const item = m.items[itemIndex];
+  if (item?.kind !== "comments" || item.threads.length === 0) {
+    return null;
+  }
+  return {
+    path: files[item.fileIndex]?.filename ?? "",
+    rootId: item.threads[0][0].id,
+  };
+}
+
+/**
+ * The comment block `q`/`w` should land on: the nearest one after (or before)
+ * the cursor's own position in the item stream, wrapping at the ends. Derived
+ * from the cursor rather than a running index, so the cycle always continues
+ * from where you are — jumping files or running a find no longer restarts it
+ * at the first comment in the PR.
+ */
+function nextCommentItem(
+  m: ReviewListModel,
+  fromItem: number,
+  delta: number
+): number | undefined {
+  const list = m.commentItems;
+  if (list.length === 0) {
+    return undefined;
+  }
+  if (delta > 0) {
+    return list.find((i) => i > fromItem) ?? list[0];
+  }
+  return [...list].reverse().find((i) => i < fromItem) ?? list.at(-1);
+}
+
 function useReviewThreadActions(args: {
   activeIndexRef: React.RefObject<number>;
   activeThreadRef: React.RefObject<{ rootId: number; path: string } | null>;
-  commentIndex: number;
   commentsRef: React.RefObject<ReviewComment[]>;
+  cursorRef: React.RefObject<CursorPos | null>;
   editNonceRef: React.RefObject<number>;
   filesRef: React.RefObject<ChangedFile[]>;
   listRef: React.RefObject<ReviewListHandle | null>;
@@ -2022,7 +2063,7 @@ function useReviewThreadActions(args: {
     typeof useCommentMutations
   >["requestResolveThread"];
   setActiveIndex: React.Dispatch<React.SetStateAction<number>>;
-  setCommentIndex: React.Dispatch<React.SetStateAction<number>>;
+  setCursor: React.Dispatch<React.SetStateAction<CursorPos | null>>;
   setEditReq: React.Dispatch<
     React.SetStateAction<{
       rootId: number;
@@ -2030,6 +2071,7 @@ function useReviewThreadActions(args: {
       nonce: number;
     } | null>
   >;
+  setInputMode: React.Dispatch<React.SetStateAction<"keyboard" | "mouse">>;
   setReplyReq: React.Dispatch<
     React.SetStateAction<{
       rootId: number;
@@ -2077,22 +2119,34 @@ function useReviewThreadActions(args: {
   };
 
   const goToComment = (delta: number) => {
-    const list = args.modelRef.current.commentItems;
-    if (list.length === 0) {
+    const m = args.modelRef.current;
+    const cur = args.cursorRef.current;
+    const curNav = cur
+      ? m.navIndexOf.get(navKey(cur.fileIndex, cur.anchor, cur.kind))
+      : undefined;
+    const fromItem = curNav === undefined ? -1 : m.nav[curNav].itemIndex;
+    const target = nextCommentItem(m, fromItem, delta);
+    if (target === undefined) {
       return;
     }
-    const next = (args.commentIndex + delta + list.length) % list.length;
-    args.setCommentIndex(next);
-    args.listRef.current?.centerItem(list[next]);
-
-    const item = args.modelRef.current.items[list[next]];
-    args.activeThreadRef.current =
-      item?.kind === "comments" && item.threads.length > 0
-        ? {
-            path: args.filesRef.current[item.fileIndex]?.filename ?? "",
-            rootId: item.threads[0][0].id,
-          }
-        : null;
+    const item = m.items[target];
+    if (item?.kind !== "comments") {
+      return;
+    }
+    args.setInputMode("keyboard");
+    args.setActiveIndex(item.fileIndex);
+    args.activeIndexRef.current = item.fileIndex;
+    args.setCursor({
+      anchor: item.anchor,
+      fileIndex: item.fileIndex,
+      kind: "comments",
+    });
+    args.listRef.current?.centerItem(target);
+    args.activeThreadRef.current = armedThreadAt(
+      m,
+      args.filesRef.current,
+      target
+    );
   };
 
   const replyToActiveThreadOrNextFile = () => {
@@ -2351,7 +2405,6 @@ function useReviewFileNavigation(args: {
   persistFileIndex: (index: number) => void;
   selectionRef: React.RefObject<LineSelection | null>;
   setActiveIndex: React.Dispatch<React.SetStateAction<number>>;
-  setCommentIndex: React.Dispatch<React.SetStateAction<number>>;
   setCursor: React.Dispatch<React.SetStateAction<CursorPos | null>>;
   setInputMode: React.Dispatch<React.SetStateAction<"keyboard" | "mouse">>;
   setOccSpec: (next: OccState | null) => void;
@@ -2366,7 +2419,6 @@ function useReviewFileNavigation(args: {
     args.setActiveIndex(target);
     syncActiveIndexRef(args.activeIndexRef, target);
     args.persistFileIndex(target);
-    args.setCommentIndex(0);
     args.setOccSpec(null);
     args.setSelection(null);
     args.listRef.current?.scrollToFileStart(target);
@@ -2661,7 +2713,6 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const sidebarOverlayOpen = sidebarCompact && sidebarOpen;
   const sidebarOverlayOpenRef = useLatest(sidebarOverlayOpen);
   const [drawerWide, setDrawerWide] = useState(readDrawerWide);
-  const [commentIndex, setCommentIndex] = useState(0);
   const [submitOpen, setSubmitOpen] = useState(false);
   const [prSearch, setPrSearch] = useState<null | "files" | "text">(null);
   const [reconcileDismissed, setReconcileDismissed] = useState<Set<string>>(
@@ -2913,7 +2964,6 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
       fileIndex,
       flashKey: key,
       setActiveIndex,
-      setCommentIndex,
       setCursor,
       setFlashKey,
       setInputMode,
@@ -3066,7 +3116,6 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     persistFileIndex,
     selectionRef,
     setActiveIndex,
-    setCommentIndex,
     setCursor,
     setInputMode,
     setOccSpec,
@@ -3177,8 +3226,8 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   } = useReviewThreadActions({
     activeIndexRef,
     activeThreadRef,
-    commentIndex,
     commentsRef,
+    cursorRef,
     editNonceRef,
     filesRef,
     listRef,
@@ -3187,8 +3236,9 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     replyNonceRef,
     requestResolveThread,
     setActiveIndex,
-    setCommentIndex,
+    setCursor,
     setEditReq,
+    setInputMode,
     setReplyReq,
     setRightOpen,
     setToggleReq,
@@ -3621,14 +3671,11 @@ function buildCursorMover(refs: {
     });
     refs.setActiveIndex(entry.fileIndex);
     refs.activeIndexRef.current = entry.fileIndex; // eager — see scrollToFile
-    const item = refs.modelRef.current.items[entry.itemIndex];
-    refs.activeThreadRef.current =
-      item?.kind === "comments" && item.threads.length > 0
-        ? {
-            path: refs.filesRef.current[entry.fileIndex]?.filename ?? "",
-            rootId: item.threads[0][0].id,
-          }
-        : null;
+    refs.activeThreadRef.current = armedThreadAt(
+      refs.modelRef.current,
+      refs.filesRef.current,
+      entry.itemIndex
+    );
   };
   const flush = () => {
     refs.cursorRafRef.current = null;

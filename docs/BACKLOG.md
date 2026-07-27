@@ -351,7 +351,7 @@ hotkey collapses.
 | **`e`** / **`v`** | Mark viewed + next · toggle file viewed |
 | **`shift+v`** | Expand full file ↔ diff only |
 | **`b`** | Toggle file tree |
-| **`]c`** / **`[c`** | Next / prev comment thread |
+| **`q`** / **`w`** | Next / prev comment thread |
 | **`c`** / **`shift+c`** | Comment on the cursor line / on the PR |
 | **`x`** / **`shift+e`** / **`z`** | Resolve · edit your comment · expand/collapse thread |
 | **`i`** / **`shift+i`** | Toggle info panel / widen it |
@@ -422,7 +422,7 @@ Inline → Code view. PR-level → Info tab + badge. ⏸ Conversation mode.
       from the diff view.
 
 - [x] 🟢 Thread hotkeys — `r` reply / `x` resolve on the hovered or
-      `]c`-focused thread; hints fade in on the thread's own action buttons.
+      `q`-focused thread; hints fade in on the thread's own action buttons.
 - [x] 🟢 Composer hint-bar toolbar — every entry is a clickable hotkey hint,
       not GitHub's 14-icon strip. (First shipped as markdown-symbol wrapping +
       ⌘⇧P preview; superseded days later by the rich composer below after
@@ -797,7 +797,7 @@ only format the in-app updater touches.
       where the next `e` would unmark it (`review-screen.tsx`).
 - [ ] 🟢 **Pending comment discard hotkey** — keyboard shortcut for discard;
       improve discard button visibility (border/contrast is too subtle today).
-- [x] 🟢 **Go to next/previous comment** — **done**; `]c` / `[c` bound in the
+- [x] 🟢 **Go to next/previous comment** — **done**; `q` / `w` bound in the
       Comments group (`review-screen.tsx`).
 
 ### Wave 3 — review surfaces
@@ -939,6 +939,22 @@ only format the in-app updater touches.
       selection-model surface, so no `tabIndex` was added and the state keeps
       its existing name (`activeThreadRef`). This resolves the P22 question the
       entry used to defer — the answer is "don't add one".
+      *Also folded in:* `goToComment` used to center a thread and arm it while
+      leaving the line cursor behind, so the next `j` jumped from somewhere
+      else entirely and the thread never painted. It now places the cursor on
+      the block like every other navigation path, and derives its position from
+      the cursor instead of a running `commentIndex` — which deletes that state
+      and fixes the old quirk where jumping files or running a find restarted
+      the cycle at the first comment in the PR.
+- [x] 🟢 **Comment nav moved to `q` / `w`** — was `]c` / `[c`, the only
+      navigation verb in the app that was a two-key chord, borrowing a vim
+      idiom that means *next hunk* (which is what `f`/`g` does here) and
+      needing AltGr on most non-US layouts. `q`/`w` is a free adjacent pair
+      following the app's unwritten convention: left key forward, right key
+      back, same as `f`/`g` and `r`/`t`. *Fallout:* with no two-key binding
+      left, the keycap splitter in `ui/kbd.tsx` was dead — and its only
+      remaining effect was mis-rendering `f3` as two caps (`F` `3`), since
+      `f3` is not in `NAMED`. Removed, which fixes that.
 - [ ] 🟡 **`f`/`g` clamps on conversations** — PR 2 of 2. `f`/`g` is
       `move(±FAST_CURSOR_STEP)` (a fixed 5-entry hop), not a semantic jump, so
       threads being nav stops is *not* enough — a fast jump still flies over
