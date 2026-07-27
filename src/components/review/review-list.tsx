@@ -81,7 +81,7 @@ export interface ReviewListHandle {
   } | null;
   firstVisibleRowItem: () => number | null;
   getState: (cb: (state: StateSnapshot) => void) => void;
-  nudgeItemIntoView: (itemIndex: number, marginRows?: number) => void;
+  nudgeItemIntoView: (itemIndex: number) => void;
   scroller: () => HTMLElement | null;
   scrollItemTo: (itemIndex: number, topPx: number) => void;
   scrollItemToReadingLine: (itemIndex: number) => void;
@@ -175,6 +175,25 @@ const HEADER_FALLBACK_PX = 36;
  * below the line, which is the point of expanding). See useExpansionScrollRestore.
  */
 const READING_LINE_FRACTION = 1 / 3;
+
+/**
+ * How close to a fold the cursor may sit before a nudge is worth doing. Kept
+ * deliberately tight so `f`/`g`/`n`/`p` stay still whenever the row is already
+ * comfortably in frame — this is the trigger only, never where the row lands.
+ */
+const CURSOR_EDGE_EPSILON_PX = 4;
+
+/**
+ * Rows of breathing room a nudge leaves between the cursor and the fold it was
+ * pushed away from. Landing flush against the edge read as "stuck to the
+ * bottom" with nothing to scan into, and Virtuoso's item geometry is estimated
+ * often enough that flush also meant the destination row arrived sliced in
+ * half; a few rows of slack buys the context and absorbs that error.
+ */
+const CURSOR_CONTEXT_ROWS = 4;
+
+/** Pre-measure fallback for one code row; see codeRowPx. */
+const ROW_FALLBACK_PX = 26;
 
 function glyphFor(status: string): { letter: string; cls: string } {
   switch (status) {
@@ -1029,30 +1048,35 @@ export function ReviewList({
     return el?.offsetHeight ?? HEADER_FALLBACK_PX;
   }
 
-  const cursorViewLocation =
-    (marginRows: number): CalculateViewLocation =>
-    ({
-      itemTop,
-      itemBottom,
-      viewportTop,
-      viewportBottom,
-      locationParams: { behavior, align: _align, ...rest },
-    }) => {
-      const headerPx = stickyHeaderPx() + 4;
-      const marginPx = marginRows * (itemBottom - itemTop);
-      if (itemTop < viewportTop + headerPx) {
-        return {
-          ...rest,
-          align: "start",
-          behavior,
-          offset: -(headerPx + marginPx),
-        };
-      }
-      if (itemBottom > viewportBottom - 4) {
-        return { ...rest, align: "end", behavior, offset: 4 + marginPx };
-      }
-      return null;
-    };
+  function codeRowPx(): number {
+    const el = scrollerRef.current?.querySelector<HTMLElement>(
+      ".qf-row:not(.qf-row-hunk)"
+    );
+    return el?.offsetHeight ?? ROW_FALLBACK_PX;
+  }
+
+  const cursorViewLocation: CalculateViewLocation = ({
+    itemTop,
+    itemBottom,
+    viewportTop,
+    viewportBottom,
+    locationParams: { behavior, align: _align, ...rest },
+  }) => {
+    const headerPx = stickyHeaderPx();
+    const contextPx = codeRowPx() * CURSOR_CONTEXT_ROWS;
+    if (itemTop < viewportTop + headerPx + CURSOR_EDGE_EPSILON_PX) {
+      return {
+        ...rest,
+        align: "start",
+        behavior,
+        offset: -(headerPx + contextPx),
+      };
+    }
+    if (itemBottom > viewportBottom - CURSOR_EDGE_EPSILON_PX) {
+      return { ...rest, align: "end", behavior, offset: contextPx };
+    }
+    return null;
+  };
 
   useImperativeHandle(
     ref,
@@ -1108,17 +1132,9 @@ export function ReviewList({
       getState(cb) {
         vRef.current?.getState(cb);
       },
-      /**
-       * Bring `itemIndex` into frame only if it isn't already, leaving
-       * `marginRows` of its own height as breathing room at whichever edge it
-       * came in from. Stepping gestures (j/k, shift+j/k) pass no margin: a row
-       * at a time should scroll a row at a time, and slack would turn that into
-       * jerky multi-row hops. Jumps that land from elsewhere in the file want
-       * the context — see JUMP_SCROLL_MARGIN_ROWS in review-screen.tsx.
-       */
-      nudgeItemIntoView(itemIndex, marginRows = 0) {
+      nudgeItemIntoView(itemIndex) {
         vRef.current?.scrollIntoView({
-          calculateViewLocation: cursorViewLocation(marginRows),
+          calculateViewLocation: cursorViewLocation,
           index: itemIndex,
         });
       },
