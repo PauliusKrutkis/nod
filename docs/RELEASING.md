@@ -259,11 +259,19 @@ pnpm --filter @nod/web run typecheck:functions
   version of this took a bare github_id, which is public — anyone could
   have minted themselves a signed license token for any known customer's
   account with zero proof of purchase. The webhook now also stores a
-  single-use `order_id → github_id` index (`putOrderIndex`/`consumeOrderIndex`
-  in `functions/lib/kv.ts`); `/activate` consumes it, so an activation link
-  only works once and only if you have the opaque order id, not just a
-  username. Which query param Polar's actual checkout success URL templates
+  single-use `order_id → github_id` index (`putOrderIndex` / `getOrderIndex`
+  / `deleteOrderIndex` in `functions/lib/kv.ts`); `/activate` deletes it once
+  it has signed a token, so an activation link only works once and only if
+  you have the opaque order id, not just a username. Which query param Polar's actual checkout success URL templates
   in is still to be confirmed once an account exists.
+
+- **Repeat purchases reset the term, they don't extend it.** The webhook
+  writes `updatesUntil = now + 1 year` on every `order.paid`, so a customer
+  who buys a second time before their first year is up loses the remainder
+  rather than stacking it. Fine while there is no renewal flow — worth
+  revisiting the moment one exists, since "buy early, lose time" is a bad
+  surprise. The fix is to read the existing record and take
+  `max(existing.updatesUntil, now) + 1 year`.
 
 **Required secrets** (not in the repo, set via `wrangler pages secret put`
 or the Cloudflare dashboard once an account exists): `POLAR_WEBHOOK_SECRET`,

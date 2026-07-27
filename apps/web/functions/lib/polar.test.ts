@@ -15,35 +15,56 @@ function sign(webhookSecret: string, msgId: string, payload: string) {
 }
 
 describe("polar webhook verification", () => {
-  it("accepts a validly signed order.paid event and extracts the github id", async () => {
-    const event = { type: "order.paid", data: { id: "order_1", metadata: { github_id: "42" } } };
+  it("accepts a validly signed order.paid event and extracts the github id", () => {
+    const event = {
+      type: "order.paid",
+      data: { id: "order_1", metadata: { github_id: "42" } },
+    };
     const payload = JSON.stringify(event);
     const headers = sign(secret, "msg_1", payload);
 
-    const verified = await verifyPolarWebhook(payload, headers, secret);
+    const result = verifyPolarWebhook(payload, headers, secret);
 
-    expect(isOrderPaidEvent(verified)).toBe(true);
-    if (isOrderPaidEvent(verified)) {
-      expect(extractGithubId(verified)).toBe("42");
+    expect(result.verified).toBe(true);
+    if (result.verified) {
+      expect(isOrderPaidEvent(result.event)).toBe(true);
+      if (isOrderPaidEvent(result.event)) {
+        expect(extractGithubId(result.event)).toBe("42");
+      }
     }
   });
 
-  it("rejects a payload signed with a different secret", async () => {
-    const payload = JSON.stringify({ type: "order.paid", data: { id: "order_1" } });
+  it("rejects a payload signed with a different secret", () => {
+    const payload = JSON.stringify({
+      type: "order.paid",
+      data: { id: "order_1" },
+    });
     const headers = sign(`whsec_${btoa("wrong-secret")}`, "msg_2", payload);
 
-    expect(await verifyPolarWebhook(payload, headers, secret)).toBeNull();
+    expect(verifyPolarWebhook(payload, headers, secret)).toEqual({
+      verified: false,
+    });
   });
 
-  it("rejects a payload tampered with after signing", async () => {
-    const original = JSON.stringify({ type: "order.paid", data: { id: "order_1" } });
+  it("rejects a payload tampered with after signing", () => {
+    const original = JSON.stringify({
+      type: "order.paid",
+      data: { id: "order_1" },
+    });
     const headers = sign(secret, "msg_3", original);
-    const tampered = JSON.stringify({ type: "order.paid", data: { id: "order_evil" } });
+    const tampered = JSON.stringify({
+      type: "order.paid",
+      data: { id: "order_evil" },
+    });
 
-    expect(await verifyPolarWebhook(tampered, headers, secret)).toBeNull();
+    expect(verifyPolarWebhook(tampered, headers, secret)).toEqual({
+      verified: false,
+    });
   });
 
   it("ignores event types other than order.paid", () => {
-    expect(isOrderPaidEvent({ type: "checkout.updated", data: {} })).toBe(false);
+    expect(isOrderPaidEvent({ type: "checkout.updated", data: {} })).toBe(
+      false
+    );
   });
 });

@@ -6,7 +6,9 @@
 import type { Env } from "../lib/env";
 import { getLicense } from "../lib/kv";
 
-export const onRequestGet: PagesFunction<Env, "github_id"> = async (context) => {
+export const onRequestGet: PagesFunction<Env, "github_id"> = async (
+  context
+) => {
   const { github_id: param } = context.params;
   const githubId = Array.isArray(param) ? param[0] : param;
   if (!githubId) {

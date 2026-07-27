@@ -4,6 +4,11 @@
  * minisign chain (see docs/RELEASING.md). The signing seed is a Worker
  * secret; the public key ships embedded in the desktop app once that slice
  * lands.
+ *
+ * verifyLicenseToken takes attacker-controlled input and never throws — every
+ * malformed shape (bad base64, non-object JSON, a signature that isn't 64
+ * bytes of hex) returns null. Tokens are base64url over UTF-8 bytes rather
+ * than btoa(string), which throws on any code point above U+00FF.
  */
 import { signAsync, verifyAsync } from "@noble/ed25519";
 
@@ -35,25 +40,42 @@ function hexToBytes(hex: string): Uint8Array {
 }
 
 function bytesToHex(bytes: Uint8Array): string {
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
+    ""
+  );
 }
 
 function base64UrlEncode(input: string): string {
-  return btoa(input).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+  const bytes = new TextEncoder().encode(input);
+  const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join(
+    ""
+  );
+  return btoa(binary)
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replaceAll("=", "");
 }
 
 function base64UrlDecode(input: string): string {
   const padded = input.replaceAll("-", "+").replaceAll("_", "/");
   const padLength = padded.length % 4 === 0 ? 0 : 4 - (padded.length % 4);
-  return atob(padded + "=".repeat(padLength));
+  const binary = atob(padded + "=".repeat(padLength));
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
 }
 
 export async function signLicenseToken(
   payload: LicensePayload,
   signingSeedHex: string
 ): Promise<string> {
-  const signature = await signAsync(canonicalBytes(payload), hexToBytes(signingSeedHex));
-  const token: SignedLicenseToken = { ...payload, signature: bytesToHex(signature) };
+  const signature = await signAsync(
+    canonicalBytes(payload),
+    hexToBytes(signingSeedHex)
+  );
+  const token: SignedLicenseToken = {
+    ...payload,
+    signature: bytesToHex(signature),
+  };
   return base64UrlEncode(JSON.stringify(token));
 }
 
@@ -74,10 +96,14 @@ export async function verifyLicenseToken(
   if (!signature) {
     return null;
   }
-  const valid = await verifyAsync(
-    hexToBytes(signature),
-    canonicalBytes(payload),
-    hexToBytes(publicKeyHex)
-  );
-  return valid ? payload : null;
+  try {
+    const valid = await verifyAsync(
+      hexToBytes(signature),
+      canonicalBytes(payload),
+      hexToBytes(publicKeyHex)
+    );
+    return valid ? payload : null;
+  } catch {
+    return null;
+  }
 }
