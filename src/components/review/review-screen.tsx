@@ -1021,6 +1021,10 @@ interface ReviewListCallbackArgs {
     toItem: number;
   } | null>;
   modelRef: React.RefObject<ReviewListModel>;
+  pendingBoxNudgeRef: React.RefObject<{
+    fileIndex: number;
+    anchor: string;
+  } | null>;
   removePendingStore: (key: string, id: string) => void;
   toggleExpand: (fileIndex: number) => void;
   reply: ReturnType<typeof useCommentMutations>["reply"];
@@ -1163,6 +1167,7 @@ function reviewListOnOpenBox(
   anchor: string,
   startLine?: number
 ): void {
+  args.pendingBoxNudgeRef.current = { anchor, fileIndex };
   args.setOpenBoxes((prev) =>
     new Map(prev).set(fileAnchorKey(fileIndex, anchor), startLine ?? null)
   );
@@ -2769,6 +2774,10 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const toggleNonceRef = useRef(0);
   const editNonceRef = useRef(0);
   const threadFlashRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingBoxNudgeRef = useRef<{
+    fileIndex: number;
+    anchor: string;
+  } | null>(null);
 
   const activeThreadRef = useRef<{ rootId: number; path: string } | null>(null);
   const keyboardHoldRef = useRef(false);
@@ -2879,6 +2888,32 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     pendingByFile,
   });
   const modelRef = useLatest(model);
+
+  /**
+   * A freshly opened comment box can render partly (or fully) below the
+   * viewport on a short screen — nudge it into view the moment the model
+   * that contains it has been built, same easing `nudgeItemIntoView` already
+   * uses for keyboard row navigation (a no-op if it's already visible, and
+   * instant — no scroll animation).
+   */
+  // Reads the fresh `model` built earlier in this render; model isn't
+  // memoized, so listing it would rerun this every render. openBoxes is the
+  // actual gate — it only changes when a box opens or closes.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: see above
+  useLayoutEffect(() => {
+    const pending = pendingBoxNudgeRef.current;
+    if (!pending) {
+      return;
+    }
+    pendingBoxNudgeRef.current = null;
+    const navIdx = model.navIndexOf.get(
+      navKey(pending.fileIndex, pending.anchor, "comments")
+    );
+    if (navIdx === undefined) {
+      return;
+    }
+    listRef.current?.nudgeItemIntoView(model.nav[navIdx].itemIndex);
+  }, [openBoxes]);
 
   /**
    * The expand/collapse swap shifts rows under a stationary pointer, and the
@@ -3084,6 +3119,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     lastPointRef,
     liveSelectionRef,
     modelRef,
+    pendingBoxNudgeRef,
     removePendingStore,
     reply,
     requestResolveThread,

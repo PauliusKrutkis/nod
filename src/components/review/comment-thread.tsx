@@ -77,6 +77,14 @@ export function CommentThread({
   );
   const ownComments = comments.filter((c) => c.user === ownLogin);
   const lastOwnId = ownComments.at(-1)?.id;
+  // Only advertise the hotkey when your comment is still the thread's last
+  // word — once someone else has replied after it, `shift+e` still edits it
+  // (see editActiveThreadComment), but the chip would misleadingly suggest
+  // it's the next thing you'd act on.
+  const editKbdId =
+    lastOwnId !== undefined && lastOwnId === comments.at(-1)?.id
+      ? lastOwnId
+      : undefined;
 
   const [replying, setReplying] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -85,6 +93,10 @@ export function CommentThread({
   const [lastReplyNonce, setLastReplyNonce] = useState(0);
   const [lastToggleNonce, setLastToggleNonce] = useState(0);
   const [lastEditNonce, setLastEditNonce] = useState(0);
+  // While a reply or edit composer is open, its hotkeys (r/x/z/shift+e) are
+  // inert — the keyboard provider ignores keys while a text input has focus
+  // — so Edit/Delete on the other comments would advertise dead shortcuts.
+  const composerOpen = replying || editingId !== null;
 
   if (wasResolved !== resolved) {
     setWasResolved(resolved);
@@ -268,10 +280,10 @@ export function CommentThread({
             >
               {formatRelativeTime(c.createdAt)}
             </span>
-            {c.user === ownLogin && editingId !== c.id && (
+            {c.user === ownLogin && !composerOpen && (
               <CommentTools
                 commentId={c.id}
-                editKbd={c.id === lastOwnId ? "shift+e" : undefined}
+                editKbd={c.id === editKbdId ? "shift+e" : undefined}
                 onDelete={onDelete ? handleDelete : undefined}
                 onStartEdit={onEdit ? handleStartEdit : undefined}
               />
