@@ -40,41 +40,81 @@ install + relaunch in one click.
 | Repo secrets | ✅ `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (empty) |
 | Homebrew tap repo | ✅ `PauliusKrutkis/homebrew-tap` (public), seeded with the v0.1.0 cask. The release workflow pushes bumps over SSH via the `TAP_DEPLOY_KEY` secret — a deploy key that can write only to that one repo. Cask template: `packaging/homebrew/Casks/nod.rb`. |
 | OAuth in released builds | ✅ Baked in at compile time (`option_env!` in auth.rs): secrets `PRFLOW_GH_CLIENT_ID` / `PRFLOW_GH_CLIENT_SECRET` are set; the repo **variable** `NOD_GITLAB_CLIENT_ID` activates GitLab sign-in once the gitlab.com app is registered (`gh variable set NOD_GITLAB_CLIENT_ID`). Runtime `.env` still overrides in dev. Note: a client secret inside a desktop binary is extractable — a known, accepted trade-off for GitHub OAuth apps (GitHub CLI does the same); GitLab uses PKCE and has no secret at all. |
-| Apple notarization | ⬜ **Required before paid launch (Phase 1)** — Apple Developer cert ($99/yr). Until then macOS users clear quarantine after install (`xattr -dr com.apple.quarantine /Applications/Nod.app`) or right-click → Open. (Homebrew 6 removed `--no-quarantine`.) An app that needs an `xattr` incantation to open is not shippable to paying customers — notarization is a Phase 1 gate, not a nice-to-have. |
+| Apple notarization | ⬜ **Required before paid launch (Phase 1)** — Apple Developer cert ($99/yr). Until then macOS users clear quarantine after install (`xattr -dr com.apple.quarantine /Applications/Nod.app`) or approve the app once under System Settings → Privacy & Security. (Homebrew 6 removed `--no-quarantine`.) An app that needs an `xattr` incantation to open is not shippable to paying customers — notarization is a Phase 1 gate, not a nice-to-have. Setup and env vars: [Apple notarization](#apple-notarization). |
 | Commercial launch (Phase 0 + 1) | ⬜ See [Commercial launch](#commercial-launch) below. |
 
 ## Goal: a true one-line `brew install`
 
 The landing page (`apps/web`) shows the install command as a single line —
 `brew install pauliuskrutkis/tap/nod` — matching every other keyboard-first
-dev tool's install story. That's not actually true yet: today it takes four
-commands (see [README.md](../README.md#install--auto-updates)):
+dev tool's install story. Three of the four commands this section used to
+list turned out to be avoidable; only one real gap is left:
 
 ```bash
-brew tap pauliuskrutkis/tap
-brew trust --tap pauliuskrutkis/tap
-brew install --cask nod
-xattr -dr com.apple.quarantine /Applications/Nod.app
+brew install pauliuskrutkis/tap/nod
+xattr -dr com.apple.quarantine /Applications/Nod.app   # ← the only gap
 ```
 
-Rather than expand the landing page into a multi-line block, the plan is to
-close the gap so the one-liner becomes literally correct:
+What closed, and why:
 
-1. **`xattr` step** — caused by the missing Gatekeeper signature. Resolved by
-   Apple notarization, already tracked as the Phase 1 gate above. Once
-   notarized, this step disappears entirely.
-2. **`brew tap` step** — `brew install <user>/<tap>/<formula>` auto-taps an
-   untapped repo, so this should already be foldable into the install line;
-   verify once notarization removes the quarantine variable from testing.
-3. **`brew trust --tap` step** — re-test whether this is still required after
-   notarization. If Homebrew's trust prompt is itself a proxy for "this
-   binary isn't signed/notarized," it may also disappear at that point; if
-   it's an independent tap-verification step, it needs its own investigation.
+1. **`--cask` flag** — never needed. No formula shares the `nod` token, so
+   the bare cask token resolves on its own (`brew info nod` confirms it
+   against the installed tap).
+2. **`brew tap` step** — `brew install <user>/<tap>/<token>` auto-taps an
+   untapped repo, so it folds into the install line. Still worth confirming
+   on a clean machine, since every box here already has the tap.
+3. **`brew trust --tap` step** — not a proxy for "unsigned binary" as
+   previously guessed. `brew trust --help` (Homebrew 6.0.9) states it applies
+   only "when `$HOMEBREW_REQUIRE_TAP_TRUST` is set" — an opt-in that is unset
+   by default. It guards third-party tap *Ruby code*, and is unrelated to
+   code signing, so notarization will not change it either way.
+4. **`xattr` step** — the genuine gap, caused by the missing Gatekeeper
+   signature, and the reason the landing-page CTA is still aspirational.
+   Resolved by notarization only (below).
 
-Until all three collapse, the landing page CTA is aspirational — track this
-as a pre-launch checklist item alongside notarization, and re-verify the
-literal `brew install pauliuskrutkis/tap/nod` command on a clean machine
-before removing this note.
+So the one-liner becomes literally correct the moment notarization ships —
+no Homebrew work is left. Re-verify on a clean machine before removing this
+note. Note that an install script (`curl … | sh`) is **not** the shortcut it
+looks like: curl doesn't apply `com.apple.quarantine`, so such a script would
+merely bypass the signature check rather than pass it, while costing the
+Homebrew upgrade path. Not an option for a paid tool.
+
+### Apple notarization
+
+The one remaining gap, and a hard Phase 1 gate — see the one-time setup table
+above. Requires the Apple Developer Program ($99/yr) for a **Developer ID
+Application** certificate; Tauri's bundler signs and notarizes during
+`tauri build` when the environment below is present, so no workflow step is
+needed beyond adding secrets.
+
+Signing (export the cert from Keychain Access as `.p12`, then
+`openssl base64 -A -in cert.p12 -out cert-base64.txt`):
+
+| Variable | Holds |
+| --- | --- |
+| `APPLE_CERTIFICATE` | base64 of the `.p12` |
+| `APPLE_CERTIFICATE_PASSWORD` | password used on export |
+| `APPLE_SIGNING_IDENTITY` | identity name from `security find-identity -v -p codesigning` |
+| `KEYCHAIN_PASSWORD` | scratch keychain password for CI |
+
+Notarization credentials — pick one pair:
+
+| App Store Connect API (preferred for CI) | Apple ID |
+| --- | --- |
+| `APPLE_API_ISSUER` (Issuer ID) | `APPLE_ID` (account email) |
+| `APPLE_API_KEY` (Key ID) | `APPLE_PASSWORD` (app-specific password) |
+| `APPLE_API_KEY_PATH` (path to `.p8`) | `APPLE_TEAM_ID` |
+
+Prefer the API key: it isn't tied to one person's Apple ID, and app-specific
+passwords break whenever that account's 2FA is reset. Both are set as repo
+secrets alongside the existing `TAURI_SIGNING_*` pair — note these are Apple's
+Gatekeeper chain and entirely separate from the updater's minisign keypair,
+which keeps working exactly as it does today.
+
+After the first notarized release: drop the `xattr` line from
+[README.md](../README.md#install--auto-updates), the cask template header
+(`packaging/homebrew/Casks/nod.rb`), and the landing page's `get__note`, then
+re-test the one-liner on a machine that has never had the tap.
 
 ## Repo visibility vs auto-updates
 

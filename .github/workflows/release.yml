@@ -92,7 +92,7 @@ jobs:
           includeUpdaterJson: true
           args: ${{ matrix.args }}
 
-  # Bumps the Homebrew tap so `brew install --cask pauliuskrutkis/tap/nod`
+  # Bumps the Homebrew tap so `brew install pauliuskrutkis/tap/nod`
   # serves the new version. Pushes over SSH with the TAP_DEPLOY_KEY secret —
   # a deploy key that can write ONLY to PauliusKrutkis/homebrew-tap.
   update-tap:
