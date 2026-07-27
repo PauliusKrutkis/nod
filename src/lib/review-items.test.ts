@@ -3,6 +3,7 @@ import type { ChangedFile, ReviewComment } from "../types.ts";
 import {
   adjacentSelectableAnchor,
   buildReviewItems,
+  clampFastStep,
   fileAnchorKey,
   navKey,
 } from "./review-items.ts";
@@ -54,6 +55,53 @@ function build(comments: ReviewComment[]) {
     pendingByFile: new Map(),
   });
 }
+
+const LONG_PATCH = `@@ -1,12 +1,12 @@
+ const a = 1;
+ const b = 2;
+ const c = 3;
+ const d = 4;
+ const e = 5;
+ const f = 6;
+ const g = 7;
+ const h = 8;
+ const i = 9;
+ const j = 10;
+ const k = 11;
+ const l = 12;`;
+
+const LONG_FILE: ChangedFile = {
+  ...FILE,
+  filename: "src/consts.ts",
+  patch: LONG_PATCH,
+};
+
+function buildLong(opts: { commentOn?: number; boxOn?: number } = {}) {
+  const comments =
+    opts.commentOn === undefined
+      ? []
+      : [
+          comment({
+            line: opts.commentOn,
+            originalLine: opts.commentOn,
+            path: LONG_FILE.filename,
+          }),
+        ];
+  return buildReviewItems({
+    collapsed: new Map(),
+    commentsByFile: new Map([[LONG_FILE.filename, comments]]),
+    expandedRows: new Map(),
+    files: [LONG_FILE],
+    isImage: () => false,
+    openBoxes:
+      opts.boxOn === undefined
+        ? new Map()
+        : new Map([[fileAnchorKey(0, `RIGHT:${opts.boxOn}`), null]]),
+    pendingByFile: new Map(),
+  });
+}
+
+const FAST_STEP = 5;
 
 describe("navKey", () => {
   it("keeps the row key byte-identical to fileAnchorKey", () => {
@@ -129,5 +177,69 @@ describe("adjacentSelectableAnchor", () => {
     expect(
       adjacentSelectableAnchor(commented, 0, "RIGHT", 0, "RIGHT:2", 1)
     ).toBe(adjacentSelectableAnchor(plain, 0, "RIGHT", 0, "RIGHT:2", 1));
+  });
+});
+
+describe("clampFastStep", () => {
+  it("stops at a thread the jump would have crossed", () => {
+    const m = buildLong({ commentOn: 4 });
+    const threadIdx = m.navIndexOf.get(navKey(0, "RIGHT:4", "comments"));
+
+    expect(clampFastStep(m, 0, FAST_STEP, false)).toBe(threadIdx);
+  });
+
+  it("takes the full step when the span holds no thread", () => {
+    const m = buildLong({ commentOn: 4 });
+    const from = m.navIndexOf.get(navKey(0, "RIGHT:6", "row")) as number;
+
+    expect(clampFastStep(m, from, FAST_STEP, false)).toBe(from + FAST_STEP);
+  });
+
+  it("behaves exactly like an unclamped hop in a file with no threads", () => {
+    const m = buildLong();
+
+    expect(clampFastStep(m, 0, FAST_STEP, false)).toBe(FAST_STEP);
+  });
+
+  it("advances past the thread it is already sitting on", () => {
+    const m = buildLong({ commentOn: 4 });
+    const threadIdx = m.navIndexOf.get(
+      navKey(0, "RIGHT:4", "comments")
+    ) as number;
+
+    expect(clampFastStep(m, threadIdx, FAST_STEP, false)).toBe(
+      threadIdx + FAST_STEP
+    );
+  });
+
+  it("clamps going up as well as down", () => {
+    const m = buildLong({ commentOn: 4 });
+    const threadIdx = m.navIndexOf.get(navKey(0, "RIGHT:4", "comments"));
+    const from = m.navIndexOf.get(navKey(0, "RIGHT:8", "row")) as number;
+
+    expect(clampFastStep(m, from, -FAST_STEP, false)).toBe(threadIdx);
+    expect(threadIdx).not.toBe(from - FAST_STEP);
+  });
+
+  it("ignores threads while the key is held", () => {
+    const m = buildLong({ commentOn: 4 });
+
+    expect(clampFastStep(m, 0, FAST_STEP, true)).toBe(FAST_STEP);
+  });
+
+  it("stops at an open composer even while the key is held", () => {
+    const m = buildLong({ boxOn: 4 });
+    const boxIdx = m.navIndexOf.get(navKey(0, "RIGHT:4", "comments"));
+
+    expect(clampFastStep(m, 0, FAST_STEP, true)).toBe(boxIdx);
+  });
+
+  it("never walks past the ends of the list", () => {
+    const m = buildLong({ commentOn: 4 });
+
+    expect(clampFastStep(m, 0, -FAST_STEP, false)).toBe(0);
+    expect(clampFastStep(m, m.nav.length - 1, FAST_STEP, false)).toBe(
+      m.nav.length - 1
+    );
   });
 });

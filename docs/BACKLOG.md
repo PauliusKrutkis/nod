@@ -955,15 +955,20 @@ only format the in-app updater touches.
       left, the keycap splitter in `ui/kbd.tsx` was dead — and its only
       remaining effect was mis-rendering `f3` as two caps (`F` `3`), since
       `f3` is not in `NAMED`. Removed, which fixes that.
-- [ ] 🟡 **`f`/`g` clamps on conversations** — PR 2 of 2. `f`/`g` is
+- [x] 🟡 **`f`/`g` clamps on conversations** — **done** (PR 2 of 2). `f`/`g` is
       `move(±FAST_CURSOR_STEP)` (a fixed 5-entry hop), not a semantic jump, so
-      threads being nav stops is *not* enough — a fast jump still flies over
-      them 4 times in 5. A jump must clamp to the first thread strictly between
-      the cursor and the landing row: `f` never crosses a conversation, it
-      arrives early, and a second `f` continues past. Held repeat
-      (`cursorRepeatMultiplier`) must **not** clamp — holding means "get me far
-      away", and it is the escape hatch in a comment-dense PR. An open composer
-      clamps unconditionally, held or not.
+      threads being nav stops was *not* enough — a fast jump still flew over
+      them 4 times in 5. `clampFastStep` now lands on the first comment block
+      strictly between the cursor and the arithmetic landing row: `f` never
+      crosses a conversation, it arrives early, and a second `f` continues
+      past. Held repeat does **not** clamp — holding means "get me far away",
+      and it is the escape hatch in a comment-dense PR. An open composer clamps
+      either way; it holds unsaved text.
+      *Noted while wiring:* the `f`/`g` bindings discarded the event and passed
+      `isRepeat: false` into the mover, so fast scroll never accelerated on
+      hold the way `j`/`k` does. `e.repeat` is now threaded through, but only
+      to decide clamping — giving `f`/`g` the `j`/`k` acceleration curve is a
+      separate behaviour change and was left alone.
 - [x] 🟡 **Composer: suggestions** — shipped with the composer toolbar PR:
       Tab indents / Shift-Tab dedents inside code blocks (caret or whole
       selected lines) instead of flipping the batch/now mode, and

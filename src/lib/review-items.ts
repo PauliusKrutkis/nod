@@ -109,6 +109,41 @@ export function adjacentSelectableAnchor(
 }
 
 /**
+ * Where a fast jump (`f`/`g`) should actually land: the first comment block
+ * strictly between the cursor and the arithmetic landing row, else that row.
+ * A fast step is a fixed hop over `nav`, not a semantic jump, so without this
+ * it sails over a conversation four times in five — and skipping a collapsed
+ * thread means never learning it exists.
+ *
+ * `isHeld` turns the clamp off: holding the key means "get me far away", and
+ * stopping at every thread would make a comment-dense file unnavigable. An
+ * open composer clamps either way — it holds unsaved text.
+ */
+export function clampFastStep(
+  m: ReviewListModel,
+  fromIdx: number,
+  delta: number,
+  isHeld: boolean
+): number {
+  const landing = Math.min(Math.max(fromIdx + delta, 0), m.nav.length - 1);
+  if (landing === fromIdx) {
+    return landing;
+  }
+  const step = landing > fromIdx ? 1 : -1;
+  for (let at = fromIdx + step; at !== landing + step; at += step) {
+    const entry = m.nav[at];
+    if (entry?.kind !== "comments") {
+      continue;
+    }
+    const item = m.items[entry.itemIndex];
+    if (!isHeld || (item?.kind === "comments" && item.boxOpen)) {
+      return at;
+    }
+  }
+  return landing;
+}
+
+/**
  * Group flat review comments into threads (root first, then replies) and
  * index each thread by the anchor of its root comment.
  */

@@ -77,6 +77,7 @@ import {
   adjacentSelectableAnchor,
   anchorLine,
   buildReviewItems,
+  clampFastStep,
   fileAnchorKey,
   type NavKind,
   navKey,
@@ -1638,7 +1639,7 @@ function useReviewHotkeys(config: {
   findStep: (dir: 1 | -1) => void;
   goInbox: () => void;
   goToComment: (delta: number) => void;
-  moveCursorFast: (delta: 1 | -1) => void;
+  moveCursorFast: (delta: 1 | -1, isHeld: boolean) => void;
   markViewedAndNext: () => void;
   occNavRefs: Parameters<typeof buildOccNav>[0];
   occSpec: OccState | null;
@@ -1730,9 +1731,9 @@ function useReviewHotkeys(config: {
       group: "Navigation",
       icon: ChevronsDown,
       keys: "f",
-      run: () => {
+      run: (e: KeyboardEvent) => {
         config.setSelection(null);
-        config.moveCursorFast(1);
+        config.moveCursorFast(1, e.repeat);
       },
     },
     {
@@ -1740,9 +1741,9 @@ function useReviewHotkeys(config: {
       group: "Navigation",
       icon: ChevronsUp,
       keys: "g",
-      run: () => {
+      run: (e: KeyboardEvent) => {
         config.setSelection(null);
-        config.moveCursorFast(-1);
+        config.moveCursorFast(-1, e.repeat);
       },
     },
     {
@@ -2475,11 +2476,18 @@ function useReviewFileNavigation(args: {
     }
   };
 
-  const moveCursorFast = (delta: 1 | -1) => {
-    buildCursorMover(args.cursorMoverRefs).move(
-      delta * FAST_CURSOR_STEP,
-      false
-    );
+  const moveCursorFast = (delta: 1 | -1, isHeld: boolean) => {
+    const refs = args.cursorMoverRefs;
+    const m = refs.modelRef.current;
+    const cur = refs.cursorRef.current;
+    const curIdx = cur
+      ? m.navIndexOf.get(navKey(cur.fileIndex, cur.anchor, cur.kind))
+      : undefined;
+    const step =
+      curIdx === undefined
+        ? delta * FAST_CURSOR_STEP
+        : clampFastStep(m, curIdx, delta * FAST_CURSOR_STEP, isHeld) - curIdx;
+    buildCursorMover(refs).move(step, false);
   };
 
   const extendSelection = (delta: 1 | -1) => {
