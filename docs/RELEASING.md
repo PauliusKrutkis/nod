@@ -79,6 +79,29 @@ looks like: curl doesn't apply `com.apple.quarantine`, so such a script would
 merely bypass the signature check rather than pass it, while costing the
 Homebrew upgrade path. Not an option for a paid tool.
 
+### Downloads page
+
+`/downloads` (`apps/web/src/pages/downloads.astro`) lists the latest installer
+per platform and the release notes, with older versions collapsed. It reads
+GitHub Releases **during `astro build`** — `apps/web/src/lib/releases.ts` — so
+the page ships as static HTML and doesn't depend on GitHub's API at runtime.
+
+That build-time read has one consequence worth knowing: **publishing a
+release does not update the page.** Cloudflare Pages rebuilds on git push, so
+without a nudge the page keeps serving the previous release until an
+unrelated commit lands. The nudge is a Cloudflare **deploy hook** —
+Workers & Pages → the project → Settings → Builds → Deploy hooks — stored as
+`CF_PAGES_DEPLOY_HOOK` and POSTed by step 9 of the `release` skill.
+
+It fires from the skill rather than from `release.yml` on purpose:
+`release.yml` publishes with the placeholder body and the curated notes are
+edited in afterwards, so a rebuild triggered by the workflow would bake the
+placeholder into the page. The hook URL is the credential — treat it like a
+secret.
+
+If the build ever fails against a rate-limited GitHub API, set `GITHUB_TOKEN`
+in the Pages project's build environment; the fetch uses it when present.
+
 ### Apple notarization
 
 The one remaining gap, and a hard Phase 1 gate — see the one-time setup table
