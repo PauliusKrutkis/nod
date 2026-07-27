@@ -1986,6 +1986,22 @@ dialog.q-dialog::backdrop {
   color: inherit;
   background: color-mix(in srgb, var(--fg) 26%, transparent);
 }
+.dir-quiet .qf-code::highlight(qf-occ-link),
+.dir-quiet .qf-code ::highlight(qf-occ-link) {
+  color: var(--accent);
+  background: var(--accent-soft);
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-underline-offset: 2px;
+}
+.qf-occ-link .dir-quiet .qf-code {
+  cursor: pointer;
+}
+.dir-quiet .qf-code::selection,
+.dir-quiet .qf-code ::selection {
+  color: inherit;
+  background: color-mix(in srgb, var(--accent) 40%, transparent);
+}
 
 .dir-quiet mark.qf-intra-mark {
   padding: 0;

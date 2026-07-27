@@ -361,6 +361,7 @@ hotkey collapses.
 | **`n`** / **`p`** | Next / prev occurrence (only while one is selected) |
 | **`mod+k`** | **Jump to PR** + commands |
 | **`Esc`** | Clear selection → close find → close panel → inbox |
+| **`mod`+click** on a word | Next occurrence of it (previous, on the last) — marks it first if nothing is marked |
 
 > Shipped keys, verified against `review-screen.tsx`. `Tab` cycles files;
 > the proposed Code ↔ Info toggle therefore needs a different key — see
@@ -769,8 +770,11 @@ only format the in-app updater touches.
 - [ ] 🟢 **P03** — Occurrence navigation blocked while find
       (`mod+f`) is open — explicit handoff (select token → close find → start
       occurrences).
-- [ ] 🟢 **Next occurrence scroll** — stepping `n`/`p` in occurrence mode should
-      not scroll when the match is already fully visible.
+- [x] 🟢 **Next occurrence scroll** — **done** (`07ba9d9`, 2026-07-15);
+      `cursorViewLocation` returns null when the row is already in frame, so a
+      step to a visible match leaves the viewport alone. Guarded by
+      `occurrences.spec.ts` "stepping to an already-visible occurrence does not
+      scroll".
 - [ ] 🟢 **Search pane height** — inbox search panel lost height; match the
       `mod+k` command palette sizing.
 - [ ] 🟢 **GitHub org OAuth restrictions** — `[pr-flow] API error 403` when an org
@@ -868,8 +872,28 @@ only format the in-app updater touches.
       Tooltip + Kbd language — after "our hint-bar reads unfamiliar" feedback;
       Suggestion keeps its text label. Remaining: typography/spacing polish of
       the editor surface itself.*
-- [ ] ⏸ **P21** — Multi-line selection box via drag
-      (defer; improve gutter-drag discoverability instead).
+- [ ] 🟡 **P21** — Drag over code expands the fat cursor
+      (*was: "multi-line selection box via drag", deferred as a second gesture
+      duplicating gutter-drag; re-scoped 2026-07-27*). Don't build a selection
+      box — give the drag people already make a second meaning: a **native**
+      cross-line text selection also grows the `shift+j/k` line range over the
+      rows it covers, so the same drag copies text and arms `c`. That answers
+      the discoverability concern the original deferral traded down to, since
+      there is no new affordance to learn.
+      *Why it's now cheap:* the gesture is unclaimed. A cross-line selection
+      already fails `specFromDomSelection` (its `commonAncestorContainer`
+      escapes `.qf-code` the moment two rows are involved), so occurrence
+      highlighting never applied to it. Probe on 2026-07-27: dragging across
+      three rows leaves a live browser selection, 0 occurrence marks and 0
+      range rows — nothing to displace.
+      *Boundary to decide first:* cross-line ⇒ range, single-line ⇒ mark
+      occurrences (the drag-select bug in the effect audit below owns that
+      half, and is a prerequisite: that half is broken today). They must differ,
+      because a one-line range is already `c` on the cursor — so the split is
+      free, but a drag intended as a one-line range will surprise until the
+      gutter affordance is what people reach for there.
+      *Record the outcome in P22*, which owns the selection-vs-focus
+      convention this gesture now has two of.
 - [ ] 🟢 **P22** — Selection-model audit + refactor (DESIGN.md
       "Selection vs. focus"): sweep **every** focus site against the
       documented convention — all `tabIndex` / `.focus()` / `blur()` call
@@ -1050,10 +1074,11 @@ shared `useAutoFocus(ref)` hook, or the native `autoFocus` attribute where no
 | `components/inbox/inbox.tsx:251` | Scrolls selected row into view on `selectedIndex` change | Selection changes from multiple sources; effect centralizes the scroll |
 | `components/inbox/inbox.tsx:258` | 180ms debounced prefetch of selected PR + neighbors | Cleanup correct; `prefetchQuery` dedupes retriggering |
 | `components/review/review-list.tsx:927` | Measures mono column width (rAF + `document.fonts.ready`), module-level cache | Could be `useLayoutEffect` to avoid a one-frame unmeasured paint |
-| `components/review/review-screen.tsx:589` | `selectionchange` + `click` document listeners for occurrence highlighting | Canonical subscription with full cleanup |
+| `components/review/review-screen.tsx:775` (`useOccurrenceTracking`) | `selectionchange` + `click` document listeners for occurrence highlighting | Canonical subscription with full cleanup — but see the drag-select bug below: the click handler cancels the pending `selectionchange` commit unconditionally |
+| `components/review/review-screen.tsx:886` (`useOccLinkAffordance`) | mod-key + pointer listeners painting the mod+click affordance via `CSS.highlights` | Correct — external browser API, no React state, rAF-coalesced repaint on click/scroll because a repainted row collapses the Range |
 | `components/review/review-screen.tsx:1137` | rAF loop restoring virtuoso scroll position on mount | Correct |
 | `components/review/review-screen.tsx:2287` | Warms the highlight cache with cancel cleanup | `[filesForHighlightRef]` dep is cosmetic; if `detail` can resolve after mount, key on `detail?.files` |
-| `components/review/review-screen.tsx:2490` | `useLayoutEffect` restoring a captured DOM selection pre-paint | Uncertainty: runs mount-only (`[]`) while `occRestoreRef` is written on every occ-spec commit; verify whether it should key on `[occSpec]` |
+| `components/review/review-screen.tsx:3130` (`occRestoreRef` restore) | `useLayoutEffect` restoring a captured DOM selection pre-paint | **Verified dead** — see "Drag-select over code never marks occurrences" below. Keying it on `[occSpec]` is necessary but not sufficient; the commit that would give it something to restore never fires |
 
 ### Dead or buggy effects (fix or delete regardless of migration)
 
@@ -1063,6 +1088,7 @@ shared `useAutoFocus(ref)` hook, or the native `autoFocus` attribute where no
 | ~~`components/inbox/search-pane.tsx:118`~~ | ~~Scrolls `[data-active="true"]` into view with `[]` deps; `sel` is 0 at mount so it is a no-op, and it never re-runs on arrow keys~~ | **Done** — effect now keys on `[sel]` |
 | ~~`components/review/pr-search.tsx:209`~~ | ~~Mount-only active-row scroll; selection changes on arrow keys are not kept in view~~ | **Done** — effect now keys on `[sel]` |
 | ~~`hooks/use-modal-dialog.ts:7`~~ | ~~Missing the close-on-unmount cleanup its comment promises~~ | **No longer relevant** — close-on-unmount is now deliberately omitted; the doc comment explains React removal closes the dialog and an explicit `close()` would misfire under StrictMode |
+| `components/review/review-screen.tsx:829` (`onOccClick`) + `:3130` (restore) | **Drag-select over code never marks occurrences.** Two defects in series. (1) `onOccClick` clears the pending 150ms `selectionchange` timer *before* the guards that hand a drag-ending click back to `selectionchange`, so the commit it was about to make is cancelled and no spec is ever set — contradicting the comment on `handleOccPointerClick` that says "selectionchange owns occurrence state for real selections". (2) Even once (1) fires, the `occRestoreRef` layout effect that re-selects the text across the marks repaint is `[]`-keyed, so the drag's own selection would be wiped by the repaint it triggers. Verified by probe: dragging across a word yields a live selection and **0** occurrence marks | Move the timer cancel out of `onOccClick` and into the branches of `handleOccPointerClick` where the click genuinely takes ownership (the word-click and clear-marks paths), leaving the early returns — multi-click, editable surface, non-collapsed selection — to let `selectionchange` win. Then key the restore effect on `[occSpec]`. Fix both together or neither: (1) alone makes marks appear and drops the selection, (2) alone changes nothing. Scope is single-line drags only — a cross-line selection is rejected upstream by `specFromDomSelection`, and that gesture belongs to P21 above |
 
 ### Suggested migration order
 
@@ -1235,20 +1261,32 @@ link interception · Universal Links.
 - [ ] **Pipelines sometimes not visible after GitLab MR update** — CI/pipeline
       status occasionally fails to show up once a GitLab MR receives a new
       update.
-- [ ] **Clicking a not-fully-visible next occurrence doesn't scroll to it** —
-      unlike keyboard occurrence stepping, clicking directly on the next
-      occurrence when it's only partially in view fails to scroll it into
-      frame.
-- [ ] 🟢 **`f`/`g` scroll offset and line-clipping** — scrolling via `f`/`g`
-      should leave ~4 lines of context above the fold instead of landing
-      exactly at the bottom edge of the screen; also the scroll doesn't fully
-      capture the bottom line (it lands mid-line, cut in half) — it should
-      scroll enough that the destination line is always fully visible.
-      *Root cause:* `cursorViewLocation` (`review-list.tsx`) deliberately
-      parks the target flush against the fold — `align: "end", offset: 4`,
-      i.e. a 4 **px** margin, not 4 rows. Both symptoms come from that one
-      branch; `scrollItemToReadingLine` / `READING_LINE_FRACTION` in the same
-      file is the pattern to borrow.
+- [x] **Clicking a not-fully-visible next occurrence doesn't scroll to it** —
+      **done, by removing the gesture rather than fixing it.** A plain click was
+      doing two jobs — mark this word, and travel to the next match — and the
+      second was what landed half-clipped. First attempt made the click land on
+      the occurrence under the pointer, which only moved the complaint ("next
+      occurrence doesn't work, cursor stays on the same line"). So navigation
+      moved to its own gesture: a plain click only marks and never moves the
+      viewport (hover already put the cursor on the row), while **mod+click**
+      walks from the clicked word to the next match — or the previous one when
+      it was the last — and brings it in with `CURSOR_CONTEXT_ROWS` of slack.
+      mod+click resolves the word and its matches from the file rather than the
+      current highlight, so it works on any identifier with nothing marked yet,
+      and holding the mod key underlines the word under the pointer
+      (`useOccLinkAffordance`, via `CSS.highlights`) so the gesture is
+      discoverable. Double-click keeps the native selection, painted in the
+      accent so a text selection never reads as an occurrence mark.
+- [x] 🟢 **`f`/`g` scroll offset and line-clipping** — **done** (`98f2985`,
+      2026-07-25). As the root-cause note predicted, both symptoms came from the
+      one `cursorViewLocation` branch that parked the target flush against the
+      fold with a 4 **px** margin. It now leaves `CURSOR_CONTEXT_ROWS` (4) of
+      real rows, measured from a rendered row by `codeRowPx()`, with
+      `CURSOR_EDGE_EPSILON_PX` as the separate trigger so a row already
+      comfortably in frame still doesn't move. The slack also absorbs the
+      half-sliced landing: Virtuoso's item geometry is estimated often enough
+      that flush meant the destination row could arrive cut in two. Applies to
+      every nudge — `f`/`g`, `j`/`k`, `n`/`p`, and mod+click.
 - [x] **Cursor doesn't follow after `e`** — **done**; every file jump
       (`scrollToFile` — `e`, `r`/`t`, Tab, sidebar, file search) now seeds the
       line cursor on the target file's first nav row, so `f`/`g`/`j`/`k` step
