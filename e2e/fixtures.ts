@@ -105,6 +105,77 @@ const PATCH = `@@ -1,5 +1,6 @@
  }
  export const beta = true;`;
 
+/* Head-blob fixtures for full-file expansion (get_file_blob). fuzzy.ts must
+   agree with PATCH line-for-line on the new side — expandFileRows validates —
+   and carries extra tail lines that only exist when expanded. */
+export const FULL_FILES: Record<string, string> = {
+  "src/lib/fuzzy.ts": [
+    "export function alpha() {",
+    "  // tuned",
+    "  return 2;",
+    "}",
+    "export const beta = true;",
+    "",
+    "export function omega() {",
+    "  return beta;",
+    "}",
+    "",
+  ].join("\n"),
+  "src/lib/retry.ts": [
+    "export function withRetry(fn: () => Promise<void>) {",
+    "  const retryLimit = 3;",
+    "  let delay = 100;",
+    "}",
+    "",
+    "function log(event: string, data: unknown) {",
+    "  console.info(event, data);",
+    "}",
+    "export function retryLoop(base: number) {",
+    "  let delay = base;",
+    "  let attempt = 0;",
+    "  const history: number[] = [];",
+    "  const jitter = () => Math.random() * 10;",
+    "  while (attempt < 8) {",
+    "    attempt += 1;",
+    "    delay = delay * 2 + jitter();",
+    "    history.push(delay);",
+    "    if (delay > 5_000) {",
+    "      delay = 5_000;",
+    "    }",
+    "    if (attempt === 3) {",
+    '      log("still trying", {',
+    "        attempt,",
+    "        delay,",
+    "      });",
+    "    }",
+    "    if (attempt === 5) {",
+    '      log("backing off", {',
+    "        attempt,",
+    "        delay,",
+    "      });",
+    "    }",
+    "  }",
+    "  const total = history.reduce((sum, d) => sum + d, 0);",
+    "  const longest = history.reduce((max, d) => (d > max ? d : max), 0);",
+    "  const shortest = history.reduce((min, d) => (d < min ? d : min), total);",
+    '  log("settled", {',
+    "    attempts: attempt,",
+    "    total,",
+    "    longest,",
+    "    shortest,",
+    "  });",
+    "  if (total > 20_000) {",
+    "    warnSlow(total);",
+    "  }",
+    "  history.length = 0;",
+    "  done(delay);",
+    "}",
+    "",
+    "export const RETRY_VERSION = 2;",
+    "",
+  ].join("\n"),
+};
+
 export const DETAIL = {
   ciStatus: {
     failed: 1,
@@ -254,6 +325,44 @@ export const DETAIL = {
 };
 
 /**
+ * DETAIL plus a thread and a PR-level comment authored by the signed-in
+ * fixture user ("me") — the edit/delete affordances only appear on your own
+ * comments. Bodies carry markdown so specs can prove the raw wire format
+ * round-trips into the composer instead of re-serialized HTML.
+ */
+export const DETAIL_WITH_OWN_COMMENT = {
+  ...DETAIL,
+  comments: [
+    ...DETAIL.comments,
+    {
+      body: "I will tighten this **loop** tomorrow.",
+      createdAt: "2026-07-02T09:50:00Z",
+      diffHunk: "",
+      id: 150,
+      inReplyToId: null,
+      line: 3,
+      originalLine: null,
+      path: "src/lib/fuzzy.ts",
+      resolved: false,
+      side: "RIGHT",
+      threadId: "T150",
+      user: "me",
+      userAvatarUrl: "",
+    },
+  ],
+  issueComments: [
+    ...DETAIL.issueComments,
+    {
+      body: "Deploying to **staging** first.",
+      createdAt: "2026-07-02T10:15:00Z",
+      id: 210,
+      user: "me",
+      userAvatarUrl: "",
+    },
+  ],
+};
+
+/**
  * A repo with no CI configured: the pill must render nothing so quiet repos
  * stay quiet. Serve via `detailByCall: [DETAIL_NO_CI]`.
  */
@@ -344,14 +453,19 @@ export function makeBigDetail(
 }
 
 /**
- * Wall-clock budget scaled for the running engine: the webkit-perf project
- * exists to catch WebKitGTK-shaped regressions Chromium hides, but its
- * JavaScriptCore dev-mode numbers run slower across the board — ×3 until CI
- * trend logs justify tightening. Structural assertions (repaint counts) are
- * engine-independent and never scale.
+ * Wall-clock budget scaled for the running engine and build mode:
+ * - webkit-perf exists to catch WebKitGTK-shaped regressions Chromium hides,
+ *   but its JavaScriptCore dev-mode numbers run slower across the board —
+ *   ×3 until CI trend logs justify tightening.
+ * - *-prod projects run against `vite build` + `vite preview` instead of the
+ *   dev server, where React's dev runtime + GC noise inflate numbers ~2x —
+ *   so the same budget is halved to reflect what users actually feel.
+ * Structural assertions (repaint counts) are engine/build-independent and
+ * never scale.
  */
 export function perfBudget(ms: number, projectName: string): number {
-  return projectName.startsWith("webkit") ? ms * 3 : ms;
+  const base = projectName.startsWith("webkit") ? ms * 3 : ms;
+  return projectName.endsWith("-prod") ? base / 2 : base;
 }
 
 export const ACCOUNT = {

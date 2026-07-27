@@ -3,11 +3,16 @@
 //! the active account to an `AnyPlatform` and never talk to a provider
 //! directly — adding a host means adding a variant + impl, nothing else.
 
-use crate::github::{
-    FileBlob, GitHubPlatform, GitHubUser, InboxBucket, InboxData, PullRequestDetail, RepoHit,
-    ReviewComment, ReviewCommentInput,
+pub(crate) mod github;
+pub(crate) mod gitlab;
+
+use github::GitHubPlatform;
+use gitlab::GitLabPlatform;
+
+use crate::model::{
+    FileBlob, GitHubUser, InboxBucket, InboxData, PullRequestDetail, RepoHit, ReviewComment,
+    ReviewCommentInput,
 };
-use crate::gitlab::GitLabPlatform;
 
 pub enum AnyPlatform {
     GitHub(GitHubPlatform),
@@ -81,6 +86,27 @@ impl AnyPlatform {
         dispatch!(self, p => p.reply_to_review_comment(owner, repo, number, body, in_reply_to).await)
     }
 
+    pub async fn update_review_comment(
+        &self,
+        owner: &str,
+        repo: &str,
+        number: u64,
+        comment_id: u64,
+        body: &str,
+    ) -> Result<(), String> {
+        dispatch!(self, p => p.update_review_comment(owner, repo, number, comment_id, body).await)
+    }
+
+    pub async fn delete_review_comment(
+        &self,
+        owner: &str,
+        repo: &str,
+        number: u64,
+        comment_id: u64,
+    ) -> Result<(), String> {
+        dispatch!(self, p => p.delete_review_comment(owner, repo, number, comment_id).await)
+    }
+
     /// Resolve / unresolve a review thread. GitHub keys threads by GraphQL
     /// node id alone; GitLab needs the MR coordinates too — the seam carries
     /// both so callers stay provider-blind.
@@ -110,6 +136,27 @@ impl AnyPlatform {
         dispatch!(self, p => p.create_issue_comment(owner, repo, number, body).await)
     }
 
+    pub async fn update_issue_comment(
+        &self,
+        owner: &str,
+        repo: &str,
+        number: u64,
+        comment_id: u64,
+        body: &str,
+    ) -> Result<(), String> {
+        dispatch!(self, p => p.update_issue_comment(owner, repo, number, comment_id, body).await)
+    }
+
+    pub async fn delete_issue_comment(
+        &self,
+        owner: &str,
+        repo: &str,
+        number: u64,
+        comment_id: u64,
+    ) -> Result<(), String> {
+        dispatch!(self, p => p.delete_issue_comment(owner, repo, number, comment_id).await)
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub async fn submit_review(
         &self,
@@ -135,5 +182,25 @@ impl AnyPlatform {
         r#ref: &str,
     ) -> Result<FileBlob, String> {
         dispatch!(self, p => p.file_blob(owner, repo, path, r#ref).await)
+    }
+
+    /// Fetches a markdown-embedded upload (pasted image or video) through
+    /// GitLab's Uploads API. GitLab embeds these as relative `/uploads/...`
+    /// links whose plain web route only accepts a browser session; GitHub
+    /// always emits absolute, publicly-loadable URLs, so there's nothing
+    /// for this platform to do.
+    pub async fn upload_blob(
+        &self,
+        owner: &str,
+        repo: &str,
+        secret: &str,
+        filename: &str,
+    ) -> Result<FileBlob, String> {
+        match self {
+            AnyPlatform::GitHub(_) => {
+                Err("upload_blob is not supported for GitHub".to_string())
+            }
+            AnyPlatform::GitLab(p) => p.upload_blob(owner, repo, secret, filename).await,
+        }
     }
 }

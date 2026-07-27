@@ -1,12 +1,14 @@
 import { CheckCircle2, MessageSquare } from "lucide-react";
 import { useState } from "react";
 import { cn } from "../../lib/cn.ts";
+import { firstLine } from "../../lib/comment-format.ts";
 import { formatAbsolute, formatRelativeTime } from "../../lib/time.ts";
+import { useAppStore } from "../../store/app-store.ts";
 import type { ReviewComment } from "../../types.ts";
-import { Markdown } from "../markdown.tsx";
 import { Avatar } from "../ui/avatar.tsx";
 import { Kbd } from "../ui/kbd.tsx";
 import { AddCommentBox } from "./add-comment-box.tsx";
+import { CommentBody, CommentTools } from "./comment-item.tsx";
 
 export interface ReplyRequest {
   nonce: number;
@@ -18,13 +20,23 @@ export interface ToggleRequest {
   rootId: number;
 }
 
+export interface EditRequest {
+  nonce: number;
+  rootId: number;
+}
+
 interface CommentThreadProps {
   comments: ReviewComment[];
+  editRequest?: EditRequest | null;
+  onDelete?: (a: { commentId: number }) => Promise<void>;
+  onEdit?: (a: { commentId: number; body: string }) => Promise<void>;
   onHoverChange?: (hovering: boolean) => void;
   onReply: (a: { inReplyTo: number; body: string }) => Promise<void>;
   onResolve?: (a: { threadId: string; resolved: boolean }) => void;
+  owner: string;
   replyPending: boolean;
   replyRequest?: ReplyRequest | null;
+  repo: string;
   toggleRequest?: ToggleRequest | null;
 }
 
@@ -47,30 +59,44 @@ export function CommentThread({
   onReply,
   replyPending,
   onResolve,
+  onEdit,
+  onDelete,
   onHoverChange,
   replyRequest,
   toggleRequest,
+  editRequest,
+  owner,
+  repo,
 }: CommentThreadProps) {
   const [root] = comments;
   const rootId = root?.id;
   const threadId = root?.threadId ?? null;
   const resolved = root?.resolved ?? false;
+  const ownLogin = useAppStore(
+    (s) => s.accounts.find((a) => a.id === s.activeAccountId)?.login
+  );
+  const ownComments = comments.filter((c) => c.user === ownLogin);
+  const lastOwnId = ownComments.at(-1)?.id;
 
   const [replying, setReplying] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [collapsed, setCollapsed] = useState(resolved);
   const [wasResolved, setWasResolved] = useState(resolved);
   const [lastReplyNonce, setLastReplyNonce] = useState(0);
   const [lastToggleNonce, setLastToggleNonce] = useState(0);
+  const [lastEditNonce, setLastEditNonce] = useState(0);
 
   if (wasResolved !== resolved) {
     setWasResolved(resolved);
     setCollapsed(resolved);
     setReplying(false);
+    setEditingId(null);
   }
 
   applyCommand(replyRequest, rootId, lastReplyNonce, setLastReplyNonce, () => {
     setCollapsed(false);
     setReplying(true);
+    setEditingId(null);
   });
   applyCommand(
     toggleRequest,
@@ -80,14 +106,43 @@ export function CommentThread({
     () => {
       setCollapsed((v) => !v);
       setReplying(false);
+      setEditingId(null);
     }
   );
+  applyCommand(editRequest, rootId, lastEditNonce, setLastEditNonce, () => {
+    if (lastOwnId === undefined || !onEdit) {
+      return;
+    }
+    setCollapsed(false);
+    setReplying(false);
+    setEditingId(lastOwnId);
+  });
 
   const submitReply = (body: string) => {
     if (rootId !== undefined) {
       onReply({ body, inReplyTo: rootId });
     }
     setReplying(false);
+  };
+
+  const submitEdit = (body: string) => {
+    if (editingId !== null) {
+      onEdit?.({ body, commentId: editingId })?.catch(() => undefined);
+    }
+    setEditingId(null);
+  };
+
+  const handleStartEdit = (commentId: number) => {
+    setEditingId(commentId);
+    setReplying(false);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+  };
+
+  const handleDelete = (commentId: number) => {
+    onDelete?.({ commentId })?.catch(() => undefined);
   };
 
   const expand = () => {
@@ -213,10 +268,23 @@ export function CommentThread({
             >
               {formatRelativeTime(c.createdAt)}
             </span>
+            {c.user === ownLogin && editingId !== c.id && (
+              <CommentTools
+                commentId={c.id}
+                editKbd={c.id === lastOwnId ? "shift+e" : undefined}
+                onDelete={onDelete ? handleDelete : undefined}
+                onStartEdit={onEdit ? handleStartEdit : undefined}
+              />
+            )}
           </div>
-          <div className="qf-comment-body">
-            <Markdown>{c.body}</Markdown>
-          </div>
+          <CommentBody
+            body={c.body}
+            editing={editingId === c.id}
+            onCancelEdit={handleCancelEdit}
+            onSubmitEdit={submitEdit}
+            owner={owner}
+            repo={repo}
+          />
         </div>
       ))}
       {replying ? (
@@ -258,8 +326,4 @@ export function CommentThread({
       )}
     </div>
   );
-}
-
-function firstLine(body: string): string {
-  return body.trim().split("\n")[0] ?? "";
 }

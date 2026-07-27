@@ -49,6 +49,28 @@ async function clickToken(page: Page, section: number, token: string) {
   await page.mouse.click(x, y);
 }
 
+/**
+ * Click the nth occurrence mark, optionally holding the mod key — Meta stands
+ * in for either half of the app's `metaKey || ctrlKey`, on any platform.
+ */
+async function clickMark(page: Page, nth: number, opts?: { mod?: boolean }) {
+  const box = await page.locator("mark.qf-occ-mark").nth(nth).boundingBox();
+  if (!box) {
+    throw new Error(`occurrence mark ${nth} has no bounding box`);
+  }
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(x, y);
+  await page.waitForTimeout(100);
+  if (opts?.mod) {
+    await page.keyboard.down("Meta");
+  }
+  await page.mouse.click(x, y);
+  if (opts?.mod) {
+    await page.keyboard.up("Meta");
+  }
+}
+
 test.beforeEach(async ({ page }) => {
   await setupApp(page);
   await expect(page.getByRole("option").first()).toBeVisible();
@@ -256,7 +278,13 @@ test("overview ruler: occurrence ticks on click, cleared by a blank click", asyn
   await expect(page.locator(".qf-ruler")).toHaveCount(0);
 });
 
-test("occurrence navigation: n/p and mark clicks jump between occurrences", async ({
+// Two occurrences of `gamma`, so every gesture has a visible destination and
+// the wrap rules are exercised in a couple of presses. A plain click on a mark
+// only re-marks the word — it must never walk to another match, the behaviour
+// this file guarded the other way round before mod+click existed. mod+click
+// steps forward from whichever mark was clicked, and back instead when that
+// mark is the last one, so clicking each of the two lands on the other.
+test("occurrence navigation: n/p step, mod+click walks from the clicked mark", async ({
   page,
 }) => {
   await clickToken(page, 1, "gamma");
@@ -275,20 +303,16 @@ test("occurrence navigation: n/p and mark clicks jump between occurrences", asyn
   await page.keyboard.press("p");
   await expect(flash).toContainText("return gamma");
 
-  const markBox = await marks.nth(1).boundingBox();
-  if (!markBox) {
-    throw new Error("occurrence mark bounding box not found");
-  }
-  await page.mouse.move(
-    markBox.x + markBox.width / 2,
-    markBox.y + markBox.height / 2
-  );
-  await page.waitForTimeout(100);
-  await page.mouse.click(
-    markBox.x + markBox.width / 2,
-    markBox.y + markBox.height / 2
-  );
-  await expect(flash).toContainText("const gamma");
+  await clickMark(page, 1);
+  await expect(page.locator(".qf-row-active")).toContainText("return gamma");
+  await expect(marks).toHaveCount(2);
+
+  await clickMark(page, 1, { mod: true });
+  await expect(page.locator(".qf-row-active")).toContainText("const gamma");
+  await expect(marks).toHaveCount(2);
+
+  await clickMark(page, 0, { mod: true });
+  await expect(page.locator(".qf-row-active")).toContainText("return gamma");
   await expect(marks).toHaveCount(2);
 
   await expect(page.locator(".qf-ruler-tick.qf-ruler-occ")).toHaveCount(2);
@@ -344,4 +368,29 @@ test("file tree collapses to an overlay on small screens", async ({ page }) => {
 
   await page.locator('.qf-sidebar [data-file-index="1"]').click();
   await expect(overlay).not.toHaveClass(SIDEBAR_OPEN);
+});
+
+// A new file must read as a break in the diff, not blend into the code plane:
+// the header sits on a raised surface distinct from the diff body background.
+test("the file header stands off the diff background", async ({ page }) => {
+  const bg = await page.evaluate(() => {
+    const head = document.querySelector(".qf-fsec-head");
+    const code = document.querySelector(".qf-row:not(.qf-row-hunk) .qf-code");
+    if (!(head && code)) {
+      return null;
+    }
+    return {
+      head: getComputedStyle(head).backgroundColor,
+      body: getComputedStyle(code.closest(".qf-diff") ?? code).backgroundColor,
+    };
+  });
+  expect(bg).not.toBeNull();
+  expect(bg?.head).not.toBe(bg?.body);
+
+  if (process.env.CAPTURE_EVIDENCE) {
+    await page
+      .locator('.qf-fsec-head[data-file-index="1"]')
+      .scrollIntoViewIfNeeded();
+    await page.screenshot({ path: "evidence/file-header.png" });
+  }
 });

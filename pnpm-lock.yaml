@@ -32,6 +32,9 @@ importers:
       '@tiptap/markdown':
         specifier: 3.27.2
         version: 3.27.2(@tiptap/core@3.27.2(@tiptap/pm@3.27.3))(@tiptap/pm@3.27.3)
+      '@tiptap/pm':
+        specifier: 3.27.3
+        version: 3.27.3
       '@tiptap/react':
         specifier: 3.27.2
         version: 3.27.2(@floating-ui/dom@1.7.6)(@tiptap/core@3.27.2(@tiptap/pm@3.27.3))(@tiptap/pm@3.27.3)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -151,12 +154,6 @@ importers:
       '@cloudflare/workers-types':
         specifier: 5.20260704.1
         version: 5.20260704.1
-      '@tailwindcss/vite':
-        specifier: ^4.0.0
-        version: 4.3.2(vite@7.3.6(@types/node@26.1.0)(jiti@2.7.0)(lightningcss@1.32.0)(yaml@2.9.0))
-      tailwindcss:
-        specifier: ^4.0.0
-        version: 4.3.2
       typescript:
         specifier: ~5.8.3
         version: 5.8.3

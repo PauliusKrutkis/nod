@@ -2,8 +2,10 @@ import { create } from "zustand";
 import { api } from "../lib/api.ts";
 import { usePerfStore } from "../lib/perf.ts";
 import {
+  autoUnviewedKey,
   reconcileViewedEntry,
   UNKNOWN_FINGERPRINT,
+  unviewedReconcileToast,
 } from "../lib/viewed-fingerprint.ts";
 import type {
   AccountInfo,
@@ -24,7 +26,6 @@ export type Route =
  * We remember the inbox/review screen you were last on (never the token/loading
  * screens) so the next launch reopens it instead of always landing on the inbox.
  */
-
 const LAST_ROUTE_KEY = "pr-flow:lastRoute";
 type ResumableRoute = Extract<Route, { name: "inbox" } | { name: "review" }>;
 
@@ -58,6 +59,35 @@ export function loadLastRoute(): ResumableRoute | null {
     /* fall through */
   }
   return null;
+}
+
+/** Which inbox tab you were last on, so a restart doesn't reset it. */
+const LAST_TAB_KEY = "pr-flow:lastInboxTab";
+const TAB_KEYS: readonly InboxTabKey[] = [
+  "reviewRequested",
+  "assigned",
+  "created",
+  "involved",
+  "subscribed",
+];
+
+function saveLastTab(tab: InboxTabKey) {
+  try {
+    localStorage.setItem(LAST_TAB_KEY, tab);
+  } catch {
+    /* ignore quota / private-mode errors */
+  }
+}
+
+export function loadLastTab(): InboxTabKey | null {
+  try {
+    const v = localStorage.getItem(LAST_TAB_KEY);
+    return (TAB_KEYS as readonly string[]).includes(v ?? "")
+      ? (v as InboxTabKey)
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
@@ -169,6 +199,7 @@ function saveTrackers(map: Record<string, string>) {
 interface AppState {
   accounts: AccountInfo[];
   activeAccountId: string | null;
+  autoUnviewed: Record<string, string[]>;
   addPendingComment: (
     prKey: string,
     c: {
@@ -249,6 +280,7 @@ interface AppToast {
 export const useAppStore = create<AppState>((set, get) => ({
   accounts: [],
   activeAccountId: null,
+  autoUnviewed: {},
   addPendingComment: (prKey, c) => {
     const id = `p${Date.now()}-${pendingIdCounter}`;
     pendingIdCounter += 1;
@@ -287,7 +319,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   helpOpen: false,
   inboxPaneVisible: false,
   inboxSelectedKey: null,
-  inboxTab: "reviewRequested",
+  inboxTab: loadLastTab() ?? "reviewRequested",
   isDismissed: (prKey, updatedAt) => {
     const at = get().dismissed[prKey];
     if (!at) {
@@ -331,7 +363,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       return [];
     }
     const map = { ...get().viewed, [prKey]: res.entry };
-    set({ viewed: map });
+    if (res.unviewed.length > 0) {
+      const key = autoUnviewedKey(prKey, headSha);
+      const prev = get().autoUnviewed[key] ?? [];
+      const merged = Array.from(new Set([...prev, ...res.unviewed]));
+      set({
+        autoUnviewed: { ...get().autoUnviewed, [key]: merged },
+        toast: unviewedReconcileToast(res.unviewed),
+        viewed: map,
+      });
+    } else {
+      set({ viewed: map });
+    }
     schedulePersistViewed(map);
     return res.unviewed;
   },
@@ -354,7 +397,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   setHelpOpen: (open) => set({ helpOpen: open }),
   setInboxPaneVisible: (inboxPaneVisible) => set({ inboxPaneVisible }),
   setInboxSelectedKey: (key) => set({ inboxSelectedKey: key }),
-  setInboxTab: (tab) => set({ inboxTab: tab }),
+  setInboxTab: (tab) => {
+    saveLastTab(tab);
+    set({ inboxTab: tab });
+  },
   setIssueTracker: (accountId, url) => {
     const map = { ...get().issueTrackers };
     const cleaned = url?.trim();

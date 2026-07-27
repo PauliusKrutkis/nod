@@ -1,7 +1,20 @@
 /**
- * Parses GitHub's per-file unified diff `patch` into hunks of rows with
- * resolved old/new line numbers, so the diff viewer can render gutters and
- * anchor inline comments to a line.
+ * Parses GitHub's per-file unified diff `patch` (and GitLab's equivalent
+ * `diff`, once the platform layer has normalized it to the same shape) into
+ * hunks of rows with resolved old/new line numbers, so the diff viewer can
+ * render gutters and anchor inline comments to a line.
+ *
+ * `synthetic` marks context rows that were NOT in the patch — they come from
+ * the head blob when a file is expanded to its full contents (expand-file.ts).
+ * They exist at head but not in the diff, so the forges won't accept comments
+ * on them; the item model gives them an anchor (cursor/find/occurrences work)
+ * but no comment target.
+ *
+ * Zero-length split lines are dropped rather than read as content: a real
+ * content line always carries at least its 1-char +/-/space marker, so an
+ * empty one is a stray separator (GitLab puts blank lines between hunks in
+ * its diffs API; a trailing "\n" also produces one), never an actual blank
+ * line in the file.
  */
 
 type DiffRowType = "hunk" | "context" | "add" | "del";
@@ -10,6 +23,7 @@ export interface DiffRow {
   content: string;
   newLine: number | null;
   oldLine: number | null;
+  synthetic?: boolean;
   type: DiffRowType;
 }
 
@@ -19,6 +33,20 @@ export interface DiffHunk {
 }
 
 const HUNK_RE = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
+
+/** The old/new line a hunk starts at, from its "@@ -a,b +c,d @@" header. */
+export function hunkStarts(
+  header: string
+): { newStart: number; oldStart: number } | null {
+  const m = HUNK_RE.exec(header);
+  if (!m) {
+    return null;
+  }
+  return {
+    newStart: Number.parseInt(m[2], 10),
+    oldStart: Number.parseInt(m[1], 10),
+  };
+}
 
 /**
  * Parses are cached by patch string: the find bar re-scans EVERY file's patch
@@ -74,6 +102,10 @@ function parsePatchUncached(patch: string): DiffHunk[] {
     }
 
     if (line.startsWith("\\")) {
+      continue;
+    }
+
+    if (line.length === 0) {
       continue;
     }
 

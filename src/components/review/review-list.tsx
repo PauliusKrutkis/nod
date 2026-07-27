@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { Check, FoldVertical, UnfoldVertical } from "lucide-react";
 import {
   type CSSProperties,
   type HTMLAttributes,
@@ -18,13 +18,9 @@ import {
 } from "react-virtuoso";
 import { useLatest } from "../../hooks/use-latest.ts";
 import { cn } from "../../lib/cn.ts";
+import { canExpandFile } from "../../lib/expand-file.ts";
 import { findMatchRangesInLine } from "../../lib/find-in-diff.ts";
-import {
-  highlightHtmlToNodes,
-  highlightLineWithFind,
-  highlightLineWithIntra,
-  highlightLineWithOccurrences,
-} from "../../lib/highlight.ts";
+import { highlightRowHtml } from "../../lib/highlight.ts";
 import type { IntralineRanges } from "../../lib/intraline.ts";
 import { occurrenceRangesInLine } from "../../lib/occurrences.ts";
 import {
@@ -42,9 +38,12 @@ import { useAppStore } from "../../store/app-store.ts";
 import type { AccountInfo, ChangedFile, PendingComment } from "../../types.ts";
 import { Markdown } from "../markdown.tsx";
 import { Avatar } from "../ui/avatar.tsx";
+import { Tooltip } from "../ui/tooltip.tsx";
 import { AddCommentBox } from "./add-comment-box.tsx";
+import { CodeCell } from "./code-cell.tsx";
 import {
   CommentThread,
+  type EditRequest,
   type ReplyRequest,
   type ToggleRequest,
 } from "./comment-thread.tsx";
@@ -85,6 +84,7 @@ export interface ReviewListHandle {
   nudgeItemIntoView: (itemIndex: number) => void;
   scroller: () => HTMLElement | null;
   scrollItemTo: (itemIndex: number, topPx: number) => void;
+  scrollItemToReadingLine: (itemIndex: number) => void;
   scrollToFileStart: (fileIndex: number) => void;
 }
 
@@ -105,6 +105,8 @@ export interface ReviewListCallbacks {
   }) => void;
   onCloseBox: (fileIndex: number, anchor: string) => void;
   onCopyPath: (fileIndex: number) => void;
+  onDeleteComment: (a: { commentId: number }) => Promise<void>;
+  onEditComment: (a: { commentId: number; body: string }) => Promise<void>;
   onMouseMove: (x: number, y: number) => void;
   onOpenBox: (fileIndex: number, anchor: string, startLine?: number) => void;
   onPlusDragEnd: () => void;
@@ -116,6 +118,7 @@ export interface ReviewListCallbacks {
   onRowEnter: (fileIndex: number, anchor: string, x: number, y: number) => void;
   onScroll: () => void;
   onThreadHover: (t: { rootId: number; path: string } | null) => void;
+  onToggleExpand: (fileIndex: number) => void;
   onToggleHunk: (fileIndex: number, hunkIndex: number) => void;
   onToggleViewed: (fileIndex: number) => void;
 }
@@ -129,6 +132,9 @@ interface ReviewListProps {
   copiedPathIndex: number | null;
   cursorKey: string | null;
   dragging: boolean;
+  editRequest: (EditRequest & { path: string }) | null;
+  expandedFiles: ReadonlySet<string>;
+  expandingFiles: ReadonlySet<string>;
   files: readonly ChangedFile[];
   findCurrent: FindCurrent | null;
   flashKey: string | null;
@@ -162,6 +168,33 @@ interface ListContext {
  */
 const HEADER_FALLBACK_PX = 36;
 
+/**
+ * Where the expand/collapse swap parks the row you're reading: a constant
+ * "reading line" this fraction of the viewport below the sticky header (vim's
+ * `zz` is centered; ~1/3 keeps more of the newly revealed context visible
+ * below the line, which is the point of expanding). See useExpansionScrollRestore.
+ */
+const READING_LINE_FRACTION = 1 / 3;
+
+/**
+ * How close to a fold the cursor may sit before a nudge is worth doing. Kept
+ * deliberately tight so `f`/`g`/`n`/`p` stay still whenever the row is already
+ * comfortably in frame — this is the trigger only, never where the row lands.
+ */
+const CURSOR_EDGE_EPSILON_PX = 4;
+
+/**
+ * Rows of breathing room a nudge leaves between the cursor and the fold it was
+ * pushed away from. Landing flush against the edge read as "stuck to the
+ * bottom" with nothing to scan into, and Virtuoso's item geometry is estimated
+ * often enough that flush also meant the destination row arrived sliced in
+ * half; a few rows of slack buys the context and absorbs that error.
+ */
+const CURSOR_CONTEXT_ROWS = 4;
+
+/** Pre-measure fallback for one code row; see codeRowPx. */
+const ROW_FALLBACK_PX = 26;
+
 function glyphFor(status: string): { letter: string; cls: string } {
   switch (status) {
     case "added":
@@ -185,37 +218,6 @@ function diffRowMarker(type: ReviewRowItem["row"]["type"]): string {
     return "-";
   }
   return " ";
-}
-
-function highlightDiffRow(
-  content: string,
-  filename: string,
-  intra: IntralineRanges | null,
-  markQuery: string | null,
-  markKind: "find" | "occurrence" | null,
-  markFlag: boolean,
-  findOrdinal: number | null
-): string {
-  if (markQuery === null) {
-    return highlightLineWithIntra(content, filename, intra);
-  }
-  if (markKind === "find") {
-    return highlightLineWithFind(
-      content,
-      filename,
-      markQuery,
-      markFlag,
-      findOrdinal,
-      intra
-    );
-  }
-  return highlightLineWithOccurrences(
-    content,
-    filename,
-    markQuery,
-    markFlag,
-    intra
-  );
 }
 
 function rowIsMarked(item: ReviewRowItem, marks: MarkSpec): boolean {
@@ -290,6 +292,7 @@ function DiffLine({
   markQuery,
   markFlag,
   findOrdinal,
+  startsInComment,
   onEnter,
   onOpenBox,
   onPlusDragStart,
@@ -306,6 +309,7 @@ function DiffLine({
   markQuery: string | null;
   markFlag: boolean;
   findOrdinal: number | null;
+  startsInComment: boolean;
   onEnter: (fileIndex: number, anchor: string, x: number, y: number) => void;
   onOpenBox: (fileIndex: number, anchor: string, startLine?: number) => void;
   onPlusDragStart: (fileIndex: number, anchor: string) => void;
@@ -315,14 +319,15 @@ function DiffLine({
   const { row, anchor, fileIndex, hasAnchored } = item;
   const canComment = item.target !== null;
   const marker = diffRowMarker(row.type);
-  const lineHtml = highlightDiffRow(
+  const lineHtml = highlightRowHtml(
     row.content,
     filename,
     intra,
-    markQuery,
     markKind,
+    markQuery,
     markFlag,
-    findOrdinal
+    findOrdinal,
+    startsInComment
   );
 
   const handleMouseEnter = (e: MouseEvent<HTMLDivElement>) => {
@@ -368,6 +373,7 @@ function DiffLine({
         "qf-row",
         row.type === "add" && "qf-row-add",
         row.type === "del" && "qf-row-del",
+        row.synthetic && "qf-row-xctx",
         stateCls,
         hasAnchored && "qf-row-threaded"
       )}
@@ -383,6 +389,7 @@ function DiffLine({
             aria-label="Add comment"
             className="qf-add-btn"
             onClick={handleAddClick}
+            onPointerCancel={onPlusDragEnd}
             onPointerDown={handleAddPointerDown}
             onPointerMove={handleAddPointerMove}
             onPointerUp={onPlusDragEnd}
@@ -394,16 +401,7 @@ function DiffLine({
       </span>
       <span className="qf-gutter qf-gutter-new">{row.newLine ?? ""}</span>
       <span className="qf-marker">{marker}</span>
-      <code
-        className="qf-code"
-        style={
-          guideLvl === null
-            ? undefined
-            : ({ "--qf-lvl": guideLvl } as CSSProperties)
-        }
-      >
-        <span className="hljs">{highlightHtmlToNodes(lineHtml)}</span>
-      </code>
+      <CodeCell guideLvl={guideLvl} html={lineHtml} />
     </div>
   );
 }
@@ -436,14 +434,20 @@ function MappedCommentThread({
   addPending,
   replyRequest,
   toggleRequest,
+  editRequest,
   callbacks,
+  owner,
+  repo,
 }: {
   thread: ReviewCommentsItem["threads"][number];
   filename: string;
   addPending: boolean;
   replyRequest: ReplyRequest | null;
   toggleRequest: ToggleRequest | null;
+  editRequest: EditRequest | null;
   callbacks: ReviewListCallbacks;
+  owner: string;
+  repo: string;
 }) {
   const rootId = thread[0].id;
   const handleHoverChange = (hovering: boolean) => {
@@ -453,11 +457,16 @@ function MappedCommentThread({
   return (
     <CommentThread
       comments={thread}
+      editRequest={editRequest}
+      onDelete={callbacks.onDeleteComment}
+      onEdit={callbacks.onEditComment}
       onHoverChange={handleHoverChange}
       onReply={callbacks.onReply}
       onResolve={callbacks.onResolveThread}
+      owner={owner}
       replyPending={addPending}
       replyRequest={replyRequest}
+      repo={repo}
       toggleRequest={toggleRequest}
     />
   );
@@ -559,6 +568,7 @@ function CommentAddBox({
       placeholder="Add a review comment…"
       secondaryLabel="Comment now"
       submitLabel="Add to review"
+      suggestionFile={filename}
       suggestionText={
         target.side === "RIGHT"
           ? (item.rangeContent ?? item.rowContent ?? undefined)
@@ -574,14 +584,20 @@ function CommentsBlock({
   addPending,
   replyRequest,
   toggleRequest,
+  editRequest,
   callbacks,
+  owner,
+  repo,
 }: {
   item: ReviewCommentsItem;
   filename: string;
   addPending: boolean;
   replyRequest: ReplyRequest | null;
   toggleRequest: ToggleRequest | null;
+  editRequest: EditRequest | null;
   callbacks: ReviewListCallbacks;
+  owner: string;
+  repo: string;
 }) {
   const activeAccount = useAppStore((s) =>
     s.accounts.find((a) => a.id === s.activeAccountId)
@@ -597,9 +613,12 @@ function CommentsBlock({
         <MappedCommentThread
           addPending={addPending}
           callbacks={callbacks}
+          editRequest={editRequest}
           filename={filename}
           key={thread[0].id}
+          owner={owner}
           replyRequest={replyRequest}
+          repo={repo}
           thread={thread}
           toggleRequest={toggleRequest}
         />
@@ -647,6 +666,8 @@ function GroupHeader({
     viewedSet,
     changedSinceViewed,
     copiedPathIndex,
+    expandedFiles,
+    expandingFiles,
     callbacks,
   } = ctx.props;
   const file = files[groupIndex];
@@ -656,7 +677,9 @@ function GroupHeader({
   const handleToggleViewed = () => {
     callbacks.onToggleViewed(groupIndex);
   };
-
+  const handleToggleExpand = () => {
+    callbacks.onToggleExpand(groupIndex);
+  };
   if (!file) {
     return <div className="qf-fsec-head" />;
   }
@@ -667,6 +690,8 @@ function GroupHeader({
     slash === -1 ? file.filename : file.filename.slice(slash + 1);
   const viewed = viewedSet.has(file.filename);
   const copied = copiedPathIndex === groupIndex;
+  const expanded = expandedFiles.has(file.filename);
+  const expanding = expandingFiles.has(file.filename);
   return (
     <header
       className={cn(
@@ -676,23 +701,27 @@ function GroupHeader({
       data-file-index={groupIndex}
     >
       <span className={cn("qf-file-glyph", glyph.cls)}>{glyph.letter}</span>
-      <button
-        className="qf-fsec-name qf-fsec-copy"
-        onClick={handleCopyPath}
-        title={copied ? "Copied" : `${file.filename} — click to copy path`}
-        type="button"
+      <Tooltip
+        anchorClassName="flex-1 min-w-0"
+        label={copied ? "Copied" : `${file.filename} — click to copy path`}
       >
-        {file.previousFilename && file.status === "renamed" && (
-          <span className="qf-filebar-prev">{file.previousFilename} → </span>
-        )}
-        <span className="qf-file-dir">{dir}</span>
-        <span className="qf-fsec-base">{basename}</span>
-        {copied && (
-          <span aria-live="polite" className="qf-fsec-copied">
-            <Check aria-hidden size={11} /> copied
-          </span>
-        )}
-      </button>
+        <button
+          className="qf-fsec-name qf-fsec-copy"
+          onClick={handleCopyPath}
+          type="button"
+        >
+          {file.previousFilename && file.status === "renamed" && (
+            <span className="qf-filebar-prev">{file.previousFilename} → </span>
+          )}
+          <span className="qf-file-dir">{dir}</span>
+          <span className="qf-fsec-base">{basename}</span>
+          {copied && (
+            <span aria-live="polite" className="qf-fsec-copied">
+              <Check aria-hidden size={11} /> copied
+            </span>
+          )}
+        </button>
+      </Tooltip>
       {changedSinceViewed.has(file.filename) && (
         <span
           className="qf-updated-chip"
@@ -705,16 +734,41 @@ function GroupHeader({
         <span className="qf-add">+{file.additions}</span>
         <span className="qf-del">−{file.deletions}</span>
       </span>
-      <button
-        aria-pressed={viewed}
-        className={cn("qf-viewed-btn", viewed && "qf-viewed-on")}
-        onClick={handleToggleViewed}
-        title={viewed ? "Viewed — click to unmark (v)" : "Mark as viewed (v)"}
-        type="button"
+      {canExpandFile(file) && (
+        <Tooltip
+          combo="shift+v"
+          label={expanded ? "Back to the diff" : "Expand to the full file"}
+        >
+          <button
+            aria-busy={expanding || undefined}
+            aria-pressed={expanded}
+            className={cn("qf-expand-btn", expanded && "qf-expand-on")}
+            onClick={handleToggleExpand}
+            type="button"
+          >
+            {expanded ? (
+              <FoldVertical aria-hidden size={12} />
+            ) : (
+              <UnfoldVertical aria-hidden size={12} />
+            )}
+            {expanded ? "Diff only" : "Full file"}
+          </button>
+        </Tooltip>
+      )}
+      <Tooltip
+        combo="v"
+        label={viewed ? "Viewed — click to unmark" : "Mark as viewed"}
       >
-        <Check aria-hidden size={12} />
-        Viewed
-      </button>
+        <button
+          aria-pressed={viewed}
+          className={cn("qf-viewed-btn", viewed && "qf-viewed-on")}
+          onClick={handleToggleViewed}
+          type="button"
+        >
+          <Check aria-hidden size={12} />
+          Viewed
+        </button>
+      </Tooltip>
     </header>
   );
 }
@@ -780,13 +834,20 @@ function renderCommentsItem(
     <CommentsBlock
       addPending={p.addPending}
       callbacks={p.callbacks}
+      editRequest={
+        p.editRequest && p.editRequest.path === file.filename
+          ? p.editRequest
+          : null
+      }
       filename={file.filename}
       item={item}
+      owner={p.owner}
       replyRequest={
         p.replyRequest && p.replyRequest.path === file.filename
           ? p.replyRequest
           : null
       }
+      repo={p.repo}
       toggleRequest={
         p.toggleRequest && p.toggleRequest.path === file.filename
           ? p.toggleRequest
@@ -807,7 +868,7 @@ function renderRowItem(
   if (!patch) {
     return <div style={{ height: 1 }} />;
   }
-  const meta = fileRenderMeta(patch);
+  const meta = fileRenderMeta(patch, file.filename);
   const key =
     item.anchor === null ? null : fileAnchorKey(item.fileIndex, item.anchor);
   const { marks } = p;
@@ -846,6 +907,7 @@ function renderRowItem(
       onPlusDragEnd={p.callbacks.onPlusDragEnd}
       onPlusDragOver={p.callbacks.onPlusDragOver}
       onPlusDragStart={p.callbacks.onPlusDragStart}
+      startsInComment={meta.commentByRow.get(item.row) ?? false}
       stateCls={cn(
         key !== null && key === p.cursorKey && "qf-row-active",
         inSel && "qf-row-selected",
@@ -986,6 +1048,13 @@ export function ReviewList({
     return el?.offsetHeight ?? HEADER_FALLBACK_PX;
   }
 
+  function codeRowPx(): number {
+    const el = scrollerRef.current?.querySelector<HTMLElement>(
+      ".qf-row:not(.qf-row-hunk)"
+    );
+    return el?.offsetHeight ?? ROW_FALLBACK_PX;
+  }
+
   const cursorViewLocation: CalculateViewLocation = ({
     itemTop,
     itemBottom,
@@ -993,12 +1062,18 @@ export function ReviewList({
     viewportBottom,
     locationParams: { behavior, align: _align, ...rest },
   }) => {
-    const headerPx = stickyHeaderPx() + 4;
-    if (itemTop < viewportTop + headerPx) {
-      return { ...rest, align: "start", behavior, offset: -headerPx };
+    const headerPx = stickyHeaderPx();
+    const contextPx = codeRowPx() * CURSOR_CONTEXT_ROWS;
+    if (itemTop < viewportTop + headerPx + CURSOR_EDGE_EPSILON_PX) {
+      return {
+        ...rest,
+        align: "start",
+        behavior,
+        offset: -(headerPx + contextPx),
+      };
     }
-    if (itemBottom > viewportBottom - 4) {
-      return { ...rest, align: "end", behavior, offset: 4 };
+    if (itemBottom > viewportBottom - CURSOR_EDGE_EPSILON_PX) {
+      return { ...rest, align: "end", behavior, offset: contextPx };
     }
     return null;
   };
@@ -1071,6 +1146,17 @@ export function ReviewList({
           align: "start",
           index: itemIndex,
           offset: -topPx,
+        });
+      },
+      scrollItemToReadingLine(itemIndex) {
+        const scroller = scrollerRef.current;
+        const viewport = scroller?.clientHeight ?? 0;
+        const readingLine =
+          stickyHeaderPx() + Math.round(viewport * READING_LINE_FRACTION);
+        vRef.current?.scrollToIndex({
+          align: "start",
+          index: itemIndex,
+          offset: -readingLine,
         });
       },
       scrollToFileStart(fileIndex) {

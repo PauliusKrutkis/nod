@@ -1,11 +1,13 @@
 {
   "name": "pr-flow",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@11.3.0",
   "scripts": {
     "dev": "vite",
     "dev:desktop": "tauri dev",
+    "dev:web": "pnpm --filter @nod/web dev",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
@@ -28,6 +30,7 @@
     "@tiptap/core": "3.27.2",
     "@tiptap/extensions": "3.27.2",
     "@tiptap/markdown": "3.27.2",
+    "@tiptap/pm": "3.27.3",
     "@tiptap/react": "3.27.2",
     "@tiptap/starter-kit": "3.27.2",
     "clsx": "^2.1.1",

@@ -48,9 +48,12 @@ belong in one of three places:
    rationale: non-obvious invariants, performance constraints, field semantics
    on shared types, or cross-cutting behavior that applies to the whole file.
 
-2. **Function docs** — `/** … */` immediately above a function (or method) when
-   the name and signature are not enough. Not on variables, hooks, or React
-   state inside a component body.
+2. **Function docs** — `/** … */` immediately above a top-level function
+   declaration (or method) when the name and signature are not enough. Not on
+   variables, hooks, or React state inside a component or hook body — this
+   includes local `const` arrow/function expressions assigned inside a
+   component or hook, even when they read like a function. Their rationale
+   moves to the file header instead.
 
 3. **Nowhere** — if the code is self-explanatory, delete the comment.
 
@@ -64,6 +67,11 @@ belong in one of three places:
   in the file header if needed.
 - **Component state and refs** — no doc blocks between `useState` / `useRef`
   declarations; put interaction-model notes in the file header once.
+- **Local functions inside a component or hook body** — a `const` arrow
+  function (or nested `function`) assigned inside a component or custom hook
+  is still "inside the body," not a top-level declaration; it does not
+  qualify for function docs under rule 2 no matter how function-shaped it
+  looks. Move the rationale to the file header.
 - **JSX markup** — no `{/* … */}` section labels in render trees (`{/* file list
   */}`, `{/* ============ CENTER ============ */}`). Layout should be obvious
   from structure and class names; non-obvious UI behaviour belongs in the file
@@ -101,6 +109,59 @@ line:
 - Keep a file-level scenario block when the test mocks non-obvious behavior.
 - Drop step-by-step narration (`// Click submit`, `// Wait for load`) unless
   the step documents a timing/race workaround.
+
+---
+
+## Code view: own implementation, no editor library
+
+**Decision (2026-07-15):** every surface that renders code — the diff, and the
+planned full-file context expansion — is built on our own rendering stack
+(highlight.js per line + `CodeCell` + the pure matchers in `src/lib/`), not on
+an editor component like CodeMirror or Monaco. Reading-and-navigation features
+(find bar, occurrence highlighting, future go-to-definition once repo sync
+lands) are added to this stack, not bought.
+
+Why:
+
+- **The core surface has no off-the-shelf equivalent.** The review pane is
+  find/occurrences over a *lazily mounted, multi-file patch stream* — matches
+  computed from patch text, anchored `SIDE:line`, coexisting with comment
+  threads, plus-drag, intraline marks, and the overview ruler. Editor merge
+  views diff two whole documents; nothing does GitHub-patch hunks across a PR.
+  The diff stays custom no matter what, so a library could only ever cover
+  secondary surfaces.
+- **A second stack is drift by construction.** Adopting CodeMirror for a
+  full-file surface means two find UIs, two mark styles, two keyboard models,
+  and a theme kept in sync by hand — the exact divergence a single code view
+  is meant to prevent. The entire value of any full-file surface is "same
+  reading experience as the diff, just more context".
+- **It fights the interaction model.** Editor widgets are focus-hungry;
+  this app's keyboard system (Tab never moves focus, no focus rings, armed
+  highlights) and native `<dialog>` model don't compose with an embedded
+  editor's focus trap.
+- **The features we want are marks and jumps, not editing.** Go-to-definition
+  is token hit-testing (the occurrence code already does text-node column
+  math), a mark on hover (same layering as find/occurrence marks), and a jump
+  (the existing anchor machinery). Repo sync supplies the data source
+  (tree-sitter/LSP over the local checkout); none of it needs an editor.
+
+How the single code view is achieved (headless sharing, not one mega
+component — the same split VS Code uses internally, one FindController across
+editor and diff editor):
+
+- **One paint unit** — `CodeCell` / `highlightRowHtml`
+  (`src/components/review/code-cell.tsx`): the only way a code line reaches
+  the DOM. New surfaces must render it.
+- **One matcher** — `findMatchRangesInLine` (`src/lib/find-in-diff.ts`); find
+  and occurrences both ride it, so "what counts as a hit" cannot fork.
+- **One navigation** — anchors + `buildOccNav`/find-step over match lists;
+  surfaces differ only in their match *source* and scroll-to-anchor.
+
+**Re-evaluation trigger:** if a feature needs the document to restructure
+under the reader — code folding, semantic re-highlighting, inline widgets
+between arbitrary tokens — we would be rebuilding an editor's
+decoration/viewport system. That is the point to reconsider a library, not
+before.
 
 ---
 

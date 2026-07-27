@@ -38,7 +38,7 @@ test("an unchanged viewed file keeps its mark across reopen", async ({
   await page.keyboard.press("Enter");
   await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
 
-  await page.keyboard.press("r"); // next file
+  await page.keyboard.press("r");
   await expect(page.locator(".qf-file-active")).toHaveAttribute(
     "data-file-index",
     "1"
@@ -82,6 +82,77 @@ test("an inbox heartbeat that sees the PR move refreshes the open diff", async (
   );
   await expect(page.locator(".qf-side-count")).toHaveText("0/3 viewed");
   await expect(page.locator(".qf-file-dot")).toHaveCount(1);
+});
+
+test("e skips files already viewed when advancing", async ({ page }) => {
+  await setupApp(page);
+  await expect(page.getByRole("option").first()).toBeVisible();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
+
+  await page.keyboard.press("r");
+  await expect(page.locator(".qf-file-active")).toHaveAttribute(
+    "data-file-index",
+    "1"
+  );
+  await page.keyboard.press("v");
+  await expect(page.locator(".qf-side-count")).toHaveText("1/3 viewed");
+
+  await page.keyboard.press("t");
+  await expect(page.locator(".qf-file-active")).toHaveAttribute(
+    "data-file-index",
+    "0"
+  );
+
+  await page.keyboard.press("e");
+  await expect(page.locator(".qf-file-active")).toHaveAttribute(
+    "data-file-index",
+    "2"
+  );
+  await expect(page.locator(".qf-side-count")).toHaveText("2/3 viewed");
+});
+
+test("e wraps back to unviewed files left behind, then stops when none are left", async ({
+  page,
+}) => {
+  await setupApp(page);
+  await expect(page.getByRole("option").first()).toBeVisible();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
+
+  await page.keyboard.press("r");
+  await expect(page.locator(".qf-file-active")).toHaveAttribute(
+    "data-file-index",
+    "1"
+  );
+  await page.keyboard.press("v");
+  await expect(page.locator(".qf-side-count")).toHaveText("1/3 viewed");
+
+  await page.keyboard.press("r");
+  await expect(page.locator(".qf-file-active")).toHaveAttribute(
+    "data-file-index",
+    "2"
+  );
+
+  await page.keyboard.press("e");
+  await expect(page.locator(".qf-file-active")).toHaveAttribute(
+    "data-file-index",
+    "0"
+  );
+  await expect(page.locator(".qf-side-count")).toHaveText("2/3 viewed");
+  await expect(page.locator(".qf-row-active")).toHaveAttribute(
+    "data-file-index",
+    "0"
+  );
+  await page.screenshot({ path: "evidence/eskip-wrapped-to-unviewed.png" });
+
+  await page.keyboard.press("e");
+  await expect(page.locator(".qf-side-count")).toHaveText("3/3 viewed");
+  await expect(page.locator(".qf-file-active")).toHaveAttribute(
+    "data-file-index",
+    "0"
+  );
+  await page.screenshot({ path: "evidence/eskip-all-viewed-stays-put.png" });
 });
 
 test.describe("path copy", () => {

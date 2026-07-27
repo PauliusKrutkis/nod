@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use tauri::AppHandle;
 
 use crate::accounts;
-use crate::github::{
+use crate::model::{
     FileBlob, GitHubUser, InboxBucket, InboxData, PullRequestDetail, RepoHit, ReviewComment,
     ReviewCommentInput,
 };
@@ -197,6 +197,39 @@ pub async fn reply_to_review_comment(
         .await
 }
 
+/// Edit an inline review comment's body. Gated in the UI to the signed-in
+/// user's own comments; the hosts reject foreign ids anyway.
+#[tauri::command]
+pub async fn update_review_comment(
+    app: AppHandle,
+    owner: String,
+    repo: String,
+    number: u64,
+    comment_id: u64,
+    body: String,
+) -> Result<(), String> {
+    let (_, platform) = accounts::active_platform(&app).await?;
+    platform
+        .update_review_comment(&owner, &repo, number, comment_id, &body)
+        .await
+}
+
+/// Delete an inline review comment. Gated in the UI to the signed-in user's
+/// own comments behind a two-step confirm.
+#[tauri::command]
+pub async fn delete_review_comment(
+    app: AppHandle,
+    owner: String,
+    repo: String,
+    number: u64,
+    comment_id: u64,
+) -> Result<(), String> {
+    let (_, platform) = accounts::active_platform(&app).await?;
+    platform
+        .delete_review_comment(&owner, &repo, number, comment_id)
+        .await
+}
+
 /// Resolve / unresolve an inline review thread. `thread_id` is the provider's
 /// thread handle carried on ReviewComment (GraphQL node id / discussion id).
 #[tauri::command]
@@ -225,6 +258,39 @@ pub async fn create_issue_comment(
     let (_, platform) = accounts::active_platform(&app).await?;
     platform
         .create_issue_comment(&owner, &repo, number, &body)
+        .await
+}
+
+/// Edit a PR-level (conversation) comment's body. Gated in the UI to the
+/// signed-in user's own comments.
+#[tauri::command]
+pub async fn update_issue_comment(
+    app: AppHandle,
+    owner: String,
+    repo: String,
+    number: u64,
+    comment_id: u64,
+    body: String,
+) -> Result<(), String> {
+    let (_, platform) = accounts::active_platform(&app).await?;
+    platform
+        .update_issue_comment(&owner, &repo, number, comment_id, &body)
+        .await
+}
+
+/// Delete a PR-level (conversation) comment. Gated in the UI to the
+/// signed-in user's own comments behind a two-step confirm.
+#[tauri::command]
+pub async fn delete_issue_comment(
+    app: AppHandle,
+    owner: String,
+    repo: String,
+    number: u64,
+    comment_id: u64,
+) -> Result<(), String> {
+    let (_, platform) = accounts::active_platform(&app).await?;
+    platform
+        .delete_issue_comment(&owner, &repo, number, comment_id)
         .await
 }
 
@@ -259,6 +325,18 @@ pub async fn get_file_blob(
 }
 
 #[tauri::command]
+pub async fn get_upload_blob(
+    app: AppHandle,
+    owner: String,
+    repo: String,
+    secret: String,
+    filename: String,
+) -> Result<FileBlob, String> {
+    let (_, platform) = accounts::active_platform(&app).await?;
+    platform.upload_blob(&owner, &repo, &secret, &filename).await
+}
+
+#[tauri::command]
 pub async fn get_viewed_map(app: AppHandle) -> Result<Value, String> {
     let account = accounts::active_account(&app).await?;
     if let Some(v) = storage::read_json::<Value>(&app, &viewed_name(&account.id))? {
@@ -274,24 +352,5 @@ pub async fn set_viewed_map(app: AppHandle, map: Value) -> Result<(), String> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{cache_path_segment, detail_cache_name};
-
-    #[test]
-    fn detail_cache_name_sanitizes_slashes_in_owner_and_repo() {
-        assert_eq!(
-            detail_cache_name(
-                "gitlab-https-gitlab-acme-dev-demo-user",
-                "acme-corp",
-                "frontend/widget-app",
-                42
-            ),
-            "pr_gitlab-https-gitlab-acme-dev-demo-user_acme-corp_frontend_widget-app_42.json"
-        );
-    }
-
-    #[test]
-    fn cache_path_segment_replaces_slashes_and_backslashes() {
-        assert_eq!(cache_path_segment("a/b\\c"), "a_b_c");
-    }
-}
+#[path = "commands_tests.rs"]
+mod tests;

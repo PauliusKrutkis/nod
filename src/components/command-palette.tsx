@@ -74,13 +74,14 @@ function CommandPaletteContent({ baseScope }: { baseScope: string }) {
   const closePalette = useAppStore((s) => s.closePalette);
   const { getBindings, version: bindingsVersion } = useKeyboard();
   const listId = useId();
-  const { dialogRef, onDialogCancel, onDialogClose } =
-    useModalDialog(closePalette);
-
   const [query, setQuery] = useState("");
   const [index, setIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const { dialogRef, onDialogCancel, onDialogClose } = useModalDialog(
+    closePalette,
+    inputRef
+  );
 
   const commandEntries = buildCommandEntries(
     baseScope,
@@ -101,10 +102,6 @@ function CommandPaletteContent({ baseScope }: { baseScope: string }) {
 
   const activeIndex =
     entries.length === 0 ? 0 : Math.min(index, entries.length - 1);
-
-  useEffect(() => {
-    requestAnimationFrame(() => inputRef.current?.focus());
-  }, []);
 
   useEffect(() => {
     listRef.current
@@ -137,6 +134,12 @@ function CommandPaletteContent({ baseScope }: { baseScope: string }) {
       e.preventDefault();
       setIndex((i) =>
         entries.length ? (i - 1 + entries.length) % entries.length : 0
+      );
+    } else if (e.key === "Tab") {
+      e.preventDefault();
+      const dir = e.shiftKey ? -1 : 1;
+      setIndex((i) =>
+        entries.length ? (i + dir + entries.length) % entries.length : 0
       );
     } else if (e.key === "Enter") {
       e.preventDefault();
