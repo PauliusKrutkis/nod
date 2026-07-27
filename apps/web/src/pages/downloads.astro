@@ -1,0 +1,116 @@
+---
+import CopyCommand from "../components/CopyCommand.astro";
+import SiteFooter from "../components/SiteFooter.astro";
+import SiteNav from "../components/SiteNav.astro";
+import Base from "../layouts/Base.astro";
+import { fetchReleases, formatDate } from "../lib/releases";
+
+const brew = "brew install pauliuskrutkis/tap/nod";
+const repo = "https://github.com/PauliusKrutkis/pr-flow";
+const installNotes = `${repo}#install--auto-updates`;
+
+const releases = await fetchReleases();
+const [latest, ...older] = releases;
+
+if (!latest) {
+  throw new Error(
+    "No published version releases found — /downloads would render empty."
+  );
+}
+---
+
+<Base
+  title="Download Nod"
+  description="Download Nod for macOS, Windows, and Linux. Install with Homebrew in one line, then the app keeps itself up to date."
+>
+  <SiteNav cta={{ href: "#versions", label: "Release notes" }} />
+
+  <main>
+    <section class="wrap dl">
+      <p class="eyebrow">Downloads</p>
+      <h1 class="dl__title">Install Nod</h1>
+      <p class="dl__sub">
+        Latest is <span class="mono dl__version">{latest.tag}</span>, released {
+          formatDate(latest.publishedAt)
+        }. After the first install the app updates itself.
+      </p>
+
+      <div class="dl__brew">
+        <CopyCommand command={brew} />
+        <p class="dl__hint">
+          macOS also needs <a href={installNotes}>one more command</a> on first
+          install, until Nod is notarized.
+        </p>
+      </div>
+
+      <ul class="dl__grid">
+        {
+          latest.downloads.map((download) => (
+            <li>
+              <a class="dl__item" href={download.url}>
+                <span class="dl__plat">{download.platform}</span>
+                <span class="dl__detail">{download.detail}</span>
+                <span class="mono dl__size">{download.size}</span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="wrap vers" id="versions">
+      <h2 class="vers__head">
+        What's new in <span class="mono">{latest.tag}</span>
+      </h2>
+      {
+        latest.notes.length > 0 ? (
+          <ul class="vers__notes">
+            {latest.notes.map((note) => (
+              <li>{note}</li>
+            ))}
+          </ul>
+        ) : (
+          <p class="vers__empty">
+            No notes for this release.{" "}
+            <a href={`${repo}/releases/tag/${latest.tag}`}>See it on GitHub</a>.
+          </p>
+        )
+      }
+
+      {
+        older.length > 0 && (
+          <div class="vers__older">
+            <p class="vers__older-head">Previous releases</p>
+            {older.map((release) => (
+              <details class="vers__item">
+                <summary class="vers__summary">
+                  <span class="mono vers__tag">{release.tag}</span>
+                  <span class="vers__date">
+                    {formatDate(release.publishedAt)}
+                  </span>
+                </summary>
+                <div class="vers__body">
+                  {release.notes.length > 0 && (
+                    <ul class="vers__notes">
+                      {release.notes.map((note) => (
+                        <li>{note}</li>
+                      ))}
+                    </ul>
+                  )}
+                  <a
+                    class="vers__assets"
+                    href={`${repo}/releases/tag/${release.tag}`}
+                  >
+                    Downloads for {release.tag} →
+                  </a>
+                </div>
+              </details>
+            ))}
+          </div>
+        )
+      }
+    </section>
+  </main>
+
+  <SiteFooter />
+</Base>

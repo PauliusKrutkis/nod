@@ -1,0 +1,49 @@
+---
+interface Props {
+  command: string;
+  label?: string;
+}
+
+const { command, label = "Copy install command" } = Astro.props;
+---
+
+<div class="cmd">
+  <span class="mono"><span class="cmd__prompt">$</span> {command}</span>
+  <button type="button" class="cmd__copy" data-copy={command} aria-label={label}>
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+    </svg>
+  </button>
+</div>
+
+<script>
+  // Progressive enhancement: the command is selectable text without JS; this
+  // just adds one-click copy with a brief confirmation. Astro bundles this
+  // once no matter how many times the component is used on a page.
+  for (const btn of document.querySelectorAll<HTMLButtonElement>(".cmd__copy")) {
+    btn.addEventListener("click", async () => {
+      const text = btn.dataset.copy;
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.dataset.copied = "true";
+        setTimeout(() => {
+          btn.removeAttribute("data-copied");
+        }, 1400);
+      } catch {
+        // Clipboard blocked (e.g. insecure context) — leave the text to select.
+      }
+    });
+  }
+</script>
