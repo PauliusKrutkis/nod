@@ -7,6 +7,13 @@
  * leaving it on the file just left makes those keys act on the wrong file.
  * Files with no nav rows (image, binary, fully collapsed) keep the previous
  * cursor rather than clearing it.
+ *
+ * A freshly opened comment box (`c`, drag-select, or the `+` button) can
+ * render partly or fully below the fold on a short viewport.
+ * `reviewListOnOpenBox` flags the anchor it just opened in
+ * `pendingBoxNudgeRef`, and a layout effect nudges it into view once the
+ * model that contains it has rebuilt — same instant, no-animation easing
+ * keyboard row navigation already uses via `nudgeItemIntoView`.
  */
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
@@ -76,11 +83,13 @@ import { queryClient, queryKeys } from "../../lib/query-client.ts";
 import {
   adjacentSelectableAnchor,
   anchorLine,
+  armedThreadAt,
   buildReviewItems,
   clampFastStep,
   fileAnchorKey,
   type NavKind,
   navKey,
+  nextCommentItem,
   type ReviewListModel,
 } from "../../lib/review-items.ts";
 import {
@@ -2011,49 +2020,6 @@ function flashCommentThread(
   requestAnimationFrame(land);
 }
 
-/**
- * The thread `r`/`x`/`z`/`shift+e` should act on once the cursor is at
- * `itemIndex` — the block's first thread, or null when it holds only a pending
- * comment or an open composer. Shared by every path that moves the cursor onto
- * a comment block so keyboard nav and `q`/`w` cannot arm different things.
- */
-function armedThreadAt(
-  m: ReviewListModel,
-  files: ChangedFile[],
-  itemIndex: number
-): { rootId: number; path: string } | null {
-  const item = m.items[itemIndex];
-  if (item?.kind !== "comments" || item.threads.length === 0) {
-    return null;
-  }
-  return {
-    path: files[item.fileIndex]?.filename ?? "",
-    rootId: item.threads[0][0].id,
-  };
-}
-
-/**
- * The comment block `q`/`w` should land on: the nearest one after (or before)
- * the cursor's own position in the item stream, wrapping at the ends. Derived
- * from the cursor rather than a running index, so the cycle always continues
- * from where you are — jumping files or running a find no longer restarts it
- * at the first comment in the PR.
- */
-function nextCommentItem(
-  m: ReviewListModel,
-  fromItem: number,
-  delta: number
-): number | undefined {
-  const list = m.commentItems;
-  if (list.length === 0) {
-    return undefined;
-  }
-  if (delta > 0) {
-    return list.find((i) => i > fromItem) ?? list[0];
-  }
-  return [...list].reverse().find((i) => i < fromItem) ?? list.at(-1);
-}
-
 function useReviewThreadActions(args: {
   activeIndexRef: React.RefObject<number>;
   activeThreadRef: React.RefObject<{ rootId: number; path: string } | null>;
@@ -2889,17 +2855,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   });
   const modelRef = useLatest(model);
 
-  /**
-   * A freshly opened comment box can render partly (or fully) below the
-   * viewport on a short screen — nudge it into view the moment the model
-   * that contains it has been built, same easing `nudgeItemIntoView` already
-   * uses for keyboard row navigation (a no-op if it's already visible, and
-   * instant — no scroll animation).
-   */
-  // Reads the fresh `model` built earlier in this render; model isn't
-  // memoized, so listing it would rerun this every render. openBoxes is the
-  // actual gate — it only changes when a box opens or closes.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: see above
+  // biome-ignore lint/correctness/useExhaustiveDependencies: model is rebuilt fresh every render (not memoized), so listing it would rerun this every render; openBoxes is the actual gate
   useLayoutEffect(() => {
     const pending = pendingBoxNudgeRef.current;
     if (!pending) {

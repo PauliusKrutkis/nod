@@ -117,6 +117,18 @@ test("c opens the composer; adding batches a pending card", async ({
   );
 });
 
+test("opening the composer off-screen scrolls it fully into view", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 420, width: 900 });
+  for (let i = 0; i < 6; i++) {
+    await page.keyboard.press("j");
+  }
+  await page.keyboard.press("c");
+  const box = page.getByRole("textbox", { name: "Add a review comment…" });
+  await expect(box).toBeInViewport();
+});
+
 test("pending drafts survive leaving and reopening the PR", async ({
   page,
 }) => {

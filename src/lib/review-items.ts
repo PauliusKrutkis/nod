@@ -144,6 +144,49 @@ export function clampFastStep(
 }
 
 /**
+ * The thread `r`/`x`/`z`/`shift+e` should act on once the cursor is at
+ * `itemIndex` — the block's first thread, or null when it holds only a pending
+ * comment or an open composer. Shared by every path that moves the cursor onto
+ * a comment block so keyboard nav and `q`/`w` cannot arm different things.
+ */
+export function armedThreadAt(
+  m: ReviewListModel,
+  files: readonly ChangedFile[],
+  itemIndex: number
+): { rootId: number; path: string } | null {
+  const item = m.items[itemIndex];
+  if (item?.kind !== "comments" || item.threads.length === 0) {
+    return null;
+  }
+  return {
+    path: files[item.fileIndex]?.filename ?? "",
+    rootId: item.threads[0][0].id,
+  };
+}
+
+/**
+ * The comment block `q`/`w` should land on: the nearest one after (or before)
+ * the cursor's own position in the item stream, wrapping at the ends. Derived
+ * from the cursor rather than a running index, so the cycle always continues
+ * from where you are — jumping files or running a find no longer restarts it
+ * at the first comment in the PR.
+ */
+export function nextCommentItem(
+  m: ReviewListModel,
+  fromItem: number,
+  delta: number
+): number | undefined {
+  const list = m.commentItems;
+  if (list.length === 0) {
+    return undefined;
+  }
+  if (delta > 0) {
+    return list.find((i) => i > fromItem) ?? list[0];
+  }
+  return [...list].reverse().find((i) => i < fromItem) ?? list.at(-1);
+}
+
+/**
  * Group flat review comments into threads (root first, then replies) and
  * index each thread by the anchor of its root comment.
  */
