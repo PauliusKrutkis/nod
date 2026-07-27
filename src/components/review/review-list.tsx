@@ -81,7 +81,7 @@ export interface ReviewListHandle {
   } | null;
   firstVisibleRowItem: () => number | null;
   getState: (cb: (state: StateSnapshot) => void) => void;
-  nudgeItemIntoView: (itemIndex: number) => void;
+  nudgeItemIntoView: (itemIndex: number, marginRows?: number) => void;
   scroller: () => HTMLElement | null;
   scrollItemTo: (itemIndex: number, topPx: number) => void;
   scrollItemToReadingLine: (itemIndex: number) => void;
@@ -1029,22 +1029,30 @@ export function ReviewList({
     return el?.offsetHeight ?? HEADER_FALLBACK_PX;
   }
 
-  const cursorViewLocation: CalculateViewLocation = ({
-    itemTop,
-    itemBottom,
-    viewportTop,
-    viewportBottom,
-    locationParams: { behavior, align: _align, ...rest },
-  }) => {
-    const headerPx = stickyHeaderPx() + 4;
-    if (itemTop < viewportTop + headerPx) {
-      return { ...rest, align: "start", behavior, offset: -headerPx };
-    }
-    if (itemBottom > viewportBottom - 4) {
-      return { ...rest, align: "end", behavior, offset: 4 };
-    }
-    return null;
-  };
+  const cursorViewLocation =
+    (marginRows: number): CalculateViewLocation =>
+    ({
+      itemTop,
+      itemBottom,
+      viewportTop,
+      viewportBottom,
+      locationParams: { behavior, align: _align, ...rest },
+    }) => {
+      const headerPx = stickyHeaderPx() + 4;
+      const marginPx = marginRows * (itemBottom - itemTop);
+      if (itemTop < viewportTop + headerPx) {
+        return {
+          ...rest,
+          align: "start",
+          behavior,
+          offset: -(headerPx + marginPx),
+        };
+      }
+      if (itemBottom > viewportBottom - 4) {
+        return { ...rest, align: "end", behavior, offset: 4 + marginPx };
+      }
+      return null;
+    };
 
   useImperativeHandle(
     ref,
@@ -1100,9 +1108,17 @@ export function ReviewList({
       getState(cb) {
         vRef.current?.getState(cb);
       },
-      nudgeItemIntoView(itemIndex) {
+      /**
+       * Bring `itemIndex` into frame only if it isn't already, leaving
+       * `marginRows` of its own height as breathing room at whichever edge it
+       * came in from. Stepping gestures (j/k, shift+j/k) pass no margin: a row
+       * at a time should scroll a row at a time, and slack would turn that into
+       * jerky multi-row hops. Jumps that land from elsewhere in the file want
+       * the context — see JUMP_SCROLL_MARGIN_ROWS in review-screen.tsx.
+       */
+      nudgeItemIntoView(itemIndex, marginRows = 0) {
         vRef.current?.scrollIntoView({
-          calculateViewLocation: cursorViewLocation,
+          calculateViewLocation: cursorViewLocation(marginRows),
           index: itemIndex,
         });
       },

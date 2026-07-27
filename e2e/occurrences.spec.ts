@@ -125,6 +125,26 @@ test("double-clicking a token marks its occurrences", async ({ page }) => {
   await expect(occMarks(page)).toHaveCount(2);
 });
 
+test("a double-click keeps the native selection, painted apart from the marks", async ({
+  page,
+}) => {
+  await dblclickToken(page, 0, "return");
+  await expect(occMarks(page)).toHaveCount(2);
+
+  expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(
+    "return"
+  );
+
+  const paint = await occMarks(page)
+    .first()
+    .evaluate((el) => ({
+      mark: getComputedStyle(el).backgroundColor,
+      selection: getComputedStyle(el, "::selection").backgroundColor,
+    }));
+  expect(paint.selection).not.toBe(paint.mark);
+  expect(paint.selection).not.toBe("rgba(0, 0, 0, 0)");
+});
+
 test("clicking blank space right of a line ending in a word clears, not highlights", async ({
   page,
 }) => {

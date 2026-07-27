@@ -113,6 +113,34 @@ import { SubmitReviewModal } from "./submit-review-modal.tsx";
 const RE_WORD = /\w/;
 const RE_WORD_2 = /\w/;
 const FAST_CURSOR_STEP = 5;
+const JUMP_SCROLL_MARGIN_ROWS = 2;
+const OCC_LINK_CLASS = "qf-occ-link";
+const OCC_LINK_HIGHLIGHT = "qf-occ-link";
+
+const isModKey = (key: string): boolean => key === "Meta" || key === "Control";
+
+/**
+ * `CSS.highlights`, or null on engines without the Custom Highlight API. Typed
+ * locally because lib.dom declares HighlightRegistry with only `forEach`, not
+ * the maplike methods it actually has.
+ */
+function highlightRegistry(): {
+  delete: (name: string) => void;
+  set: (name: string, highlight: Highlight) => void;
+} | null {
+  if (typeof Highlight === "undefined") {
+    return null;
+  }
+  const registry = (
+    CSS as unknown as {
+      highlights?: {
+        delete: (name: string) => void;
+        set: (name: string, highlight: Highlight) => void;
+      };
+    }
+  ).highlights;
+  return registry ?? null;
+}
 
 /**
  * Full-screen PR review: a virtualized diff list, keyboard cursor, multi-line
@@ -125,12 +153,34 @@ const FAST_CURSOR_STEP = 5;
  * - Multi-line selection (shift+j/k, gutter drag) is independent of the
  *   cursor once created; plain cursor moves collapse it.
  * - Find-in-diff (mod+f) seeds from the viewport, not the top of the PR.
+ * - Occurrences: a plain click marks every occurrence of the word under the
+ *   pointer within that file and never moves the viewport — hover has already
+ *   put the cursor on the row, so the click has nowhere to travel to. Walking
+ *   the matches is a separate, deliberate gesture: n/p, or mod+click (the
+ *   editor's go-to-next-reference). mod+click reads the file rather than the
+ *   current highlight, so it works on any word on first contact — no need to
+ *   click one first. A match already in frame is left where it is; one that
+ *   isn't comes in with JUMP_SCROLL_MARGIN_ROWS of context, so the eye lands on
+ *   a line with neighbours instead of one glued to an edge. Holding the mod key
+ *   underlines the word under the pointer (useOccLinkAffordance) so the gesture
+ *   is discoverable rather than folklore.
+ * - A double-click keeps the browser's own word selection, painted in the
+ *   accent by quiet.css. Two distinct colours for two distinct things: the grey
+ *   marks say "here is that word again", the accent says "this text is
+ *   selected, ready to copy".
  */
 interface ReviewScreenProps {
   routeKey: string;
 }
 
 type OccState = OccurrenceSpec & { fileIndex: number };
+
+interface PointerWord {
+  anchor: string;
+  column: number;
+  range: Range;
+  spec: OccState;
+}
 
 interface CursorPos {
   anchor: string;
@@ -446,7 +496,14 @@ function occurrenceOriginFromPoint(
   return { anchor, column: bounds ? bounds[0] : col };
 }
 
-function wordAtPoint(x: number, y: number): OccState | null {
+/**
+ * The whole word whose glyphs sit under (x, y) in a diff code line: its
+ * occurrence spec, where it starts (row anchor + code column, the coordinates
+ * occurrenceMatches reports matches in), and a live Range over it for painting.
+ * Null unless the pointer is really on the word — its trailing padding and the
+ * gaps between tokens are not it.
+ */
+function wordAtPoint(x: number, y: number): PointerWord | null {
   const caret = caretNodeAtPoint(x, y);
   if (!caret || caret.node.nodeType !== Node.TEXT_NODE) {
     return null;
@@ -460,7 +517,8 @@ function wordAtPoint(x: number, y: number): OccState | null {
     return null;
   }
   const fileIndex = fileIndexOfElement(code);
-  if (fileIndex === null) {
+  const anchor = parent.closest("[data-anchor]")?.getAttribute("data-anchor");
+  if (fileIndex === null || !anchor) {
     return null;
   }
 
@@ -490,7 +548,9 @@ function wordAtPoint(x: number, y: number): OccState | null {
     return null;
   }
   const spec = occurrenceSpecFromSelection(text.slice(s, e));
-  return spec ? { ...spec, fileIndex } : null;
+  return spec
+    ? { anchor, column: s, range, spec: { ...spec, fileIndex } }
+    : null;
 }
 
 function specFromDomSelection(): OccState | null {
@@ -584,24 +644,38 @@ function startSelectionFromCursor(
   }
 }
 
-function jumpFromOccMark(
-  mark: Element,
+/**
+ * mod+click on any word in a diff line: mark its occurrences in that file and
+ * move to the one after the word clicked, or to the one before it when the click
+ * landed on the last. Whether that word was already the marked one is beside the
+ * point — the gesture reads the file, not the current highlight state, so it
+ * works on first contact. False when the pointer wasn't on a word at all, which
+ * hands the click back to the ordinary path.
+ */
+function stepToNeighbourOccurrence(
+  e: MouseEvent,
+  matchesFor: (spec: OccState) => OccurrenceMatch[],
   occNav: OccNav,
-  occNavRef: React.RefObject<number>
+  commit: (
+    next: OccState | null,
+    origin?: { anchor: string; column: number } | null
+  ) => void
 ): boolean {
-  const code = codeAround(mark);
-  const anchor = mark.closest("[data-anchor]")?.getAttribute("data-anchor");
-  const textNode = mark.firstChild;
-  if (!(code && anchor && textNode)) {
+  const word = wordAtPoint(e.clientX, e.clientY);
+  if (!word) {
     return false;
   }
-  const column = codeColumnOf(code, textNode);
-  const at = column === null ? -1 : occNav.indexAt(anchor, column);
-  /* Land on the clicked occurrence, not the one after it: pointing at a match
-     is already the "go there" gesture, and jumping past it left a match the
-     user aimed at half-clipped. Only when the mark can't be resolved back to
-     an index does this fall back to stepping forward, as `n` would. */
-  occNav.jumpTo(at >= 0 ? at : occNavRef.current + 1);
+  const matches = matchesFor(word.spec);
+  const at = matches.findIndex(
+    (m) =>
+      m.anchor === word.anchor && m.start <= word.column && word.column <= m.end
+  );
+  if (at < 0) {
+    return false;
+  }
+  window.getSelection()?.removeAllRanges();
+  commit(word.spec, { anchor: word.anchor, column: word.column });
+  occNav.stepTo(word.spec, matches, at);
   return true;
 }
 
@@ -609,6 +683,10 @@ const EDITABLE_SURFACE_SELECTOR =
   'input, textarea, [contenteditable="true"], .qa-editor';
 
 /**
+ * A plain click marks the word under the pointer; mod+click walks from it to the
+ * next occurrence instead. Multi-click clicks are left alone so the browser's own
+ * word selection stands (see the file header).
+ *
  * A click into an editable surface must not disturb its caret (composers
  * render inside rows, so they'd otherwise hit the removeAllRanges paths
  * below), and the click that ends a drag-select must not wipe the selection
@@ -616,14 +694,17 @@ const EDITABLE_SURFACE_SELECTOR =
  */
 function handleOccPointerClick(
   e: MouseEvent,
-  occSpecRef: React.RefObject<OccState | null>,
+  refs: {
+    matchesForRef: React.RefObject<(spec: OccState) => OccurrenceMatch[]>;
+    occSpecRef: React.RefObject<OccState | null>;
+  },
   occNav: OccNav,
-  occNavRef: React.RefObject<number>,
   commit: (
     next: OccState | null,
     origin?: { anchor: string; column: number } | null
   ) => void
 ): void {
+  const { matchesForRef, occSpecRef } = refs;
   if (e.detail > 1) {
     return;
   }
@@ -645,8 +726,12 @@ function handleOccPointerClick(
     return;
   }
 
-  const mark = target?.closest("mark.qf-occ-mark");
-  if (mark && occSpecRef.current && jumpFromOccMark(mark, occNav, occNavRef)) {
+  if (
+    (e.metaKey || e.ctrlKey) &&
+    code &&
+    !isPastLineContent(code, e.clientX, e.clientY) &&
+    stepToNeighbourOccurrence(e, matchesForRef.current, occNav, commit)
+  ) {
     return;
   }
 
@@ -662,17 +747,18 @@ function handleOccPointerClick(
     commit(null);
     return;
   }
-  const spec = wordAtPoint(e.clientX, e.clientY);
-  if (!spec) {
+  const word = wordAtPoint(e.clientX, e.clientY);
+  if (!word) {
     commit(null);
     return;
   }
-  commit(spec, clickOrigin);
+  commit(word.spec, clickOrigin);
 }
 
 function useOccurrenceTracking(refs: {
   closeFindRef: React.RefObject<() => void>;
   findOpenRef: React.RefObject<boolean>;
+  matchesForRef: React.RefObject<(spec: OccState) => OccurrenceMatch[]>;
   occMatchListRef: React.RefObject<OccurrenceMatch[]>;
   occNavRef: React.RefObject<number>;
   occOriginRef: React.RefObject<{ anchor: string; column: number } | null>;
@@ -690,6 +776,7 @@ function useOccurrenceTracking(refs: {
   const {
     closeFindRef,
     findOpenRef,
+    matchesForRef,
     occMatchListRef,
     occNavRef,
     occOriginRef,
@@ -758,7 +845,7 @@ function useOccurrenceTracking(refs: {
         clearTimeout(timer);
         timer = null;
       }
-      handleOccPointerClick(e, occSpecRef, occNav, occNavRef, commit);
+      handleOccPointerClick(e, { matchesForRef, occSpecRef }, occNav, commit);
     }
 
     document.addEventListener("selectionchange", onSelectionChange);
@@ -773,6 +860,7 @@ function useOccurrenceTracking(refs: {
   }, [
     closeFindRef,
     findOpenRef,
+    matchesForRef,
     occMatchListRef,
     occNavRef,
     occOriginRef,
@@ -781,6 +869,80 @@ function useOccurrenceTracking(refs: {
     selectLineRef,
     setOccSpec,
   ]);
+}
+
+/**
+ * Underlines whichever word the pointer is on while the mod key is held, so
+ * mod+click advertises itself the way it does in an editor.
+ *
+ * The word usually has no element of its own to style — mod+click works on any
+ * identifier, not just the marked ones — so this paints through the Custom
+ * Highlight API, which styles a Range without touching the DOM React owns. Rows
+ * are never re-rendered for it: repainting a code line on every pointer move is
+ * the kind of work this screen is built to avoid, and a stale <mark> layer would
+ * fight the occurrence marks for the same text. Where the API is missing the
+ * gesture still works, it just goes unadvertised.
+ */
+function useOccLinkAffordance(): void {
+  useEffect(() => {
+    const registry = highlightRegistry();
+    let held = false;
+    let at: { x: number; y: number } | null = null;
+    let painted: string | null = null;
+
+    const paint = (word: PointerWord | null) => {
+      const key = word && `${word.anchor}:${word.column}:${word.spec.query}`;
+      if (key === painted) {
+        return;
+      }
+      painted = key;
+      document.body.classList.toggle(OCC_LINK_CLASS, key !== null);
+      if (!registry) {
+        return;
+      }
+      if (word) {
+        registry.set(OCC_LINK_HIGHLIGHT, new Highlight(word.range));
+      } else {
+        registry.delete(OCC_LINK_HIGHLIGHT);
+      }
+    };
+    const repaint = () => {
+      paint(held && at ? wordAtPoint(at.x, at.y) : null);
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      at = { x: e.clientX, y: e.clientY };
+      repaint();
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (isModKey(e.key) && !held) {
+        held = true;
+        repaint();
+      }
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (isModKey(e.key)) {
+        held = false;
+        repaint();
+      }
+    };
+    const clear = () => {
+      held = false;
+      repaint();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", clear);
+    document.addEventListener("mousemove", onMouseMove);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", clear);
+      document.removeEventListener("mousemove", onMouseMove);
+      clear();
+    };
+  }, []);
 }
 
 function isRealPointer(
@@ -2716,7 +2878,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     });
     if (itemIndex !== undefined) {
       if (opts.nudge) {
-        listRef.current?.nudgeItemIntoView(itemIndex);
+        listRef.current?.nudgeItemIntoView(itemIndex, JUMP_SCROLL_MARGIN_ROWS);
       } else {
         listRef.current?.centerItem(itemIndex);
       }
@@ -2905,13 +3067,15 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     ]
   );
 
-  const occMatchList = occSpec
-    ? occurrenceMatches(
-        files[occSpec.fileIndex] ?? {},
-        occSpec,
-        expandedRows.get(occSpec.fileIndex)
-      )
-    : EMPTY_OCC;
+  const matchesFor = (spec: OccState) =>
+    occurrenceMatches(
+      files[spec.fileIndex] ?? {},
+      spec,
+      expandedRows.get(spec.fileIndex)
+    );
+  const matchesForRef = useLatest(matchesFor);
+
+  const occMatchList = occSpec ? matchesFor(occSpec) : EMPTY_OCC;
   const occMatchListRef = useLatest(occMatchList);
 
   const occNavRefs = {
@@ -2925,6 +3089,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   useOccurrenceTracking({
     closeFindRef,
     findOpenRef,
+    matchesForRef,
     occMatchListRef,
     occNavRef,
     occOriginRef,
@@ -2933,6 +3098,8 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     selectLineRef,
     setOccSpec,
   });
+
+  useOccLinkAffordance();
 
   useLayoutEffect(() => {
     const captured = occRestoreRef.current;
@@ -3449,11 +3616,18 @@ function buildCursorMover(refs: {
  Index in the match list of the occurrence covering (anchor, column).
  Jump to match `index` (wrapping), keeping the marks alive.
  n/p: step relative to the last-jumped position (or the origin
- occurrence — the clicked/selected one — before any jump). */
+ occurrence — the clicked/selected one — before any jump).
+ stepTo: the neighbour of `from` within an explicitly supplied match list — the
+ next match, or the previous one when `from` is already the last. mod+click can
+ retarget the marks as it navigates, so it hands in the list it resolved rather
+ than reading occMatchListRef, which is a render behind. It also aims at a
+ specific match, so wrapping to the top of the file would throw the eye away;
+ n/p still wrap. */
 interface OccNav {
   indexAt: (anchor: string, column: number) => number;
   jumpTo: (index: number) => void;
   step: (dir: 1 | -1) => void;
+  stepTo: (spec: OccState, matches: OccurrenceMatch[], from: number) => void;
 }
 
 function buildOccNav(refs: {
@@ -3480,22 +3654,36 @@ function buildOccNav(refs: {
     occMatchListRef.current.findIndex(
       (m) => m.anchor === anchor && m.start <= column && column <= m.end
     );
+  const land = (
+    spec: OccState,
+    matches: OccurrenceMatch[],
+    index: number
+  ): void => {
+    occNavRef.current = index;
+    selectLineRef.current(spec.fileIndex, matches[index].anchor, {
+      keepOccurrences: true,
+      nudge: true,
+    });
+  };
   const jumpTo = (index: number): void => {
     const spec = occSpecRef.current;
-    const n = occMatchListRef.current.length;
-    if (!spec || n === 0) {
+    const matches = occMatchListRef.current;
+    if (!spec || matches.length === 0) {
       return;
     }
-    const next = ((index % n) + n) % n;
-    occNavRef.current = next;
-    selectLineRef.current(
-      spec.fileIndex,
-      occMatchListRef.current[next].anchor,
-      {
-        keepOccurrences: true,
-        nudge: true,
-      }
-    );
+    const n = matches.length;
+    land(spec, matches, ((index % n) + n) % n);
+  };
+  const stepTo = (
+    spec: OccState,
+    matches: OccurrenceMatch[],
+    from: number
+  ): void => {
+    const n = matches.length;
+    if (n < 2) {
+      return;
+    }
+    land(spec, matches, from + 1 < n ? from + 1 : from - 1);
   };
   const step = (dir: 1 | -1): void => {
     if (occMatchListRef.current.length === 0) {
@@ -3521,7 +3709,7 @@ function buildOccNav(refs: {
     }
     jumpTo(at + dir);
   };
-  return { indexAt, jumpTo, step };
+  return { indexAt, jumpTo, step, stepTo };
 }
 
 /**
