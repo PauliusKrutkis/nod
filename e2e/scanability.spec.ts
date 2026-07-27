@@ -278,6 +278,12 @@ test("overview ruler: occurrence ticks on click, cleared by a blank click", asyn
   await expect(page.locator(".qf-ruler")).toHaveCount(0);
 });
 
+// Two occurrences of `gamma`, so every gesture has a visible destination and
+// the wrap rules are exercised in a couple of presses. A plain click on a mark
+// only re-marks the word — it must never walk to another match, the behaviour
+// this file guarded the other way round before mod+click existed. mod+click
+// steps forward from whichever mark was clicked, and back instead when that
+// mark is the last one, so clicking each of the two lands on the other.
 test("occurrence navigation: n/p step, mod+click walks from the clicked mark", async ({
   page,
 }) => {
@@ -297,12 +303,10 @@ test("occurrence navigation: n/p step, mod+click walks from the clicked mark", a
   await page.keyboard.press("p");
   await expect(flash).toContainText("return gamma");
 
-  // a plain click re-marks the word; it never walks to another match
   await clickMark(page, 1);
   await expect(page.locator(".qf-row-active")).toContainText("return gamma");
   await expect(marks).toHaveCount(2);
 
-  // mod+click steps forward from the clicked mark — back, on the last one
   await clickMark(page, 1, { mod: true });
   await expect(page.locator(".qf-row-active")).toContainText("const gamma");
   await expect(marks).toHaveCount(2);

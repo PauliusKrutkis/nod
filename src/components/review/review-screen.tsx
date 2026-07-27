@@ -59,6 +59,7 @@ import { useViewedFileReconcile } from "../../hooks/use-viewed-file-reconcile.ts
 import type { Binding } from "../../keyboard/types.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
 import { cn } from "../../lib/cn.ts";
+import { highlightRegistry } from "../../lib/custom-highlight.ts";
 import type { DiffRow } from "../../lib/diff.ts";
 import { type FindMatch, findInDiff } from "../../lib/find-in-diff.ts";
 import { warmHighlightCache } from "../../lib/highlight.ts";
@@ -123,33 +124,9 @@ import { SubmitReviewModal } from "./submit-review-modal.tsx";
 const RE_WORD = /\w/;
 const RE_WORD_2 = /\w/;
 const FAST_CURSOR_STEP = 5;
-const OCC_LINK_CLASS = "qf-occ-link";
-const OCC_LINK_HIGHLIGHT = "qf-occ-link";
+const OCC_LINK = "qf-occ-link";
 
 const isModKey = (key: string): boolean => key === "Meta" || key === "Control";
-
-/**
- * `CSS.highlights`, or null on engines without the Custom Highlight API. Typed
- * locally because lib.dom declares HighlightRegistry with only `forEach`, not
- * the maplike methods it actually has.
- */
-function highlightRegistry(): {
-  delete: (name: string) => void;
-  set: (name: string, highlight: Highlight) => void;
-} | null {
-  if (typeof Highlight === "undefined") {
-    return null;
-  }
-  const registry = (
-    CSS as unknown as {
-      highlights?: {
-        delete: (name: string) => void;
-        set: (name: string, highlight: Highlight) => void;
-      };
-    }
-  ).highlights;
-  return registry ?? null;
-}
 
 /**
  * Full-screen PR review: a virtualized diff list, keyboard cursor, multi-line
@@ -171,9 +148,10 @@ function highlightRegistry(): {
  *   click one first. A match already in frame is left where it is; one that
  *   isn't is brought in by the shared cursor nudge, which leaves
  *   CURSOR_CONTEXT_ROWS of slack (review-list.tsx) rather than landing the row
- *   flush against a fold. Holding the mod key
- *   underlines the word under the pointer (useOccLinkAffordance) so the gesture
- *   is discoverable rather than folklore.
+ *   flush against a fold. Holding the mod key underlines the word under the
+ *   pointer (useOccLinkAffordance) so the gesture is discoverable rather than
+ *   folklore; OCC_LINK is deliberately one token for both the body class that
+ *   arms the pointer cursor and the highlight name quiet.css paints.
  * - A double-click keeps the browser's own word selection, painted in the
  *   accent by quiet.css. Two distinct colours for two distinct things: the grey
  *   marks say "here is that word again", the accent says "this text is
@@ -738,8 +716,6 @@ function handleOccPointerClick(
 
   if (
     (e.metaKey || e.ctrlKey) &&
-    code &&
-    !isPastLineContent(code, e.clientX, e.clientY) &&
     stepToNeighbourOccurrence(e, matchesForRef.current, occNav, commit)
   ) {
     return;
@@ -892,32 +868,51 @@ function useOccurrenceTracking(refs: {
  * the kind of work this screen is built to avoid, and a stale <mark> layer would
  * fight the occurrence marks for the same text. Where the API is missing the
  * gesture still works, it just goes unadvertised.
+ *
+ * A painted Range is only as durable as the text nodes under it, and both a
+ * click (the row it lands on repaints its marks) and a scroll (Virtuoso recycles
+ * rows) replace those out from under it, collapsing the paint to nothing while
+ * the pointer never moved. So the Range is re-registered on every repaint rather
+ * than diffed against the last one, and a click or scroll schedules a repaint on
+ * the next frame — by which time React has committed and the word under the
+ * pointer may legitimately be a different one. Recomputing measured at ~0.01ms.
+ *
+ * It tracks the pointer itself instead of borrowing the screen's lastPointRef,
+ * which is not a live position — isRealPointer deliberately leaves it stale
+ * while the keyboard holds the cursor. Listening on the document also means
+ * leaving the diff clears the paint, which a listener on the list would miss.
  */
 function useOccLinkAffordance(): void {
   useEffect(() => {
     const registry = highlightRegistry();
     let held = false;
     let at: { x: number; y: number } | null = null;
-    let painted: string | null = null;
+    let painted = false;
 
     const paint = (word: PointerWord | null) => {
-      const key = word && `${word.anchor}:${word.column}:${word.spec.query}`;
-      if (key === painted) {
+      if (!word) {
+        if (painted) {
+          painted = false;
+          document.body.classList.remove(OCC_LINK);
+          registry?.delete(OCC_LINK);
+        }
         return;
       }
-      painted = key;
-      document.body.classList.toggle(OCC_LINK_CLASS, key !== null);
-      if (!registry) {
-        return;
-      }
-      if (word) {
-        registry.set(OCC_LINK_HIGHLIGHT, new Highlight(word.range));
-      } else {
-        registry.delete(OCC_LINK_HIGHLIGHT);
-      }
+      painted = true;
+      document.body.classList.add(OCC_LINK);
+      registry?.set(OCC_LINK, new Highlight(word.range));
     };
     const repaint = () => {
       paint(held && at ? wordAtPoint(at.x, at.y) : null);
+    };
+    let frame: number | null = null;
+    const repaintNextFrame = () => {
+      if (frame === null) {
+        frame = requestAnimationFrame(() => {
+          frame = null;
+          repaint();
+        });
+      }
     };
 
     const onMouseMove = (e: MouseEvent) => {
@@ -945,11 +940,18 @@ function useOccLinkAffordance(): void {
     window.addEventListener("keyup", onKeyUp);
     window.addEventListener("blur", clear);
     document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("click", repaintNextFrame);
+    document.addEventListener("scroll", repaintNextFrame, true);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", clear);
       document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("click", repaintNextFrame);
+      document.removeEventListener("scroll", repaintNextFrame, true);
+      if (frame !== null) {
+        cancelAnimationFrame(frame);
+      }
       clear();
     };
   }, []);

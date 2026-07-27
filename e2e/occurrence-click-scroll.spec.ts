@@ -13,6 +13,15 @@ import type { Page } from "./types.ts";
  * hold still, even when the clicked match is half off the fold), and mod+click
  * walks from the clicked word to the neighbouring match and brings it into
  * frame with room around it — on any word, marked already or not.
+ *
+ * Which side that room lands on depends on the direction travelled, so the two
+ * walking scenarios check opposite margins: stepping forward scrolls up from
+ * below and must leave the row clear of the bottom edge, stepping back scrolls
+ * down from above and must leave it clear of the sticky file header.
+ *
+ * The affordance scenario starts from a cold diff deliberately. With nothing
+ * marked there is no <mark> under the pointer to hang a :hover rule on, so a
+ * word that lights up anyway is the proof that the paint does not depend on one.
  */
 const NEEDLE_ROWS = [1, 30, 60];
 const TALL_DETAIL = makeBigDetail(1, 70, (_file, line) =>
@@ -196,7 +205,6 @@ test("mod+clicking an occurrence walks to the next one, into frame", async ({
     .poll(() => rowFraming(page, NEEDLE_ROWS[1]))
     .toEqual({ fullyVisible: true, onScreen: true });
 
-  // it scrolled up from below, so it lands clear of the bottom edge
   const margin = await rowMarginRows(page, NEEDLE_ROWS[1]);
   expect(margin?.below).toBeGreaterThanOrEqual(JUMP_MARGIN_ROWS);
 });
@@ -218,7 +226,6 @@ test("mod+clicking the last occurrence walks back to the one before it", async (
     .poll(() => rowFraming(page, NEEDLE_ROWS[1]))
     .toEqual({ fullyVisible: true, onScreen: true });
 
-  // it scrolled down from above, so it lands clear of the sticky file header
   const margin = await rowMarginRows(page, NEEDLE_ROWS[1]);
   expect(margin?.above).toBeGreaterThanOrEqual(JUMP_MARGIN_ROWS);
 });
@@ -267,23 +274,24 @@ test("mod+clicking a word with nothing marked yet still walks to its next one", 
   await expect(rowAt(page, NEEDLE_ROWS[1])).toHaveClass(ACTIVE_ROW);
 });
 
+const paintedWords = (page: Page) =>
+  page.evaluate(() => {
+    const registry = (
+      CSS as unknown as { highlights: Map<string, Iterable<Range>> }
+    ).highlights;
+    const highlight = registry.get("qf-occ-link");
+    return highlight ? Array.from(highlight, (r) => r.toString()) : [];
+  });
+
 test("holding mod lights up the word under the pointer, marked or not", async ({
   page,
 }) => {
-  const painted = () =>
-    page.evaluate(() => {
-      const registry = (
-        CSS as unknown as { highlights: Map<string, Iterable<Range>> }
-      ).highlights;
-      const highlight = registry.get("qf-occ-link");
-      return highlight ? Array.from(highlight, (r) => r.toString()) : [];
-    });
+  const painted = () => paintedWords(page);
 
   await moveToToken(page, NEEDLE_ROWS[0], "needle");
   expect(await painted()).toEqual([]);
   await expect(page.locator("body.qf-occ-link")).toHaveCount(0);
 
-  // nothing is marked yet, so there is no <mark> to hover — the word still lights
   await page.keyboard.down("Meta");
   await expect(page.locator("body.qf-occ-link")).toHaveCount(1);
   expect(await painted()).toEqual(["needle"]);
@@ -294,4 +302,25 @@ test("holding mod lights up the word under the pointer, marked or not", async ({
   await page.keyboard.up("Meta");
   await expect(page.locator("body.qf-occ-link")).toHaveCount(0);
   expect(await painted()).toEqual([]);
+});
+
+test("the mod highlight is never left painting a stale range after a jump", async ({
+  page,
+}) => {
+  const { x, y } = await tokenPoint(page, NEEDLE_ROWS[0], "needle");
+  await moveToToken(page, NEEDLE_ROWS[0], "needle");
+
+  await page.keyboard.down("Meta");
+  expect(await paintedWords(page)).toEqual(["needle"]);
+
+  await page.mouse.click(x, y);
+  await expect(rowAt(page, NEEDLE_ROWS[1])).toHaveClass(ACTIVE_ROW);
+  await page.waitForTimeout(400);
+
+  const after = await paintedWords(page);
+  expect(after).not.toContain("");
+  await expect(page.locator("body.qf-occ-link")).toHaveCount(
+    after.length > 0 ? 1 : 0
+  );
+  await page.keyboard.up("Meta");
 });

@@ -1986,7 +1986,8 @@ dialog.q-dialog::backdrop {
   color: inherit;
   background: color-mix(in srgb, var(--fg) 26%, transparent);
 }
-::highlight(qf-occ-link) {
+.dir-quiet .qf-code::highlight(qf-occ-link),
+.dir-quiet .qf-code ::highlight(qf-occ-link) {
   color: var(--accent);
   background: var(--accent-soft);
   text-decoration: underline;
