@@ -6,6 +6,13 @@
  * the list renders items, the keyboard cursor walks `nav`, find/search jumps
  * resolve `anchorItem`, ]c/[c walks `commentItems`, and the overview ruler
  * turns item indexes into fractions.
+ *
+ * A comment block shares its parent row's anchor, so `nav` entries carry a
+ * `kind` and are indexed by `navKey`, not `fileAnchorKey` — otherwise the two
+ * would collide in `navIndexOf` and the cursor could not tell "line 42" from
+ * "the conversation on line 42". `navKey(f, a, "row")` is deliberately equal to
+ * `fileAnchorKey(f, a)`, so anchor-keyed lookups (`anchorItem`, `openBoxes`,
+ * flash keys) are untouched and keep resolving rows.
  */
 import type { ChangedFile, PendingComment, ReviewComment } from "../types.ts";
 import { type DiffHunk, type DiffRow, parsePatch, rowAnchor } from "./diff.ts";
@@ -25,6 +32,18 @@ function anchorKey(side: string, line: number): string {
 /** A file-scoped anchor key — the openBoxes / anchorItem index key. */
 export function fileAnchorKey(fileIndex: number, anchor: string): string {
   return `${fileIndex}:${anchor}`;
+}
+
+export type NavKind = "row" | "comments";
+
+/** A cursor-stop key — `fileAnchorKey` for rows, suffixed for comment blocks. */
+export function navKey(
+  fileIndex: number,
+  anchor: string,
+  kind: NavKind
+): string {
+  const base = fileAnchorKey(fileIndex, anchor);
+  return kind === "comments" ? `${base}#c` : base;
 }
 
 /**
@@ -55,7 +74,9 @@ export function anchorLine(anchor: string): number {
  * The neighboring row anchor a line selection may extend to: the immediately
  * adjacent nav row in the same file, same hunk, on the same comment side.
  * Anything else (hunk header, side flip, file boundary) ends the range —
- * multi-line comments are one-side, hunk-contiguous runs.
+ * multi-line comments are one-side, hunk-contiguous runs. Comment blocks are
+ * cursor stops but not selectable lines, so the walk steps over them; a
+ * commented line must not dead-end a range.
  */
 export function adjacentSelectableAnchor(
   m: ReviewListModel,
@@ -69,7 +90,11 @@ export function adjacentSelectableAnchor(
   if (idx === undefined) {
     return null;
   }
-  const next = m.nav[idx + delta];
+  let at = idx + delta;
+  while (m.nav[at]?.kind === "comments") {
+    at += delta;
+  }
+  const next = m.nav[at];
   if (!next || next.fileIndex !== fileIndex) {
     return null;
   }
@@ -196,7 +221,12 @@ export interface ReviewListModel {
   groupCounts: number[];
   groupFirstItem: number[];
   items: ReviewItem[];
-  nav: Array<{ fileIndex: number; anchor: string; itemIndex: number }>;
+  nav: Array<{
+    fileIndex: number;
+    anchor: string;
+    itemIndex: number;
+    kind: NavKind;
+  }>;
   navIndexOf: Map<string, number>;
 }
 
@@ -246,6 +276,13 @@ function appendCommentBlock(
     rangeContent = lines.join("\n");
   }
   ctx.commentItems.push(ctx.items.length);
+  ctx.navIndexOf.set(navKey(ctx.fileIndex, anchor, "comments"), ctx.nav.length);
+  ctx.nav.push({
+    anchor,
+    fileIndex: ctx.fileIndex,
+    itemIndex: ctx.items.length,
+    kind: "comments",
+  });
   ctx.items.push({
     anchor,
     boxOpen,
@@ -278,11 +315,12 @@ function appendHunkRow(ctx: HunkBuildContext, row: DiffRow): void {
     (rowThreads?.length ?? 0) > 0 || (rowPending?.length ?? 0) > 0;
   if (anchor !== null) {
     ctx.anchorItem.set(fileAnchorKey(ctx.fileIndex, anchor), ctx.items.length);
-    ctx.navIndexOf.set(fileAnchorKey(ctx.fileIndex, anchor), ctx.nav.length);
+    ctx.navIndexOf.set(navKey(ctx.fileIndex, anchor, "row"), ctx.nav.length);
     ctx.nav.push({
       anchor,
       fileIndex: ctx.fileIndex,
       itemIndex: ctx.items.length,
+      kind: "row",
     });
   }
   ctx.items.push({

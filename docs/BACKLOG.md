@@ -923,18 +923,31 @@ only format the in-app updater touches.
       gone — reply moved to `r` ("reply to the active thread, else next file").
       *Still open:* § layout wants `Tab` for Code ↔ Info, so that toggle needs
       a different key — decide when the Info tab ships.
-- [ ] 🟡 **Focus comment threads from keyboard** — arrow keys and `f`/`g` should
-      be able to focus a comment thread; focused thread activates the reply box
-      and shows reply/resolve hints (same as hover). `f`/`g` must not skip the
-      inline comment composer when it is open.
-      *Where it stands:* `]c`/`[c` (`goToComment`) already centers a thread
-      **and** sets `activeThreadRef`, which is what `r`/`x`/`z`/`shift+e` act
-      on — so thread "activation" exists. What's missing is (a) threads as
-      stops in the cursor stream: `buildCursorMover` walks `model.nav`, which
-      holds row anchors only, and (b) a visual focused state — outside `]c`,
-      `activeThreadRef` is only ever written by *hover*
-      (`reviewListOnThreadHover`). Decide against P22's selection-vs-focus
-      convention before adding a `tabIndex` here.
+- [x] 🟡 **Comment threads as cursor stops** — **done** (PR 1 of 2); arrow keys
+      and `j`/`k` now step onto a comment block, which arms it for
+      `r`/`x`/`z`/`shift+e` and paints the keyboard iris (`--accent-soft` fill +
+      `--accent` border, gated on `data-mode` exactly like `qf-row-active`).
+      Collapsed threads are stops too — that is the case that matters, since a
+      collapsed thread is one quiet line you would otherwise never learn about.
+      *How:* a comment block shares its parent row's anchor, so `nav` entries
+      gained a `kind` and moved to `navKey`; `navKey(f, a, "row")` is
+      deliberately byte-equal to `fileAnchorKey(f, a)`, so every anchor-keyed
+      lookup still resolves rows and row rendering needed no change.
+      `adjacentSelectableAnchor` steps over comment blocks — a commented line
+      must not dead-end a shift+j range.
+      *Selection model, not focus:* per DESIGN.md the review list is a
+      selection-model surface, so no `tabIndex` was added and the state keeps
+      its existing name (`activeThreadRef`). This resolves the P22 question the
+      entry used to defer — the answer is "don't add one".
+- [ ] 🟡 **`f`/`g` clamps on conversations** — PR 2 of 2. `f`/`g` is
+      `move(±FAST_CURSOR_STEP)` (a fixed 5-entry hop), not a semantic jump, so
+      threads being nav stops is *not* enough — a fast jump still flies over
+      them 4 times in 5. A jump must clamp to the first thread strictly between
+      the cursor and the landing row: `f` never crosses a conversation, it
+      arrives early, and a second `f` continues past. Held repeat
+      (`cursorRepeatMultiplier`) must **not** clamp — holding means "get me far
+      away", and it is the escape hatch in a comment-dense PR. An open composer
+      clamps unconditionally, held or not.
 - [x] 🟡 **Composer: suggestions** — shipped with the composer toolbar PR:
       Tab indents / Shift-Tab dedents inside code blocks (caret or whole
       selected lines) instead of flipping the batch/now mode, and

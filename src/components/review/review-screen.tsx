@@ -78,6 +78,8 @@ import {
   anchorLine,
   buildReviewItems,
   fileAnchorKey,
+  type NavKind,
+  navKey,
   type ReviewListModel,
 } from "../../lib/review-items.ts";
 import {
@@ -173,6 +175,7 @@ interface PointerWord {
 interface CursorPos {
   anchor: string;
   fileIndex: number;
+  kind: NavKind;
 }
 
 /** A multi-line comment range: a one-side, hunk-contiguous run of rows.
@@ -222,9 +225,9 @@ function applyLineSelection(args: {
   }
   args.setInputMode((mode) => (mode === "keyboard" ? mode : "keyboard"));
   args.setCursor((cur) =>
-    cur?.fileIndex === fileIndex && cur.anchor === anchor
+    cur?.fileIndex === fileIndex && cur.anchor === anchor && cur.kind === "row"
       ? cur
-      : { anchor, fileIndex }
+      : { anchor, fileIndex, kind: "row" }
   );
   args.setFlashKey((cur) => (cur === flashKey ? cur : flashKey));
 }
@@ -582,11 +585,11 @@ function extendExistingSelection(
   }
   if (next === sel.from) {
     setSelection(null);
-    setCursor({ anchor: next, fileIndex: sel.fileIndex });
+    setCursor({ anchor: next, fileIndex: sel.fileIndex, kind: "row" });
     return true;
   }
   setSelection({ ...sel, to: next });
-  setCursor({ anchor: next, fileIndex: sel.fileIndex });
+  setCursor({ anchor: next, fileIndex: sel.fileIndex, kind: "row" });
   const itemIndex = m.anchorItem.get(fileAnchorKey(sel.fileIndex, next));
   if (itemIndex !== undefined) {
     listRef.current?.nudgeItemIntoView(itemIndex);
@@ -625,7 +628,7 @@ function startSelectionFromCursor(
     side: item.target.side,
     to: next,
   });
-  setCursor({ anchor: next, fileIndex: cur.fileIndex });
+  setCursor({ anchor: next, fileIndex: cur.fileIndex, kind: "row" });
   const itemIndex = m.anchorItem.get(fileAnchorKey(cur.fileIndex, next));
   if (itemIndex !== undefined) {
     listRef.current?.nudgeItemIntoView(itemIndex);
@@ -1175,7 +1178,7 @@ function reviewListOnPlusDragOver(
   if (!d || fileIndex !== d.fileIndex) {
     return;
   }
-  args.setCursor({ anchor, fileIndex });
+  args.setCursor({ anchor, fileIndex, kind: "row" });
   if (anchor === d.from) {
     args.setSelection(null);
     return;
@@ -1299,9 +1302,12 @@ function useReviewListCallbacks(
         mo === "mouse" ? mo : "mouse"
       );
       args.setCursor((cur: CursorPos | null) =>
-        cur && cur.fileIndex === fileIndex && cur.anchor === anchor
+        cur &&
+        cur.fileIndex === fileIndex &&
+        cur.anchor === anchor &&
+        cur.kind === "row"
           ? cur
-          : { anchor, fileIndex }
+          : { anchor, fileIndex, kind: "row" }
       );
       args.setActiveIndex((cur) => (cur === fileIndex ? cur : fileIndex));
     },
@@ -1434,7 +1440,11 @@ function commentAtCursorPos(
     return;
   }
   if (!cur) {
-    setCursor({ anchor: entry.anchor, fileIndex: entry.fileIndex });
+    setCursor({
+      anchor: entry.anchor,
+      fileIndex: entry.fileIndex,
+      kind: "row",
+    });
     setActiveIndex(entry.fileIndex);
     activeIndexRef.current = entry.fileIndex;
   }
@@ -2360,10 +2370,16 @@ function useReviewFileNavigation(args: {
     args.setOccSpec(null);
     args.setSelection(null);
     args.listRef.current?.scrollToFileStart(target);
-    const entry = args.modelRef.current.nav.find((n) => n.fileIndex === target);
+    const entry = args.modelRef.current.nav.find(
+      (n) => n.fileIndex === target && n.kind === "row"
+    );
     if (entry) {
       markKeyboardNavigation(args);
-      args.setCursor({ anchor: entry.anchor, fileIndex: entry.fileIndex });
+      args.setCursor({
+        anchor: entry.anchor,
+        fileIndex: entry.fileIndex,
+        kind: "row",
+      });
     }
   };
 
@@ -2834,7 +2850,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
 
   const liveCursor =
     cursor &&
-    model.navIndexOf.has(fileAnchorKey(cursor.fileIndex, cursor.anchor))
+    model.navIndexOf.has(navKey(cursor.fileIndex, cursor.anchor, cursor.kind))
       ? cursor
       : null;
 
@@ -2972,8 +2988,10 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
 
   const cursorMoverRefs = {
     activeIndexRef,
+    activeThreadRef,
     cursorRafRef,
     cursorRef,
+    filesRef,
     heldRepeatsRef,
     keyboardHoldRef,
     listRef,
@@ -3487,7 +3505,11 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
               copiedPathIndex={copiedPathIndex}
               cursorKey={
                 liveCursor
-                  ? fileAnchorKey(liveCursor.fileIndex, liveCursor.anchor)
+                  ? navKey(
+                      liveCursor.fileIndex,
+                      liveCursor.anchor,
+                      liveCursor.kind
+                    )
                   : null
               }
               dragging={dragging}
@@ -3579,6 +3601,8 @@ function buildCursorMover(refs: {
   modelRef: React.RefObject<ReviewListModel>;
   cursorRef: React.RefObject<CursorPos | null>;
   activeIndexRef: React.RefObject<number>;
+  activeThreadRef: React.RefObject<{ rootId: number; path: string } | null>;
+  filesRef: React.RefObject<ChangedFile[]>;
   pendingDeltaRef: React.RefObject<number>;
   cursorRafRef: React.RefObject<number | null>;
   heldRepeatsRef: React.RefObject<number>;
@@ -3589,10 +3613,22 @@ function buildCursorMover(refs: {
   setActiveIndex: (i: number) => void;
   setInputMode: (m: "keyboard" | "mouse") => void;
 }): { move: (delta: number, isRepeat: boolean) => void } {
-  const place = (entry: { fileIndex: number; anchor: string }) => {
-    refs.setCursor({ anchor: entry.anchor, fileIndex: entry.fileIndex });
+  const place = (entry: ReviewListModel["nav"][number]) => {
+    refs.setCursor({
+      anchor: entry.anchor,
+      fileIndex: entry.fileIndex,
+      kind: entry.kind,
+    });
     refs.setActiveIndex(entry.fileIndex);
     refs.activeIndexRef.current = entry.fileIndex; // eager — see scrollToFile
+    const item = refs.modelRef.current.items[entry.itemIndex];
+    refs.activeThreadRef.current =
+      item?.kind === "comments" && item.threads.length > 0
+        ? {
+            path: refs.filesRef.current[entry.fileIndex]?.filename ?? "",
+            rootId: item.threads[0][0].id,
+          }
+        : null;
   };
   const flush = () => {
     refs.cursorRafRef.current = null;
@@ -3605,7 +3641,7 @@ function buildCursorMover(refs: {
     const cur = refs.cursorRef.current;
     refs.userMovedCursorRef.current = true;
     const curIdx = cur
-      ? m.navIndexOf.get(fileAnchorKey(cur.fileIndex, cur.anchor))
+      ? m.navIndexOf.get(navKey(cur.fileIndex, cur.anchor, cur.kind))
       : undefined;
     if (curIdx === undefined) {
       const start = refs.listRef.current?.firstVisibleRowItem() ?? 0;

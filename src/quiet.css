@@ -2206,8 +2206,13 @@ dialog.q-dialog::backdrop {
   transition: opacity 120ms ease;
 }
 .dir-quiet .qf-thread:hover .qf-key-hint,
-.dir-quiet .qf-thread:focus-within .qf-key-hint {
+.dir-quiet .qf-thread:focus-within .qf-key-hint,
+.dir-quiet .qf-thread-active .qf-key-hint {
   opacity: 1;
+}
+.dir-quiet .qf-diff:not([data-mode="mouse"]) .qf-thread-active .qf-thread {
+  background: var(--accent-soft);
+  border-color: var(--accent);
 }
 @media (prefers-reduced-motion: reduce) {
   .dir-quiet .qf-thread-actions .qf-key-hint {
