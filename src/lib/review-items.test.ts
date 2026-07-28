@@ -240,6 +240,13 @@ describe("clampFastStep", () => {
     expect(clampFastStep(m, 0, FAST_STEP, true)).toBe(boxIdx);
   });
 
+  it("stops at an open composer on the row it is already sitting on, even while held", () => {
+    const m = buildLong({ boxOn: 1 });
+    const boxIdx = m.navIndexOf.get(navKey(0, "RIGHT:1", "comments"));
+
+    expect(clampFastStep(m, 0, FAST_STEP, true)).toBe(boxIdx);
+  });
+
   it("never walks past the ends of the list", () => {
     const m = buildLong({ commentOn: 4 });
 

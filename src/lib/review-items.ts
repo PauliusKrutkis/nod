@@ -136,11 +136,14 @@ export function clampFastStep(
     if (entry?.kind !== "comments") {
       continue;
     }
-    if (entry.anchor === from?.anchor && entry.fileIndex === from.fileIndex) {
+    const item = m.items[entry.itemIndex];
+    const boxOpen = item?.kind === "comments" && item.boxOpen;
+    const ownRow =
+      entry.anchor === from?.anchor && entry.fileIndex === from.fileIndex;
+    if (ownRow && !boxOpen) {
       continue;
     }
-    const item = m.items[entry.itemIndex];
-    if (!isHeld || (item?.kind === "comments" && item.boxOpen)) {
+    if (!isHeld || boxOpen) {
       return at;
     }
   }
@@ -187,7 +190,12 @@ export function nextCommentItem(
   if (delta > 0) {
     return list.find((i) => i > fromItem) ?? list[0];
   }
-  return [...list].reverse().find((i) => i < fromItem) ?? list.at(-1);
+  for (let i = list.length - 1; i >= 0; i -= 1) {
+    if (list[i] < fromItem) {
+      return list[i];
+    }
+  }
+  return list.at(-1);
 }
 
 /**
