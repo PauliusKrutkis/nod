@@ -201,6 +201,12 @@ describe("clampFastStep", () => {
     expect(clampFastStep(m, 0, FAST_STEP, false)).toBe(FAST_STEP);
   });
 
+  it("advances past the thread on the row it is already sitting on", () => {
+    const m = buildLong({ commentOn: 1 });
+
+    expect(clampFastStep(m, 0, FAST_STEP, false)).toBe(FAST_STEP);
+  });
+
   it("advances past the thread it is already sitting on", () => {
     const m = buildLong({ commentOn: 4 });
     const threadIdx = m.navIndexOf.get(

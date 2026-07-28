@@ -129,10 +129,14 @@ export function clampFastStep(
   if (landing === fromIdx) {
     return landing;
   }
+  const from = m.nav[fromIdx];
   const step = landing > fromIdx ? 1 : -1;
   for (let at = fromIdx + step; at !== landing + step; at += step) {
     const entry = m.nav[at];
     if (entry?.kind !== "comments") {
+      continue;
+    }
+    if (entry.anchor === from?.anchor && entry.fileIndex === from.fileIndex) {
       continue;
     }
     const item = m.items[entry.itemIndex];

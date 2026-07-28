@@ -46,7 +46,9 @@ test("j moves the line cursor; sidebar follows the cursor's file", async ({
 test("f and g fast-move the cursor without scrolling when still in view", async ({
   page,
 }) => {
-  const active = page.locator(".qf-row-active");
+  // f/g can land on a row or on a conversation it would have crossed —
+  // either is a valid cursor stop, so match both active states.
+  const active = page.locator(".qf-row-active, .qf-thread-active");
   const scrollHost = page.locator(".qf-scrollhost");
 
   await page.keyboard.press("j");
