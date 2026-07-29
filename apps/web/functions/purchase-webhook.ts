@@ -1,12 +1,12 @@
 /**
  * POST /purchase-webhook — Polar order.paid → verify signature → store a
- * license keyed by github_id. See functions/lib/polar.ts for the
- * metadata.github_id assumption this depends on.
+ * license keyed by subject. See functions/lib/polar.ts for the
+ * metadata.subject assumption this depends on.
  */
 import type { Env } from "./lib/env";
 import { putLicense, putOrderIndex } from "./lib/kv";
 import {
-  extractGithubId,
+  extractSubject,
   isOrderPaidEvent,
   verifyPolarWebhook,
 } from "./lib/polar";
@@ -30,15 +30,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return new Response(null, { status: 200 });
   }
 
-  const githubId = extractGithubId(result.event);
-  if (githubId === null) {
+  const subject = extractSubject(result.event);
+  if (subject === null) {
     return new Response(null, { status: 200 });
   }
 
   const orderId = result.event.data.id;
   const updatesUntil = new Date(Date.now() + LICENSE_DURATION_MS).toISOString();
-  await putLicense(context.env.LICENSES, githubId, { orderId, updatesUntil });
-  await putOrderIndex(context.env.LICENSES, orderId, githubId);
+  await putLicense(context.env.LICENSES, subject, { orderId, updatesUntil });
+  await putOrderIndex(context.env.LICENSES, orderId, subject);
 
   return new Response(null, { status: 200 });
 };

@@ -1,9 +1,11 @@
 /**
  * Verifies Polar webhook requests (Standard Webhooks spec: webhook-id /
  * webhook-timestamp / webhook-signature headers, HMAC-SHA256). The
- * order.paid payload shape below — especially `metadata.github_id` — is an
+ * order.paid payload shape below — especially `metadata.subject` — is an
  * assumption pending a real Polar account; confirm against Polar's API
- * reference before wiring live secrets.
+ * reference before wiring live secrets. Checkout is responsible for putting
+ * an already-namespaced subject there (`<provider>:<host>:<id>`, see
+ * functions/lib/kv.ts); this only reads whatever it is given.
  *
  * verifyPolarWebhook returns a discriminated result rather than the event or
  * null: an unverified payload must never reach the handler body by way of a
@@ -52,9 +54,9 @@ export function isOrderPaidEvent(event: unknown): event is PolarOrderPaidEvent {
   );
 }
 
-export function extractGithubId(event: PolarOrderPaidEvent): string | null {
-  const githubId = event.data.metadata?.github_id;
-  return typeof githubId === "string" || typeof githubId === "number"
-    ? String(githubId)
+export function extractSubject(event: PolarOrderPaidEvent): string | null {
+  const subject = event.data.metadata?.subject;
+  return typeof subject === "string" || typeof subject === "number"
+    ? String(subject)
     : null;
 }
