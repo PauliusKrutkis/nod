@@ -1143,14 +1143,14 @@ a {
   color: var(--accent);
 }
 
-.vers__summary:hover .vers__tag {
-  color: var(--accent);
-}
-
 .vers__tag {
   font-size: 13px;
   color: var(--fg);
   transition: color 0.15s ease;
+}
+
+.vers__summary:hover .vers__tag {
+  color: var(--accent);
 }
 
 .vers__date {
