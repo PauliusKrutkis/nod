@@ -4,10 +4,9 @@ import CopyCommand from "../components/CopyCommand.astro";
 import DiffReplay from "../components/DiffReplay.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteNav from "../components/SiteNav.astro";
+import { BREW_COMMAND, REPO_URL } from "../lib/site";
 
-const brew = "brew install pauliuskrutkis/tap/nod";
-const repo = "https://github.com/PauliusKrutkis/pr-flow";
-const installNotes = `${repo}#install--auto-updates`;
+const installNotes = `${REPO_URL}#install--auto-updates`;
 
 const features = [
   {
@@ -49,7 +48,7 @@ const features = [
       <DiffReplay />
 
       <div class="get" id="get">
-        <CopyCommand command={brew} />
+        <CopyCommand command={BREW_COMMAND} />
         <a class="btn btn--primary" href="/downloads">Download for macOS</a>
         <p class="get__note">
           Also on <a href="/downloads">Linux &amp; Windows</a>. Free while it's

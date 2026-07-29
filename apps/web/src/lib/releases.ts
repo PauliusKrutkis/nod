@@ -14,13 +14,23 @@
  *
  * A failed fetch throws rather than degrading to an empty page: Cloudflare
  * Pages keeps the previous deploy live when a build fails, which is a better
- * outcome than silently publishing a downloads page with no downloads.
+ * outcome than silently publishing a downloads page with no downloads. The
+ * same applies to a latest release that matches no installer — pickDownloads
+ * matches on filename suffix, so a change to Tauri's bundle naming would
+ * otherwise build clean and publish an "Install Nod" page with an empty grid.
  */
 
-const RELEASES_API =
-  "https://api.github.com/repos/PauliusKrutkis/pr-flow/releases";
+import { REPO_SLUG } from "./site";
+
+const RELEASES_API = `https://api.github.com/repos/${REPO_SLUG}/releases`;
+
+const RELEASES_PER_PAGE = 100;
 
 const SIGN_OFF = "See the assets below to install this version.";
+
+const VERSION_TAG_PATTERN = /^v\d+\.\d+\.\d+$/;
+
+const BULLET_MARKER_PATTERN = /^[-*]\s+/;
 
 const TARGETS = [
   {
@@ -77,7 +87,7 @@ export interface Release {
 }
 
 export function isVersionTag(tag: string): boolean {
-  return /^v\d+\.\d+\.\d+$/.test(tag);
+  return VERSION_TAG_PATTERN.test(tag);
 }
 
 export function parseNotes(body: string): string[] {
@@ -85,7 +95,7 @@ export function parseNotes(body: string): string[] {
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.length > 0 && !line.startsWith(SIGN_OFF))
-    .map((line) => line.replace(/^[-*]\s+/, ""));
+    .map((line) => line.replace(BULLET_MARKER_PATTERN, ""));
 }
 
 export function formatSize(bytes: number): string {
@@ -142,17 +152,37 @@ export function toReleases(apiReleases: ApiRelease[]): Release[] {
 
 export async function fetchReleases(): Promise<Release[]> {
   const token = process.env.GITHUB_TOKEN;
-  const response = await fetch(RELEASES_API, {
-    headers: {
-      accept: "application/vnd.github+json",
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
-    },
-  });
+  const response = await fetch(
+    `${RELEASES_API}?per_page=${RELEASES_PER_PAGE}`,
+    {
+      headers: {
+        accept: "application/vnd.github+json",
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+      },
+    }
+  );
   if (!response.ok) {
     throw new Error(
       `GitHub releases fetch failed: ${response.status} ${response.statusText}. ` +
         "Set GITHUB_TOKEN in the build environment if this is a rate limit."
     );
   }
-  return toReleases(await response.json());
+  return assertInstallable(toReleases(await response.json()));
+}
+
+export function assertInstallable(releases: Release[]): Release[] {
+  const [latest] = releases;
+  if (!latest) {
+    throw new Error(
+      "No published version releases found — /downloads would render empty."
+    );
+  }
+  if (latest.downloads.length === 0) {
+    throw new Error(
+      `Release ${latest.tag} matched no installer assets — /downloads would ` +
+        "render with no download links. Check whether the bundle naming " +
+        "changed (see TARGETS)."
+    );
+  }
+  return releases;
 }

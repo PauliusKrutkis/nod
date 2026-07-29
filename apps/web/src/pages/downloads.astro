@@ -4,19 +4,11 @@ import SiteFooter from "../components/SiteFooter.astro";
 import SiteNav from "../components/SiteNav.astro";
 import Base from "../layouts/Base.astro";
 import { fetchReleases, formatDate } from "../lib/releases";
+import { BREW_COMMAND, REPO_URL } from "../lib/site";
 
-const brew = "brew install pauliuskrutkis/tap/nod";
-const repo = "https://github.com/PauliusKrutkis/pr-flow";
-const installNotes = `${repo}#install--auto-updates`;
+const installNotes = `${REPO_URL}#install--auto-updates`;
 
-const releases = await fetchReleases();
-const [latest, ...older] = releases;
-
-if (!latest) {
-  throw new Error(
-    "No published version releases found — /downloads would render empty."
-  );
-}
+const [latest, ...older] = await fetchReleases();
 ---
 
 <Base
@@ -36,7 +28,7 @@ if (!latest) {
       </p>
 
       <div class="dl__brew">
-        <CopyCommand command={brew} />
+        <CopyCommand command={BREW_COMMAND} />
         <p class="dl__hint">
           macOS also needs <a href={installNotes}>one more command</a> on first
           install, until Nod is notarized.
@@ -72,7 +64,7 @@ if (!latest) {
         ) : (
           <p class="vers__empty">
             No notes for this release.{" "}
-            <a href={`${repo}/releases/tag/${latest.tag}`}>See it on GitHub</a>.
+            <a href={`${REPO_URL}/releases/tag/${latest.tag}`}>See it on GitHub</a>.
           </p>
         )
       }
@@ -99,7 +91,7 @@ if (!latest) {
                   )}
                   <a
                     class="vers__assets"
-                    href={`${repo}/releases/tag/${release.tag}`}
+                    href={`${REPO_URL}/releases/tag/${release.tag}`}
                   >
                     Downloads for {release.tag} →
                   </a>

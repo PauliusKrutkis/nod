@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  assertInstallable,
   formatSize,
   isVersionTag,
   parseNotes,
@@ -75,6 +76,11 @@ describe("pickDownloads", () => {
 
     expect(downloads).toHaveLength(1);
     expect(downloads[0]?.detail).toBe("Apple silicon");
+  });
+
+  it("returns nothing when no asset matches a known target", () => {
+    expect(pickDownloads([])).toEqual([]);
+    expect(pickDownloads([asset("Nod_0.4.0_aarch64.dmg.sig")])).toEqual([]);
   });
 });
 
@@ -155,5 +161,44 @@ describe("toReleases", () => {
 describe("formatSize", () => {
   it("reports megabytes to one decimal", () => {
     expect(formatSize(12_300_000)).toBe("12.3 MB");
+  });
+});
+
+const NO_RELEASES_PATTERN = /No published version/;
+const NO_INSTALLER_PATTERN = /matched no installer/;
+
+describe("assertInstallable", () => {
+  const release = {
+    tag: "v0.4.0",
+    version: "0.4.0",
+    publishedAt: "2026-07-01T00:00:00Z",
+    notes: ["Something"],
+    downloads: [
+      {
+        platform: "macOS",
+        detail: "Apple silicon",
+        url: "https://example.test/Nod_0.4.0_aarch64.dmg",
+        size: "12.3 MB",
+      },
+    ],
+  };
+
+  it("passes a release that has at least one installer", () => {
+    expect(assertInstallable([release])).toEqual([release]);
+  });
+
+  it("fails the build when no releases were published", () => {
+    expect(() => assertInstallable([])).toThrow(NO_RELEASES_PATTERN);
+  });
+
+  it("fails the build when the latest release matched no installer", () => {
+    expect(() => assertInstallable([{ ...release, downloads: [] }])).toThrow(
+      NO_INSTALLER_PATTERN
+    );
+  });
+
+  it("ignores older releases that matched no installer", () => {
+    const older = { ...release, tag: "v0.3.0", downloads: [] };
+    expect(assertInstallable([release, older])).toHaveLength(2);
   });
 });
