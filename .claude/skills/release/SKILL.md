@@ -166,7 +166,7 @@ EOF
 
 ### 9. Refresh the downloads page
 
-`nod.pages.dev/downloads` reads the release list **at build time**, and
+The `/downloads` page reads the release list **at build time**, and
 Cloudflare Pages only rebuilds on a git push — publishing a release does not
 trigger a deploy. Without this step the page keeps serving the previous
 release until some unrelated commit lands.
