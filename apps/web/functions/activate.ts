@@ -4,7 +4,7 @@
  * into the app.
  *
  * Keyed by `?order_id=` (Polar's opaque order/checkout identifier), not
- * `?github_id=` — a github_id is public, so trusting it alone here would
+ * `?subject=` — a subject is public, so trusting it alone here would
  * let anyone mint a signed token for a known customer's account with no
  * proof of purchase. order_id is unguessable and single-use: the index is
  * deleted once a token has actually been signed, so replaying an old
@@ -29,20 +29,20 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     return new Response("missing order_id", { status: 400 });
   }
 
-  const githubId = await getOrderIndex(context.env.LICENSES, orderId);
-  if (githubId === null) {
+  const subject = await getOrderIndex(context.env.LICENSES, orderId);
+  if (subject === null) {
     return new Response("activation link is invalid or already used", {
       status: 404,
     });
   }
 
-  const record = await getLicense(context.env.LICENSES, githubId);
+  const record = await getLicense(context.env.LICENSES, subject);
   if (record === null) {
     return new Response("no license found for this account", { status: 404 });
   }
 
   const token = await signLicenseToken(
-    { orderId: record.orderId, githubId, updatesUntil: record.updatesUntil },
+    { orderId: record.orderId, subject, updatesUntil: record.updatesUntil },
     context.env.LICENSE_SIGNING_SEED
   );
   await deleteOrderIndex(context.env.LICENSES, orderId);

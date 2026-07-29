@@ -1,8 +1,17 @@
 /**
- * KV access for the license server. Two key spaces: `license:<github_id>`
+ * KV access for the license server. Two key spaces: `license:<subject>`
  * holds the record itself, and `order:<order_id>` is a single-use index the
  * purchase webhook writes so /activate can be keyed off Polar's opaque order
- * id instead of the public github_id (see functions/activate.ts).
+ * id instead of the public subject (see functions/activate.ts).
+ *
+ * A subject is `<provider>:<host>:<id>` — `github:github.com:583231`,
+ * `gitlab:git.acme.internal:42`. Deliberately not a bare GitHub id: the app
+ * signs in against GitHub, gitlab.com and self-hosted GitLab
+ * (src-tauri/src/accounts.rs identifies an account by that same triple), so a
+ * github-only key would leave paying GitLab users unrepresentable. Namespacing
+ * from the start means a new provider is data, not a migration. `id` is the
+ * provider's stable numeric id, never the login — logins get renamed, and this
+ * value has to still resolve at restore time a year later.
  *
  * Reading the index and deleting it are separate calls on purpose. /activate
  * has fallible work to do between the two — a KV read and a signature — and
@@ -14,8 +23,8 @@ export interface LicenseRecord {
   updatesUntil: string;
 }
 
-function licenseKey(githubId: string): string {
-  return `license:${githubId}`;
+function licenseKey(subject: string): string {
+  return `license:${subject}`;
 }
 
 function orderIndexKey(orderId: string): string {
@@ -24,25 +33,25 @@ function orderIndexKey(orderId: string): string {
 
 export function getLicense(
   kv: KVNamespace,
-  githubId: string
+  subject: string
 ): Promise<LicenseRecord | null> {
-  return kv.get<LicenseRecord>(licenseKey(githubId), "json");
+  return kv.get<LicenseRecord>(licenseKey(subject), "json");
 }
 
 export async function putLicense(
   kv: KVNamespace,
-  githubId: string,
+  subject: string,
   record: LicenseRecord
 ): Promise<void> {
-  await kv.put(licenseKey(githubId), JSON.stringify(record));
+  await kv.put(licenseKey(subject), JSON.stringify(record));
 }
 
 export async function putOrderIndex(
   kv: KVNamespace,
   orderId: string,
-  githubId: string
+  subject: string
 ): Promise<void> {
-  await kv.put(orderIndexKey(orderId), githubId);
+  await kv.put(orderIndexKey(orderId), subject);
 }
 
 export function getOrderIndex(

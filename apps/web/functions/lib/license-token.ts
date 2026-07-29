@@ -14,7 +14,7 @@ import { signAsync, verifyAsync } from "@noble/ed25519";
 
 export interface LicensePayload {
   orderId: string;
-  githubId: string;
+  subject: string;
   updatesUntil: string;
 }
 
@@ -25,7 +25,7 @@ interface SignedLicenseToken extends LicensePayload {
 function canonicalBytes(payload: LicensePayload): Uint8Array {
   const canonical = JSON.stringify({
     orderId: payload.orderId,
-    githubId: payload.githubId,
+    subject: payload.subject,
     updatesUntil: payload.updatesUntil,
   });
   return new TextEncoder().encode(canonical);

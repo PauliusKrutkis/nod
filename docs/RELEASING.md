@@ -2,7 +2,7 @@
 
 Everything about shipping desktop builds: cutting a release, testing
 auto-updates, Homebrew, going public, and the [commercial launch](#commercial-launch)
-plan (GitHub-as-license, browser-brokered activation — no license keys).
+plan (forge-account-as-license, browser-brokered activation — no license keys).
 
 ## TL;DR — cut a release
 
@@ -279,7 +279,7 @@ functions/
     polar.ts             Standard Webhooks verify (standardwebhooks package)
   purchase-webhook.ts   POST — verify Polar signature, store license in KV
   activate.ts           GET  — look up license, sign token, redirect
-  license/[github_id].ts GET — read-only { active, updatesUntil }
+  license/[subject].ts   GET — read-only { active, updatesUntil }
   restore.ts            GET  — stubbed 501 until POLAR_API_KEY exists
 ```
 
@@ -298,15 +298,15 @@ pnpm --filter @nod/web run typecheck:functions
   (`ACTIVATION_REDIRECT_BASE`, one constant). Swap it for a real `prflow://`
   deep link when/if that plugin gets added — until then this is the
   faithful reuse of the mechanism that already works.
-- **Checkout metadata field name** (`metadata.github_id` on the Polar
+- **Checkout metadata field name** (`metadata.subject` on the Polar
   order) is still an assumption, not confirmed against a real Polar account
   — flagged in `functions/lib/polar.ts`'s file header. Verify against
   Polar's API reference once an account exists.
-- **`/activate` is keyed by `?order_id=`, not `?github_id=`.** An earlier
-  version of this took a bare github_id, which is public — anyone could
+- **`/activate` is keyed by `?order_id=`, not `?subject=`.** An earlier
+  version of this took a bare subject, which is public — anyone could
   have minted themselves a signed license token for any known customer's
   account with zero proof of purchase. The webhook now also stores a
-  single-use `order_id → github_id` index (`putOrderIndex` / `getOrderIndex`
+  single-use `order_id → subject` index (`putOrderIndex` / `getOrderIndex`
   / `deleteOrderIndex` in `functions/lib/kv.ts`); `/activate` deletes it once
   it has signed a token, so an activation link only works once and only if
   you have the opaque order id, not just a username. Which query param Polar's actual checkout success URL templates
@@ -362,18 +362,44 @@ sign-in today but for purchase. User pays → clicks **Open Nod** → app receiv
 a signed token via deep link → done. No key, no paste, no support tickets about
 lost keys.
 
-**Identity:** GitHub is the license. The app already authenticates with GitHub
-OAuth for its core function; reuse that `github_id` as the license identity.
-No separate accounts, passwords, or restore-by-email flow for the common case.
+**Identity: the forge account is the license, not GitHub specifically.** The
+app signs in against GitHub, gitlab.com and self-hosted GitLab, and
+`accounts::account_id` (src-tauri/src/accounts.rs) already identifies an
+account by `(provider, host, login)`. The license server mirrors that with a
+**subject**: `<provider>:<host>:<id>`, e.g. `github:github.com:583231`. An
+earlier draft keyed on a bare `github_id`, which would have left paying GitLab
+users unrepresentable — and the field name is inside the Ed25519 signature
+(`canonicalBytes` in `functions/lib/license-token.ts`), so it is renameable
+only until the first token is signed. `id` is the provider's stable numeric
+id, never the login, since logins get renamed and this must still resolve at
+restore time.
 
 ```
-Sign in with GitHub  →  app knows github_id
-Purchase (MoR checkout, linked to same GitHub)  →  webhook stores license
-Next launch  →  GET /license/:github_id  →  { active, updates_until }
+Purchase → /activate  →  browser proves identity, server signs a token,
+                          loopback hands it to the app  (no in-app OAuth)
+Every launch after    →  verify signature + updatesUntil offline against the
+                          public key baked into the app  (no network)
+New machine / lost    →  browser again → fresh token
 ```
 
-Multi-device restore: user is already signed into GitHub in the app → license
-lookup just works. No activation step on a second machine.
+**The app verifies the signature and expiry only — it does not compare
+`subject` against the signed-in account.** That is what keeps every provider
+working: a GitLab-only buyer gets a token that verifies, with no GitHub
+account anywhere in the app. `subject` is a restore key, not a runtime gate,
+and `GET /license/:subject` exists to support restore rather than normal
+operation.
+
+Accepted trade-off: a signature-only token is copyable between machines and
+people. Binding it to the account would barely help — anyone willing to share
+a token file will share the account too — and would cost the multi-provider
+property above, which matters more.
+
+Still open: what checkout can actually prove. GitHub OAuth at checkout yields
+a github subject; gitlab.com needs a second OAuth app; **self-hosted GitLab is
+not verifiable by a public license server at all** and will need a fallback
+(`/restore` is already email-first for this reason). That is a web-side
+problem with no app impact — see the `metadata.subject` note in
+`functions/lib/polar.ts`.
 
 Fallback restore (email-only buyers, support): a lightweight web page queries
 the merchant-of-record API by email and redirects back with a signed token —
@@ -385,19 +411,19 @@ same deep-link path, no keys.
 | --- | --- | --- |
 | **Landing page** | Static site — speed video, download links to GitHub release assets, buy button → MoR checkout. No backend. | Cloudflare Pages (preferred — Worker lives next to it) or Vercel. Custom domain (~$15/yr) — `nod.something`, not `*.vercel.app`, before anyone sees it. |
 | **Payments** | Merchant of record (MoR), **not** raw Stripe. MoR hosts checkout, processes cards, handles global VAT/sales tax. ~5% + ~50¢/sale. | Paddle, Lemon Squeezy (Stripe-owned), or **Polar** (dev-focused, GitHub-native — good audience fit). Paddle requires site approval → landing page comes first regardless. |
-| **License server** | One Cloudflare Worker — three endpoints, tiny KV or D1 for `github_id → license` mapping. Not zero-state, but minimal. | Same Cloudflare account as the landing page. |
-| **Auth** | None new. GitHub OAuth (already in the app) **is** the license identity. | Existing `auth.rs` + compile-time OAuth secrets. |
+| **License server** | One Cloudflare Worker — three endpoints, tiny KV or D1 for `subject → license` mapping. Not zero-state, but minimal. | Same Cloudflare account as the landing page. |
+| **Auth** | None new. The forge account already in the app **is** the license identity (subject = `<provider>:<host>:<id>`). | Existing `auth.rs` + compile-time OAuth secrets. |
 | **In-app (Rust)** | Trial, license verify, updater gating, deep-link handler. | `src-tauri/` — see below. |
 
 No traditional backend. No user database you operate — the MoR is the customer
-record; the Worker holds only `github_id → { updates_until, order_id }`.
+record; the Worker holds only `subject → { updates_until, order_id }`.
 
 ### Cloudflare Worker endpoints
 
 ```
-POST /purchase-webhook     MoR order.created → verify signature → store license by github_id
+POST /purchase-webhook     MoR order.created → verify signature → store license by subject
 GET  /activate             Post-checkout success page → sign token → redirect prflow://purchase?token=…
-GET  /license/:github_id   App polls on launch → { active, updates_until }
+GET  /license/:subject     Restore support → { active, updates_until }
 GET  /restore              Email fallback → MoR lookup → same prflow:// redirect
 ```
 
@@ -406,8 +432,9 @@ server](#license-server-pages-functions) above), not a standalone Worker —
 see that section for why, and for a correction to the `prflow://` redirect
 target assumed above.
 
-Webhook flow: checkout collects GitHub username (or user signs in with GitHub
-on the success page) → webhook maps purchase to `github_id` → Worker stores it.
+Webhook flow: checkout proves a forge identity (OAuth on the success page) →
+webhook maps the purchase to that `subject` → Worker stores it. What checkout
+can actually prove differs per provider — see [Identity](#product-decision-no-license-keys).
 
 Activation token payload (Ed25519-signed by the Worker, verified in-app with an
 embedded public key — same mental model as updater signatures, second keypair):
@@ -415,14 +442,14 @@ embedded public key — same mental model as updater signatures, second keypair)
 ```json
 {
   "order_id": "…",
-  "github_id": 12345,
+  "subject": "github:github.com:583231",
   "updates_until": "2028-09-01",
   "signature": "…"
 }
 ```
 
 Renewals: second MoR product ("+1 year of updates") → webhook updates
-`updates_until` for the same `github_id`.
+`updates_until` for the same `subject`.
 
 ### In-app work (Rust)
 
@@ -433,8 +460,9 @@ Renewals: second MoR product ("+1 year of updates") → webhook updates
 - **Deep link:** `prflow://purchase?token=…` via `tauri-plugin-deep-link`
   (also used by §11a extension flow in the backlog). App verifies token,
   stores license locally, dismisses prompt.
-- **Launch check:** `GET /license/:github_id` when signed in (cache locally;
-  refresh periodically). Offline grace with cached `updates_until`.
+- **Launch check:** none needed — the signed token verifies offline against
+  the embedded public key. `GET /license/:subject` is for restore, not the
+  normal path.
 - **Updater gating:** `latest.json` stays fully static; client checks local
   `updates_until` before offering an update. Gating is client-side — fine under
   the no-DRM stance.
