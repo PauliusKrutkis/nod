@@ -209,9 +209,22 @@ maintain.
 | Build command    | `pnpm build` |
 | Output directory | `dist`       |
 
-Until a domain is bought the site ships on `*.pages.dev`. Future
-`/activated` / `/restore` pages and the license webhook will live alongside it
-as Pages Functions (see [Commercial launch](#commercial-launch)).
+The site is served from **`nodreview.com`** (Cloudflare Registrar, same
+account as the Pages project). The project also answers on
+`pr-flow-73o.pages.dev` — Cloudflare suffixed the subdomain because
+`pr-flow.pages.dev` was already claimed by another account.
+
+`nodreview.com` is deliberately a placeholder: the short forms of the name
+(`nod.com` / `.dev` / `.app` / `.io`) are all registered and `nod.review` is
+registry-premium. So keep it out of anywhere durable — the Homebrew cask's
+`homepage` and the README both point at GitHub, and should stay that way
+until the canonical host is final. **Settle that before the Polar account
+exists**, not after: once a payment provider holds a webhook URL and shipped
+binaries know a license-server host, moving costs far more than a redirect.
+
+Future `/activated` / `/restore` pages and the license webhook will live
+alongside the site as Pages Functions (see
+[Commercial launch](#commercial-launch)).
 
 ## Commercial launch
 
