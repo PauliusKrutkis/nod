@@ -10,7 +10,7 @@ function toHex(bytes: Uint8Array): string {
 
 const payload = {
   orderId: "order_1",
-  githubId: "123",
+  subject: "gitlab:git.acme.internal:42",
   updatesUntil: "2027-07-18",
 };
 
@@ -80,7 +80,7 @@ describe("license token", () => {
 
   it("round-trips a payload containing non-ASCII characters", async () => {
     const { secretKey, publicKey } = await keygenAsync();
-    const unicodePayload = { ...payload, githubId: "café-日本" };
+    const unicodePayload = { ...payload, subject: "café-日本" };
     const token = await signLicenseToken(unicodePayload, toHex(secretKey));
     expect(await verifyLicenseToken(token, toHex(publicKey))).toEqual(
       unicodePayload

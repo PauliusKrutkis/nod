@@ -643,7 +643,7 @@ an open item: production-build perf e2e). Landing page (§0) and MoR account
 - [ ] 🔴 **Phase 1** — Apple notarization (hard prerequisite; drop `xattr` docs).
 - [ ] 🔴 **Phase 1** — MoR product + checkout linked to GitHub identity.
 - [ ] 🟡 **Phase 1** — Cloudflare Worker (`/purchase-webhook`, `/activate`,
-      `/license/:github_id`, `/restore`).
+      `/license/:subject`, `/restore`).
 - [ ] 🟡 **Phase 1** — `prflow://purchase` deep link + Ed25519 token verify in Rust.
 - [ ] 🟡 **Phase 1** — Trial (first-launch timestamp) + purchase prompt UI.
 - [ ] 🟡 **Phase 1** — Updater gating on local `updates_until` (static `latest.json`).

@@ -30,11 +30,11 @@ function fakeKv(): KVNamespace {
 describe("license + order index KV helpers", () => {
   it("round-trips a license record", async () => {
     const kv = fakeKv();
-    await putLicense(kv, "42", {
+    await putLicense(kv, "github:github.com:583231", {
       orderId: "order_1",
       updatesUntil: "2027-07-18",
     });
-    expect(await getLicense(kv, "42")).toEqual({
+    expect(await getLicense(kv, "github:github.com:583231")).toEqual({
       orderId: "order_1",
       updatesUntil: "2027-07-18",
     });
@@ -43,10 +43,10 @@ describe("license + order index KV helpers", () => {
 
   it("resolves the order index until it is explicitly deleted", async () => {
     const kv = fakeKv();
-    await putOrderIndex(kv, "order_1", "42");
+    await putOrderIndex(kv, "order_1", "github:github.com:583231");
 
-    expect(await getOrderIndex(kv, "order_1")).toBe("42");
-    expect(await getOrderIndex(kv, "order_1")).toBe("42");
+    expect(await getOrderIndex(kv, "order_1")).toBe("github:github.com:583231");
+    expect(await getOrderIndex(kv, "order_1")).toBe("github:github.com:583231");
 
     await deleteOrderIndex(kv, "order_1");
     expect(await getOrderIndex(kv, "order_1")).toBeNull();

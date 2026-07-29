@@ -1,6 +1,6 @@
 import { Webhook } from "standardwebhooks";
 import { describe, expect, it } from "vitest";
-import { extractGithubId, isOrderPaidEvent, verifyPolarWebhook } from "./polar";
+import { extractSubject, isOrderPaidEvent, verifyPolarWebhook } from "./polar";
 
 const secret = `whsec_${btoa("test-webhook-secret")}`;
 
@@ -15,10 +15,13 @@ function sign(webhookSecret: string, msgId: string, payload: string) {
 }
 
 describe("polar webhook verification", () => {
-  it("accepts a validly signed order.paid event and extracts the github id", () => {
+  it("accepts a validly signed order.paid event and extracts the subject", () => {
     const event = {
       type: "order.paid",
-      data: { id: "order_1", metadata: { github_id: "42" } },
+      data: {
+        id: "order_1",
+        metadata: { subject: "github:github.com:583231" },
+      },
     };
     const payload = JSON.stringify(event);
     const headers = sign(secret, "msg_1", payload);
@@ -29,7 +32,7 @@ describe("polar webhook verification", () => {
     if (result.verified) {
       expect(isOrderPaidEvent(result.event)).toBe(true);
       if (isOrderPaidEvent(result.event)) {
-        expect(extractGithubId(result.event)).toBe("42");
+        expect(extractSubject(result.event)).toBe("github:github.com:583231");
       }
     }
   });
