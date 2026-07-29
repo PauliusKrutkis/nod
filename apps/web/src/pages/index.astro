@@ -1,12 +1,8 @@
 ---
 import Base from "../layouts/Base.astro";
-import CopyCommand from "../components/CopyCommand.astro";
 import DiffReplay from "../components/DiffReplay.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteNav from "../components/SiteNav.astro";
-import { BREW_COMMAND, REPO_URL } from "../lib/site";
-
-const installNotes = `${REPO_URL}#install--auto-updates`;
 
 const features = [
   {
@@ -48,12 +44,11 @@ const features = [
       <DiffReplay />
 
       <div class="get" id="get">
-        <CopyCommand command={BREW_COMMAND} />
-        <a class="btn btn--primary" href="/downloads">Download for macOS</a>
+        <a class="btn btn--primary" href="/downloads">Download Nod</a>
         <p class="get__note">
-          Also on <a href="/downloads">Linux &amp; Windows</a>. Free while it's
-          an experiment. macOS needs <a href={installNotes}>one more command</a>
-          on first install, until Nod is notarized.
+          macOS, Windows, and Linux — or install with{" "}<a
+            href="/downloads#homebrew">Homebrew</a
+          >. Free while it's an experiment.
         </p>
       </div>
     </section>
