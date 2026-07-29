@@ -1,9 +1,17 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.3/schema.json",
   "extends": ["ultracite/core", "ultracite/react"],
-  // apps/web is a separate Astro workspace linted by `astro check`; Biome can't
+  // apps/web/src is the Astro site, linted by `astro check`; Biome can't
   // resolve .astro template usage and false-flags frontmatter as dead code.
+  // Only that subtree is exempt: apps/web/functions is plain TypeScript with
+  // no .astro involved, and astro check skips it (the workspace tsconfig
+  // excludes functions), so Biome is the only thing that lints it.
   "files": {
-    "includes": ["!apps/web"]
+    "includes": [
+      "!apps/web/src",
+      "!apps/web/dist",
+      "!apps/web/.astro",
+      "!apps/web/public"
+    ]
   }
 }

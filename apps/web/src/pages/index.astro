@@ -5,6 +5,7 @@ import DiffReplay from "../components/DiffReplay.astro";
 const brew = "brew install pauliuskrutkis/tap/nod";
 const releases = "https://github.com/PauliusKrutkis/pr-flow/releases/latest";
 const repo = "https://github.com/PauliusKrutkis/pr-flow";
+const installNotes = `${repo}#install--auto-updates`;
 
 const features = [
   {
@@ -82,7 +83,8 @@ const features = [
         <a class="btn btn--primary" href={releases}>Download for macOS</a>
         <p class="get__note">
           Also on <a href={releases}>Linux &amp; Windows</a>. Free while it's an
-          experiment.
+          experiment. macOS needs <a href={installNotes}>one more command</a> on
+          first install, until Nod is notarized.
         </p>
       </div>
     </section>

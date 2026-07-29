@@ -628,6 +628,12 @@ payments and tax.
 above. Do not build MoR / Worker / license code until five external developers
 have used the app for one week and retention is plausible.
 
+**2026-07-18:** Started the license-server (Pages Functions) skeleton ahead
+of this gate — owner call, logged here rather than silently checking off
+`Release gate` items that aren't actually done (`Perf budget met` still has
+an open item: production-build perf e2e). Landing page (§0) and MoR account
++ real secrets are still gated as written.
+
 | Phase | What | When |
 | --- | --- | --- |
 | **0** | Domain + static landing page (video, GitHub release downloads). No payments. | After release gate |
@@ -637,7 +643,7 @@ have used the app for one week and retention is plausible.
 - [ ] 🔴 **Phase 1** — Apple notarization (hard prerequisite; drop `xattr` docs).
 - [ ] 🔴 **Phase 1** — MoR product + checkout linked to GitHub identity.
 - [ ] 🟡 **Phase 1** — Cloudflare Worker (`/purchase-webhook`, `/activate`,
-      `/license/:github_id`, `/restore`).
+      `/license/:subject`, `/restore`).
 - [ ] 🟡 **Phase 1** — `prflow://purchase` deep link + Ed25519 token verify in Rust.
 - [ ] 🟡 **Phase 1** — Trial (first-launch timestamp) + purchase prompt UI.
 - [ ] 🟡 **Phase 1** — Updater gating on local `updates_until` (static `latest.json`).

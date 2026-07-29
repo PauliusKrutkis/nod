@@ -25,6 +25,21 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
+  license-server:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --trust-lockfile
+      - name: Typecheck Pages Functions
+        run: pnpm --filter @nod/web run typecheck:functions
+      - name: Unit tests
+        run: pnpm --filter @nod/web test
+
   rust:
     runs-on: ubuntu-22.04
     steps:
