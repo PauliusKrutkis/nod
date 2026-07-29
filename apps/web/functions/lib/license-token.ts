@@ -9,8 +9,21 @@
  * malformed shape (bad base64, non-object JSON, a signature that isn't 64
  * bytes of hex) returns null. Tokens are base64url over UTF-8 bytes rather
  * than btoa(string), which throws on any code point above U+00FF.
+ *
+ * It also rebuilds its return value from the three signed fields instead of
+ * passing the decoded object through. Only those three go into
+ * canonicalBytes, so any other key an attacker appends to a genuinely signed
+ * token verifies fine and would otherwise be handed to the caller as though
+ * the signature vouched for it.
+ *
+ * signLicenseToken rejects a seed that isn't 32 bytes of hex rather than
+ * letting hexToBytes zero-fill it: parseInt yields NaN for non-hex, which a
+ * Uint8Array stores as 0, so a typo'd secret would silently sign with the
+ * wrong key and produce tokens that fail only inside the desktop app.
  */
 import { signAsync, verifyAsync } from "@noble/ed25519";
+
+const SEED_HEX_PATTERN = /^[0-9a-f]{64}$/i;
 
 export interface LicensePayload {
   orderId: string;
@@ -68,6 +81,11 @@ export async function signLicenseToken(
   payload: LicensePayload,
   signingSeedHex: string
 ): Promise<string> {
+  if (!SEED_HEX_PATTERN.test(signingSeedHex)) {
+    throw new Error(
+      "LICENSE_SIGNING_SEED must be 64 hex characters (a 32-byte Ed25519 seed)"
+    );
+  }
   const signature = await signAsync(
     canonicalBytes(payload),
     hexToBytes(signingSeedHex)
@@ -102,7 +120,13 @@ export async function verifyLicenseToken(
       canonicalBytes(payload),
       hexToBytes(publicKeyHex)
     );
-    return valid ? payload : null;
+    return valid
+      ? {
+          orderId: payload.orderId,
+          subject: payload.subject,
+          updatesUntil: payload.updatesUntil,
+        }
+      : null;
   } catch {
     return null;
   }

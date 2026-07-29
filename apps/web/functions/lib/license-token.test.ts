@@ -8,6 +8,28 @@ function toHex(bytes: Uint8Array): string {
   );
 }
 
+function fromBase64Url(token: string): string {
+  const padded = token.replaceAll("-", "+").replaceAll("_", "/");
+  const padLength = padded.length % 4 === 0 ? 0 : 4 - (padded.length % 4);
+  const binary = atob(padded + "=".repeat(padLength));
+  return new TextDecoder().decode(
+    Uint8Array.from(binary, (char) => char.charCodeAt(0))
+  );
+}
+
+function toBase64Url(json: string): string {
+  const bytes = new TextEncoder().encode(json);
+  const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join(
+    ""
+  );
+  return btoa(binary)
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replaceAll("=", "");
+}
+
+const SEED_ERROR_PATTERN = /64 hex characters/;
+
 const payload = {
   orderId: "order_1",
   subject: "gitlab:git.acme.internal:42",
@@ -85,5 +107,31 @@ describe("license token", () => {
     expect(await verifyLicenseToken(token, toHex(publicKey))).toEqual(
       unicodePayload
     );
+  });
+
+  it("drops fields the signature never covered", async () => {
+    const { secretKey, publicKey } = await keygenAsync();
+    const token = await signLicenseToken(payload, toHex(secretKey));
+
+    const decoded = JSON.parse(fromBase64Url(token));
+    decoded.tier = "enterprise";
+    decoded.updatesUntil2 = "2999-01-01";
+    const injected = toBase64Url(JSON.stringify(decoded));
+
+    const verified = await verifyLicenseToken(injected, toHex(publicKey));
+
+    expect(verified).toEqual(payload);
+    expect(verified).not.toHaveProperty("tier");
+    expect(verified).not.toHaveProperty("updatesUntil2");
+  });
+
+  it("refuses to sign with a seed that is not 32 bytes of hex", async () => {
+    const { publicKey } = await keygenAsync();
+    for (const badSeed of ["", "not-hex", "ab".repeat(31), "ab".repeat(33)]) {
+      await expect(signLicenseToken(payload, badSeed)).rejects.toThrow(
+        SEED_ERROR_PATTERN
+      );
+    }
+    expect(toHex(publicKey)).toHaveLength(64);
   });
 });
