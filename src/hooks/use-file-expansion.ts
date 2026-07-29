@@ -466,7 +466,7 @@ function restoreItemIndex(
   let best: number | undefined;
   let bestDist = Number.POSITIVE_INFINITY;
   for (const entry of m.nav) {
-    if (entry.fileIndex !== target.fileIndex) {
+    if (entry.fileIndex !== target.fileIndex || entry.kind !== "row") {
       continue;
     }
     if (!entry.anchor.startsWith(side)) {

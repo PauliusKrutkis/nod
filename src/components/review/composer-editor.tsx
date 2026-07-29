@@ -244,6 +244,8 @@ export function ComposerEditor({
       attributes: {
         "aria-label": placeholder,
         "aria-multiline": "true",
+        autocapitalize: "off",
+        autocorrect: "off",
         class: "qa-editor-content",
         role: "textbox",
       },

@@ -272,9 +272,16 @@ maintain.
 | Build command    | `pnpm build` |
 | Output directory | `dist`       |
 
-Until a domain is bought the site ships on `*.pages.dev`. Future
-`/activated` / `/restore` pages and the license webhook will live alongside it
-as Pages Functions (see [Commercial launch](#commercial-launch)).
+The site is served from **`nodreview.com`** (Cloudflare Registrar, same
+account as the Pages project), set as `site` in `apps/web/astro.config.mjs`.
+The project also answers on `pr-flow-73o.pages.dev` — Cloudflare suffixed the
+subdomain because `pr-flow.pages.dev` was already claimed by another account.
+That name is a placeholder, and picking the permanent one is time-sensitive:
+see [Canonical domain](#canonical-domain).
+
+Future `/activated` / `/restore` pages and the license webhook will live
+alongside the site as Pages Functions (see
+[Commercial launch](#commercial-launch)).
 
 ### License server (Pages Functions)
 
@@ -347,6 +354,25 @@ needed once `/restore` is implemented for real.
 
 Paid distribution layered on top of the existing updater feed, signing chain,
 and CI releases (most of the hard infrastructure is already done).
+
+### Canonical domain
+
+`nodreview.com` is deliberately a placeholder. Every short form of the name is
+gone — `nod.com` (1998), `.dev`, `.app`, `.io`, `.sh` are all registered, and
+`nod.review` is registry-premium at $500 up front plus $65/yr, which is not
+proportionate to a product still behind the validation gate in
+[BACKLOG.md](BACKLOG.md) §11c.
+
+Because it's a placeholder, keep it out of anywhere durable: the Homebrew
+cask's `homepage` and the README both point at GitHub today, and should stay
+that way until the canonical host is final.
+
+**Settle the permanent host before the Polar account exists**, not at some
+later traction milestone. Once a payment provider holds a webhook URL, and
+shipped binaries have a license-server host compiled in, changing it means
+coordinating a provider migration against installed apps — where a redirect
+would have been enough beforehand. Traction is precisely when this stops
+being cheap.
 
 ### Product decision: no license keys
 
