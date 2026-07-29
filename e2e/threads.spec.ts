@@ -144,11 +144,33 @@ test("r on a hovered thread opens its reply composer", async ({ page }) => {
   ).toBeVisible();
 });
 
-test("]c focuses a thread, so r replies to it without hovering", async ({
+test("q lands on a thread, so r replies to it without hovering", async ({
   page,
 }) => {
-  await page.keyboard.press("]");
-  await page.keyboard.press("c");
+  await page.keyboard.press("q");
+  await page.keyboard.press("r");
+  await expect(page.getByRole("textbox", { name: "Reply…" })).toBeFocused();
+});
+
+test("q moves the cursor onto the thread, not just the viewport", async ({
+  page,
+}) => {
+  await page.keyboard.press("q");
+  await expect(page.locator(".qf-comment-wrap.qf-thread-active")).toHaveCount(
+    1
+  );
+});
+
+test("the pointer leaving a thread does not disarm the one the cursor is on", async ({
+  page,
+}) => {
+  await page.locator('[data-comment-root="100"]').hover();
+  await page.keyboard.press("q");
+  await expect(page.locator(".qf-comment-wrap.qf-thread-active")).toHaveCount(
+    1
+  );
+
+  await page.mouse.move(2, 2);
   await page.keyboard.press("r");
   await expect(page.getByRole("textbox", { name: "Reply…" })).toBeFocused();
 });
@@ -180,11 +202,10 @@ test("x resolves the hovered thread; x on the collapsed row unresolves", async (
   await expect(thread.getByText("Is this constant right?")).toBeVisible();
 });
 
-test("]c focuses a thread, so x resolves it without hovering", async ({
+test("q lands on a thread, so x resolves it without hovering", async ({
   page,
 }) => {
-  await page.keyboard.press("]");
-  await page.keyboard.press("c");
+  await page.keyboard.press("q");
   await page.keyboard.press("x");
   await expect(page.locator(".qf-thread-collapsed")).toBeVisible();
 });

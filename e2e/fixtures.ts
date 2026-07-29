@@ -363,6 +363,49 @@ export const DETAIL_WITH_OWN_COMMENT = {
 };
 
 /**
+ * DETAIL's thread (root 100) with a reply from the signed-in fixture user
+ * ("me", id 150) followed by another reply from a third party (id 151) — the
+ * shift+e hint chip only shows on your comment when it is still the
+ * thread's last word, so this fixture exercises the case where it isn't.
+ */
+export const DETAIL_OWN_REPLY_THEN_OTHERS = {
+  ...DETAIL,
+  comments: [
+    ...DETAIL.comments,
+    {
+      body: "I'll take a look.",
+      createdAt: "2026-07-02T09:50:00Z",
+      diffHunk: "",
+      id: 150,
+      inReplyToId: 100,
+      line: null,
+      originalLine: null,
+      path: "src/lib/fuzzy.ts",
+      resolved: false,
+      side: "RIGHT",
+      threadId: "T100",
+      user: "me",
+      userAvatarUrl: "",
+    },
+    {
+      body: "Any update on this?",
+      createdAt: "2026-07-02T09:55:00Z",
+      diffHunk: "",
+      id: 151,
+      inReplyToId: 100,
+      line: null,
+      originalLine: null,
+      path: "src/lib/fuzzy.ts",
+      resolved: false,
+      side: "RIGHT",
+      threadId: "T100",
+      user: "dave",
+      userAvatarUrl: "",
+    },
+  ],
+};
+
+/**
  * A repo with no CI configured: the pill must render nothing so quiet repos
  * stay quiet. Serve via `detailByCall: [DETAIL_NO_CI]`.
  */

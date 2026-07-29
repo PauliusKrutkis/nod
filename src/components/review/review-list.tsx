@@ -26,6 +26,7 @@ import { occurrenceRangesInLine } from "../../lib/occurrences.ts";
 import {
   fileAnchorKey,
   fileRenderMeta,
+  navKey,
   type ReviewCommentsItem,
   type ReviewHunkItem,
   type ReviewImageItem,
@@ -582,6 +583,7 @@ function CommentsBlock({
   item,
   filename,
   addPending,
+  cursorHere,
   replyRequest,
   toggleRequest,
   editRequest,
@@ -592,6 +594,7 @@ function CommentsBlock({
   item: ReviewCommentsItem;
   filename: string;
   addPending: boolean;
+  cursorHere: boolean;
   replyRequest: ReplyRequest | null;
   toggleRequest: ToggleRequest | null;
   editRequest: EditRequest | null;
@@ -606,7 +609,10 @@ function CommentsBlock({
 
   return (
     <div
-      className="js-comment qf-comment-wrap"
+      className={cn(
+        "js-comment qf-comment-wrap",
+        cursorHere && "qf-thread-active"
+      )}
       data-file-index={item.fileIndex}
     >
       {item.threads.map((thread) => (
@@ -834,6 +840,9 @@ function renderCommentsItem(
     <CommentsBlock
       addPending={p.addPending}
       callbacks={p.callbacks}
+      cursorHere={
+        navKey(item.fileIndex, item.anchor, "comments") === p.cursorKey
+      }
       editRequest={
         p.editRequest && p.editRequest.path === file.filename
           ? p.editRequest
