@@ -613,7 +613,6 @@ function CommentsBlock({
         "js-comment qf-comment-wrap",
         cursorHere && "qf-thread-active"
       )}
-      data-anchor={item.anchor}
       data-file-index={item.fileIndex}
     >
       {item.threads.map((thread) => (

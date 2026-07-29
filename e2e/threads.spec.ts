@@ -161,6 +161,20 @@ test("q moves the cursor onto the thread, not just the viewport", async ({
   );
 });
 
+test("the pointer leaving a thread does not disarm the one the cursor is on", async ({
+  page,
+}) => {
+  await page.locator('[data-comment-root="100"]').hover();
+  await page.keyboard.press("q");
+  await expect(page.locator(".qf-comment-wrap.qf-thread-active")).toHaveCount(
+    1
+  );
+
+  await page.mouse.move(2, 2);
+  await page.keyboard.press("r");
+  await expect(page.getByRole("textbox", { name: "Reply…" })).toBeFocused();
+});
+
 test("r with no active thread keeps its old meaning: next file", async ({
   page,
 }) => {

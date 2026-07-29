@@ -14,6 +14,13 @@
  * `pendingBoxNudgeRef`, and a layout effect nudges it into view once the
  * model that contains it has rebuilt — same instant, no-animation easing
  * keyboard row navigation already uses via `nudgeItemIntoView`.
+ *
+ * `activeThreadRef` — the thread `r`/`x`/`z`/`shift+e` act on — is written by
+ * both hover and the cursor, so mouse-leave cannot simply null it: the cursor
+ * may be parked on a comment block, and `q` scrolls threads out from under a
+ * stationary pointer, which fires leave events nobody asked for.
+ * `reviewListOnThreadHover` therefore falls back to the cursor's own thread
+ * (`armedThreadAt`) instead, and only a cursor that is not on a block disarms.
  */
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
@@ -81,6 +88,7 @@ import { usePerfStore } from "../../lib/perf.ts";
 import { isGitlabPrUrl } from "../../lib/provider.ts";
 import { queryClient, queryKeys } from "../../lib/query-client.ts";
 import {
+  adjacentCommentItem,
   adjacentSelectableAnchor,
   anchorLine,
   armedThreadAt,
@@ -89,7 +97,6 @@ import {
   fileAnchorKey,
   type NavKind,
   navKey,
-  nextCommentItem,
   type ReviewListModel,
 } from "../../lib/review-items.ts";
 import {
@@ -1005,6 +1012,7 @@ interface ReviewListCallbackArgs {
   ) => void;
   addReviewComment: ReturnType<typeof useCommentMutations>["addReviewComment"];
   copyTimerRef: React.RefObject<ReturnType<typeof setTimeout> | null>;
+  cursorRef: React.RefObject<CursorPos | null>;
   deleteReviewComment: ReturnType<
     typeof useCommentMutations
   >["deleteReviewComment"];
@@ -1133,7 +1141,19 @@ function reviewListOnThreadHover(
   args: ReviewListCallbackArgs,
   t: { rootId: number; path: string } | null
 ): void {
-  args.activeThreadRef.current = t;
+  if (t) {
+    args.activeThreadRef.current = t;
+    return;
+  }
+  const cur = args.cursorRef.current;
+  const m = args.modelRef.current;
+  const navIdx = cur
+    ? m.navIndexOf.get(navKey(cur.fileIndex, cur.anchor, cur.kind))
+    : undefined;
+  args.activeThreadRef.current =
+    navIdx === undefined
+      ? null
+      : armedThreadAt(m, args.filesRef.current, m.nav[navIdx].itemIndex);
 }
 
 function syncActiveIndexRef(
@@ -1653,7 +1673,7 @@ function useReviewHotkeys(config: {
   findStep: (dir: 1 | -1) => void;
   goInbox: () => void;
   goToComment: (delta: number) => void;
-  moveCursorFast: (delta: 1 | -1, isHeld: boolean) => void;
+  moveCursorFast: (delta: 1 | -1, isRepeat: boolean) => void;
   markViewedAndNext: () => void;
   occNavRefs: Parameters<typeof buildOccNav>[0];
   occSpec: OccState | null;
@@ -2097,7 +2117,7 @@ function useReviewThreadActions(args: {
       ? m.navIndexOf.get(navKey(cur.fileIndex, cur.anchor, cur.kind))
       : undefined;
     const fromItem = curNav === undefined ? -1 : m.nav[curNav].itemIndex;
-    const target = nextCommentItem(m, fromItem, delta);
+    const target = adjacentCommentItem(m, fromItem, delta);
     if (target === undefined) {
       return;
     }
@@ -2447,7 +2467,7 @@ function useReviewFileNavigation(args: {
     }
   };
 
-  const moveCursorFast = (delta: 1 | -1, isHeld: boolean) => {
+  const moveCursorFast = (delta: 1 | -1, isRepeat: boolean) => {
     const refs = args.cursorMoverRefs;
     const m = refs.modelRef.current;
     const cur = refs.cursorRef.current;
@@ -2457,7 +2477,7 @@ function useReviewFileNavigation(args: {
     const step =
       curIdx === undefined
         ? delta * FAST_CURSOR_STEP
-        : clampFastStep(m, curIdx, delta * FAST_CURSOR_STEP, isHeld) - curIdx;
+        : clampFastStep(m, curIdx, delta * FAST_CURSOR_STEP, isRepeat) - curIdx;
     buildCursorMover(refs).move(step, false);
   };
 
@@ -3025,8 +3045,6 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
 
   const cursorRef = useLatest(liveCursor);
 
-  const userMovedCursorRef = useRef(false);
-
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
   const isRealPointerAt = (x: number, y: number) =>
     isRealPointer(x, y, keyboardHoldRef, lastPointRef);
@@ -3049,7 +3067,6 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     setActiveIndex,
     setCursor,
     setInputMode,
-    userMovedCursorRef,
   };
 
   const dragRef = useRef<{
@@ -3064,6 +3081,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     addPendingStore,
     addReviewComment,
     copyTimerRef,
+    cursorRef,
     deleteReviewComment,
     dragRef,
     filesRef,
@@ -3657,7 +3675,6 @@ function buildCursorMover(refs: {
   cursorRafRef: React.RefObject<number | null>;
   heldRepeatsRef: React.RefObject<number>;
   keyboardHoldRef: React.RefObject<boolean>;
-  userMovedCursorRef: React.RefObject<boolean>;
   listRef: React.RefObject<ReviewListHandle | null>;
   setCursor: React.Dispatch<React.SetStateAction<CursorPos | null>>;
   setActiveIndex: (i: number) => void;
@@ -3686,7 +3703,6 @@ function buildCursorMover(refs: {
       return;
     }
     const cur = refs.cursorRef.current;
-    refs.userMovedCursorRef.current = true;
     const curIdx = cur
       ? m.navIndexOf.get(navKey(cur.fileIndex, cur.anchor, cur.kind))
       : undefined;

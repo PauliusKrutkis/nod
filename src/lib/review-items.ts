@@ -115,15 +115,16 @@ export function adjacentSelectableAnchor(
  * it sails over a conversation four times in five — and skipping a collapsed
  * thread means never learning it exists.
  *
- * `isHeld` turns the clamp off: holding the key means "get me far away", and
- * stopping at every thread would make a comment-dense file unnavigable. An
- * open composer clamps either way — it holds unsaved text.
+ * `isRepeat` — the key's auto-repeat, so the key is being held — turns the
+ * clamp off: holding means "get me far away", and stopping at every thread
+ * would make a comment-dense file unnavigable. An open composer clamps either
+ * way, since it holds unsaved text.
  */
 export function clampFastStep(
   m: ReviewListModel,
   fromIdx: number,
   delta: number,
-  isHeld: boolean
+  isRepeat: boolean
 ): number {
   const landing = Math.min(Math.max(fromIdx + delta, 0), m.nav.length - 1);
   if (landing === fromIdx) {
@@ -143,7 +144,7 @@ export function clampFastStep(
     if (ownRow && !boxOpen) {
       continue;
     }
-    if (!isHeld || boxOpen) {
+    if (!isRepeat || boxOpen) {
       return at;
     }
   }
@@ -178,7 +179,7 @@ export function armedThreadAt(
  * from where you are — jumping files or running a find no longer restarts it
  * at the first comment in the PR.
  */
-export function nextCommentItem(
+export function adjacentCommentItem(
   m: ReviewListModel,
   fromItem: number,
   delta: number

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { ChangedFile, ReviewComment } from "../types.ts";
 import {
+  adjacentCommentItem,
   adjacentSelectableAnchor,
+  armedThreadAt,
   buildReviewItems,
   clampFastStep,
   fileAnchorKey,
@@ -101,7 +103,34 @@ function buildLong(opts: { commentOn?: number; boxOn?: number } = {}) {
   });
 }
 
+function buildLongCommentedOn(lines: number[]) {
+  return buildReviewItems({
+    collapsed: new Map(),
+    commentsByFile: new Map([
+      [
+        LONG_FILE.filename,
+        lines.map((line, i) =>
+          comment({
+            id: i + 1,
+            line,
+            originalLine: line,
+            path: LONG_FILE.filename,
+            threadId: `t${i + 1}`,
+          })
+        ),
+      ],
+    ]),
+    expandedRows: new Map(),
+    files: [LONG_FILE],
+    isImage: () => false,
+    openBoxes: new Map(),
+    pendingByFile: new Map(),
+  });
+}
+
 const FAST_STEP = 5;
+
+const NO_CURSOR = -1;
 
 describe("navKey", () => {
   it("keeps the row key byte-identical to fileAnchorKey", () => {
@@ -254,5 +283,93 @@ describe("clampFastStep", () => {
     expect(clampFastStep(m, m.nav.length - 1, FAST_STEP, false)).toBe(
       m.nav.length - 1
     );
+  });
+});
+
+describe("adjacentCommentItem", () => {
+  it("has nowhere to go in a PR with no comments", () => {
+    const m = buildLong();
+
+    expect(adjacentCommentItem(m, NO_CURSOR, 1)).toBeUndefined();
+    expect(adjacentCommentItem(m, NO_CURSOR, -1)).toBeUndefined();
+  });
+
+  it("steps to the next block, then wraps to the first", () => {
+    const m = buildLongCommentedOn([2, 8]);
+    const [first, second] = m.commentItems;
+
+    expect(adjacentCommentItem(m, first, 1)).toBe(second);
+    expect(adjacentCommentItem(m, second, 1)).toBe(first);
+  });
+
+  it("steps to the previous block, then wraps to the last", () => {
+    const m = buildLongCommentedOn([2, 8]);
+    const [first, second] = m.commentItems;
+
+    expect(adjacentCommentItem(m, second, -1)).toBe(first);
+    expect(adjacentCommentItem(m, first, -1)).toBe(second);
+  });
+
+  it("lands on the block of the row the cursor sits on", () => {
+    const m = buildLongCommentedOn([2, 8]);
+    const rowNav = m.navIndexOf.get(navKey(0, "RIGHT:2", "row")) as number;
+
+    expect(adjacentCommentItem(m, m.nav[rowNav].itemIndex, 1)).toBe(
+      m.commentItems[0]
+    );
+  });
+
+  it("enters at the first block forward and the last block backward with no cursor", () => {
+    const m = buildLongCommentedOn([2, 8]);
+
+    expect(adjacentCommentItem(m, NO_CURSOR, 1)).toBe(m.commentItems[0]);
+    expect(adjacentCommentItem(m, NO_CURSOR, -1)).toBe(m.commentItems.at(-1));
+  });
+});
+
+describe("armedThreadAt", () => {
+  it("arms the block's first thread, with the file it belongs to", () => {
+    const m = buildLongCommentedOn([2]);
+
+    expect(armedThreadAt(m, [LONG_FILE], m.commentItems[0])).toEqual({
+      path: LONG_FILE.filename,
+      rootId: 1,
+    });
+  });
+
+  it("arms nothing on a row, or off the end of the item list", () => {
+    const m = buildLongCommentedOn([2]);
+    const rowNav = m.navIndexOf.get(navKey(0, "RIGHT:2", "row")) as number;
+
+    expect(armedThreadAt(m, [LONG_FILE], m.nav[rowNav].itemIndex)).toBeNull();
+    expect(armedThreadAt(m, [LONG_FILE], m.items.length)).toBeNull();
+  });
+
+  it("arms nothing on a block that holds only a pending comment", () => {
+    const m = buildReviewItems({
+      collapsed: new Map(),
+      commentsByFile: new Map(),
+      expandedRows: new Map(),
+      files: [LONG_FILE],
+      isImage: () => false,
+      openBoxes: new Map(),
+      pendingByFile: new Map([
+        [
+          LONG_FILE.filename,
+          [
+            {
+              body: "not sent yet",
+              id: "p1",
+              line: 2,
+              path: LONG_FILE.filename,
+              side: "RIGHT",
+            },
+          ],
+        ],
+      ]),
+    });
+
+    expect(m.commentItems).toHaveLength(1);
+    expect(armedThreadAt(m, [LONG_FILE], m.commentItems[0])).toBeNull();
   });
 });
