@@ -46,7 +46,7 @@ test("j moves the line cursor; sidebar follows the cursor's file", async ({
 test("f and g fast-move the cursor without scrolling when still in view", async ({
   page,
 }) => {
-  const active = page.locator(".qf-row-active");
+  const active = page.locator(".qf-row-active, .qf-thread-active");
   const scrollHost = page.locator(".qf-scrollhost");
 
   await page.keyboard.press("j");
@@ -115,6 +115,18 @@ test("c opens the composer; adding batches a pending card", async ({
   await expect(page.getByRole("button", { name: SUBMIT_REVIEW })).toContainText(
     "1"
   );
+});
+
+test("opening the composer off-screen scrolls it fully into view", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 420, width: 900 });
+  for (let i = 0; i < 6; i++) {
+    await page.keyboard.press("j");
+  }
+  await page.keyboard.press("c");
+  const box = page.getByRole("textbox", { name: "Add a review comment…" });
+  await expect(box).toBeInViewport();
 });
 
 test("pending drafts survive leaving and reopening the PR", async ({

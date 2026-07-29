@@ -54,7 +54,7 @@ Built with **Tauri 2 + React 19 + TypeScript + Tailwind v4**.
 | `n` / `p`  | Next / previous file         |
 | `j` / `k`  | Move the line cursor (`↑`/`↓`) |
 | `Space`    | Page down the diff           |
-| `]c` / `[c`| Next / previous comment      |
+| `q` / `w`  | Next / previous comment      |
 | `c`        | Comment on the cursor line   |
 | `e`        | Mark file viewed and advance |
 | `v`        | Toggle file as viewed        |

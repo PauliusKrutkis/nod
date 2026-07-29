@@ -351,7 +351,7 @@ hotkey collapses.
 | **`e`** / **`v`** | Mark viewed + next · toggle file viewed |
 | **`shift+v`** | Expand full file ↔ diff only |
 | **`b`** | Toggle file tree |
-| **`]c`** / **`[c`** | Next / prev comment thread |
+| **`q`** / **`w`** | Next / prev comment thread |
 | **`c`** / **`shift+c`** | Comment on the cursor line / on the PR |
 | **`x`** / **`shift+e`** / **`z`** | Resolve · edit your comment · expand/collapse thread |
 | **`i`** / **`shift+i`** | Toggle info panel / widen it |
@@ -422,7 +422,7 @@ Inline → Code view. PR-level → Info tab + badge. ⏸ Conversation mode.
       from the diff view.
 
 - [x] 🟢 Thread hotkeys — `r` reply / `x` resolve on the hovered or
-      `]c`-focused thread; hints fade in on the thread's own action buttons.
+      `q`-focused thread; hints fade in on the thread's own action buttons.
 - [x] 🟢 Composer hint-bar toolbar — every entry is a clickable hotkey hint,
       not GitHub's 14-icon strip. (First shipped as markdown-symbol wrapping +
       ⌘⇧P preview; superseded days later by the rich composer below after
@@ -797,7 +797,7 @@ only format the in-app updater touches.
       where the next `e` would unmark it (`review-screen.tsx`).
 - [ ] 🟢 **Pending comment discard hotkey** — keyboard shortcut for discard;
       improve discard button visibility (border/contrast is too subtle today).
-- [x] 🟢 **Go to next/previous comment** — **done**; `]c` / `[c` bound in the
+- [x] 🟢 **Go to next/previous comment** — **done**; `q` / `w` bound in the
       Comments group (`review-screen.tsx`).
 
 ### Wave 3 — review surfaces
@@ -923,18 +923,52 @@ only format the in-app updater touches.
       gone — reply moved to `r` ("reply to the active thread, else next file").
       *Still open:* § layout wants `Tab` for Code ↔ Info, so that toggle needs
       a different key — decide when the Info tab ships.
-- [ ] 🟡 **Focus comment threads from keyboard** — arrow keys and `f`/`g` should
-      be able to focus a comment thread; focused thread activates the reply box
-      and shows reply/resolve hints (same as hover). `f`/`g` must not skip the
-      inline comment composer when it is open.
-      *Where it stands:* `]c`/`[c` (`goToComment`) already centers a thread
-      **and** sets `activeThreadRef`, which is what `r`/`x`/`z`/`shift+e` act
-      on — so thread "activation" exists. What's missing is (a) threads as
-      stops in the cursor stream: `buildCursorMover` walks `model.nav`, which
-      holds row anchors only, and (b) a visual focused state — outside `]c`,
-      `activeThreadRef` is only ever written by *hover*
-      (`reviewListOnThreadHover`). Decide against P22's selection-vs-focus
-      convention before adding a `tabIndex` here.
+- [x] 🟡 **Comment threads as cursor stops** — **done** (PR 1 of 2); arrow keys
+      and `j`/`k` now step onto a comment block, which arms it for
+      `r`/`x`/`z`/`shift+e` and paints the keyboard iris (`--accent-soft` fill +
+      `--accent` border, gated on `data-mode` exactly like `qf-row-active`).
+      Collapsed threads are stops too — that is the case that matters, since a
+      collapsed thread is one quiet line you would otherwise never learn about.
+      *How:* a comment block shares its parent row's anchor, so `nav` entries
+      gained a `kind` and moved to `navKey`; `navKey(f, a, "row")` is
+      deliberately byte-equal to `fileAnchorKey(f, a)`, so every anchor-keyed
+      lookup still resolves rows and row rendering needed no change.
+      `adjacentSelectableAnchor` steps over comment blocks — a commented line
+      must not dead-end a shift+j range.
+      *Selection model, not focus:* per DESIGN.md the review list is a
+      selection-model surface, so no `tabIndex` was added and the state keeps
+      its existing name (`activeThreadRef`). This resolves the P22 question the
+      entry used to defer — the answer is "don't add one".
+      *Also folded in:* `goToComment` used to center a thread and arm it while
+      leaving the line cursor behind, so the next `j` jumped from somewhere
+      else entirely and the thread never painted. It now places the cursor on
+      the block like every other navigation path, and derives its position from
+      the cursor instead of a running `commentIndex` — which deletes that state
+      and fixes the old quirk where jumping files or running a find restarted
+      the cycle at the first comment in the PR.
+- [x] 🟢 **Comment nav moved to `q` / `w`** — was `]c` / `[c`, the only
+      navigation verb in the app that was a two-key chord, borrowing a vim
+      idiom that means *next hunk* (which is what `f`/`g` does here) and
+      needing AltGr on most non-US layouts. `q`/`w` is a free adjacent pair
+      following the app's unwritten convention: left key forward, right key
+      back, same as `f`/`g` and `r`/`t`. *Fallout:* with no two-key binding
+      left, the keycap splitter in `ui/kbd.tsx` was dead — and its only
+      remaining effect was mis-rendering `f3` as two caps (`F` `3`), since
+      `f3` is not in `NAMED`. Removed, which fixes that.
+- [x] 🟡 **`f`/`g` clamps on conversations** — **done** (PR 2 of 2). `f`/`g` is
+      `move(±FAST_CURSOR_STEP)` (a fixed 5-entry hop), not a semantic jump, so
+      threads being nav stops was *not* enough — a fast jump still flew over
+      them 4 times in 5. `clampFastStep` now lands on the first comment block
+      strictly between the cursor and the arithmetic landing row: `f` never
+      crosses a conversation, it arrives early, and a second `f` continues
+      past. Held repeat does **not** clamp — holding means "get me far away",
+      and it is the escape hatch in a comment-dense PR. An open composer clamps
+      either way; it holds unsaved text.
+      *Noted while wiring:* the `f`/`g` bindings discarded the event and passed
+      `isRepeat: false` into the mover, so fast scroll never accelerated on
+      hold the way `j`/`k` does. `e.repeat` is now threaded through, but only
+      to decide clamping — giving `f`/`g` the `j`/`k` acceleration curve is a
+      separate behaviour change and was left alone.
 - [x] 🟡 **Composer: suggestions** — shipped with the composer toolbar PR:
       Tab indents / Shift-Tab dedents inside code blocks (caret or whole
       selected lines) instead of flipping the batch/now mode, and
