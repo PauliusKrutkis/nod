@@ -656,6 +656,47 @@ an open item: production-build perf e2e). Landing page (§0) and MoR account
 - [ ] 🟡 **Phase 1** — Updater gating on local `updates_until` (static `latest.json`).
 - [ ] ⏸ `nod-keygen` CLI for manual/support grants.
 
+#### 11c status — what actually exists (audited 2026-07-30)
+
+Short version: **the server skeleton is real, the purchase flow is not.** Nothing
+can be bought today, and the desktop app contains no licensing code at all.
+
+*Built and merged* (`apps/web/functions/`): `purchase-webhook.ts` (Standard
+Webhooks verify → `putLicense`/`putOrderIndex`, 1-year term), `activate.ts`,
+`license/[subject].ts`, and `lib/license-token.ts` — real Ed25519 sign/verify
+with unit tests. `wrangler.jsonc` carries real KV namespace ids.
+
+*Skeleton or stub:* `restore.ts` returns a hardcoded `501 not yet configured`.
+`lib/polar.ts` verifies the HMAC correctly but its `metadata.subject` shape is
+an **unverified assumption** against a live Polar payload — its own file header
+says so.
+
+*Missing entirely — these are the links that make it a purchase flow:*
+
+- [ ] 🔴 **No MoR account, product, or checkout URL.** Nothing initiates a
+      purchase; Polar is a signature format here, not an integration.
+- [ ] 🔴 **No forge identity at checkout** — nothing puts `metadata.subject` on
+      the order, so the webhook has nothing to key a license to. Needs a
+      success page doing GitHub OAuth. GitLab (and self-hosted) unsolved.
+- [ ] 🔴 **Cloudflare secrets never set** (`POLAR_WEBHOOK_SECRET`,
+      `LICENSE_SIGNING_SEED`) — the endpoints cannot run in production even
+      though the KV namespaces exist.
+- [ ] 🔴 **No `prflow://` scheme / no `tauri-plugin-deep-link`.** `activate.ts`
+      today redirects to `http://127.0.0.1:8765/callback`, a loopback port only
+      the OAuth flow listens on — the app would never receive the token. Same
+      dependency as [11a](#11a-opening-prs-from-githubgitlab-links--staged).
+- [ ] 🔴 **Desktop app has zero licensing code.** No `ed25519-dalek`, no token
+      verify, no local license storage, no trial timestamp, no purchase prompt,
+      no updater gating on `updates_until`.
+- [ ] 🟡 **Repeat purchases reset instead of extend `updatesUntil`** — known
+      defect, already described in RELEASING.md; fix is
+      `max(existing, now) + 1 year`.
+- [ ] 🟢 **`/restore` is a stub** — needs `POLAR_API_KEY`.
+
+The landing page (`apps/web/src/pages/index.astro`) is downloads-only and says
+"Free while it's an experiment." No pricing, no buy button, no `/pricing` route
+— which is consistent with Phase 0, so this is a gap in fact, not in plan.
+
 **Rejected:** deterministic license keys (stateless, simple engineering, ugly UX —
 conflicts with zero-friction product goal).
 
@@ -1163,11 +1204,42 @@ AI · GitLab · Slack integration · streaks · celebration · Conversation mode
 webhooks · icon · Ultracite · vim jumps · persist pending comments · Stage 3
 link interception · Universal Links.
 
-- [ ] ❓ **AI introduction (BYOK)** — bring-your-own-key model (e.g. a Nexos
-      API key) so AI features "just work" with the user's own key; open
-      question whether OpenRouter compatibility is needed too or Nexos
-      coverage is enough on its own. Conflicts with the current "no AI"
-      go-to-market direction — needs a product decision before scoping.
+- [ ] ❓ **AI introduction (BYOK)** — bring-your-own-key model so AI features
+      "just work" with the user's own key. **Nexos AI is the first key format
+      to support**; others (OpenRouter, direct Anthropic/OpenAI) may follow,
+      so the seam should be a provider list from day one rather than a Nexos
+      special case. **The user picks the model**, not us — a key alone isn't
+      enough, since the same key reaches several models at very different
+      cost/latency. Conflicts with the current "no AI" go-to-market
+      direction — needs a product decision before scoping.
+      - **Key storage is a backend concern.** Per the layering rule the
+        webview never holds credentials, so the AI key belongs beside the
+        host tokens in `accounts`/keychain, with calls made from Rust —
+        *not* `fetch` from React. Model choice is plain UI state.
+- [ ] ❓ **"Ask questions about the code" — the first AI feature** (2026-07-30).
+      The opening surface for [BYOK](#post-mvp-backlog) above: ask a question
+      about the PR you're reading and get an answer grounded in the actual
+      code, rather than review-writing or auto-summary. Chosen first because
+      it is *pull*, not push — it never fires unless asked, so it can't
+      degrade the quiet review flow, and it degrades to "no key configured"
+      cleanly.
+      - **Depends on repo sync.** A question about a diff is unanswerable
+        from the diff alone — that is the same tunnel-vision problem
+        [§9](#9-repo-snapshot--sync-layers-decided-2026-07-12) and full-file
+        expansion already exist to solve. **Layer 1 (snapshot service) is a
+        hard prerequisite**; layer 2 (ripgrep search over the extracted tree)
+        is what turns "here is one file" into real retrieval. Note this
+        finally gives layer 3 (tree-sitter symbol index) a second consumer —
+        but do **not** treat that as permission to build it early; the §9
+        gate ("only if beta users live in `shift+v` / repo search") still
+        stands.
+      - **Open questions:** scope of the context sent (open PR only vs whole
+        snapshot) and how it's assembled; whether answers cite file/line so
+        they land on real code instead of prose; where it lives (⌘K action,
+        info drawer tab, or its own surface); and the privacy line — sending
+        a private repo's source to a third-party endpoint needs to be
+        explicit and opt-in per repo, which is a stronger promise than "no
+        git operations" and should be written down before any code.
 
 ---
 
@@ -1419,6 +1491,49 @@ link interception · Universal Links.
       per-distro install guidance already queued in
       [11d Tier 0](#11d-linux-install--update-path-2026-07-25) (`README.md:221`)
       — do that pass as part of this rather than twice.
+- [ ] 🔴 **Theme selection** (2026-07-30) — let users pick a colour theme:
+      the current **Quiet** default plus **Monokai**, proposed as a
+      licensed feature. Blocked on the theming-mechanism decision in
+      [Inbox (2026-07-15)](#inbox-2026-07-15) — do that first, it is the
+      whole cost of this item.
+      - **A theme here is three coordinated layers, not a palette.** (1) the
+        ~14 chrome tokens in `src/index.css` `@theme`; (2) the diff add/del
+        row tints, which must stay legible *under* find marks, occurrence
+        marks, intraline emphasis and the comment iris — the constraint an
+        editor theme doesn't have; (3) the syntax palette, currently
+        highlight.js `github-dark`, which is a separate stylesheet. Porting
+        Monokai means authoring all three, not swapping hexes.
+      - **The real blocker: `quiet.css` has ~59 hardcoded colour literals**
+        (`rgba(95, 208, 138, 0.08)`, `rgba(255, 112, 136, 0.3)`, …) that
+        bypass the token layer entirely. Every one is a place a second theme
+        would leak the first theme's colours. Tokenising those is the bulk of
+        the work and is worth doing regardless of whether themes ship.
+      - **Recommended set — cover distinct axes, not a long list.** Each
+        theme is real maintenance (3 layers × every diff state), so:
+        **Quiet** (default) · **Quiet Light** · **High contrast** ·
+        **Monokai** (high-saturation retro, requested) · **Solarized**
+        dark+light (the low-eye-strain pair, and the most on-brief for a
+        long-reading review tool) · **Gruvbox** (warm/low-blue — the
+        counterweight to Monokai's cool neon). Hold Catppuccin, Tokyo Night,
+        Nord and One Dark until asked; they are popular but occupy axes the
+        set above already covers.
+      - **Recommendation on the paywall: don't gate legibility.** Light and
+        high-contrast should be **free** — for some users dark-on-light isn't
+        a preference, and a review tool that can't be read in a bright room
+        or shared on a projector is broken, not unlicensed. Gate the
+        *character* themes (Monokai, Solarized, Gruvbox). "You never pay to
+        read, you pay for personality" is both defensible and better
+        positioning than a paywalled light mode.
+      - **⚠️ Conflicts with the licensing model as designed.** Per
+        [RELEASING.md](./RELEASING.md#commercial-launch), a license buys
+        **updates** (`updates_until`) with client-side *updater* gating — the
+        app itself keeps working, and there is deliberately no DRM. Themes
+        would be the first **feature** gate, which needs runtime entitlement
+        checks that don't exist and cuts against the "no license keys, the
+        app just works" stance. Decide the model before building: either
+        accept a second gate, or make themes a free delighter and keep the
+        license purely about updates. Note the app has **no** licensing code
+        at all today — see [11c status](#11c-status--what-actually-exists-audited-2026-07-30).
 - [ ] ❓ **Code-similarity check between the diff and the repo** — flag hunks
       that closely match code already in the repository (duplicated logic,
       copy-paste, a helper that already exists). Open question on shape and
