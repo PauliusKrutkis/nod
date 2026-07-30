@@ -902,9 +902,13 @@ only format the in-app updater touches.
       fence stays plain, matching how `.vue`'s `<script>` block behaves.
 - [ ] 🟡 **Render SVG previews** — SVG files in diffs show raw markup instead
       of a rendered image preview.
-- [ ] 🟢 **Approvals indicator tooltip** — the P08 verdict pills carry a
-      native `title` listing reviewers (`review-verdicts.tsx`); convert it to
-      the app-wide `<Tooltip>` component like the rest of the header did.
+- [x] 🟢 **Approvals indicator tooltip** — **done**; the P08 verdict pills
+      now use the app-wide `<Tooltip>` instead of a native `title`, matching
+      the rest of the header. The pill stays a non-focusable `<span>`
+      deliberately — it reports state and has nothing to activate, so a tab
+      stop would buy nothing in a keyboard-first app — and the reviewer list
+      it used to expose via `title` is preserved for assistive tech with an
+      `aria-label`.
 - [ ] 🟡 **Per-check list in the drawer** — P09 follow-up: `CiPill` links out
       to the host's checks page; list the individual checks inline instead.
 - [ ] 🟢 **File tooltip positioning** — the file-path tooltip is centered on
