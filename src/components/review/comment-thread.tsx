@@ -283,12 +283,17 @@ export function CommentThread({
             >
               {formatRelativeTime(c.createdAt)}
             </span>
-            {c.user === ownLogin && !composerOpen && (
+            {!composerOpen && (
               <CommentTools
+                body={c.body}
                 commentId={c.id}
                 editKbd={c.id === editKbdId ? "shift+e" : undefined}
-                onDelete={onDelete ? handleDelete : undefined}
-                onStartEdit={onEdit ? handleStartEdit : undefined}
+                onDelete={
+                  c.user === ownLogin && onDelete ? handleDelete : undefined
+                }
+                onStartEdit={
+                  c.user === ownLogin && onEdit ? handleStartEdit : undefined
+                }
               />
             )}
           </div>

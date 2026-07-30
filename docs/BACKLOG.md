@@ -924,9 +924,25 @@ only format the in-app updater touches.
       the large click target).
 - [x] 🟢 **Info drawer author avatars** — **done**; discussion rows render
       `<Avatar>` per comment author (`right-panel.tsx`).
-- [ ] 🟢 **Copy comment text** — copy action for comment bodies in Code threads
-      and Info drawer; fix text selection where comment markdown blocks
-      selection unintentionally.
+- [x] 🟢 **Copy comment text** — **done**; `CommentTools` grew a Copy
+      button with the same "Copied" feedback the suggestion card uses, so
+      both surfaces (inline threads and the Info drawer) get it from one
+      change. Copy is offered on **every** comment, not just your own: the
+      ownership gate moved off the two call sites onto the Edit/Delete
+      handlers, which is also what the shared component's contract already
+      implied (Edit and Delete self-hide when their handler is `undefined`).
+      Extracted `copyTextToClipboard` to `src/lib/clipboard.ts`, replacing
+      the private copy in `review-screen.tsx`.
+- [ ] 🟢 **Comment text selection is cancelled by the occurrence handler** —
+      the other half of the old "Copy comment text" item, and a separate
+      root cause: `handleOccPointerClick` (`review-screen.tsx`) calls
+      `window.getSelection()?.removeAllRanges()`, and its bail-outs cover
+      editable surfaces and non-collapsed selections but **not**
+      `.qf-comment-body` — so clicking into a comment kills the caret and
+      makes dragging out a selection fight the handler. Fix: add the comment
+      body to the handler's early-return target check. (Collapsed-thread
+      previews are a second, smaller cause: the text sits inside a
+      `<button>`, which the UA stylesheet makes unselectable.)
 
 ### Wave 4 — desktop shell
 

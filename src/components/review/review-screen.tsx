@@ -73,6 +73,7 @@ import { useReviewHeadShaSync } from "../../hooks/use-review-head-sha-sync.ts";
 import { useViewedFileReconcile } from "../../hooks/use-viewed-file-reconcile.ts";
 import type { Binding } from "../../keyboard/types.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
+import { copyTextToClipboard } from "../../lib/clipboard.ts";
 import { cn } from "../../lib/cn.ts";
 import { highlightRegistry } from "../../lib/custom-highlight.ts";
 import type { DiffRow } from "../../lib/diff.ts";
@@ -218,10 +219,6 @@ const MAIN_SKELETON_WIDTHS = Array.from(
   { length: 16 },
   (_, index) => ((index * 37) % 52) + 32
 );
-
-function copyTextToClipboard(text: string): void {
-  navigator.clipboard?.writeText(text).catch(() => undefined);
-}
 
 function applyLineSelection(args: {
   anchor: string;

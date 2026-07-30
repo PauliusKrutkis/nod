@@ -2,6 +2,8 @@ import { setupApp } from "./bridge.ts";
 import { DETAIL_WITH_OWN_COMMENT } from "./fixtures.ts";
 import { expect, test } from "./test.ts";
 
+test.use({ permissions: ["clipboard-read", "clipboard-write"] });
+
 test.beforeEach(async ({ page }) => {
   await setupApp(page, { detail: DETAIL_WITH_OWN_COMMENT });
   await expect(page.getByRole("option").first()).toBeVisible();
@@ -129,4 +131,19 @@ test("shift+c opens the composer focused, from the diff or the open drawer", asy
   await page.keyboard.press("Shift+c");
   await expect(page.locator("aside.qf-drawer-open")).toHaveCount(1);
   await expect(editor).toBeFocused();
+});
+
+test("copy is offered on every conversation comment, not just your own", async ({
+  page,
+}) => {
+  const theirs = page
+    .locator(".qf-convo-item")
+    .filter({ hasText: "Nice direction overall." });
+
+  await theirs.hover();
+  await theirs.getByRole("button", { name: "Copy comment text" }).click();
+  await expect(theirs.getByText("Copied")).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    "Nice direction overall."
+  );
 });

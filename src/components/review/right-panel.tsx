@@ -525,11 +525,12 @@ function ConversationItem({
           <span className="qf-comment-time" title={formatAbsolute(at)}>
             {formatRelativeTime(at)}
           </span>
-          {own && !editing && commentId !== undefined && (
+          {!editing && commentId !== undefined && (
             <CommentTools
+              body={body}
               commentId={commentId}
-              onDelete={onDelete ? handleDelete : undefined}
-              onStartEdit={onStartEdit}
+              onDelete={own && onDelete ? handleDelete : undefined}
+              onStartEdit={own ? onStartEdit : undefined}
             />
           )}
         </div>
