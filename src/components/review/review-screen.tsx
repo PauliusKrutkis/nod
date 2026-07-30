@@ -51,6 +51,7 @@ import {
   Search,
   Send,
   TextSearch,
+  Trash2,
 } from "lucide-react";
 import {
   useEffect,
@@ -1667,6 +1668,7 @@ function useReviewHotkeys(config: {
   cursorMoverRefs: Parameters<typeof buildCursorMover>[0];
   cycleFile: (dir: number) => void;
   editActiveThreadComment: () => void;
+  discardPendingAtCursor: () => void;
   extendSelection: (delta: 1 | -1) => void;
   findOpen: boolean;
   findOpenRef: React.RefObject<boolean>;
@@ -1833,6 +1835,18 @@ function useReviewHotkeys(config: {
       icon: Pencil,
       keys: "shift+e",
       run: config.editActiveThreadComment,
+    },
+    {
+      description: "Discard pending comment",
+      group: "Comments",
+      icon: Trash2,
+      keys: "shift+d",
+      run: (e: KeyboardEvent) => {
+        if (e.repeat) {
+          return;
+        }
+        config.discardPendingAtCursor();
+      },
     },
     {
       description: "Expand / collapse comment",
@@ -2047,9 +2061,11 @@ function useReviewThreadActions(args: {
   cursorRef: React.RefObject<CursorPos | null>;
   editNonceRef: React.RefObject<number>;
   filesRef: React.RefObject<ChangedFile[]>;
+  keyValue: string;
   listRef: React.RefObject<ReviewListHandle | null>;
   modelRef: React.RefObject<ReviewListModel>;
   nextFile: () => void;
+  removePendingStore: (key: string, id: string) => void;
   replyNonceRef: React.RefObject<number>;
   requestResolveThread: ReturnType<
     typeof useCommentMutations
@@ -2141,6 +2157,29 @@ function useReviewThreadActions(args: {
     );
   };
 
+  const discardPendingAtCursor = () => {
+    const m = args.modelRef.current;
+    const cur = args.cursorRef.current;
+    if (!cur) {
+      return;
+    }
+    const navIdx =
+      m.navIndexOf.get(navKey(cur.fileIndex, cur.anchor, "comments")) ??
+      m.navIndexOf.get(navKey(cur.fileIndex, cur.anchor, cur.kind));
+    if (navIdx === undefined) {
+      return;
+    }
+    const item = m.items[m.nav[navIdx].itemIndex];
+    if (item?.kind !== "comments") {
+      return;
+    }
+    const newest = item.pending.at(-1);
+    if (!newest) {
+      return;
+    }
+    args.removePendingStore(args.keyValue, newest.id);
+  };
+
   const replyToActiveThreadOrNextFile = () => {
     const t = args.activeThreadRef.current;
     if (t && args.commentsRef.current.some((c) => c.id === t.rootId)) {
@@ -2185,6 +2224,7 @@ function useReviewThreadActions(args: {
   };
 
   return {
+    discardPendingAtCursor,
     editActiveThreadComment,
     goToComment,
     jumpToThread,
@@ -3235,6 +3275,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     advanceToNextReview(owner, repo, number, goInbox);
 
   const {
+    discardPendingAtCursor,
     editActiveThreadComment,
     goToComment,
     jumpToThread,
@@ -3248,9 +3289,11 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     cursorRef,
     editNonceRef,
     filesRef,
+    keyValue,
     listRef,
     modelRef,
     nextFile,
+    removePendingStore,
     replyNonceRef,
     requestResolveThread,
     setActiveIndex,
@@ -3373,6 +3416,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     copyLink,
     cursorMoverRefs,
     cycleFile,
+    discardPendingAtCursor,
     editActiveThreadComment,
     extendSelection,
     findOpen,
