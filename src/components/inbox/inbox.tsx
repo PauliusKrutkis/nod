@@ -522,11 +522,11 @@ function InboxTabBar({
 }) {
   return (
     <div className="qi-tabs shrink-0 border-line border-b px-3">
-      {tabs.map((t) => (
+      {tabs.map((t, slot) => (
         <InboxTabButton
           active={t.key === tab}
           count={counts[t.key]}
-          index={tabs.indexOf(t)}
+          index={slot}
           key={t.key}
           onSelectTab={onSelectTab}
           tabDef={t}

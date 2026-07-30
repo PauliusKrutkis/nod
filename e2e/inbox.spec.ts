@@ -1,10 +1,12 @@
 /**
  * Default fixture: only Review requests (3) and Created (1) hold PRs, so
  * Assigned, Involved and Watching start out empty and hidden from the tab
- * bar. Digit hotkeys still reach a hidden tab directly, landing on its
- * zero-state. Watching repos is a separate action from the tab bar's
- * content tabs (the docked Watch button opens the same dialog as "w"), so
- * it stays reachable even while the Watching tab itself is hidden.
+ * bar. Digit hotkeys are positional over the VISIBLE tabs, so they cannot
+ * summon a hidden one; a hidden tab stays reachable through the command
+ * palette instead (covered in palette.spec.ts). Watching repos is a
+ * separate action from the tab bar's content tabs (the docked Watch button
+ * opens the same dialog as "w"), so it stays reachable even while the
+ * Watching tab itself is hidden.
  */
 import { setupApp } from "./bridge.ts";
 import type { InboxFixture } from "./fixtures.ts";
