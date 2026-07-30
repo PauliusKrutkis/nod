@@ -102,7 +102,7 @@ test("typing in the find bar repaints the viewport, not the PR", async ({
   expect(rendered).toBeGreaterThan(10);
   expect(rendered).toBeLessThan(RENDERED_CAP);
 
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press("ControlOrMeta+f");
   await expect(page.getByPlaceholder("Find in diff")).toBeFocused();
 
   await forEachCharSequential("zz", (ch) =>
@@ -136,7 +136,7 @@ test("typing in the find bar repaints the viewport, not the PR", async ({
 
 test("typing right after open stays smooth", async ({ page }) => {
   test.setTimeout(60_000);
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press("ControlOrMeta+f");
   await expect(page.getByPlaceholder("Find in diff")).toBeFocused();
 
   const times: number[] = [];
@@ -156,7 +156,7 @@ test("a keystroke that clears all matches repaints only the marked rows", async 
   page,
 }) => {
   test.setTimeout(60_000);
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press("ControlOrMeta+f");
   await expect(page.getByPlaceholder("Find in diff")).toBeFocused();
   await forEachCharSequential("zebra", (ch) =>
     keystroke(page, ch).then(() => undefined)

@@ -1210,7 +1210,7 @@ link interception · Universal Links.
 - [ ] **React Doctor full-codebase score not 100/100** — run react-doctor
   across the whole codebase and address remaining findings beyond the known
   `no-giant-component` ignore above.
-- [ ] **E2E hardcodes `Control+…` — macOS-red for every editor shortcut** — the
+- [x] **E2E hardcodes `Control+…` — macOS-red for every editor shortcut** — the
   Tiptap composer binds `Mod-…` shortcuts (`composer-editor.tsx`), which
   ProseMirror resolves to **Cmd on macOS, Ctrl on Linux/Windows**. The e2e
   specs hardcode `page.keyboard.press("Control+…")`, so they pass on Linux
@@ -1228,6 +1228,12 @@ link interception · Universal Links.
   typed character). Route selection through PM's own keymap (`Mod+a`, typed
   edits at the landed caret) instead; `Home`/`End` also don't move the caret
   on macOS at all, so avoiding them serves both goals.
+  *Shipped: all 33 `press("Control+…")` calls across 9 specs are now
+  `ControlOrMeta+…`, taking the macOS suite from 10 failed / 161 passed to
+  171 passed. The sweep was safe beyond the composer because the app's own
+  hotkey layer already treats `metaKey || ctrlKey` as `mod`
+  (`keyboard-provider.tsx:98`). The caret-key half needed no work — no spec
+  uses `Home`/`End`.*
 
 ## Inbox (2026-07-15)
 

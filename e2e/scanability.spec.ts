@@ -206,7 +206,7 @@ test("intraline emphasis is paint-only and survives find marks on top", async ({
   const row = page.locator('.qf-row-add[data-file-index="2"]').first();
   const before = await row.boundingBox();
 
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press("ControlOrMeta+f");
   await page.getByPlaceholder("Find in diff").fill("retryLimit");
   await expect(page.locator(".qf-findbar-count")).toHaveText("1/1");
   await expect(page.locator("mark.qf-find-mark")).toHaveCount(2);
@@ -234,7 +234,7 @@ test("overview ruler: find ticks map matches across the whole PR", async ({
 }) => {
   await expect(page.locator(".qf-ruler")).toHaveCount(0);
 
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press("ControlOrMeta+f");
   await page.getByPlaceholder("Find in diff").fill("const");
   await expect(page.locator(".qf-findbar-count")).toHaveText("1/9");
   const ticks = page.locator(".qf-ruler-tick");
