@@ -1504,6 +1504,45 @@ link interception · Universal Links.
       per-distro install guidance already queued in
       [11d Tier 0](#11d-linux-install--update-path-2026-07-25) (`README.md:221`)
       — do that pass as part of this rather than twice.
+- [ ] 🟡 **Info tab: one comment feed, one comment design** (2026-07-30) —
+      code discussions in the Info drawer show no avatar, author or
+      timestamp, and sit in a separate list from PR-level comments. Make
+      them look like comments, and consider merging the two lists into one
+      chronological feed.
+      - **Not a data gap — a rendering choice.** Both `ReviewComment`
+        (`types.ts:73`) and `IssueComment` (`types.ts:89`) already carry
+        `user`, `userAvatarUrl` and `createdAt`, and `review-screen.tsx`
+        already passes the full `inlineComments` array into the drawer. The
+        drawer's **"Code discussion"** section
+        (`right-panel.tsx:383-425`) just renders each thread as a
+        `qf-thread-row` *jump button* — path, `:line`, reply count, first
+        line of the body — so it is a file index, not a comment view. The
+        adjacent "Conversation" section right above it
+        (`right-panel.tsx:333-381`) renders the full treatment.
+      - **The inline thread is fine** — `comment-thread.tsx:272-303`
+        already renders avatar + author + time per comment. So this is
+        scoped to the drawer only, despite the report's wording.
+      - **Design unification is the durable half.** The head row (avatar ·
+        author · time · tools) is written twice, against two CSS families
+        (`.qf-convo-*` vs `.qf-comment-*`/`.qf-thread-*`), while
+        `comment-item.tsx` shares only `CommentTools` + `CommentBody` — its
+        header says the split is intentional. Extracting one `CommentRow`
+        is the fix and pays off regardless of the feed decision. Do this
+        part first; it is safe and independently shippable.
+      - **⚠️ The merged feed is a product decision, not a cleanup.**
+        [DESIGN.md](./DESIGN.md) states the split deliberately — Info tab is
+        "description + PR-level comments", inline stays in the code view —
+        and a single blended stream is close to **Conversation mode**, which
+        §layout defers as a post-MVP third tab and the
+        [build order](#explicitly-do-not-build-before-user-feedback) says
+        not to build before user feedback. Options: (a) unify the design
+        only, keep two sections; (b) one feed with threads as a distinct
+        entry kind. Prefer (a) first — it removes the complaint's real sting
+        (code discussions looking like second-class rows) without spending
+        the Conversation-mode decision early.
+      - Pairs with **Reply in Info tab** (§keyboard/composer) — a code
+        discussion that renders as a real comment is also the surface that
+        would carry a reply box.
 - [ ] 🔴 **Theme selection** (2026-07-30) — let users pick a colour theme:
       the current **Quiet** default plus **Monokai**, proposed as a
       licensed feature. Blocked on the theming-mechanism decision in
