@@ -1,4 +1,4 @@
-import { Clock, CornerDownLeft, Search } from "lucide-react";
+import { Clock, CornerDownLeft, GitBranch, Search } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useModalDialog } from "../../hooks/use-modal-dialog.ts";
 import { cn } from "../../lib/cn.ts";
@@ -65,6 +65,7 @@ function SearchPaneContent({
         for (const pr of prs) {
           const m = fuzzyMatchFields(q, {
             author: pr.author,
+            headRef: pr.headRef,
             number: `#${pr.number}`,
             repo: pr.repo,
             title: pr.title,
@@ -258,6 +259,15 @@ function SearchResultRow({
           <span>
             <HighlightIndices indices={hl.repo} text={pr.repo} />
           </span>
+          {pr.headRef ? (
+            <>
+              <span className="q-dot">·</span>
+              <span className="qsp-branch q-mono">
+                <GitBranch aria-hidden size={11} />
+                <HighlightIndices indices={hl.headRef} text={pr.headRef} />
+              </span>
+            </>
+          ) : null}
         </span>
       </span>
       <span className="qsp-time q-mono">

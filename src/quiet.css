@@ -4042,6 +4042,14 @@ dialog.q-dialog::backdrop {
   text-overflow: ellipsis;
 }
 
+.qsp-branch {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  min-width: 0;
+  color: var(--faint);
+}
+
 .qsp-empty {
   display: flex;
   flex-direction: column;

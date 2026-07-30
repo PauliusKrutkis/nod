@@ -382,8 +382,15 @@ Primary navigation. Inbox optional.
 
 - [x] 🔴 **`mod+k` PR search** — v0.1 blocker.
 - [x] 🟡 PR-context actions — after search works.
-- [ ] 🟢 **Branch name not visible in index/search** — PR branch name doesn't
-      show in the inbox list or `mod+k` search results.
+- [x] 🟢 **Branch name not visible in index/search** — **done**; the head
+      branch now shows in the inbox row meta line and in the `/` search
+      results, and the search **matches on it** so you can find a PR by
+      branch. The real blocker was backend: `pr_from_graphql` hardcoded
+      `head_ref`/`base_ref` to empty strings and `FRAGMENT_P` never requested
+      them, so GitHub list PRs carried no refs at all (GitLab already filled
+      both). Adding `headRefName baseRefName` to the fragment costs no extra
+      request and also unblocks the
+      [stacked-PR indicator](#stacked-prs-2026-07-30).
 
 ---
 

@@ -156,3 +156,17 @@ test("global search ranks and opens", async ({ page }) => {
     page.getByRole("heading", { name: "Add fuzzy matching to search" })
   ).toBeVisible();
 });
+
+test("the inbox row and the search pane both show the PR branch", async ({
+  page,
+}) => {
+  await expect(page.getByRole("option").first()).toContainText("feat/thing");
+
+  await page.keyboard.press("/");
+  const input = page.getByPlaceholder("Search all pull requests…");
+  await input.fill("feat/thing");
+  const rows = page.locator(".qsp-row");
+  await expect(rows.first()).toBeVisible();
+  await expect(rows.first().locator(".qsp-branch")).toContainText("feat/thing");
+  await page.screenshot({ path: "evidence/branch-in-search.png" });
+});
