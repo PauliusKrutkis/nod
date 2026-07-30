@@ -494,8 +494,15 @@ inline by design). These are cleanups, not new scope.
 
 - [x] 🟢 Remove manual refresh.
 - [x] 🟡 Banner when open PR changes externally.
-- [ ] 🟢 **Remove "pull request updated" toast** — redundant with the existing
-      change banner; drop the toast fired from `use-review-head-sha-sync.ts`.
+- [x] 🟢 **Remove "pull request updated" toast** — **done**; the generic
+      "Showing the latest changes." toast is gone from
+      `use-review-head-sha-sync.ts`, which is now silent and keeps only its
+      perf mark + review-memory write. The update still announces itself
+      through the two signals that say something useful: the reconcile toast
+      (`unviewedReconcileToast`, names the files that changed) and the
+      per-file `updated` chip. Also removes a race — both toasts share the
+      store's single slot, so the generic one only won or lost by effect
+      ordering.
 - [ ] 🟡 **GitHub cheap-polling via the Notifications API (P16 PR2)** — the
       ETag/304 conditional-request cache (PR #49) lets GitLab + every REST GET
       re-poll for free and drops the inbox interval to 15s, but GitHub's inbox
