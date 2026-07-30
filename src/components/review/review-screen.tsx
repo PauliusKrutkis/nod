@@ -687,6 +687,14 @@ const EDITABLE_SURFACE_SELECTOR =
   'input, textarea, [contenteditable="true"], .qa-editor';
 
 /**
+ * Prose the user reads and copies but cannot edit. Occurrence handling must
+ * leave its caret alone: a comment body matches neither `.qf-row` nor
+ * `.qf-code`, so without this it fell through to the branch that clears the
+ * selection whenever occurrence marks happen to be lit.
+ */
+const READABLE_TEXT_SELECTOR = ".qf-comment-body, .qf-resolved-snip";
+
+/**
  * A plain click marks the word under the pointer; mod+click walks from it to the
  * next occurrence instead. Multi-click clicks are left alone so the browser's own
  * word selection stands (see the file header).
@@ -713,7 +721,10 @@ function handleOccPointerClick(
     return;
   }
   const target = e.target instanceof Element ? e.target : null;
-  if (target?.closest(EDITABLE_SURFACE_SELECTOR)) {
+  if (
+    target?.closest(EDITABLE_SURFACE_SELECTOR) ||
+    target?.closest(READABLE_TEXT_SELECTOR)
+  ) {
     return;
   }
   const domSel = window.getSelection();
