@@ -1368,3 +1368,32 @@ link interception · Universal Links.
       Caveat: compare API caps the file list at 300 — fall back to
       banner-only on monster diffs. Orthogonal to §9 repo snapshot (file
       trees at one SHA; no diffs/merge-bases) — no dependency either way.
+
+## Inbox (2026-07-30)
+
+- [ ] 🟢 **Viewing the last file should jump to the first unviewed one** —
+      marking the final file in order as viewed leaves you parked at the end
+      of the PR; it should wrap to the first still-unviewed file so the
+      review keeps flowing. The `e` entry in Wave 2 claims this wrap already
+      ships — reproduce first and decide whether this is a regression in `e`
+      or the same gap on `v` (toggle viewed), which never wrapped.
+- [ ] 🟢 **Inbox `1`/`2`/`3` should address the visible tabs** — the number
+      keys currently map to fixed tabs regardless of which ones are on
+      screen, so with tabs hidden they jump somewhere unexpected. Bind them
+      positionally to the tabs actually rendered. Interacts with **Hide empty
+      tabs** (Inbox 2026-07-15) — decide the two together.
+- [ ] 🟢 **Disable file-tree animation** — the file tree animates on
+      open/close; drop it. Motion costs perceived speed and the tree is a
+      navigation surface, not a reveal.
+- [ ] 🔴 **README rework** — the README has grown by accretion and no longer
+      reads as an introduction to the product. Rewrite it. Folds in the
+      per-distro install guidance already queued in
+      [11d Tier 0](#11d-linux-install--update-path-2026-07-25) (`README.md:221`)
+      — do that pass as part of this rather than twice.
+- [ ] ❓ **Code-similarity check between the diff and the repo** — flag hunks
+      that closely match code already in the repository (duplicated logic,
+      copy-paste, a helper that already exists). Open question on shape and
+      whether it earns its keep: needs §9 repo snapshot (layer 1) to have
+      local files to compare against, and it is a *review-assist* feature,
+      which is adjacent to the "no AI" go-to-market direction even if
+      implemented as plain similarity matching rather than a model.
