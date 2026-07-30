@@ -455,17 +455,34 @@ while keeping optimistic UI). Same class of bug elsewhere: composers and submit
 already accept `pending` / `busy`, but review screen hardcodes them to `false`,
 and several paths call `mutate` with no in-flight guard.
 
-- [ ] 🟡 **Submit review** — wire `submitReview.isPending` to `SubmitReviewModal`
-      `busy`; block duplicate submit while in flight (modal closes early today;
-      `openSubmit` can reset and re-fire).
-- [ ] 🟡 **Reply to thread** — wire `reply.isPending` to `ReviewList`
-      `addPending` (currently hardcoded `false`); optional intent coalescing if
-      spam remains possible before `isPending` flips.
-- [ ] 🟡 **Inline "Comment now"** — wire `addReviewComment.isPending` to
-      `addPending`; `handleSecondary` must `await onAddComment` (fire-and-forget
-      today lets ⌘↵ double-submit through instantly).
-- [ ] 🟢 **Issue comment (Info drawer)** — wire `addIssueComment.isPending` to
-      `AddCommentBox` `pending` in `right-panel.tsx` (hardcoded `false`).
+- [x] 🟡 **Submit review** — `submitReview.isPending` is now wired to
+      `SubmitReviewModal` `busy`. The modal still closes before the mutation
+      resolves — that is a **deliberate optimistic flow** (it also calls
+      `advanceAfterSubmit()` and surfaces failures as a flash), so `busy` is a
+      guard for the reopened-modal case rather than a visible state. Whether
+      submit should become awaited is a separate design decision, untouched.
+- [x] 🟡 **Reply to thread** — **done**; `addPending` was a single prop
+      feeding *both* the reply box and the inline add box, so wiring one
+      would have spuriously disabled the other. Split into `replyPending`
+      (fed by `reply.isPending`) and `addPending`
+      (`addReviewComment.isPending`). The anticipated "intent coalescing"
+      turned out to be **required, not optional** — see below.
+- [x] 🟡 **Inline "Comment now"** — **done**; `handleSecondary` now awaits
+      `onAddComment` before closing the box.
+      **`isPending` alone did not fix it.** A spec that presses ⌘↵ twice
+      against a hanging mutation still produced **2** `create_review_comment`
+      calls: `pending` is a prop, so it only becomes true after a render, and
+      both presses in the same tick pass the guard. `AddCommentBox` now also
+      holds a synchronous `inFlightRef`, which is what actually closes the
+      window. Guarded by `e2e/double-submit.spec.ts` plus a new
+      `hangReviewComment` bridge option and a call counter.
+- [x] 🟢 **Issue comment (Info drawer)** — **done**; `addIssueComment.isPending`
+      is wired through a new `addIssueCommentPending` prop. The drawer's
+      fire-and-forget collapse was deliberately **left alone**: awaiting it
+      broke the existing "comment posting is optimistic even when the network
+      hangs" spec, which proves the optimism is intended. The `pending` prop
+      plus the composer's in-flight lock cover the double-submit risk without
+      fighting that design.
 
 ### 5d. Comment-management follow-ups (post-comment-feature)
 

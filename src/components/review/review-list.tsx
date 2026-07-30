@@ -128,6 +128,7 @@ export interface ReviewListCallbacks {
 interface ReviewListProps {
   activeIndex: number;
   addPending: boolean;
+  replyPending: boolean;
   baseSha: string;
   callbacks: ReviewListCallbacks;
   changedSinceViewed: ReadonlySet<string>;
@@ -433,7 +434,7 @@ function measureMonoColWidth(host: HTMLElement): number {
 function MappedCommentThread({
   thread,
   filename,
-  addPending,
+  replyPending,
   replyRequest,
   toggleRequest,
   editRequest,
@@ -443,7 +444,7 @@ function MappedCommentThread({
 }: {
   thread: ReviewCommentsItem["threads"][number];
   filename: string;
-  addPending: boolean;
+  replyPending: boolean;
   replyRequest: ReplyRequest | null;
   toggleRequest: ToggleRequest | null;
   editRequest: EditRequest | null;
@@ -466,7 +467,7 @@ function MappedCommentThread({
       onReply={callbacks.onReply}
       onResolve={callbacks.onResolveThread}
       owner={owner}
-      replyPending={addPending}
+      replyPending={replyPending}
       replyRequest={replyRequest}
       repo={repo}
       toggleRequest={toggleRequest}
@@ -546,8 +547,8 @@ function CommentAddBox({
     callbacks.onCloseBox(item.fileIndex, item.anchor);
   };
 
-  const handleSecondary = (body: string) => {
-    callbacks.onAddComment({
+  const handleSecondary = async (body: string) => {
+    await callbacks.onAddComment({
       body,
       line: target.line,
       path: filename,
@@ -592,6 +593,7 @@ function CommentsBlock({
   item,
   filename,
   addPending,
+  replyPending,
   cursorHere,
   replyRequest,
   toggleRequest,
@@ -603,6 +605,7 @@ function CommentsBlock({
   item: ReviewCommentsItem;
   filename: string;
   addPending: boolean;
+  replyPending: boolean;
   cursorHere: boolean;
   replyRequest: ReplyRequest | null;
   toggleRequest: ToggleRequest | null;
@@ -626,12 +629,12 @@ function CommentsBlock({
     >
       {item.threads.map((thread) => (
         <MappedCommentThread
-          addPending={addPending}
           callbacks={callbacks}
           editRequest={editRequest}
           filename={filename}
           key={thread[0].id}
           owner={owner}
+          replyPending={replyPending}
           replyRequest={replyRequest}
           repo={repo}
           thread={thread}
@@ -861,6 +864,7 @@ function renderCommentsItem(
       filename={file.filename}
       item={item}
       owner={p.owner}
+      replyPending={p.replyPending}
       replyRequest={
         p.replyRequest && p.replyRequest.path === file.filename
           ? p.replyRequest

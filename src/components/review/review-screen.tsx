@@ -3612,7 +3612,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
           ) : (
             <ReviewList
               activeIndex={clampedIndex}
-              addPending={false}
+              addPending={addReviewComment.isPending}
               baseSha={pr.baseSha}
               callbacks={listCallbacks}
               changedSinceViewed={changedSinceViewed}
@@ -3640,6 +3640,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
               model={model}
               owner={owner}
               ref={listRef}
+              replyPending={reply.isPending}
               replyRequest={replyReq}
               repo={repo}
               restoreState={initialMem?.listState}
@@ -3668,6 +3669,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
       </main>
 
       <RightPanel
+        addIssueCommentPending={addIssueComment.isPending}
         ci={detail.ciStatus}
         conversation={detail.issueComments ?? []}
         fileCount={fileCount}
@@ -3687,7 +3689,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
       />
 
       <SubmitReviewModal
-        busy={false}
+        busy={submitReview.isPending}
         error={null}
         onClose={onCloseSubmitModal}
         onSubmit={handleSubmitReview}
