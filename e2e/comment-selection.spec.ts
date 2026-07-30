@@ -54,15 +54,14 @@ test("clicking inside a comment keeps its text selectable while marks are lit", 
   await expect(body).toBeVisible();
   await body.click();
 
-  const selected = await body.evaluate((el) => {
-    const range = document.createRange();
-    range.selectNodeContents(el);
+  const caret = await body.evaluate((el) => {
     const sel = window.getSelection();
-    sel?.removeAllRanges();
-    sel?.addRange(range);
-    return sel?.toString() ?? "";
+    if (!sel || sel.rangeCount === 0) {
+      return "no-selection";
+    }
+    return el.contains(sel.anchorNode) ? "inside" : "elsewhere";
   });
-  expect(selected).toContain("Is this constant right?");
+  expect(caret).toBe("inside");
 
   await expect(page.locator("mark.qf-occ-mark").first()).toBeVisible();
 });
