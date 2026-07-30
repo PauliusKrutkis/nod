@@ -17,7 +17,7 @@ test("find bar close button shows a tooltip with its keyboard hint", async ({
   await page.keyboard.press("Enter");
   await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
 
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press("ControlOrMeta+f");
   const closeBtn = page.locator(".qf-findbar-btn").last();
   await closeBtn.hover();
   await expect(page.locator(".q-tooltip")).toBeVisible();

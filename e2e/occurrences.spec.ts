@@ -208,7 +208,7 @@ test("the find bar suppresses occurrence marks; closing it restores them", async
   await dblclickToken(page, 1, "gamma");
   await expect(occMarks(page)).toHaveCount(2);
 
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press("ControlOrMeta+f");
   await expect(page.locator(".qf-findbar")).toBeVisible();
   await expect(occMarks(page)).toHaveCount(0);
   await expect(page.locator("mark.qf-find-mark")).toHaveCount(2);
@@ -222,7 +222,7 @@ test("the find bar suppresses occurrence marks; closing it restores them", async
 test("with find open, selecting a token hands off: find closes, occurrences take over", async ({
   page,
 }) => {
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press("ControlOrMeta+f");
   await expect(page.locator(".qf-findbar")).toBeVisible();
   await page.locator(".qf-findbar-input").fill("alpha");
   await expect(page.locator("mark.qf-find-mark").first()).toBeVisible();
