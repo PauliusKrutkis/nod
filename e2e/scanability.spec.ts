@@ -412,16 +412,28 @@ test("the file header stands off the diff background", async ({ page }) => {
   const bg = await page.evaluate(() => {
     const head = document.querySelector(".qf-fsec-head");
     const code = document.querySelector(".qf-row:not(.qf-row-hunk) .qf-code");
-    if (!(head && code)) {
+    const hunk = document.querySelector(".qf-row-hunk");
+    if (!(head && code && hunk)) {
       return null;
     }
+    const headStyle = getComputedStyle(head);
+    const name = head.querySelector(".qf-fsec-name");
     return {
-      head: getComputedStyle(head).backgroundColor,
       body: getComputedStyle(code.closest(".qf-diff") ?? code).backgroundColor,
+      codeSize: getComputedStyle(code).fontSize,
+      head: headStyle.backgroundColor,
+      headBorderTop: headStyle.borderTopWidth,
+      hunk: getComputedStyle(hunk).backgroundColor,
+      nameSize: name && getComputedStyle(name).fontSize,
     };
   });
   expect(bg).not.toBeNull();
   expect(bg?.head).not.toBe(bg?.body);
+  expect(bg?.head).not.toBe(bg?.hunk);
+  expect(Number.parseFloat(bg?.headBorderTop ?? "0")).toBeGreaterThanOrEqual(2);
+  expect(Number.parseFloat(bg?.nameSize ?? "0")).toBeGreaterThanOrEqual(
+    Number.parseFloat(bg?.codeSize ?? "0")
+  );
 
   if (process.env.CAPTURE_EVIDENCE) {
     await page
