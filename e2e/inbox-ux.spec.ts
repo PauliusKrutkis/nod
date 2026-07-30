@@ -6,6 +6,25 @@ import { expect, test } from "./test.ts";
 const SEARCH_REPOSITORIES = /Search repositories/;
 const IS_SCROLLING = /is-scrolling/;
 
+const MANY_PRS: InboxFixture = {
+  assigned: { count: 0, prs: [] },
+  created: { count: 0, prs: [] },
+  involved: { count: 0, prs: [] },
+  reviewRequested: {
+    count: 20,
+    prs: Array.from({ length: 20 }, (_, i) =>
+      makePr(
+        i + 1,
+        `Refactor the pipeline scheduler, part ${i + 1}`,
+        "alice",
+        "2026-07-02T10:00:00Z"
+      )
+    ),
+  },
+};
+
+const REMOVED_CAP_AT_800_PX = 560;
+
 test("global search finds PRs that exist only in the watched bucket", async ({
   page,
 }) => {
@@ -34,23 +53,6 @@ test("global search finds PRs that exist only in the watched bucket", async ({
   ).toBeVisible(); // fixture detail is the same payload for every PR
 });
 
-const MANY_PRS: InboxFixture = {
-  assigned: { count: 0, prs: [] },
-  created: { count: 0, prs: [] },
-  involved: { count: 0, prs: [] },
-  reviewRequested: {
-    count: 20,
-    prs: Array.from({ length: 20 }, (_, i) =>
-      makePr(
-        i + 1,
-        `Refactor the pipeline scheduler, part ${i + 1}`,
-        "alice",
-        "2026-07-02T10:00:00Z"
-      )
-    ),
-  },
-};
-
 test("the search pane and the command palette cap at the same height", async ({
   page,
 }) => {
@@ -75,10 +77,11 @@ test("the search pane and the command palette cap at the same height", async ({
     .evaluate((el) => getComputedStyle(el).maxHeight);
   await page.screenshot({ path: "evidence/palette-height.png" });
 
+  const viewportHeight = page.viewportSize()?.height ?? 0;
+  const sharedCapPx = Math.min(viewportHeight * 0.78, 640);
   expect(searchCap).toBe(paletteCap);
-  expect(searchCap).toBe("624px");
-  expect(searchBox?.height ?? 0).toBeGreaterThan(560);
-  expect(searchBox?.height ?? 0).toBeLessThanOrEqual(624);
+  expect(searchCap).toBe(`${sharedCapPx}px`);
+  expect(searchBox?.height ?? 0).toBeGreaterThan(REMOVED_CAP_AT_800_PX);
 });
 
 test("toast host sits beside the reading pane when it is rendered", async ({

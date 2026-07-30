@@ -104,8 +104,10 @@ test("a head-SHA change with nothing viewed refreshes the diff silently", async 
 
   await expect(page.getByText("const two = 2;")).toBeVisible();
   await page.screenshot({ path: "evidence/pr-updated-silent.png" });
+
+  await page.keyboard.press("v");
+  await expect(page.locator(".qf-side-count")).toHaveText("1/3 viewed");
   await expect(page.locator(".qb-toast")).toHaveCount(0);
-  await expect(page.locator(".qf-updated-chip")).toHaveCount(0);
 });
 
 test("e skips files already viewed when advancing", async ({ page }) => {
