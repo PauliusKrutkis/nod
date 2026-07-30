@@ -354,6 +354,7 @@ hotkey collapses.
 | **`q`** / **`w`** | Next / prev comment thread |
 | **`c`** / **`shift+c`** | Comment on the cursor line / on the PR |
 | **`x`** / **`shift+e`** / **`z`** | Resolve · edit your comment · expand/collapse thread |
+| **`shift+d`** | Discard the pending comment at the cursor |
 | **`i`** / **`shift+i`** | Toggle info panel / widen it |
 | **`o`** / **`y`** / **`mod+shift+c`** | Open on host · copy PR link · copy file path |
 | **`s`** | Submit review |
@@ -859,8 +860,15 @@ only format the in-app updater touches.
       unviewed file, wraps past the end to pick up files skipped earlier, and
       stays put once every file is viewed instead of parking on a viewed file
       where the next `e` would unmark it (`review-screen.tsx`).
-- [ ] 🟢 **Pending comment discard hotkey** — keyboard shortcut for discard;
-      improve discard button visibility (border/contrast is too subtle today).
+- [x] 🟢 **Pending comment discard hotkey** — **done**; `shift+d` discards
+      the pending comment at the cursor, and the button is no longer a
+      transparent outline in `--muted` on `--line-2`: it now carries the
+      `--del` wash, a 40%-`--del` border and a `⇧D` keycap hint, matching
+      how sibling controls (`Reply` `R`, `Resolve` `X`) advertise theirs.
+      The lookup resolves the `comments` block that shares the cursor row's
+      anchor, so it works whether the cursor sits on the line or on the
+      comment block itself — the common case being "I just added this, undo
+      it". Discards the newest pending comment on that anchor.
 - [x] 🟢 **Go to next/previous comment** — **done**; `q` / `w` bound in the
       Comments group (`review-screen.tsx`).
 
@@ -1508,6 +1516,37 @@ link interception · Universal Links.
       per-distro install guidance already queued in
       [11d Tier 0](#11d-linux-install--update-path-2026-07-25) (`README.md:221`)
       — do that pass as part of this rather than twice.
+- [ ] 🟡 **`mod+r` code search — the glance is too cramped** (2026-07-30) —
+      snippets aren't full width, some content never fits, and the code
+      preview needs more room and more lines. Audit of
+      `pr-search.tsx` + `.qsp-*` in `quiet.css`:
+      - **Worst symptom first: a match can be invisible.**
+        `.qsp-snip-line` is `white-space: pre; overflow: hidden` and
+        `.qsp-snip-code` adds `text-overflow: ellipsis`, so a hit far along
+        a long line is clipped away — you get a result row whose match you
+        cannot see, and no way to scroll to it. Fix that before cosmetics:
+        scroll each snippet so the match is in frame, or wrap the hit line.
+      - **Only 5 lines of context.** `SNIPPET_RADIUS = 2` (`pr-search.tsx:44`)
+        → ±2 around the hit. Raising it to 3–4 is a one-line change and is
+        what "increase the lines visible" asks for.
+      - **The pane is sized for the wrong content.** `.qsp-panel` is shared
+        by *two* surfaces — the inbox `/` PR search and this in-review code
+        search (`pr-search.tsx:281`) — at one `width: min(680px, …)`. That
+        width was chosen for PR titles + repo/author meta; code wants more.
+        Giving the code-search pane its own wider rule is the single
+        biggest win. (Noted during PR #97, which changed the shared height:
+        this shared class is easy to retune for one surface and regress the
+        other — split it deliberately.)
+      - **Chrome eats the code column.** Inside each `.qsp-row`: 14px/12px
+        padding, a `.qsp-rail`, a 34px min-width line-number gutter and a
+        10px gap, before any code. At 11.5px mono that is a lot of the
+        line gone to furniture.
+      - **Bigger option if the above isn't enough:** a two-pane layout —
+        narrow result list on the left, a real preview pane on the right —
+        which is what "not enough space for the code glance" points at.
+        Costs more than the four fixes above; try them first.
+      - Also worth checking while here: `MAX_LINES = 60` silently truncates
+        results with no "showing first 60" affordance.
 - [ ] 🟡 **Info tab: one comment feed, one comment design** (2026-07-30) —
       code discussions in the Info drawer show no avatar, author or
       timestamp, and sit in a separate list from PR-level comments. Make

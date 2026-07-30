@@ -2311,20 +2311,25 @@ dialog.q-dialog::backdrop {
   border-radius: 999px;
 }
 .dir-quiet .qf-pending-remove {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
   padding: 3px 9px;
   margin-left: auto;
   font-size: 11px;
-  color: var(--muted);
+  color: var(--del);
   cursor: pointer;
-  background: transparent;
-  border: 1px solid var(--line-2);
+  background: var(--del-bg);
+  border: 1px solid color-mix(in srgb, var(--del) 40%, transparent);
   border-radius: 6px;
   transition:
     color 120ms ease,
-    border-color 120ms ease;
+    border-color 120ms ease,
+    background-color 120ms ease;
 }
 .dir-quiet .qf-pending-remove:hover {
   color: var(--del);
+  background: color-mix(in srgb, var(--del) 20%, transparent);
   border-color: var(--del);
 }
 

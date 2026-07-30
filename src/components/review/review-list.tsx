@@ -39,6 +39,7 @@ import { useAppStore } from "../../store/app-store.ts";
 import type { AccountInfo, ChangedFile, PendingComment } from "../../types.ts";
 import { Markdown } from "../markdown.tsx";
 import { Avatar } from "../ui/avatar.tsx";
+import { Kbd } from "../ui/kbd.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
 import { AddCommentBox } from "./add-comment-box.tsx";
 import { CodeCell } from "./code-cell.tsx";
@@ -505,11 +506,15 @@ function PendingCommentCard({
             </span>
           )}
           <button
+            aria-label="Discard pending comment"
             className="qf-pending-remove qf-focusable"
             onClick={handleRemove}
             type="button"
           >
             Discard
+            <span aria-hidden className="qf-key-hint">
+              <Kbd combo="shift+d" />
+            </span>
           </button>
         </div>
         <div className="qf-comment-body">

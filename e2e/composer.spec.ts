@@ -167,3 +167,28 @@ test("suggestion tokens light as the file's language; a selection lifts them whi
   await page.keyboard.press("ArrowRight");
   await expect(sugg.locator(".hljs-keyword").first()).toHaveText("export");
 });
+
+test("shift+d discards the pending comment the cursor sits on", async ({
+  page,
+}) => {
+  await page.keyboard.type("drop me");
+  await page.keyboard.press("ControlOrMeta+Enter");
+  const pending = page.locator(".qf-pending");
+  await expect(pending).toHaveCount(1);
+  await expect(page.getByText("drop me")).toBeVisible();
+  await page.screenshot({ path: "evidence/discard-button.png" });
+
+  await page.keyboard.press("Shift+d");
+  await expect(pending).toHaveCount(0);
+  await expect(page.getByText("drop me")).toHaveCount(0);
+});
+
+test("the discard button removes the pending comment too", async ({ page }) => {
+  await page.keyboard.type("click to drop");
+  await page.keyboard.press("ControlOrMeta+Enter");
+  const pending = page.locator(".qf-pending");
+  await expect(pending).toHaveCount(1);
+
+  await page.getByRole("button", { name: "Discard pending comment" }).click();
+  await expect(pending).toHaveCount(0);
+});
