@@ -807,18 +807,16 @@ dialog.q-dialog::backdrop {
 
 /* ============ SIDEBAR ============ */
 /* The file-tree column. Two modes, switched from JS at the compact breakpoint:
-   `inline` is a static push column (wide windows); `overlay` slides in over the
-   diff (narrow windows) so the diff never loses width to the tree. */
+   `inline` is a static push column (wide windows); `overlay` sits over the
+   diff (narrow windows) so the diff never loses width to the tree.
+   Toggling is instant in both modes — `b` is a navigation key pressed mid-read,
+   and animating the column made it feel slower than it was while forcing the
+   virtualizer to re-measure through every intermediate width. */
 .dir-quiet .qf-sidebar-col {
   flex-shrink: 0;
   width: 300px;
   overflow: hidden;
   border-right: 1px solid var(--line);
-}
-.dir-quiet .qf-sidebar-inline {
-  transition:
-    width 160ms ease,
-    border-color 160ms ease;
 }
 .dir-quiet .qf-sidebar-inline:not(.qf-sidebar-open) {
   width: 0;
@@ -833,7 +831,6 @@ dialog.q-dialog::backdrop {
   background: var(--bg);
   box-shadow: 24px 0 48px -24px rgba(0, 0, 0, 0.6);
   transform: translateX(-100%);
-  transition: transform 180ms ease;
 }
 .dir-quiet .qf-sidebar-overlay.qf-sidebar-open {
   transform: translateX(0);
@@ -845,7 +842,6 @@ dialog.q-dialog::backdrop {
   pointer-events: none;
   background: rgba(8, 8, 14, 0.5);
   opacity: 0;
-  transition: opacity 150ms ease;
 }
 .dir-quiet .qf-sidebar-scrim-open {
   pointer-events: auto;

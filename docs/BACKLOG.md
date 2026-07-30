@@ -1404,9 +1404,16 @@ link interception · Universal Links.
       screen, so with tabs hidden they jump somewhere unexpected. Bind them
       positionally to the tabs actually rendered. Interacts with **Hide empty
       tabs** (Inbox 2026-07-15) — decide the two together.
-- [ ] 🟢 **Disable file-tree animation** — the file tree animates on
-      open/close; drop it. Motion costs perceived speed and the tree is a
-      navigation surface, not a reveal.
+- [x] 🟢 **Disable file-tree animation** — **done**; dropped all three
+      toggle transitions: `width`/`border-color` 160ms on
+      `.qf-sidebar-inline` (the wide-window push column), `transform` 180ms
+      on `.qf-sidebar-overlay` (the narrow-window slide-in) and `opacity`
+      150ms on `.qf-sidebar-scrim`. `b` now lands the tree at its final size
+      in the same frame, which also stops Virtuoso re-measuring through
+      ~160ms of intermediate widths. The hidden states themselves
+      (`width: 0`, `translateX(-100%)`, `opacity: 0`) are load-bearing and
+      stayed. The 120ms `.qf-file` row hover cross-fade is deliberately
+      kept — that is hover feedback on a row, not the tree animating.
 - [ ] 🔴 **README rework** — the README has grown by accretion and no longer
       reads as an introduction to the product. Rewrite it. Folds in the
       per-distro install guidance already queued in

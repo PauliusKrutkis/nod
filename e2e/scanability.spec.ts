@@ -370,6 +370,40 @@ test("file tree collapses to an overlay on small screens", async ({ page }) => {
   await expect(overlay).not.toHaveClass(SIDEBAR_OPEN);
 });
 
+// `b` is pressed mid-read, so the tree must land at its final size in the same
+// frame — in both the inline (push column) and overlay modes, scrim included.
+test("toggling the file tree is instant, not animated", async ({ page }) => {
+  await page.setViewportSize({ height: 800, width: 1280 });
+  const inline = page.locator(".qf-sidebar-inline");
+  await expect(inline).toBeVisible();
+
+  const openWidth = await inline.evaluate((el) => {
+    const width = (el as HTMLElement).offsetWidth;
+    return { duration: getComputedStyle(el).transitionDuration, width };
+  });
+  expect(openWidth.duration).toBe("0s");
+  expect(openWidth.width).toBe(300);
+
+  await page.keyboard.press("b");
+  await expect(inline).not.toHaveClass(SIDEBAR_OPEN);
+  const closedWidth = await inline.evaluate(
+    (el) => (el as HTMLElement).offsetWidth
+  );
+  expect(closedWidth).toBeLessThanOrEqual(1);
+
+  await page.setViewportSize({ height: 800, width: 900 });
+  const timings = await page.evaluate(() => {
+    const overlay = document.querySelector(".qf-sidebar-overlay");
+    const scrim = document.querySelector(".qf-sidebar-scrim");
+    return {
+      overlay: overlay && getComputedStyle(overlay).transitionDuration,
+      scrim: scrim && getComputedStyle(scrim).transitionDuration,
+    };
+  });
+  expect(timings.overlay).toBe("0s");
+  expect(timings.scrim).toBe("0s");
+});
+
 // A new file must read as a break in the diff, not blend into the code plane:
 // the header sits on a raised surface distinct from the diff body background.
 test("the file header stands off the diff background", async ({ page }) => {
