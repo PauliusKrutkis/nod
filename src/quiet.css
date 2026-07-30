@@ -3881,6 +3881,11 @@ dialog.q-dialog::backdrop {
   min-height: min(440px, 60vh);
   padding: 0;
 }
+/* The in-review code search shows code, not PR titles, so it gets more room
+   than the inbox pane it otherwise shares this class with. */
+.qsp-panel-code {
+  width: min(920px, calc(100vw - 32px));
+}
 
 .qsp-search {
   display: flex;
@@ -3924,9 +3929,13 @@ dialog.q-dialog::backdrop {
   letter-spacing: 0.08em;
 }
 
+/* The in-review pane renders each row as a <button>, which shrink-wraps to
+   its content instead of filling the list — that is why code snippets used
+   to stop well short of the pane's width. */
 .qsp-row {
   position: relative;
   display: flex;
+  width: 100%;
   gap: 12px;
   align-items: center;
   padding: 10px 12px 10px 14px;
@@ -4024,7 +4033,13 @@ dialog.q-dialog::backdrop {
   color: var(--muted);
   white-space: pre;
 }
+/* The matched line wraps instead of being clipped: a hit far along a long
+   line used to be ellipsised away, leaving a result whose match you could
+   not see and could not scroll to. Context lines stay one line each so the
+   block keeps its shape. */
 .qsp-snip-line-hit {
+  align-items: flex-start;
+  overflow: visible;
   background: var(--accent-soft);
 }
 .qsp-snip-num {
@@ -4040,6 +4055,12 @@ dialog.q-dialog::backdrop {
 .qsp-snip-code {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.qsp-snip-line-hit .qsp-snip-code {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .qsp-empty {

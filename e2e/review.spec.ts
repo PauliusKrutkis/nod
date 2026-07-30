@@ -773,3 +773,30 @@ test("a repo without CI shows no pill", async ({ page }) => {
   await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
   await expect(page.locator(".qf-ci")).toHaveCount(0);
 });
+
+test("code search: the matched line is never clipped, and the pane is wider", async ({
+  page,
+}) => {
+  await page.keyboard.press("ControlOrMeta+r");
+  const input = page.getByPlaceholder("Search code in this PR…");
+  await input.fill("gamma");
+  const snippet = page.locator(".qsp-snippet").first();
+  await expect(snippet).toBeVisible();
+
+  const hit = snippet.locator(".qsp-snip-line-hit").first();
+  const wrap = await hit
+    .locator(".qsp-snip-code")
+    .evaluate((el) => getComputedStyle(el).whiteSpace);
+  expect(wrap).toBe("pre-wrap");
+
+  const mark = hit.locator("mark.q-hl").first();
+  await expect(mark).toBeVisible();
+  await expect(mark).toBeInViewport();
+
+  const panel = await page.locator(".qsp-panel-code").boundingBox();
+  const row = await page.locator(".qsp-row").first().boundingBox();
+  expect(panel?.width ?? 0).toBeGreaterThan(680);
+  expect(row?.width ?? 0).toBeGreaterThan((panel?.width ?? 0) * 0.9);
+  await expect(snippet.locator(".qsp-snip-line")).toHaveCount(5);
+  await page.screenshot({ path: "evidence/code-search-snippet.png" });
+});

@@ -41,7 +41,7 @@ interface LineItem {
 type Item = FileItem | LineItem;
 
 const MAX_LINES = 60;
-const SNIPPET_RADIUS = 2;
+const SNIPPET_RADIUS = 4;
 
 function base(path: string): string {
   const i = path.lastIndexOf("/");
@@ -278,7 +278,7 @@ function PrSearchContent({
   return (
     <dialog
       aria-label={mode === "files" ? "Find a file" : "Search code"}
-      className="q-dialog q-dialog-top qsp-panel"
+      className="q-dialog q-dialog-top qsp-panel qsp-panel-code"
       onCancel={onDialogCancel}
       onClose={onDialogClose}
       ref={dialogRef}
