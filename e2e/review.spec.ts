@@ -793,10 +793,16 @@ test("code search: the matched line is never clipped, and the pane is wider", as
   await expect(mark).toBeVisible();
   await expect(mark).toBeInViewport();
 
+  await expect(page.locator(".qsp-panel-code")).toHaveCount(1);
   const panel = await page.locator(".qsp-panel-code").boundingBox();
   const row = await page.locator(".qsp-row").first().boundingBox();
   expect(panel?.width ?? 0).toBeGreaterThan(680);
   expect(row?.width ?? 0).toBeGreaterThan((panel?.width ?? 0) * 0.9);
   await expect(snippet.locator(".qsp-snip-line")).toHaveCount(5);
   await page.screenshot({ path: "evidence/code-search-snippet.png" });
+
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("ControlOrMeta+t");
+  await expect(page.getByPlaceholder("Find a file in this PR…")).toBeFocused();
+  await expect(page.locator(".qsp-panel-code")).toHaveCount(0);
 });

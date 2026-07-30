@@ -278,7 +278,10 @@ function PrSearchContent({
   return (
     <dialog
       aria-label={mode === "files" ? "Find a file" : "Search code"}
-      className="q-dialog q-dialog-top qsp-panel qsp-panel-code"
+      className={cn(
+        "q-dialog q-dialog-top qsp-panel",
+        mode === "text" && "qsp-panel-code"
+      )}
       onCancel={onDialogCancel}
       onClose={onDialogClose}
       ref={dialogRef}
