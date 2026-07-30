@@ -884,8 +884,17 @@ only format the in-app updater touches.
       was tried and dropped 2026-07-15.
 - [ ] 🟡 **P12** — "What's new" card on first launch after
       an update (release notes via Rust command).
-- [ ] 🟢 **Distinct file header** — hard to tell when starting a new file; make
-      the file header row more visually distinct in the diff list.
+- [x] 🟢 **Distinct file header** — **done**. Root cause was a collision:
+      the file header sat on `--surface-2`, one token away from the hunk
+      header's `--surface`, so two near-identical bands competed to mean
+      "something starts here". Worse, `.qf-fsec-name` was **12px — smaller
+      than the 13px code it introduces**, while 13px is already the
+      dominant step in the scale. Fixed structurally rather than with a
+      louder colour: header moves up to `--surface-hi` (two steps off the
+      hunk header), top rule doubles to 2px `--line-2` since that edge *is*
+      the file break, padding 8px → 10px so it reads as a band, and the
+      name joins the 13px step — giving a real hierarchy of file 13 >
+      code 13 > hunk 11.
 - [x] 🟢 **Astro syntax highlighting** — **done**; `.astro` now maps to the
       `xml` grammar in `LANG_BY_EXT` (`highlight.ts`), the same fallback
       `.vue` and `.svelte` already use, because highlight.js v11 ships no
