@@ -392,6 +392,8 @@ test("toggling the file tree is instant, not animated", async ({ page }) => {
   expect(closedWidth).toBeLessThanOrEqual(1);
 
   await page.setViewportSize({ height: 800, width: 900 });
+  await expect(page.locator(".qf-sidebar-overlay")).toBeAttached();
+  await expect(page.locator(".qf-sidebar-scrim")).toBeAttached();
   const timings = await page.evaluate(() => {
     const overlay = document.querySelector(".qf-sidebar-overlay");
     const scrim = document.querySelector(".qf-sidebar-scrim");

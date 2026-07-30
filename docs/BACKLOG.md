@@ -836,7 +836,11 @@ only format the in-app updater touches.
       one override restores parity. Not a regression, despite the wording:
       both rules date from the initial commit, so the pane never had the
       height. Width stays at 680px (deliberately wider than the palette's
-      620px — it carries PR titles plus repo/author meta).
+      620px — it carries PR titles plus repo/author meta). Note the trade
+      cuts both ways by design: above a ~914px-tall window the old `70vh`
+      was the *larger* value, so tall windows now cap lower (640px vs 840px
+      at 1200px tall). That is the point — parity with the palette — but it
+      is a reduction there, not a pure gain.
 - [ ] 🟢 **GitHub org OAuth restrictions** — `[pr-flow] API error 403` when an org
       (e.g. Decodo) enables OAuth App access restrictions; surface a clear
       in-app message with the GitHub docs link and what the admin must allow.
