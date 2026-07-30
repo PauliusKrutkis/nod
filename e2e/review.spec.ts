@@ -3,6 +3,7 @@ import { DETAIL_NO_CI } from "./fixtures.ts";
 import { expect, test } from "./test.ts";
 import type { Page } from "./types.ts";
 
+const ANY_TITLE = /./;
 const SUBMIT_REVIEW = /Submit review/;
 const COPY_FILE_PATH = /Copy file path/;
 const COPY_PR_LINK = /Copy PR link/;
@@ -744,7 +745,8 @@ test("the header shows an approvals verdict with the reviewer's face", async ({
 }) => {
   const pill = page.locator(".qf-verdict-approved");
   await expect(pill).toBeVisible();
-  await expect(pill).toHaveAttribute("title", "Approved · dave");
+  await expect(pill).toHaveAttribute("aria-label", "Approved · dave");
+  await expect(pill).not.toHaveAttribute("title", ANY_TITLE);
   await expect(pill.locator(".q-avatar")).toHaveCount(1);
   await expect(page.locator(".qf-verdict-changes")).toHaveCount(0);
 });
