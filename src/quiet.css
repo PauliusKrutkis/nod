@@ -901,6 +901,33 @@ dialog.q-dialog::backdrop {
     background-color 120ms ease,
     color 120ms ease;
 }
+/* Tree indentation rides a custom property rather than per-depth classes.
+   .qf-file has a fixed width, so the indent has to come out of padding —
+   a margin would push the row past the column. Folder collapse is a plain
+   conditional render with no height transition, for the same reason the
+   sidebar column itself no longer animates. */
+.dir-quiet .qf-file {
+  padding-left: calc(6px + var(--qf-depth, 0) * 12px);
+}
+.dir-quiet .qf-file-dirrow {
+  color: var(--muted);
+}
+.dir-quiet .qf-side-mode {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  color: var(--faint);
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: 5px;
+}
+.dir-quiet .qf-side-mode:hover {
+  color: var(--fg);
+  background: var(--surface-2);
+}
+
 /* Hover only affects rows that aren't already selected, so the iris selection
    is never overwritten by (or double-stacked with) the hover wash. */
 .dir-quiet .qf-file:not(.qf-file-active):hover {
@@ -966,6 +993,9 @@ dialog.q-dialog::backdrop {
   flex-shrink: 0;
   font-weight: 500;
   color: inherit;
+}
+.dir-quiet .qf-file-dirrow .qf-file-base {
+  font-weight: 500;
 }
 .dir-quiet .qf-file-meta {
   display: flex;

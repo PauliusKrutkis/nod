@@ -1,6 +1,17 @@
-import { Check } from "lucide-react";
-import { type MouseEvent, useRef } from "react";
+import {
+  Check,
+  ChevronDown,
+  ChevronRight,
+  FolderTree,
+  List,
+} from "lucide-react";
+import { type CSSProperties, type MouseEvent, useRef, useState } from "react";
 import { cn } from "../../lib/cn.ts";
+import {
+  buildFileTree,
+  dirPathsForIndex,
+  flattenTree,
+} from "../../lib/file-tree.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type {
   ChangedFile,
@@ -48,12 +59,40 @@ function splitPath(filename: string): { dir: string; base: string } {
   return { base: filename.slice(idx + 1), dir: filename.slice(0, idx + 1) };
 }
 
+const TREE_MODE_KEY = "pr-flow:fileTreeMode";
+
+function readTreeMode(): boolean {
+  try {
+    return localStorage.getItem(TREE_MODE_KEY) !== "flat";
+  } catch {
+    return true;
+  }
+}
+
+function persistTreeMode(tree: boolean): void {
+  try {
+    localStorage.setItem(TREE_MODE_KEY, tree ? "tree" : "flat");
+  } catch {
+    /* ignore */
+  }
+}
+
 /**
- * The Quiet review sidebar: a calm flat file list. Progress reads through the
- * viewed ticks and the header count; directory grouping is intentionally
- * dropped in favor of the flat list. A mouse click blurs the row after
- * selecting so its focus ring never lingers once keyboard nav (r/t) moves the
- * active file elsewhere.
+ * The Quiet review sidebar. Two modes over the same flat file model: a
+ * directory tree (default) and the original flat list, toggled from the
+ * header and remembered in localStorage. Tree rows are a pure presentation
+ * layer — every file row keeps its original index, so selection, `onSelect`
+ * and the r/t/e file order are identical in both modes.
+ *
+ * Keyboard navigation does not enter the tree: `r`/`t`/`Tab`/`e` still walk
+ * the flat file order, and a folder auto-expands when the selection MOVES
+ * into it — on selection change only, never on every render, or the folder
+ * holding the current file could never be collapsed at all. That is an accepted limitation for now — a collapsed folder
+ * would otherwise have to either swallow files from the cycle or advance the
+ * cursor to a row that is not rendered.
+ *
+ * A mouse click blurs the row after selecting so its focus ring never lingers
+ * once keyboard nav moves the active file elsewhere.
  */
 export function FileSidebar({
   files,
@@ -87,7 +126,54 @@ export function FileSidebar({
     return m;
   })();
 
-  const indexed = files.map((file, index) => ({ file, index }));
+  const [treeMode, setTreeMode] = useState(readTreeMode);
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(
+    () => new Set()
+  );
+
+  const tree = treeMode ? buildFileTree(files) : [];
+
+  const prevSelectedRef = useRef(selectedIndex);
+  if (treeMode && prevSelectedRef.current !== selectedIndex) {
+    prevSelectedRef.current = selectedIndex;
+    const ancestors = dirPathsForIndex(tree, selectedIndex) ?? [];
+    if (ancestors.some((path) => collapsed.has(path))) {
+      setCollapsed((prev) => {
+        const next = new Set(prev);
+        for (const path of ancestors) {
+          next.delete(path);
+        }
+        return next;
+      });
+    }
+  }
+
+  const rows = treeMode
+    ? flattenTree(tree, collapsed)
+    : files.map((file, index) => ({
+        depth: 0,
+        node: { file, index, kind: "file" as const, name: file.filename },
+      }));
+
+  const toggleMode = () => {
+    const next = !treeMode;
+    setTreeMode(next);
+    persistTreeMode(next);
+  };
+
+  const handleDirClick = (e: MouseEvent<HTMLButtonElement>) => {
+    const path = e.currentTarget.dataset.dirPath ?? "";
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+    e.currentTarget.blur();
+  };
 
   function revealInList(el: HTMLElement | null) {
     if (!el) {
@@ -118,8 +204,19 @@ export function FileSidebar({
     <div className="qf-sidebar flex h-full flex-col">
       <div className="qf-side-head flex items-center justify-between px-4 py-3">
         <span className="qf-side-title">Files</span>
-        <span className="qf-side-count">
-          {viewedSet.size}/{files.length} viewed
+        <span className="flex items-center gap-2">
+          <span className="qf-side-count">
+            {viewedSet.size}/{files.length} viewed
+          </span>
+          <button
+            aria-label={treeMode ? "Show a flat file list" : "Show a file tree"}
+            className="qf-side-mode qf-focusable"
+            onClick={toggleMode}
+            title={treeMode ? "Show a flat file list" : "Show a file tree"}
+            type="button"
+          >
+            {treeMode ? <List size={13} /> : <FolderTree size={13} />}
+          </button>
         </span>
       </div>
 
@@ -128,7 +225,31 @@ export function FileSidebar({
           className="qf-filelist min-h-0 flex-1 overflow-y-auto py-1"
           ref={listRef}
         >
-          {indexed.map(({ file, index }) => {
+          {rows.map(({ depth, node }) => {
+            if (node.kind === "dir") {
+              const isCollapsed = collapsed.has(node.path);
+              return (
+                <button
+                  className="qf-file qf-file-dirrow qf-focusable"
+                  data-dir-path={node.path}
+                  key={`dir:${node.path}`}
+                  onClick={handleDirClick}
+                  style={{ "--qf-depth": depth } as CSSProperties}
+                  title={node.path}
+                  type="button"
+                >
+                  {isCollapsed ? (
+                    <ChevronRight aria-hidden size={13} />
+                  ) : (
+                    <ChevronDown aria-hidden size={13} />
+                  )}
+                  <span className="qf-file-name">
+                    <span className="qf-file-base">{node.name}</span>
+                  </span>
+                </button>
+              );
+            }
+            const { file, index } = node;
             const glyph = glyphFor(file.status);
             const { dir, base } = splitPath(file.filename);
             const on = index === selectedIndex;
@@ -147,6 +268,7 @@ export function FileSidebar({
                 key={file.filename}
                 onClick={handleFileClick}
                 ref={on ? revealInList : undefined}
+                style={{ "--qf-depth": depth } as CSSProperties}
                 title={file.filename}
                 type="button"
               >
@@ -157,8 +279,10 @@ export function FileSidebar({
                   {glyph.letter}
                 </span>
                 <span className="qf-file-name">
-                  <span className="qf-file-dir">{dir}</span>
-                  <span className="qf-file-base">{base}</span>
+                  {!treeMode && <span className="qf-file-dir">{dir}</span>}
+                  <span className="qf-file-base">
+                    {treeMode ? node.name : base}
+                  </span>
                 </span>
                 <span className="qf-file-meta">
                   {changed.has(file.filename) && (
@@ -198,7 +322,7 @@ export function FileSidebar({
               </button>
             );
           })}
-          {indexed.length === 0 && (
+          {files.length === 0 && (
             <div className="px-4 py-6 text-center text-faint text-xs">
               No files changed.
             </div>
