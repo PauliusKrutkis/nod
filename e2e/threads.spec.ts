@@ -260,3 +260,27 @@ test("insert suggestion prefills the block with the commented line", async ({
   await page.keyboard.type(" // note");
   await expect(sugg).toHaveText("export function alpha() { // note");
 });
+
+test("any comment can be copied, including one you did not write", async ({
+  page,
+}) => {
+  const thread = page.locator(".qf-thread").first();
+  const bobsComment = thread.locator(".qf-comment").first();
+  await expect(bobsComment).toContainText("bob");
+
+  await bobsComment.hover();
+  const copy = bobsComment.getByRole("button", { name: "Copy comment text" });
+  await copy.click();
+  await expect(bobsComment.getByText("Copied")).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    "Is this constant right?"
+  );
+
+  await expect(
+    bobsComment.getByRole("button", { name: "Edit comment" })
+  ).toHaveCount(0);
+  await expect(
+    bobsComment.getByRole("button", { name: "Delete comment" })
+  ).toHaveCount(0);
+  await page.screenshot({ path: "evidence/copy-comment.png" });
+});

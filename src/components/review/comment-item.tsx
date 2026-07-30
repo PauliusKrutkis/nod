@@ -6,27 +6,61 @@
  * into a composer while editing. CommentTools' `editKbd` is the hotkey chip
  * shown on Edit — the thread surface passes it on its last own comment.
  */
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { copyTextToClipboard } from "../../lib/clipboard.ts";
 import { cn } from "../../lib/cn.ts";
 import { Markdown } from "../markdown.tsx";
 import { Kbd } from "../ui/kbd.tsx";
 import { AddCommentBox } from "./add-comment-box.tsx";
 
+const COPIED_FEEDBACK_MS = 1200;
+
 interface CommentToolsProps {
+  body: string;
   commentId: number;
   editKbd?: string;
   onDelete?: (commentId: number) => void;
   onStartEdit?: (commentId: number) => void;
 }
 
-/** Edit + two-step Delete ("Delete" → "Delete?", disarmed on blur/mouse-leave). */
+/**
+ * Copy + Edit + two-step Delete ("Delete" → "Delete?", disarmed on
+ * blur/mouse-leave). Copy is offered on every comment; Edit and Delete only
+ * appear when the surface passes their handlers, which is how each surface
+ * expresses "this one is mine".
+ */
 export function CommentTools({
+  body,
   commentId,
   editKbd,
   onStartEdit,
   onDelete,
 }: CommentToolsProps) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (copyTimerRef.current) {
+        clearTimeout(copyTimerRef.current);
+      }
+    },
+    []
+  );
+
+  const handleCopy = () => {
+    setConfirmingDelete(false);
+    copyTextToClipboard(body);
+    setCopied(true);
+    if (copyTimerRef.current) {
+      clearTimeout(copyTimerRef.current);
+    }
+    copyTimerRef.current = setTimeout(
+      () => setCopied(false),
+      COPIED_FEEDBACK_MS
+    );
+  };
 
   const handleStartEdit = () => {
     setConfirmingDelete(false);
@@ -48,6 +82,14 @@ export function CommentTools({
 
   return (
     <span className="qf-comment-tools">
+      <button
+        aria-label="Copy comment text"
+        className="qf-comment-tool qf-focusable"
+        onClick={handleCopy}
+        type="button"
+      >
+        {copied ? "Copied" : "Copy"}
+      </button>
       {!!onStartEdit && (
         <button
           aria-label="Edit comment"
