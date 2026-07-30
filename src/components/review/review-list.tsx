@@ -547,8 +547,8 @@ function CommentAddBox({
     callbacks.onCloseBox(item.fileIndex, item.anchor);
   };
 
-  const handleSecondary = async (body: string) => {
-    await callbacks.onAddComment({
+  const handleSecondary = (body: string) => {
+    callbacks.onAddComment({
       body,
       line: target.line,
       path: filename,

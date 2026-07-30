@@ -467,9 +467,12 @@ and several paths call `mutate` with no in-flight guard.
       (fed by `reply.isPending`) and `addPending`
       (`addReviewComment.isPending`). The anticipated "intent coalescing"
       turned out to be **required, not optional** — see below.
-- [x] 🟡 **Inline "Comment now"** — **done**; `handleSecondary` now awaits
-      `onAddComment` before closing the box.
-      **`isPending` alone did not fix it.** A spec that presses ⌘↵ twice
+- [x] 🟡 **Inline "Comment now"** — **done**, but *not* by awaiting: the
+      review pass caught that `use-comments.ts` documents these mutations as
+      **optimistic by design ("no loading states")**, and awaiting held the
+      composer open next to the comment that had already appeared
+      optimistically. The actions stay fire-and-forget.
+      **`isPending` alone did not fix it either.** A spec that presses ⌘↵ twice
       against a hanging mutation still produced **2** `create_review_comment`
       calls: `pending` is a prop, so it only becomes true after a render, and
       both presses in the same tick pass the guard. `AddCommentBox` now also

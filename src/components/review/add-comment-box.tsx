@@ -37,8 +37,10 @@ interface AddCommentBoxProps {
  * collapsed prompt uses it to advertise a surviving draft.
  *
  * `pending` alone cannot stop a double submit: it is a prop, so it only
- * becomes true after a render, and two ⌘↵ in the same tick both pass it.
- * `inFlightRef` is the synchronous lock that actually holds the door.
+ * becomes true after a render, and two ⌘↵ dispatched in the same tick both
+ * pass it. `inFlightRef` is the synchronous lock that closes that window.
+ * It never holds the composer open — the actions stay fire-and-forget, per
+ * the optimistic-by-design contract in use-comments.ts.
  */
 export function AddCommentBox({
   ref,
@@ -90,6 +92,8 @@ export function AddCommentBox({
     try {
       await action(body);
       editorRef.current?.clear();
+    } catch {
+      /* the mutation layer rolls back and flashes; keep the text */
     } finally {
       inFlightRef.current = false;
     }
