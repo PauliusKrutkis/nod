@@ -19,6 +19,7 @@ import type {
   PendingComment,
   ReviewComment,
 } from "../../types.ts";
+import { Tooltip } from "../ui/tooltip.tsx";
 
 interface FileSidebarProps {
   changed: Set<string>;
@@ -208,15 +209,21 @@ export function FileSidebar({
           <span className="qf-side-count">
             {viewedSet.size}/{files.length} viewed
           </span>
-          <button
-            aria-label={treeMode ? "Show a flat file list" : "Show a file tree"}
-            className="qf-side-mode qf-focusable"
-            onClick={toggleMode}
-            title={treeMode ? "Show a flat file list" : "Show a file tree"}
-            type="button"
+          <Tooltip
+            label={treeMode ? "Show a flat file list" : "Show a file tree"}
           >
-            {treeMode ? <List size={13} /> : <FolderTree size={13} />}
-          </button>
+            <button
+              aria-label={
+                treeMode ? "Show a flat file list" : "Show a file tree"
+              }
+              aria-pressed={treeMode}
+              className="qf-side-mode qf-focusable"
+              onClick={toggleMode}
+              type="button"
+            >
+              {treeMode ? <List size={13} /> : <FolderTree size={13} />}
+            </button>
+          </Tooltip>
         </span>
       </div>
 

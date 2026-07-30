@@ -1,5 +1,3 @@
-import type { ChangedFile } from "../types.ts";
-
 /**
  * Groups the flat changed-file list into a directory tree for the sidebar.
  *
@@ -12,6 +10,8 @@ import type { ChangedFile } from "../types.ts";
  * (`src/lib/review` rather than three nested rows) — a PR usually touches a
  * few deep paths, and the un-collapsed version is mostly indentation.
  */
+
+import type { ChangedFile } from "../types.ts";
 
 interface FileTreeFileNode {
   kind: "file";
