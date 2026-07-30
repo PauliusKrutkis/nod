@@ -1674,7 +1674,7 @@ dialog.q-dialog::backdrop {
   border-bottom: 1px solid var(--line);
 }
 .dir-quiet .qf-row-hunk:hover {
-  background: var(--surface-hi);
+  background: var(--surface-2);
 }
 .dir-quiet .qf-row-hunk .qf-code {
   font-size: 11px;

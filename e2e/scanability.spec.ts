@@ -435,6 +435,13 @@ test("the file header stands off the diff background", async ({ page }) => {
     Number.parseFloat(bg?.codeSize ?? "0")
   );
 
+  await page.locator(".qf-row-hunk").first().hover();
+  const hunkHover = await page
+    .locator(".qf-row-hunk")
+    .first()
+    .evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(hunkHover).not.toBe(bg?.head);
+
   if (process.env.CAPTURE_EVIDENCE) {
     await page
       .locator('.qf-fsec-head[data-file-index="1"]')

@@ -747,6 +747,10 @@ test("the header shows an approvals verdict with the reviewer's face", async ({
   await expect(pill).toBeVisible();
   await expect(pill).toHaveAttribute("aria-label", "Approved · dave");
   await expect(pill).not.toHaveAttribute("title", ANY_TITLE);
+  await expect(pill.locator(".q-avatar")).not.toHaveAttribute(
+    "title",
+    ANY_TITLE
+  );
   await expect(pill.locator(".q-avatar")).toHaveCount(1);
   await expect(page.locator(".qf-verdict-changes")).toHaveCount(0);
 });

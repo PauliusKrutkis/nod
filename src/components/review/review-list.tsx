@@ -168,7 +168,7 @@ interface ListContext {
  * The sticky group-header band the cursor must clear when moving upward.
  * Measured lazily from the rendered header; this is the pre-measure fallback.
  */
-const HEADER_FALLBACK_PX = 36;
+const HEADER_FALLBACK_PX = 42;
 
 /**
  * Where the expand/collapse swap parks the row you're reading: a constant
@@ -478,10 +478,12 @@ function PendingCommentCard({
   comment,
   activeAccount,
   onRemovePending,
+  showDiscardKbd,
 }: {
   comment: PendingComment;
   activeAccount: AccountInfo | undefined;
   onRemovePending: (id: string) => void;
+  showDiscardKbd: boolean;
 }) {
   const handleRemove = () => {
     onRemovePending(comment.id);
@@ -512,9 +514,11 @@ function PendingCommentCard({
             type="button"
           >
             Discard
-            <span aria-hidden className="qf-key-hint">
-              <Kbd combo="shift+d" />
-            </span>
+            {showDiscardKbd && (
+              <span aria-hidden className="qf-key-hint">
+                <Kbd combo="shift+d" />
+              </span>
+            )}
           </button>
         </div>
         <div className="qf-comment-body">
@@ -634,12 +638,13 @@ function CommentsBlock({
           toggleRequest={toggleRequest}
         />
       ))}
-      {item.pending.map((pending) => (
+      {item.pending.map((pending, pendingIndex) => (
         <PendingCommentCard
           activeAccount={activeAccount}
           comment={pending}
           key={pending.id}
           onRemovePending={callbacks.onRemovePending}
+          showDiscardKbd={pendingIndex === item.pending.length - 1}
         />
       ))}
       {item.boxOpen && target !== null && (

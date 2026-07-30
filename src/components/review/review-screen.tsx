@@ -2160,9 +2160,9 @@ function useReviewThreadActions(args: {
     if (!cur) {
       return;
     }
-    const navIdx =
-      m.navIndexOf.get(navKey(cur.fileIndex, cur.anchor, "comments")) ??
-      m.navIndexOf.get(navKey(cur.fileIndex, cur.anchor, cur.kind));
+    const navIdx = m.navIndexOf.get(
+      navKey(cur.fileIndex, cur.anchor, "comments")
+    );
     if (navIdx === undefined) {
       return;
     }
@@ -2175,6 +2175,11 @@ function useReviewThreadActions(args: {
       return;
     }
     args.removePendingStore(args.keyValue, newest.id);
+    const blockSurvives =
+      item.pending.length > 1 || item.threads.length > 0 || item.boxOpen;
+    if (cur.kind === "comments" && !blockSurvives) {
+      args.setCursor({ ...cur, kind: "row" });
+    }
   };
 
   const replyToActiveThreadOrNextFile = () => {
