@@ -828,8 +828,11 @@ only format the in-app updater touches.
       an update (release notes via Rust command).
 - [ ] 🟢 **Distinct file header** — hard to tell when starting a new file; make
       the file header row more visually distinct in the diff list.
-- [ ] 🟢 **Astro syntax highlighting** — `.astro` files don't get diff syntax
-      highlighting; extend the language map in `highlight.ts`.
+- [x] 🟢 **Astro syntax highlighting** — **done**; `.astro` now maps to the
+      `xml` grammar in `LANG_BY_EXT` (`highlight.ts`), the same fallback
+      `.vue` and `.svelte` already use, because highlight.js v11 ships no
+      astro grammar. The template body tokenizes; the `---` frontmatter
+      fence stays plain, matching how `.vue`'s `<script>` block behaves.
 - [ ] 🟡 **Render SVG previews** — SVG files in diffs show raw markup instead
       of a rendered image preview.
 - [ ] 🟢 **Approvals indicator tooltip** — the P08 verdict pills carry a
