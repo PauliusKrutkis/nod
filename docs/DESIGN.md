@@ -57,20 +57,25 @@ fully keyboard-drivable.
 
 ## Current visual language
 
-GitHub-dark inspired. Tokens are defined once in `src/index.css` (`@theme`) and
-Tailwind v4 generates the utilities (`bg-surface`, `text-muted`, `border-line`…).
+A cool near-black with a violet cast. Tokens are defined once in
+`src/index.css` (`@theme`) and Tailwind v4 generates the utilities
+(`bg-surface`, `text-muted`, `border-line`…).
 
 | Token | Value | Role |
 | --- | --- | --- |
-| `bg` | `#0d1117` | app background |
-| `surface` | `#161b22` | panels, headers, toolbars |
-| `surface-2` | `#1c2128` | nested surfaces, hunk headers |
-| `elevated` | `#21262d` | hover, inline code |
-| `line` / `line-strong` | `#30363d` / `#444c56` | borders, scrollbar |
-| `fg` | `#e6edf3` | primary text |
-| `muted` / `faint` | `#7d8590` / `#545d68` | secondary / tertiary text |
-| `accent` / `accent-fg` | `#2f81f7` / `#fff` | selection, primary actions |
-| `success` / `danger` / `warning` | `#3fb950` / `#f85149` / `#d29922` | additions / deletions · errors · drafts |
+| `bg` | `#0f0f17` | app background |
+| `surface` | `#15151f` | panels, headers, toolbars |
+| `surface-2` | `#191924` | nested surfaces, hunk headers |
+| `elevated` | `#1c1c2a` | raised bands (file headers), hover, inline code |
+| `line` / `line-strong` | `#232334` / `#2c2c40` | borders, scrollbar |
+| `fg` | `#e8e8f3` | primary text |
+| `muted` / `faint` | `#9a9ab2` / `#5f5f78` | secondary / tertiary text |
+| `accent` / `accent-fg` | `#8b80ff` / `#14111f` | selection, primary actions |
+| `success` / `danger` / `warning` | `#5fd08a` / `#ff7088` / `#e7c56a` | additions / deletions · errors · drafts |
+
+`elevated` is exposed to `quiet.css` as `--surface-hi`, where it is a resting
+background as often as a hover one — the file header is the clearest case, and
+it is why a hovered hunk header must stay a step below it.
 
 - **Type:** system UI sans for chrome; `--font-mono` for diffs, line numbers,
   counts, and keycaps.

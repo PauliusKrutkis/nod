@@ -5,6 +5,7 @@ import type { Page } from "./types.ts";
 const QF_LVL_ONE = /--qf-lvl:\s*1/;
 const SUBMIT_OR_REVIEW = /Submit review|Review/;
 const SIDEBAR_OPEN = /qf-sidebar-open/;
+const SIDEBAR_WIDTH_PX = 300;
 
 /**
  * Viewport-centre of `token`'s first occurrence within a real (non-hunk) diff
@@ -377,12 +378,17 @@ test("toggling the file tree is instant, not animated", async ({ page }) => {
   const inline = page.locator(".qf-sidebar-inline");
   await expect(inline).toBeVisible();
 
-  const openWidth = await inline.evaluate((el) => {
-    const width = (el as HTMLElement).offsetWidth;
-    return { duration: getComputedStyle(el).transitionDuration, width };
+  const inlineOpen = await inline.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return {
+      animation: style.animationName,
+      duration: style.transitionDuration,
+      width: (el as HTMLElement).offsetWidth,
+    };
   });
-  expect(openWidth.duration).toBe("0s");
-  expect(openWidth.width).toBe(300);
+  expect(inlineOpen.duration).toBe("0s");
+  expect(inlineOpen.animation).toBe("none");
+  expect(inlineOpen.width).toBe(SIDEBAR_WIDTH_PX);
 
   await page.keyboard.press("b");
   await expect(inline).not.toHaveClass(SIDEBAR_OPEN);
@@ -394,16 +400,25 @@ test("toggling the file tree is instant, not animated", async ({ page }) => {
   await page.setViewportSize({ height: 800, width: 900 });
   await expect(page.locator(".qf-sidebar-overlay")).toBeAttached();
   await expect(page.locator(".qf-sidebar-scrim")).toBeAttached();
-  const timings = await page.evaluate(() => {
-    const overlay = document.querySelector(".qf-sidebar-overlay");
-    const scrim = document.querySelector(".qf-sidebar-scrim");
+  const motion = await page.evaluate(() => {
+    const read = (selector: string) => {
+      const el = document.querySelector(selector);
+      if (!el) {
+        return null;
+      }
+      const style = getComputedStyle(el);
+      return {
+        animation: style.animationName,
+        duration: style.transitionDuration,
+      };
+    };
     return {
-      overlay: overlay && getComputedStyle(overlay).transitionDuration,
-      scrim: scrim && getComputedStyle(scrim).transitionDuration,
+      overlay: read(".qf-sidebar-overlay"),
+      scrim: read(".qf-sidebar-scrim"),
     };
   });
-  expect(timings.overlay).toBe("0s");
-  expect(timings.scrim).toBe("0s");
+  expect(motion.overlay).toEqual({ animation: "none", duration: "0s" });
+  expect(motion.scrim).toEqual({ animation: "none", duration: "0s" });
 });
 
 // A new file must read as a break in the diff, not blend into the code plane:
