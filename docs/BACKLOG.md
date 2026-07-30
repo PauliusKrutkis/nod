@@ -788,8 +788,14 @@ only format the in-app updater touches.
       step to a visible match leaves the viewport alone. Guarded by
       `occurrences.spec.ts` "stepping to an already-visible occurrence does not
       scroll".
-- [ ] 🟢 **Search pane height** — inbox search panel lost height; match the
-      `mod+k` command palette sizing.
+- [x] 🟢 **Search pane height** — **done**; `.qsp-panel` carried its own
+      `max-height: 70vh`, which overrode the `min(78vh, 640px)` cap every
+      other `.q-dialog` inherits — 560px vs 624px at an 800px window, so the
+      `/` pane showed one fewer row than `mod+k` for no reason. Dropping the
+      one override restores parity. Not a regression, despite the wording:
+      both rules date from the initial commit, so the pane never had the
+      height. Width stays at 680px (deliberately wider than the palette's
+      620px — it carries PR titles plus repo/author meta).
 - [ ] 🟢 **GitHub org OAuth restrictions** — `[pr-flow] API error 403` when an org
       (e.g. Decodo) enables OAuth App access restrictions; surface a clear
       in-app message with the GitHub docs link and what the admin must allow.
