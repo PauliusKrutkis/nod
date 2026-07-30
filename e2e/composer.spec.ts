@@ -192,3 +192,39 @@ test("the discard button removes the pending comment too", async ({ page }) => {
   await page.getByRole("button", { name: "Discard pending comment" }).click();
   await expect(pending).toHaveCount(0);
 });
+
+test("discarding the last pending comment leaves the cursor on its line", async ({
+  page,
+}) => {
+  await page.keyboard.type("drop me");
+  await page.keyboard.press("ControlOrMeta+Enter");
+  await expect(page.locator(".qf-pending")).toHaveCount(1);
+
+  await page.keyboard.press("Shift+d");
+  await expect(page.locator(".qf-pending")).toHaveCount(0);
+
+  await page.keyboard.press("j");
+  await expect(page.locator(".qf-row-active")).toHaveAttribute(
+    "data-file-index",
+    "0"
+  );
+});
+
+test("only the last pending card advertises the discard hotkey", async ({
+  page,
+}) => {
+  await page.keyboard.type("first");
+  await page.keyboard.press("ControlOrMeta+Enter");
+  await expect(page.locator(".qf-pending")).toHaveCount(1);
+
+  await page.keyboard.press("c");
+  await expect(box(page)).toBeFocused();
+  await page.keyboard.type("second");
+  await page.keyboard.press("ControlOrMeta+Enter");
+  await expect(page.locator(".qf-pending")).toHaveCount(2);
+
+  await expect(page.locator(".qf-pending .qf-key-hint")).toHaveCount(1);
+  await expect(
+    page.locator(".qf-pending").last().locator(".qf-key-hint")
+  ).toHaveCount(1);
+});

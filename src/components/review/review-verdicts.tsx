@@ -65,6 +65,7 @@ function VerdictPill({
             <Avatar
               key={r.user}
               name={r.user}
+              silent
               size={16}
               url={r.userAvatarUrl}
             />
