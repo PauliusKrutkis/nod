@@ -1361,10 +1361,14 @@ link interception · Universal Links.
       (shippable and useful on its own, proves the Rust seam), then
       non-streaming ask/answer in the drawer, then streaming **only after**
       the chunk shape is confirmed against a live key.
-      *Still unresolved and worth deciding before any code:* the privacy
-      line. This sends private source to a third party — it needs to be
-      explicit and opt-in per repo, and that promise should be written down
-      before it ships.
+      *Privacy — decided 2026-08-01 (owner):* the standard vendor pattern is
+      enough; per-repo opt-in is not a launch blocker. AI features are off
+      until the user enables them in settings and pastes their own key, with
+      one clear disclosure sentence at that moment ("selected code, file
+      paths and line numbers are sent to Nexos AI"). Nothing is ever sent
+      silently or by default — pasting the key is the consent act. A
+      per-repo allowlist stays as a later hardening step for people
+      reviewing client or org code.
 
 - [ ] ❓ **"Ask questions about the code" — the first AI feature** (2026-07-30).
       The opening surface for [BYOK](#post-mvp-backlog) above: ask a question
@@ -1658,27 +1662,29 @@ link interception · Universal Links.
       (`grep defaultBranch` → zero hits), so "based on main" vs "based on a
       PR" can only be inferred from the inbox join until
       `repository { defaultBranchRef { name } }` joins the fragment.
-      *Design recommendation.* Resist a badge. The existing header already
-      says `main ← feat/thing`; a stack is a **third term in that sentence**,
-      not a decoration beside it, and the honest rendering is to replace the
-      base chip's label with the PR it actually sits on:
+      **Decided 2026-08-01 (owner):** follow GitLab's own stacked-MR
+      presentation — a stack control in the review header next to the branch
+      chips, reading `2 of 3`, whose dropdown lists every PR in the chain
+      (top of the stack down) and navigates between them. GitLab detects
+      stacks with exactly the join this item proposes (an MR is stacked when
+      it targets another open MR's source branch), so the model transfers
+      directly; it renders nothing when no stack is detected. The base-chip
+      relabel below stays as a *complement*, not the mechanism — the chip
+      answers "what is this diff against?", the stack control answers "where
+      am I in the chain?":
 
       ```
       not stacked:   main ← feat/thing
-      stacked:       #431 ← feat/thing        (tooltip: "Based on #431 · Add fuzzy matching")
+      stacked:       #431 ← feat/thing   [2 of 3 ▾]   (tooltip: "Based on #431 · Add fuzzy matching")
       ```
 
-      That costs no new visual vocabulary, degrades to today's rendering when
-      nothing is detected, and puts the fact where a reviewer already looks
-      to answer "what is this diff against?". If a marker is still wanted,
-      reuse the non-focusable `qf-verdict`-style pill (`role="img"` +
-      `aria-label`, renders `null` when not applicable) rather than inventing
-      a shape — the same pattern as `CiPill` and `ReviewVerdicts`.
+      Both degrade to today's rendering when nothing is detected.
       *Inbox row:* a quiet `q-pill q-pill-muted` reading `stacked` in the
       meta line is enough; the row is already dense.
       *Work split:* ~3 lines Rust + a fixture test · `src/lib/stack.ts`
       (+ colocated test) building a `headRef → PR` map across inbox buckets
-      and returning `{ parent, children }` · three small call sites.
+      and returning the ordered chain plus the current PR's position ·
+      three small call sites.
       *Open question:* stacks whose links are **not in your inbox** (a
       teammate's PR you aren't on) can't be detected client-side at all.
       Accept that limitation for v1 rather than adding a `list_open_prs`
