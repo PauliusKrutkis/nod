@@ -1787,6 +1787,17 @@ link interception · Universal Links.
         Costs more than the four fixes above; try them first.
       - Also worth checking while here: `MAX_LINES = 60` silently truncates
         results with no "showing first 60" affordance.
+      *Shipped 2026-07-30 (the no-decision half):* rows are `<button>`s, which
+      shrink-wrap instead of filling the list — that, not the pane width, is
+      why snippets stopped short (measured: 381px inside a 913px pane). Fixed
+      with `width: 100%`, the same explicit width `.qf-file` already needed.
+      The matched line now wraps (`pre-wrap` on `.qsp-snip-line-hit` only) so
+      a hit far along a long line can never be ellipsised out of sight;
+      context lines stay one line each. `SNIPPET_RADIUS` 2 → 4 (5 → 9 lines),
+      and the in-review pane took its own `.qsp-panel-code` width (920px) so
+      it no longer inherits a width chosen for PR titles.
+      **Still open (needs a decision):** the two-pane layout, and the
+      `MAX_LINES` truncation affordance.
 - [ ] 🟡 **Info tab: one comment feed, one comment design** (2026-07-30) —
       code discussions in the Info drawer show no avatar, author or
       timestamp, and sit in a separate list from PR-level comments. Make
