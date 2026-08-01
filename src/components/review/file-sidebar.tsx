@@ -134,9 +134,9 @@ export function FileSidebar({
 
   const tree = treeMode ? buildFileTree(files) : [];
 
-  const prevSelectedRef = useRef(selectedIndex);
-  if (treeMode && prevSelectedRef.current !== selectedIndex) {
-    prevSelectedRef.current = selectedIndex;
+  const [prevSelected, setPrevSelected] = useState(selectedIndex);
+  if (treeMode && prevSelected !== selectedIndex) {
+    setPrevSelected(selectedIndex);
     const ancestors = dirPathsForIndex(tree, selectedIndex) ?? [];
     if (ancestors.some((path) => collapsed.has(path))) {
       setCollapsed((prev) => {
