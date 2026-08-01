@@ -845,6 +845,26 @@ only format the in-app updater touches.
 - [ ] 🟢 **GitHub org OAuth restrictions** — `[pr-flow] API error 403` when an org
       (e.g. Decodo) enables OAuth App access restrictions; surface a clear
       in-app message with the GitHub docs link and what the admin must allow.
+      *Diagnosis (2026-07-30).* The message is built in `http.rs` as
+      `API error ({status}): {msg}` where `msg` is GitHub's own `message`
+      field — so the restriction sentence **already survives** on REST paths;
+      what is missing is classification and guidance, not data. Two gaps:
+      the REST path discards `documentation_url`, and the **inbox does not
+      use that path at all** — GraphQL errors are built separately in
+      `graphql_vars` (`platform/github.rs`) as `GitHub GraphQL error
+      ({status}): {text}`, so any fix must be mirrored there or the inbox
+      keeps showing the raw string.
+      *Recommendation:* classify 403 in one place — restriction (body
+      contains `has enabled OAuth App access restrictions`) vs rate limit
+      (`x-ratelimit-remaining: 0`) vs everything else — and return curated
+      copy naming the org, what an admin must approve, and the docs link.
+      Render in the existing inbox error block
+      (`inbox.tsx`, "Couldn't load pull requests"), which already has a
+      Retry button.
+      *Blocker for the e2e:* `e2e/bridge.ts` has **no way to make a command
+      reject** — `AppOptions` needs an `inboxError?: string` knob (~10 lines)
+      before the error branch can be covered at all. Worth adding regardless;
+      the inbox error state is currently untested.
 
 ### Wave 2 — quick wins
 
@@ -953,8 +973,41 @@ only format the in-app updater touches.
 
 ### Wave 5 — bigger bets
 
-- [ ] 🔴 **P15** — File tree: folders, indentation,
-      collapse (needs decision: replace flat list vs toggle).
+- [ ] 🔴 **P15** — File tree: folders, indentation, collapse.
+      **Decided 2026-07-30 (owner):** the tree is an *added mode*, not a
+      replacement — the flat list stays — and the tree is the **default**.
+      Keyboard navigation inside the tree is **explicitly out of scope for
+      the first pass and accepted as a known limitation**; `r`/`t`/`Tab`/`e`
+      keep walking the flat file order, which is why the tree can ship
+      without answering the hard question below.
+      *Scoping notes (verified against the code):*
+      - `data-file-index` is read via `e.currentTarget.dataset` inside
+        `file-sidebar.tsx` only — nesting rows inside folder containers is
+        safe. Folder rows must **not** carry `data-file-index`.
+      - `revealInList` (`file-sidebar.tsx:92`) is a ref-callback, so a row
+        inside a *collapsed* folder never fires it. Collapse state must
+        auto-expand the folder containing `selectedIndex`.
+      - Needs `src/lib/file-tree.ts` (+ colocated test): `buildFileTree` and
+        a `flattenTree(tree, collapsed)` returning rows with a `depth`, with
+        the original `files` index preserved so `onSelect(index)` is
+        unchanged.
+      - Indentation must come from a depth custom property
+        (`padding-left: calc(6px + var(--qf-depth) * 12px)`), because
+        `.qf-file` has a fixed `width: calc(100% - 12px)` a naive
+        `padding-left` would misalign.
+      - **Folder collapse must be instant** — no height/`grid-template-rows`
+        transition. See the sidebar note in `quiet.css`; that motion was
+        removed deliberately.
+      - `pr-flow:fileTreeMode` + collapsed-folder state follow the existing
+        `pr-flow:drawerWide` localStorage pattern, whose `TODO: extract a
+        useLocalStorage hook when a second persisted UI pref lands` this
+        finally makes actionable.
+      *Open question, deferred not dropped:* once keyboard nav arrives, does
+      a file inside a **collapsed** folder stay in the `r`/`t`/`e` cycle? If
+      yes, `e` can advance into a file you cannot see; if no, "next file"
+      silently skips changed files. The second is worse. Recommendation when
+      the time comes: **keep collapsed files in the cycle and auto-expand
+      the folder on arrival** — the cycle is about the diff, not the tree.
 - [ ] 🟡 **P16** — Faster inbox via conditional polling
       (ETag/304 → ~15 s interval); optional activity-aware detail refresh (see
       also §7 GitHub notifications gate).
@@ -1257,6 +1310,66 @@ link interception · Universal Links.
         webview never holds credentials, so the AI key belongs beside the
         host tokens in `accounts`/keychain, with calls made from Rust —
         *not* `fetch` from React. Model choice is plain UI state.
+- [ ] 🔴 **Ask-about-this-code — implementation plan** (2026-07-30).
+      Concrete plan for the feature above, now that the provider contract is
+      known. **Nexos AI is OpenAI-compatible**, which changes the shape of
+      this work: it is a generic integration, not a vendor one.
+      *Verified from the Nexos OpenAPI spec (docs.nexos.ai, append `.md` to
+      any page for raw markdown):*
+      - Base `https://api.nexos.ai`, `POST /v1/chat/completions`,
+        `Authorization: Bearer nexos-…`.
+      - Standard body (`model`, `messages[{role,content}]`, `temperature`,
+        `max_completion_tokens`, `stream`); answer at
+        `choices[0].message.content`.
+      - `GET /v1/models` returns `data[]` with `id`, `context_length`,
+        `pricing`, and an `endpoints[]` — **filter on `chat_completion`** to
+        populate the model picker rather than hardcoding names.
+      - SSE streaming terminates with `data: [DONE]`. **The chunk shape is
+        not documented** — assume standard `delta` only after probing a real
+        key; do not ship streaming on an inferred contract.
+      - Errors: only `400`/`402` (out of credits)/`500` are documented. 401,
+        403 and 429 are **not** — parse `error.message` best-effort, don't
+        hardcode statuses.
+      *What exists to build on (verified):* nothing AI-related at all — zero
+      LLM deps in `package.json` and `Cargo.toml`. And **no settings surface
+      exists**; the closest pattern is `issue-tracker-dialog.tsx`, which is a
+      `q-dialog` opened from a keyless command-palette binding in `app.tsx`.
+      *Recommended shape:*
+      1. **Key storage mirrors accounts exactly.** Tokens live in plain JSON
+         in the app config dir (`storage.rs`) — there is no keychain today —
+         and the webview only ever receives a token-free info struct. Add
+         `ai.json` + `has_ai_key`/`set_ai_key`/`clear_ai_key` shaped like
+         `commands.rs`'s token trio. **The key must never reach the webview**,
+         so the request is made from Rust; a new `ai_complete` command is
+         required because every existing `reqwest` client is built with a
+         provider auth header baked in.
+      2. **Surface: the info drawer as a new mode.** It already exists, is
+         already toggled by `i`/`shift+i`, and already renders markdown. A
+         popover anchored to a row is the wrong bet — there is no floating
+         primitive and the virtualized list makes row anchoring expensive. A
+         modal dialog fights the keyboard flow. A toast is the wrong shape
+         for a multi-paragraph answer.
+      3. **Hotkey: `a` ("ask")** — free in both the review and global scopes,
+         adjacent to nothing destructive.
+      4. **Selection → prompt.** `LineSelection` carries anchors, not text;
+         reuse the `contentByAnchor` walk in `review-items.ts`
+         (`appendCommentBlock`) to reconstruct the selected lines, and send
+         file path + line numbers + the code.
+      5. **Prompt template in settings**, per the owner's ask — which means
+         the settings surface is a prerequisite, not a follow-up.
+      *Sequencing recommendation:* settings surface + key storage first
+      (shippable and useful on its own, proves the Rust seam), then
+      non-streaming ask/answer in the drawer, then streaming **only after**
+      the chunk shape is confirmed against a live key.
+      *Privacy — decided 2026-08-01 (owner):* the standard vendor pattern is
+      enough; per-repo opt-in is not a launch blocker. AI features are off
+      until the user enables them in settings and pastes their own key, with
+      one clear disclosure sentence at that moment ("selected code, file
+      paths and line numbers are sent to Nexos AI"). Nothing is ever sent
+      silently or by default — pasting the key is the consent act. A
+      per-repo allowlist stays as a later hardening step for people
+      reviewing client or org code.
+
 - [ ] ❓ **"Ask questions about the code" — the first AI feature** (2026-07-30).
       The opening surface for [BYOK](#post-mvp-backlog) above: ask a question
       about the PR you're reading and get an answer grounded in the actual
@@ -1336,6 +1449,34 @@ link interception · Universal Links.
 - [ ] **Split `ReviewScreenInner`** in `review-screen.tsx` into smaller
   components so React Doctor's `no-giant-component` passes without the
   `test-noise` tag ignore in `doctor.config.json` — remove that ignore once done.
+  *Staged plan (2026-07-30).* The file is ~4,100 lines; the component itself
+  is ~995 (2714–3709), and **only the component split moves the metric** —
+  stages 1–6 shrink the file, stage 7 shrinks the rule's target. Each stage
+  is a pure refactor verifiable by the existing e2e suite:
+  1. `src/lib/code-dom.ts` — DOM/word hit-testing + selection-offset family
+     (366–578, 3932–4072). No React. Over budget (~350) but a verbatim cut.
+  2. `src/lib/review-cursor.ts` (pure half) + fold `buildCommentsByFile` /
+     `buildPendingByFile` into `review-items.ts`.
+  3. Find → `review-find.ts` + `use-review-find.ts`.
+  4. `use-review-hotkeys.ts` — one contiguous ~340-line binding literal;
+     over budget and unsplittable without changing the array.
+  5. Occurrences — 5a pure module, 5b the two hooks.
+  6. Four hook moves, one PR each: list callbacks, thread actions, submit,
+     file navigation + resume scroll.
+  7. **The one that moves the metric:** 7a `review-skeleton.tsx`,
+     7b `ReviewHeader`, 7c `ReviewDiffPane`.
+  8. State clusters, then delete the `biome-ignore` and the doctor ignore.
+  *Hazards — do not "clean up" while extracting:* `selectLineRef` is
+  deliberately created empty and filled in a layout effect (a genuine init
+  cycle — see candidate 4 in the useEffect audit, marked won't-do);
+  `cursorMoverRefs`/`occNavRefs` are intentionally fresh literals per event;
+  the mount-only cleanup effect owns rAF handles from several hooks and must
+  move whole or not at all; and the `pendingBoxNudge` layout effect must stay
+  after `model` is built in the same render.
+  *Do not extract:* `selectLine`/`selectLineRef`, the `buildReviewItems` call
+  + `modelRef`, the 20-`useState` block (a "state bag" hook adds an object
+  identity per render and reduces nothing), or anything below the early
+  return at 3454.
 - [ ] **React Doctor full-codebase score not 100/100** — run react-doctor
   across the whole codebase and address remaining findings beyond the known
   `no-giant-component` ignore above.
@@ -1388,8 +1529,29 @@ link interception · Universal Links.
 ## Inbox (2026-07-18)
 
 - [ ] **Private repos don't show up** — on certain setups (org restrictions,
-      token scopes, etc.) private repos may be missing from the list; needs
-      manual debugging to find the root cause.
+      token scopes, etc.) private repos may be missing from the list.
+      *Investigation (2026-07-30) — ruled OUT:* the OAuth scope is already
+      `repo read:org` (`auth.rs`), the GraphQL searches carry **no**
+      visibility qualifier or owner filter, and there is no client-side
+      visibility filtering anywhere in `src/`. So nothing in our code
+      excludes private repos.
+      *Ranked causes:*
+      1. **Same root as the 403 above — org OAuth App restrictions.** With
+         `repo` granted but the app unapproved by the org, GitHub *silently
+         omits* that org's private repos from search results, with **no
+         error at all**. This is the most likely cause and explains "it works
+         for some setups". Confirm: `GET /user/repos?visibility=private`
+         lists the repo while the GraphQL search omits it.
+      2. **A pasted PAT lacking `repo`.** The token-gate path bypasses OAuth
+         scopes entirely and only *labels* the expected scope — nothing
+         validates it. A fine-grained PAT without org resource access behaves
+         identically.
+      3. `first: 50` truncation on a busy account (`issueCount` would exceed
+         the rendered list length).
+      *Cheapest next step, and it serves both causes:* read the
+      `x-oauth-scopes` response header (never read anywhere today) and
+      surface "this token is missing `repo`" in the gate — ~15 lines, and it
+      turns a silent empty list into a diagnosis.
 - [ ] **Unfocused-window hotkeys/sidebar stale** — when the app window isn't
       focused, scrolling still works but hotkeys that only surface on
       focus/hover don't appear, and the sidebar's active-file highlight stops
@@ -1476,6 +1638,57 @@ link interception · Universal Links.
       out only its first line there. Known limitation called out when the
       original fix shipped — needs `markBlockCommentRows` (or equivalent)
       wired into the full-file row synthesis path too.
+
+## Stacked PRs (2026-07-30)
+
+- [ ] 🟡 **Stacked-PR indicator** — show that a PR is one link in a chain
+      (its base branch is another open PR's head branch) rather than based on
+      the default branch. PR-chain workflows are exactly where this app's
+      "already-merged code in the diff" problem bites, so it pairs with
+      **stale-base diff pollution** below.
+      *What exists:* `PullRequest` already carries `baseRef`/`headRef`, and
+      the review header already renders them as two `BranchChip`s either side
+      of a `←`. That header is the natural home — the stack fact is *about*
+      the base branch, so it belongs next to the base chip.
+      *The blocker is data, not UI.* `pr_from_graphql` hardcodes
+      `head_ref`/`base_ref` to empty strings and `FRAGMENT_P` never requests
+      them, so **GitHub inbox PRs carry no refs at all** and the
+      "A.baseRef === B.headRef" join is impossible there. GitLab's
+      `mr_to_pr` already fills both. Fix is ~3 lines: add
+      `headRefName baseRefName` to the fragment and stop blanking them. Do
+      this first — it is cheap, needs no extra request, and also unblocks
+      **Branch name not visible in index/search** (§6).
+      *Also missing:* the repository default branch is never fetched
+      (`grep defaultBranch` → zero hits), so "based on main" vs "based on a
+      PR" can only be inferred from the inbox join until
+      `repository { defaultBranchRef { name } }` joins the fragment.
+      **Decided 2026-08-01 (owner):** follow GitLab's own stacked-MR
+      presentation — a stack control in the review header next to the branch
+      chips, reading `2 of 3`, whose dropdown lists every PR in the chain
+      (top of the stack down) and navigates between them. GitLab detects
+      stacks with exactly the join this item proposes (an MR is stacked when
+      it targets another open MR's source branch), so the model transfers
+      directly; it renders nothing when no stack is detected. The base-chip
+      relabel below stays as a *complement*, not the mechanism — the chip
+      answers "what is this diff against?", the stack control answers "where
+      am I in the chain?":
+
+      ```
+      not stacked:   main ← feat/thing
+      stacked:       #431 ← feat/thing   [2 of 3 ▾]   (tooltip: "Based on #431 · Add fuzzy matching")
+      ```
+
+      Both degrade to today's rendering when nothing is detected.
+      *Inbox row:* a quiet `q-pill q-pill-muted` reading `stacked` in the
+      meta line is enough; the row is already dense.
+      *Work split:* ~3 lines Rust + a fixture test · `src/lib/stack.ts`
+      (+ colocated test) building a `headRef → PR` map across inbox buckets
+      and returning the ordered chain plus the current PR's position ·
+      three small call sites.
+      *Open question:* stacks whose links are **not in your inbox** (a
+      teammate's PR you aren't on) can't be detected client-side at all.
+      Accept that limitation for v1 rather than adding a `list_open_prs`
+      command — the common case is your own chain, which is in `created`.
 
 ## Inbox (2026-07-22)
 
