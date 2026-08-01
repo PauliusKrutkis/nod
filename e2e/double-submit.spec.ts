@@ -26,13 +26,17 @@ test("a second Cmd+Enter cannot post the same comment twice", async ({
   await expect(box).toBeFocused();
   await page.evaluate(() => {
     const el = document.activeElement ?? document.body;
+    // ProseMirror resolves Mod-Enter per platform: Meta on macOS, Ctrl
+    // elsewhere — a metaKey-only event is ignored on Linux CI.
+    const isMac = navigator.platform.toUpperCase().includes("MAC");
     for (let i = 0; i < 2; i += 1) {
       el.dispatchEvent(
         new KeyboardEvent("keydown", {
           bubbles: true,
           cancelable: true,
+          ctrlKey: !isMac,
           key: "Enter",
-          metaKey: true,
+          metaKey: isMac,
         })
       );
     }
