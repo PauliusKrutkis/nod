@@ -1732,11 +1732,15 @@ link interception · Universal Links.
       review keeps flowing. The `e` entry in Wave 2 claims this wrap already
       ships — reproduce first and decide whether this is a regression in `e`
       or the same gap on `v` (toggle viewed), which never wrapped.
-- [ ] 🟢 **Inbox `1`/`2`/`3` should address the visible tabs** — the number
-      keys currently map to fixed tabs regardless of which ones are on
-      screen, so with tabs hidden they jump somewhere unexpected. Bind them
-      positionally to the tabs actually rendered. Interacts with **Hide empty
-      tabs** (Inbox 2026-07-15) — decide the two together.
+- [x] 🟢 **Inbox `1`/`2`/`3` should address the visible tabs** — **done**;
+      the digits are now positional over the *visible* tabs, so `1` is the
+      leftmost tab on the bar and a digit can never summon an empty tab out
+      of hiding. The digit hints on the bar follow the same slots, so they
+      read 1, 2, 3 with no gaps. Hidden tabs keep a **keyless** binding so
+      the command palette still reaches them — typing "watching" is an
+      explicit request where a digit is positional, and without that the
+      Watching tab became unreachable by keyboard exactly when it is empty,
+      which is when you would go there to add a repo.
 - [x] 🟢 **Disable file-tree animation** — **done**; dropped all three
       toggle transitions: `width`/`border-color` 160ms on
       `.qf-sidebar-inline` (the wide-window push column), `transform` 180ms
