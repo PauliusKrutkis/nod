@@ -94,9 +94,10 @@ export function AddCommentBox({
       editorRef.current?.clear();
     } catch {
       /* the mutation layer rolls back and flashes; keep the text */
-    } finally {
-      inFlightRef.current = false;
     }
+    /* not a finally: React Compiler can't lower try/catch/finally, and the
+       empty catch already guarantees we reach this line */
+    inFlightRef.current = false;
   };
 
   const handleSubmitRequest = () => {
