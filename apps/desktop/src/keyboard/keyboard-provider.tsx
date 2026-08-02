@@ -304,6 +304,7 @@ export function KeyboardProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  // react-doctor-disable-next-line context-provider-value-from-unmemoized-local-literal -- the React Compiler (vite.config.ts) memoizes this value; a manual useMemo here trips react-compiler-no-manual-memoization instead
   const value = {
     getBindings: (scope: string): RegisteredBinding[] => {
       const out: RegisteredBinding[] = [];
