@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  deleteOrderIndex,
-  getLicense,
-  getOrderIndex,
-  putLicense,
-  putOrderIndex,
-} from "./kv";
+import { getLicense, getOrderIndex, putLicense, putOrderIndex } from "./kv";
 
 function fakeKv(): KVNamespace {
   const store = new Map<string, string>();
@@ -41,15 +35,12 @@ describe("license + order index KV helpers", () => {
     expect(await getLicense(kv, "missing")).toBeNull();
   });
 
-  it("resolves the order index until it is explicitly deleted", async () => {
+  it("resolves the order index on repeated reads", async () => {
     const kv = fakeKv();
     await putOrderIndex(kv, "order_1", "github:github.com:583231");
 
     expect(await getOrderIndex(kv, "order_1")).toBe("github:github.com:583231");
     expect(await getOrderIndex(kv, "order_1")).toBe("github:github.com:583231");
-
-    await deleteOrderIndex(kv, "order_1");
-    expect(await getOrderIndex(kv, "order_1")).toBeNull();
   });
 
   it("returns null for an order id that was never issued", async () => {

@@ -13,10 +13,12 @@
  * provider's stable numeric id, never the login — logins get renamed, and this
  * value has to still resolve at restore time a year later.
  *
- * Reading the index and deleting it are separate calls on purpose. /activate
- * has fallible work to do between the two — a KV read and a signature — and
- * deleting up front would burn the customer's one activation link on any
- * failure, with no way to reissue it (/restore is still a stub).
+ * The webhook writes the order index without an expiry; /activate re-puts it
+ * with a short TTL once a token has actually been signed. Strict single-use
+ * (delete after first render) was tried and rejected: it stranded any buyer
+ * who closed the tab before installing the app, with /restore still a stub
+ * and no way to reissue the link. Order ids are unguessable, so a bounded
+ * activation window gives up little.
  */
 export interface LicenseRecord {
   orderId: string;
@@ -49,9 +51,16 @@ export async function putLicense(
 export async function putOrderIndex(
   kv: KVNamespace,
   orderId: string,
-  subject: string
+  subject: string,
+  expirationTtlSeconds?: number
 ): Promise<void> {
-  await kv.put(orderIndexKey(orderId), subject);
+  await kv.put(
+    orderIndexKey(orderId),
+    subject,
+    expirationTtlSeconds === undefined
+      ? undefined
+      : { expirationTtl: expirationTtlSeconds }
+  );
 }
 
 export function getOrderIndex(
@@ -59,11 +68,4 @@ export function getOrderIndex(
   orderId: string
 ): Promise<string | null> {
   return kv.get(orderIndexKey(orderId));
-}
-
-export async function deleteOrderIndex(
-  kv: KVNamespace,
-  orderId: string
-): Promise<void> {
-  await kv.delete(orderIndexKey(orderId));
 }
