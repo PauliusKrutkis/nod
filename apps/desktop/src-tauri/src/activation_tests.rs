@@ -61,6 +61,24 @@ fn preflight_gets_the_private_network_opt_in() {
 }
 
 #[test]
+fn purchase_token_reads_only_the_purchase_deep_link() {
+    let parse = |s: &str| url::Url::parse(s).unwrap();
+    assert_eq!(
+        super::purchase_token(&parse("prflow://purchase?token=abc")),
+        Some("abc".to_string())
+    );
+    assert_eq!(super::purchase_token(&parse("prflow://purchase")), None);
+    assert_eq!(
+        super::purchase_token(&parse("prflow://pr/acme/rocket/1?token=abc")),
+        None
+    );
+    assert_eq!(
+        super::purchase_token(&parse("https://purchase?token=abc")),
+        None
+    );
+}
+
+#[test]
 fn an_unknown_path_is_a_404() {
     let (token, response) = roundtrip("GET /favicon.ico HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
     assert_eq!(token, None);

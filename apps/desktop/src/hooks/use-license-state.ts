@@ -12,6 +12,11 @@ import type { LicenseState } from "../types.ts";
  * yesterday's count all session. `setLicenseState` is for the activation
  * flow, whose backend response is already the authoritative persisted state
  * — writing it into the cache beats refetching the same file.
+ *
+ * Focus always refetches (ignoring staleness): a prflow:// deep-link
+ * activation happens entirely in Rust and ends by focusing the window, so
+ * the focus refetch is what flips the UI — no event plumbing needed for a
+ * read this cheap.
  */
 
 const RECHECK_MS = 60 * 60 * 1000;
@@ -21,6 +26,7 @@ export function useLicenseState(): LicenseState | undefined {
     queryFn: () => api.getLicenseState(),
     queryKey: queryKeys.licenseState,
     refetchInterval: RECHECK_MS,
+    refetchOnWindowFocus: "always",
     staleTime: RECHECK_MS,
   });
   return data;

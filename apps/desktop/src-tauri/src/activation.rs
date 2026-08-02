@@ -1,8 +1,8 @@
 //! Browser-brokered license activation. `activate_license` opens the checkout
 //! page, listens on a dedicated loopback port and waits for the activation
 //! token — either pushed automatically by the /activate success page's inline
-//! fetch, or delivered when the buyer presses its Open Nod button once the
-//! prflow:// deep link lands. The received token is verified offline
+//! fetch, or via the prflow:// deep link behind its Open Nod button
+//! (watch_deep_links below). The received token is verified offline
 //! (license::verify_license_token) and persisted; the command resolves to the
 //! new license state so the webview can flip without a refetch.
 //!
@@ -34,6 +34,7 @@ use std::net::{TcpListener, TcpStream};
 use std::time::{Duration, Instant};
 
 use tauri::AppHandle;
+use tauri_plugin_deep_link::DeepLinkExt;
 
 use crate::auth::{focus_main, open_in_browser, page, success_page, write_response};
 use crate::license::{self, LicenseState};
@@ -154,6 +155,48 @@ fn write_preflight_response(stream: &mut TcpStream) {
         "HTTP/1.1 204 No Content\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET\r\nAccess-Control-Allow-Private-Network: true\r\nConnection: close\r\n\r\n"
     );
     let _ = stream.flush();
+}
+
+/// Wires the prflow:// scheme: drains any URL the app was launched with
+/// (cold start via the activation page's Open Nod button), subscribes to
+/// URLs arriving while running, and best-effort registers the scheme at
+/// runtime for installs the bundler's metadata doesn't cover (dev builds,
+/// portable copies). Only `prflow://purchase?token=…` is understood today;
+/// other paths are reserved for the §11a "Open in Nod" extension and are
+/// ignored, never errors — a stray link must not pop dialogs.
+pub fn watch_deep_links(app: &AppHandle) {
+    let _ = app.deep_link().register_all();
+    if let Ok(Some(urls)) = app.deep_link().get_current() {
+        handle_deep_link_urls(app, &urls);
+    }
+    let handle = app.clone();
+    app.deep_link().on_open_url(move |event| {
+        handle_deep_link_urls(&handle, &event.urls());
+    });
+}
+
+fn handle_deep_link_urls(app: &AppHandle, urls: &[url::Url]) {
+    let Some(pubkey) = license::configured_pubkey() else {
+        return;
+    };
+    for url in urls {
+        let Some(token) = purchase_token(url) else {
+            continue;
+        };
+        if license::verify_license_token(&token, pubkey).is_some() {
+            let _ = license::store_license_token(app, &token);
+            focus_main(app);
+        }
+    }
+}
+
+fn purchase_token(url: &url::Url) -> Option<String> {
+    if url.scheme() != "prflow" || url.host_str() != Some("purchase") {
+        return None;
+    }
+    url.query_pairs()
+        .find(|(key, _)| key == "token")
+        .map(|(_, value)| value.into_owned())
 }
 
 #[cfg(test)]
