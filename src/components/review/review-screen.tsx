@@ -15,6 +15,13 @@
  * model that contains it has rebuilt — same instant, no-animation easing
  * keyboard row navigation already uses via `nudgeItemIntoView`.
  *
+ * READABLE_TEXT_SELECTOR is prose the user reads and copies but cannot edit
+ * (every Markdown render shares `.md`, plus the collapsed-thread preview).
+ * Occurrence handling must leave its caret alone: such text matches neither
+ * `.qf-row` nor `.qf-code`, so without the bail-out a click inside it fell
+ * through to the branch that clears the DOM selection whenever occurrence
+ * marks happen to be lit.
+ *
  * `activeThreadRef` — the thread `r`/`x`/`z`/`shift+e` act on — is written by
  * both hover and the cursor, so mouse-leave cannot simply null it: the cursor
  * may be parked on a comment block, and `q` scrolls threads out from under a
@@ -686,6 +693,8 @@ function stepToNeighbourOccurrence(
 const EDITABLE_SURFACE_SELECTOR =
   'input, textarea, [contenteditable="true"], .qa-editor';
 
+const READABLE_TEXT_SELECTOR = ".md, .qf-resolved-snip";
+
 /**
  * A plain click marks the word under the pointer; mod+click walks from it to the
  * next occurrence instead. Multi-click clicks are left alone so the browser's own
@@ -713,7 +722,10 @@ function handleOccPointerClick(
     return;
   }
   const target = e.target instanceof Element ? e.target : null;
-  if (target?.closest(EDITABLE_SURFACE_SELECTOR)) {
+  if (
+    target?.closest(EDITABLE_SURFACE_SELECTOR) ||
+    target?.closest(READABLE_TEXT_SELECTOR)
+  ) {
     return;
   }
   const domSel = window.getSelection();

@@ -980,7 +980,14 @@ only format the in-app updater touches.
       implied (Edit and Delete self-hide when their handler is `undefined`).
       Extracted `copyTextToClipboard` to `src/lib/clipboard.ts`, replacing
       the private copy in `review-screen.tsx`.
-- [ ] 🟢 **Comment text selection is cancelled by the occurrence handler** —
+- [x] 🟢 **Comment text selection is cancelled by the occurrence handler** —
+      **done**; `handleOccPointerClick` now bails out on `.md` (every
+      Markdown surface, comment bodies included) and `.qf-resolved-snip`
+      alongside the editable surfaces. A comment body
+      matches neither `.qf-row` nor `.qf-code`, so a click inside one fell
+      through to the branch that clears the DOM selection whenever occurrence
+      marks happen to be lit — killing the caret. Original text below.
+- [ ] ~~🟢 **Comment text selection is cancelled by the occurrence handler**~~ —
       the other half of the old "Copy comment text" item, and a separate
       root cause: `handleOccPointerClick` (`review-screen.tsx`) calls
       `window.getSelection()?.removeAllRanges()`, and its bail-outs cover

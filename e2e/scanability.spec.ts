@@ -1,4 +1,5 @@
 import { setupApp } from "./bridge.ts";
+import { tokenCenter } from "./dom.ts";
 import { expect, test } from "./test.ts";
 import type { Page } from "./types.ts";
 
@@ -6,41 +7,6 @@ const QF_LVL_ONE = /--qf-lvl:\s*1/;
 const SUBMIT_OR_REVIEW = /Submit review|Review/;
 const SIDEBAR_OPEN = /qf-sidebar-open/;
 const SIDEBAR_WIDTH_PX = 300;
-
-/**
- * Viewport-centre of `token`'s first occurrence within a real (non-hunk) diff
- * code line of file section `section` (same helper as occurrences.spec.ts).
- */
-async function tokenCenter(page: Page, section: number, token: string) {
-  const rect = await page.evaluate(
-    ({ section: fileSection, token: wordToken }) => {
-      const codes = document.querySelectorAll(
-        `.qf-row[data-file-index="${fileSection}"]:not(.qf-row-hunk) .qf-code`
-      );
-      for (const code of codes) {
-        const walker = document.createTreeWalker(code, NodeFilter.SHOW_TEXT);
-        while (walker.nextNode()) {
-          const node = walker.currentNode as Text;
-          const i = node.data.indexOf(wordToken);
-          if (i === -1) {
-            continue;
-          }
-          const range = document.createRange();
-          range.setStart(node, i);
-          range.setEnd(node, i + wordToken.length);
-          const r = range.getBoundingClientRect();
-          return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
-        }
-      }
-      return null;
-    },
-    { section, token }
-  );
-  if (!rect) {
-    throw new Error(`token not found in diff: ${token}`);
-  }
-  return rect;
-}
 
 /** Single-click a token (settling the hover first, like a real pointer). */
 async function clickToken(page: Page, section: number, token: string) {
