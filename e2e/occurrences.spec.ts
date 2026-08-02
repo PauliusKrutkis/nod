@@ -1,5 +1,5 @@
 import { setupApp } from "./bridge.ts";
-import { tokenCenter } from "./dom.ts";
+import { dblclickToken, tokenCenter } from "./dom.ts";
 import { expect, test } from "./test.ts";
 import type { Page } from "./types.ts";
 
@@ -11,13 +11,6 @@ test.beforeEach(async ({ page }) => {
   await page.keyboard.press("Enter");
   await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
 });
-
-async function dblclickToken(page: Page, section: number, token: string) {
-  const { x, y } = await tokenCenter(page, section, token);
-  await page.mouse.move(x, y);
-  await page.waitForTimeout(100);
-  await page.mouse.dblclick(x, y);
-}
 
 /** Programmatically select `text` inside a diff code line (fires selectionchange). */
 async function selectInCode(page: Page, section: number, text: string) {

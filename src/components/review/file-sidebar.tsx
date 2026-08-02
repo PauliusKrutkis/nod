@@ -70,9 +70,9 @@ function readTreeMode(): boolean {
   }
 }
 
-function persistTreeMode(tree: boolean): void {
+function persistTreeMode(isTree: boolean): void {
   try {
-    localStorage.setItem(TREE_MODE_KEY, tree ? "tree" : "flat");
+    localStorage.setItem(TREE_MODE_KEY, isTree ? "tree" : "flat");
   } catch {
     /* ignore */
   }
@@ -154,7 +154,12 @@ export function FileSidebar({
     ? flattenTree(tree, collapsed)
     : files.map((file, index) => ({
         depth: 0,
-        node: { file, index, kind: "file" as const, name: file.filename },
+        node: {
+          file,
+          index,
+          kind: "file" as const,
+          name: splitPath(file.filename).base,
+        },
       }));
 
   const toggleMode = () => {
@@ -217,7 +222,6 @@ export function FileSidebar({
               aria-label={
                 treeMode ? "Show a flat file list" : "Show a file tree"
               }
-              aria-pressed={treeMode}
               className="qf-side-mode qf-focusable"
               onClick={toggleMode}
               type="button"
@@ -238,6 +242,7 @@ export function FileSidebar({
               const isCollapsed = collapsed.has(node.path);
               return (
                 <button
+                  aria-expanded={!isCollapsed}
                   className="qf-file qf-file-dirrow qf-focusable"
                   data-dir-path={node.path}
                   key={`dir:${node.path}`}
@@ -259,7 +264,7 @@ export function FileSidebar({
             }
             const { file, index } = node;
             const glyph = glyphFor(file.status);
-            const { dir, base } = splitPath(file.filename);
+            const { dir } = splitPath(file.filename);
             const on = index === selectedIndex;
             const isViewed = viewedSet.has(file.filename);
             const threads = threadCounts.get(file.filename) ?? 0;
@@ -288,9 +293,7 @@ export function FileSidebar({
                 </span>
                 <span className="qf-file-name">
                   {!treeMode && <span className="qf-file-dir">{dir}</span>}
-                  <span className="qf-file-base">
-                    {treeMode ? node.name : base}
-                  </span>
+                  <span className="qf-file-base">{node.name}</span>
                 </span>
                 <span className="qf-file-meta">
                   {changed.has(file.filename) && (

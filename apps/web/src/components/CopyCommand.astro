@@ -1,4 +1,13 @@
 ---
+/**
+ * Progressive enhancement: the commands are selectable text without JS; the
+ * client script just adds one-click copy. Both outcomes report through the
+ * same call, so the icon state and the announced text can't drift apart — and
+ * the failed state un-hides the status line, since a blocked clipboard is
+ * otherwise invisible to anyone who can see the button. Astro bundles the
+ * script once no matter how many times the component is used on a page.
+ */
+
 interface Props {
   commands: string[];
   label?: string;
@@ -42,12 +51,6 @@ const { commands, label = "Copy install commands" } = Astro.props;
 </div>
 
 <script>
-  // Progressive enhancement: the commands are selectable text without JS; this
-  // just adds one-click copy. Both outcomes report through the same call, so
-  // the icon state and the announced text can't drift apart — and the failed
-  // state un-hides the status line, since a blocked clipboard is otherwise
-  // invisible to anyone who can see the button. Astro bundles this once no
-  // matter how many times the component is used on a page.
   const COPIED_MS = 1400;
   const FAILED_MS = 5000;
 
@@ -56,7 +59,11 @@ const { commands, label = "Copy install commands" } = Astro.props;
     const status = box?.querySelector(".cmd__status");
     let resetTimer: ReturnType<typeof setTimeout>;
 
-    function report(state: string, message: string, holdMs: number) {
+    function report(
+      state: "copied" | "failed",
+      message: string,
+      holdMs: number
+    ) {
       if (box) box.dataset.copyState = state;
       if (status) status.textContent = message;
       clearTimeout(resetTimer);

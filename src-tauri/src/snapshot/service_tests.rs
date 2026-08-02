@@ -103,13 +103,38 @@ fn claim_is_refused_when_the_snapshot_is_already_on_disk() {
 
 #[test]
 fn registry_keys_separate_hosts_repos_and_shas() {
-    let a = key("sha1");
-    let b = key("sha2");
+    let root = temp_root("separate");
+    let a = key("separate-sha1");
+    let b = key("separate-sha2");
     let other_host = SnapshotKey {
         host: "https://gitlab.acme.dev".to_string(),
-        ..key("sha1")
+        ..key("separate-sha1")
     };
 
-    assert_ne!(registry_key(&a), registry_key(&b));
-    assert_ne!(registry_key(&a), registry_key(&other_host));
+    set_status(&a, SnapshotStatus::new(SnapshotState::Failed, "only a"));
+    assert_eq!(status(&root, &b).state, SnapshotState::Idle);
+    assert_eq!(status(&root, &other_host).state, SnapshotState::Idle);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn subgroup_owners_do_not_collide_with_plain_owners() {
+    let root = temp_root("subgroup");
+    let a = SnapshotKey {
+        host: "https://gitlab.acme.dev".to_string(),
+        owner: "team/platform".to_string(),
+        repo: "widget".to_string(),
+        sha: "subgroup-sha".to_string(),
+    };
+    let b = SnapshotKey {
+        host: "https://gitlab.acme.dev".to_string(),
+        owner: "team".to_string(),
+        repo: "platform/widget".to_string(),
+        sha: "subgroup-sha".to_string(),
+    };
+
+    set_status(&a, SnapshotStatus::new(SnapshotState::Failed, "only a"));
+    assert_eq!(status(&root, &b).state, SnapshotState::Idle);
+    assert_eq!(status(&root, &a).state, SnapshotState::Failed);
+    let _ = std::fs::remove_dir_all(&root);
 }

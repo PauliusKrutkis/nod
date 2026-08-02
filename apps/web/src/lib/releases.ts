@@ -26,6 +26,12 @@
  * commit would otherwise sort ahead of the release that actually shipped
  * last, and the page presents releases[0] as "latest".
  *
+ * The page renders every note of every release it is handed, so the release
+ * list is capped rather than rendered whole — the fetch returns up to a
+ * hundred, and each one costs a few kilobytes of HTML that ships whether or
+ * not its <details> is ever opened. limitHistory reports what was dropped so
+ * the page can link out instead of silently truncating.
+ *
  * A failed fetch throws rather than degrading to an empty page: Cloudflare
  * Pages keeps the previous deploy live when a build fails, which is a better
  * outcome than silently publishing a downloads page with no downloads. The
@@ -161,6 +167,15 @@ export function pickDownloads(assets: ReleaseAsset[]): Download[] {
   return downloads;
 }
 
+export interface ReleaseHistory {
+  shown: Release[];
+  hasMore: boolean;
+}
+
+export function limitHistory(older: Release[], limit: number): ReleaseHistory {
+  return { shown: older.slice(0, limit), hasMore: older.length > limit };
+}
+
 export interface PlatformGroup {
   platform: Platform;
   primary: Download;
@@ -228,7 +243,8 @@ export async function fetchReleases(): Promise<Release[]> {
         "Set GITHUB_TOKEN in the build environment if this is a rate limit."
     );
   }
-  return assertInstallable(toReleases(await response.json()));
+  const payload: ApiRelease[] = await response.json();
+  return assertInstallable(toReleases(payload));
 }
 
 export function assertInstallable(releases: Release[]): Release[] {

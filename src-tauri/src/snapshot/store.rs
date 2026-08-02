@@ -37,7 +37,7 @@ const SNAPSHOTS_DIR: &str = "snapshots";
 const PARTIAL_SUFFIX: &str = ".partial";
 const DISCARD_SUFFIX: &str = ".discard";
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SnapshotKey {
     pub host: String,
     pub owner: String,
@@ -122,6 +122,14 @@ pub fn read_file(root: &Path, key: &SnapshotKey, path: &str) -> Option<Vec<u8>> 
         return None;
     }
     fs::read(target).ok()
+}
+
+/// Size of a file inside a finished snapshot, without reading it. Lets a caller
+/// with a size cap reject an oversized blob before pulling it through memory.
+pub fn file_size(root: &Path, key: &SnapshotKey, path: &str) -> Option<u64> {
+    let target = safe_join(&snapshot_dir(root, key), path)?;
+    let meta = fs::metadata(target).ok()?;
+    meta.is_file().then_some(meta.len())
 }
 
 /// Replaces any existing snapshot at `key` with the staged `.partial`

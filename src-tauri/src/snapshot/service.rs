@@ -15,7 +15,14 @@
 //! Failure is never fatal and never retried in a loop: a `Failed` or `Skipped`
 //! key stays that way until the app restarts or the head SHA moves. Callers
 //! fall back to the on-demand blob path, which is exactly today's behaviour, so
-//! the worst outcome of every error here is "no faster than before".
+//! the worst outcome of every error here is "no faster than before". A panic in
+//! the download task must not leave its key stuck at `Downloading` either, so
+//! the task holds a `PanicGuard` that records `Failed` on drop unless the
+//! normal status write disarmed it first.
+//!
+//! The registry is keyed by `SnapshotKey` itself, not a formatted string: a
+//! GitLab subgroup owner contains `/`, so `{owner}/{repo}` strings are
+//! ambiguous. The formatted form exists only for log lines.
 //!
 //! An extraction that yields zero files is treated as a failure rather than an
 //! empty snapshot. The likeliest cause is a host whose archive isn't shaped the
@@ -62,18 +69,39 @@ impl SnapshotStatus {
     }
 }
 
-fn registry() -> &'static Mutex<HashMap<String, SnapshotStatus>> {
-    static REGISTRY: OnceLock<Mutex<HashMap<String, SnapshotStatus>>> = OnceLock::new();
+fn registry() -> &'static Mutex<HashMap<SnapshotKey, SnapshotStatus>> {
+    static REGISTRY: OnceLock<Mutex<HashMap<SnapshotKey, SnapshotStatus>>> = OnceLock::new();
     REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-fn registry_key(key: &SnapshotKey) -> String {
+fn log_key(key: &SnapshotKey) -> String {
     format!("{}/{}/{}@{}", key.host, key.owner, key.repo, key.sha)
 }
 
 fn set_status(key: &SnapshotKey, status: SnapshotStatus) {
     if let Ok(mut map) = registry().lock() {
-        map.insert(registry_key(key), status);
+        map.insert(key.clone(), status);
+    }
+}
+
+struct PanicGuard {
+    key: Option<SnapshotKey>,
+}
+
+impl PanicGuard {
+    fn disarm(&mut self) {
+        self.key = None;
+    }
+}
+
+impl Drop for PanicGuard {
+    fn drop(&mut self) {
+        if let Some(key) = self.key.take() {
+            set_status(
+                &key,
+                SnapshotStatus::new(SnapshotState::Failed, "snapshot task panicked"),
+            );
+        }
     }
 }
 
@@ -86,7 +114,7 @@ pub fn status(root: &std::path::Path, key: &SnapshotKey) -> SnapshotStatus {
     registry()
         .lock()
         .ok()
-        .and_then(|map| map.get(&registry_key(key)).cloned())
+        .and_then(|map| map.get(key).cloned())
         .unwrap_or_else(|| SnapshotStatus::new(SnapshotState::Idle, ""))
 }
 
@@ -107,11 +135,11 @@ fn claim(root: &std::path::Path, key: &SnapshotKey) -> Result<(), SnapshotStatus
             "snapshot registry unavailable",
         ));
     };
-    if let Some(existing) = map.get(&registry_key(key)) {
+    if let Some(existing) = map.get(key) {
         return Err(existing.clone());
     }
     map.insert(
-        registry_key(key),
+        key.clone(),
         SnapshotStatus::new(SnapshotState::Downloading, ""),
     );
     Ok(())
@@ -129,12 +157,15 @@ pub fn ensure(app: &AppHandle, key: SnapshotKey) -> SnapshotStatus {
 
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
+        let mut guard = PanicGuard {
+            key: Some(key.clone()),
+        };
         let outcome = run(&app, &key).await;
         let status = match outcome {
             Ok(Some(stats)) => {
                 log(&format!(
                     "snapshot ready {} ({} files, {} KB)",
-                    registry_key(&key),
+                    log_key(&key),
                     stats.files,
                     stats.bytes / 1024
                 ));
@@ -142,29 +173,38 @@ pub fn ensure(app: &AppHandle, key: SnapshotKey) -> SnapshotStatus {
             }
             Ok(None) => SnapshotStatus::new(SnapshotState::Skipped, "repository is too large"),
             Err(e) => {
-                log(&format!("snapshot failed {}: {e}", registry_key(&key)));
+                log(&format!("snapshot failed {}: {e}", log_key(&key)));
                 SnapshotStatus::new(SnapshotState::Failed, &e)
             }
         };
         set_status(&key, status);
+        guard.disarm();
     });
     SnapshotStatus::new(SnapshotState::Downloading, "")
 }
 
 /// `Ok(None)` means deliberately skipped — a repo too large to be worth
 /// mirroring — as opposed to `Err`, which means something went wrong.
+///
+/// The active account is resolved here, after the claim; if the user switched
+/// accounts since the key was built, its host no longer matches and the
+/// download bails rather than fetching from the wrong host and storing the
+/// result under the old key.
 async fn run(
     app: &AppHandle,
     key: &SnapshotKey,
 ) -> Result<Option<super::extract::ExtractStats>, String> {
     let root = storage::cache_dir(app)?;
-    let (_, platform) = accounts::active_platform(app).await?;
+    let (account, platform) = accounts::active_platform(app).await?;
+    if account.host != key.host {
+        return Err("active account changed before the download started".to_string());
+    }
 
     let size_kb = platform.repo_size_kb(&key.owner, &key.repo).await?;
     if size_kb > MAX_REPO_SIZE_KB {
         log(&format!(
             "snapshot skipped {} ({} MB repo)",
-            registry_key(key),
+            log_key(key),
             size_kb / 1024
         ));
         return Ok(None);
@@ -172,28 +212,45 @@ async fn run(
 
     let archive = platform.archive(&key.owner, &key.repo, &key.sha).await?;
 
-    store::discard_partial(&root, key);
-    let staging = store::partial_dir(&root, key);
+    let blocking_key = key.clone();
+    let stats = tauri::async_runtime::spawn_blocking(move || {
+        extract_and_promote(&root, &blocking_key, &archive)
+    })
+    .await
+    .map_err(|e| format!("snapshot extraction task failed: {e}"))??;
+    Ok(Some(stats))
+}
+
+/// Runs on a blocking thread: gzip inflation, up to a gigabyte of synchronous
+/// file writes, and the eviction tree walks would otherwise stall a tokio
+/// worker.
+fn extract_and_promote(
+    root: &std::path::Path,
+    key: &SnapshotKey,
+    archive: &[u8],
+) -> Result<super::extract::ExtractStats, String> {
+    store::discard_partial(root, key);
+    let staging = store::partial_dir(root, key);
     std::fs::create_dir_all(&staging)
         .map_err(|e| format!("could not create snapshot directory: {e}"))?;
 
-    let stats = match extract_tar_gz(&archive, &staging) {
+    let stats = match extract_tar_gz(archive, &staging) {
         Ok(stats) => stats,
         Err(e) => {
-            store::discard_partial(&root, key);
+            store::discard_partial(root, key);
             return Err(e);
         }
     };
 
     if stats.files == 0 {
-        store::discard_partial(&root, key);
+        store::discard_partial(root, key);
         return Err("archive contained no files".to_string());
     }
 
-    store::promote(&root, key)?;
-    store::evict_repo(&root, key, KEEP_SHAS_PER_REPO);
-    store::evict_global(&root, MAX_CACHE_BYTES);
-    Ok(Some(stats))
+    store::promote(root, key)?;
+    store::evict_repo(root, key, KEEP_SHAS_PER_REPO);
+    store::evict_global(root, MAX_CACHE_BYTES);
+    Ok(stats)
 }
 
 #[cfg(test)]

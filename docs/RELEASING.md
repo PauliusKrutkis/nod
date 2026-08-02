@@ -272,7 +272,14 @@ release does not update the page.** Cloudflare Pages rebuilds on git push, so
 without a nudge the page keeps serving the previous release until an
 unrelated commit lands. The nudge is a Cloudflare **deploy hook** —
 Workers & Pages → the project → Settings → Builds → Deploy hooks — stored as
-`CF_PAGES_DEPLOY_HOOK` and POSTed by step 9 of the `release` skill.
+`CF_PAGES_DEPLOY_HOOK` and POSTed by the "Refresh the downloads page" step of
+the `release` skill.
+
+The hook URL lives in the password manager and must be exported as
+`CF_PAGES_DEPLOY_HOOK` in the shell before running the release skill — it is
+deliberately **not** a GitHub secret, because the skill runs locally, not in
+CI. Without the export the skill's "not set — skipping" branch fires every
+release and the page silently stops updating.
 
 It fires from the skill rather than from `release.yml` on purpose:
 `release.yml` publishes with the placeholder body and the curated notes are
