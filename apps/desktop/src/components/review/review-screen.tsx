@@ -46,6 +46,8 @@ import {
 } from "../../hooks/use-file-expansion.ts";
 import { useInboxDetailNudge } from "../../hooks/use-inbox-detail-nudge.ts";
 import { useLatest } from "../../hooks/use-latest.ts";
+import { useOccLinkAffordance } from "../../hooks/use-occ-link-affordance.ts";
+import { useOccurrenceTracking } from "../../hooks/use-occurrence-tracking.ts";
 import { usePullRequestDetail } from "../../hooks/use-pull-request-detail.ts";
 import { useReviewFind } from "../../hooks/use-review-find.ts";
 import { useReviewHeadShaSync } from "../../hooks/use-review-head-sha-sync.ts";
@@ -55,18 +57,9 @@ import { copyTextToClipboard } from "../../lib/clipboard.ts";
 import { cn } from "../../lib/cn.ts";
 import {
   type CapturedSelection,
-  captureCodeSelection,
-  codeAtPoint,
-  isPastLineContent,
   type OccState,
-  occurrenceOriginFromDom,
-  occurrenceOriginFromPoint,
-  type PointerWord,
   restoreCodeSelection,
-  specFromDomSelection,
-  wordAtPoint,
 } from "../../lib/code-dom.ts";
-import { highlightRegistry } from "../../lib/custom-highlight.ts";
 import type { FindMatch } from "../../lib/find-in-diff.ts";
 import { warmHighlightCache } from "../../lib/highlight.ts";
 import { isImageFile } from "../../lib/image-file.ts";
@@ -105,11 +98,6 @@ import {
   updateReviewMemory,
 } from "../../lib/review-memory.ts";
 import {
-  buildOccNav,
-  type OccNav,
-  stepToNeighbourOccurrence,
-} from "../../lib/review-occurrences.ts";
-import {
   autoUnviewedKey,
   buildChangedSinceViewed,
   fingerprintFile,
@@ -145,11 +133,6 @@ import { ReviewVerdicts } from "./review-verdicts.tsx";
 import { RightPanel, type RightPanelHandle } from "./right-panel.tsx";
 import { SubmitReviewModal } from "./submit-review-modal.tsx";
 
-const FAST_CURSOR_STEP = 5;
-const OCC_LINK = "qf-occ-link";
-
-const isModKey = (key: string): boolean => key === "Meta" || key === "Control";
-
 /**
  * Full-screen PR review: a virtualized diff list, keyboard cursor, multi-line
  * selection, find-in-diff, and inline comment threads.
@@ -182,6 +165,8 @@ const isModKey = (key: string): boolean => key === "Meta" || key === "Control";
 interface ReviewScreenProps {
   routeKey: string;
 }
+
+const FAST_CURSOR_STEP = 5;
 
 const EMPTY_COMMENTS: ReviewComment[] = [];
 const EMPTY_PENDING: PendingComment[] = [];
@@ -336,302 +321,6 @@ function resolvePrStateLabel(pr: PullRequest): string {
     return "Open";
   }
   return pr.state;
-}
-
-const EDITABLE_SURFACE_SELECTOR =
-  'input, textarea, [contenteditable="true"], .qa-editor';
-
-const READABLE_TEXT_SELECTOR =
-  ".md, .qf-comment-head, .qf-thread-collapsed-lead";
-
-/**
- * A plain click marks the word under the pointer; mod+click walks from it to the
- * next occurrence instead. Multi-click clicks are left alone so the browser's own
- * word selection stands (see the file header).
- *
- * A click into an editable surface must not disturb its caret (composers
- * render inside rows, so they'd otherwise hit the removeAllRanges paths
- * below), and the click that ends a drag-select must not wipe the selection
- * it just made — selectionchange owns occurrence state for real selections.
- */
-function handleOccPointerClick(
-  e: MouseEvent,
-  refs: {
-    matchesForRef: React.RefObject<(spec: OccState) => OccurrenceMatch[]>;
-    occSpecRef: React.RefObject<OccState | null>;
-  },
-  occNav: OccNav,
-  commit: (
-    next: OccState | null,
-    origin?: { anchor: string; column: number } | null
-  ) => void
-): void {
-  const { matchesForRef, occSpecRef } = refs;
-  if (e.detail > 1) {
-    return;
-  }
-  const target = e.target instanceof Element ? e.target : null;
-  if (
-    target?.closest(EDITABLE_SURFACE_SELECTOR) ||
-    target?.closest(READABLE_TEXT_SELECTOR)
-  ) {
-    return;
-  }
-  const domSel = window.getSelection();
-  if (domSel && !domSel.isCollapsed) {
-    return;
-  }
-  const row = target?.closest(".qf-row:not(.qf-row-hunk)");
-  const code = codeAtPoint(e.clientX, e.clientY);
-  if (!(row || code)) {
-    if (occSpecRef.current) {
-      window.getSelection()?.removeAllRanges();
-      commit(null);
-    }
-    return;
-  }
-
-  if (
-    (e.metaKey || e.ctrlKey) &&
-    stepToNeighbourOccurrence(e, matchesForRef.current, occNav, commit)
-  ) {
-    return;
-  }
-
-  if (!code) {
-    window.getSelection()?.removeAllRanges();
-    commit(null);
-    return;
-  }
-
-  window.getSelection()?.removeAllRanges();
-  const clickOrigin = occurrenceOriginFromPoint(e.clientX, e.clientY);
-  if (isPastLineContent(code, e.clientX, e.clientY)) {
-    commit(null);
-    return;
-  }
-  const word = wordAtPoint(e.clientX, e.clientY);
-  if (!word) {
-    commit(null);
-    return;
-  }
-  commit(word.spec, clickOrigin);
-}
-
-function useOccurrenceTracking(refs: {
-  closeFindRef: React.RefObject<() => void>;
-  findOpenRef: React.RefObject<boolean>;
-  matchesForRef: React.RefObject<(spec: OccState) => OccurrenceMatch[]>;
-  occMatchListRef: React.RefObject<OccurrenceMatch[]>;
-  occNavRef: React.RefObject<number>;
-  occOriginRef: React.RefObject<{ anchor: string; column: number } | null>;
-  occRestoreRef: React.RefObject<CapturedSelection | null>;
-  occSpecRef: React.RefObject<OccState | null>;
-  selectLineRef: React.RefObject<
-    (
-      fileIndex: number,
-      anchor: string,
-      opts?: { keepOccurrences?: boolean; nudge?: boolean }
-    ) => void
-  >;
-  setOccSpec: (next: OccState | null) => void;
-}): void {
-  const {
-    closeFindRef,
-    findOpenRef,
-    matchesForRef,
-    occMatchListRef,
-    occNavRef,
-    occOriginRef,
-    occRestoreRef,
-    occSpecRef,
-    selectLineRef,
-    setOccSpec,
-  } = refs;
-
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const occNav = buildOccNav({
-      occMatchListRef,
-      occNavRef,
-      occOriginRef,
-      occSpecRef,
-      selectLineRef,
-    });
-
-    function commit(
-      next: OccState | null,
-      origin?: { anchor: string; column: number } | null
-    ) {
-      const prev = occSpecRef.current;
-      occOriginRef.current = next
-        ? (origin ?? occurrenceOriginFromDom())
-        : null;
-      occNavRef.current = -1;
-      if (
-        prev &&
-        next &&
-        prev.query === next.query &&
-        prev.wholeWord === next.wholeWord &&
-        prev.fileIndex === next.fileIndex
-      ) {
-        return;
-      }
-      if (prev === next) {
-        return;
-      }
-      if (next && findOpenRef.current) {
-        closeFindRef.current();
-      }
-      occRestoreRef.current = captureCodeSelection();
-      setOccSpec(next);
-    }
-
-    function apply() {
-      timer = null;
-      const sel = window.getSelection();
-      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
-        return;
-      }
-      commit(specFromDomSelection());
-    }
-
-    function onSelectionChange() {
-      if (timer !== null) {
-        clearTimeout(timer);
-      }
-      timer = setTimeout(apply, 150);
-    }
-
-    function onOccClick(e: MouseEvent) {
-      if (timer !== null) {
-        clearTimeout(timer);
-        timer = null;
-      }
-      handleOccPointerClick(e, { matchesForRef, occSpecRef }, occNav, commit);
-    }
-
-    document.addEventListener("selectionchange", onSelectionChange);
-    document.addEventListener("click", onOccClick);
-    return () => {
-      document.removeEventListener("selectionchange", onSelectionChange);
-      document.removeEventListener("click", onOccClick);
-      if (timer !== null) {
-        clearTimeout(timer);
-      }
-    };
-  }, [
-    closeFindRef,
-    findOpenRef,
-    matchesForRef,
-    occMatchListRef,
-    occNavRef,
-    occOriginRef,
-    occRestoreRef,
-    occSpecRef,
-    selectLineRef,
-    setOccSpec,
-  ]);
-}
-
-/**
- * Underlines whichever word the pointer is on while the mod key is held, so
- * mod+click advertises itself the way it does in an editor.
- *
- * The word usually has no element of its own to style — mod+click works on any
- * identifier, not just the marked ones — so this paints through the Custom
- * Highlight API, which styles a Range without touching the DOM React owns. Rows
- * are never re-rendered for it: repainting a code line on every pointer move is
- * the kind of work this screen is built to avoid, and a stale <mark> layer would
- * fight the occurrence marks for the same text. Where the API is missing the
- * gesture still works, it just goes unadvertised.
- *
- * A painted Range is only as durable as the text nodes under it, and both a
- * click (the row it lands on repaints its marks) and a scroll (Virtuoso recycles
- * rows) replace those out from under it, collapsing the paint to nothing while
- * the pointer never moved. So the Range is re-registered on every repaint rather
- * than diffed against the last one, and a click or scroll schedules a repaint on
- * the next frame — by which time React has committed and the word under the
- * pointer may legitimately be a different one. Recomputing measured at ~0.01ms.
- *
- * It tracks the pointer itself instead of borrowing the screen's lastPointRef,
- * which is not a live position — isRealPointer deliberately leaves it stale
- * while the keyboard holds the cursor. Listening on the document also means
- * leaving the diff clears the paint, which a listener on the list would miss.
- */
-function useOccLinkAffordance(): void {
-  useEffect(() => {
-    const registry = highlightRegistry();
-    let held = false;
-    let at: { x: number; y: number } | null = null;
-    let painted = false;
-
-    const paint = (word: PointerWord | null) => {
-      if (!word) {
-        if (painted) {
-          painted = false;
-          document.body.classList.remove(OCC_LINK);
-          registry?.delete(OCC_LINK);
-        }
-        return;
-      }
-      painted = true;
-      document.body.classList.add(OCC_LINK);
-      registry?.set(OCC_LINK, new Highlight(word.range));
-    };
-    const repaint = () => {
-      paint(held && at ? wordAtPoint(at.x, at.y) : null);
-    };
-    let frame: number | null = null;
-    const repaintNextFrame = () => {
-      if (frame === null) {
-        frame = requestAnimationFrame(() => {
-          frame = null;
-          repaint();
-        });
-      }
-    };
-
-    const onMouseMove = (e: MouseEvent) => {
-      at = { x: e.clientX, y: e.clientY };
-      repaint();
-    };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (isModKey(e.key) && !held) {
-        held = true;
-        repaint();
-      }
-    };
-    const onKeyUp = (e: KeyboardEvent) => {
-      if (isModKey(e.key)) {
-        held = false;
-        repaint();
-      }
-    };
-    const clear = () => {
-      held = false;
-      repaint();
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keyup", onKeyUp);
-    window.addEventListener("blur", clear);
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("click", repaintNextFrame);
-    document.addEventListener("scroll", repaintNextFrame, true);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
-      window.removeEventListener("blur", clear);
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("click", repaintNextFrame);
-      document.removeEventListener("scroll", repaintNextFrame, true);
-      if (frame !== null) {
-        cancelAnimationFrame(frame);
-      }
-      clear();
-    };
-  }, []);
 }
 
 function isRealPointer(
