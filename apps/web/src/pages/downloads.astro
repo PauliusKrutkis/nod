@@ -3,7 +3,12 @@ import CopyCommand from "../components/CopyCommand.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteNav from "../components/SiteNav.astro";
 import Base from "../layouts/Base.astro";
-import { fetchReleases, formatDate, groupByPlatform } from "../lib/releases";
+import {
+  fetchReleases,
+  formatDate,
+  groupByPlatform,
+  limitHistory,
+} from "../lib/releases";
 import {
   BREW_INSTALL_COMMANDS,
   INSTALL_NOTES_URL,
@@ -16,9 +21,7 @@ const [latest, ...older] = await fetchReleases();
 
 const groups = groupByPlatform(latest.downloads);
 
-const history = older.slice(0, VISIBLE_HISTORY_COUNT);
-
-const hasOlderStillOnGitHub = older.length > VISIBLE_HISTORY_COUNT;
+const history = limitHistory(older, VISIBLE_HISTORY_COUNT);
 ---
 
 <Base
@@ -130,10 +133,10 @@ const hasOlderStillOnGitHub = older.length > VISIBLE_HISTORY_COUNT;
       }
 
       {
-        history.length > 0 && (
+        history.shown.length > 0 && (
           <div class="vers__older">
             <p class="vers__older-head">Previous releases</p>
-            {history.map((release) => (
+            {history.shown.map((release) => (
               <details class="vers__item">
                 <summary class="vers__summary">
                   <span class="mono vers__tag">{release.tag}</span>
@@ -158,7 +161,7 @@ const hasOlderStillOnGitHub = older.length > VISIBLE_HISTORY_COUNT;
                 </div>
               </details>
             ))}
-            {hasOlderStillOnGitHub && (
+            {history.hasMore && (
               <a class="vers__all" href={`${REPO_URL}/releases`}>
                 Every release on GitHub →
               </a>
