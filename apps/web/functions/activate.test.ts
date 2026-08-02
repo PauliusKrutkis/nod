@@ -120,6 +120,7 @@ describe("GET /activate", () => {
 
     const html = await response.text();
     const token = html.match(DEEP_LINK_PATTERN)?.[1]?.split("token=")[1];
+    expect(token).toBeTruthy();
     expect(html).toContain(
       `http://127.0.0.1:8766/callback?token=${token ?? ""}`
     );

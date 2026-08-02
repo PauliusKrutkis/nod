@@ -21,6 +21,13 @@
 //! The checkout URL is compile-time (`NOD_CHECKOUT_URL`) like the OAuth
 //! secrets; without it — every dev build until a merchant account exists —
 //! the command fails fast with a clear message instead of opening a browser.
+//!
+//! Accepted streams get a short read timeout: a connection that sends
+//! nothing (port scanner, endpoint-security probe) must not park the wait
+//! thread in read() forever — it drops back into the accept loop instead.
+//! The overall window is 30 minutes because it spans the whole checkout,
+//! card entry and 3-D Secure included, and the timeout copy points a buyer
+//! who already paid at the still-valid receipt page, never at Buy again.
 
 use std::io::Read;
 use std::net::{TcpListener, TcpStream};
@@ -33,7 +40,8 @@ use crate::license::{self, LicenseState};
 
 const PURCHASE_PORT: u16 = 8766;
 const CHECKOUT_URL: Option<&str> = option_env!("NOD_CHECKOUT_URL");
-const WAIT_LIMIT: Duration = Duration::from_secs(600);
+const WAIT_LIMIT: Duration = Duration::from_secs(30 * 60);
+const READ_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[tauri::command]
 pub async fn activate_license(app: AppHandle) -> Result<LicenseState, String> {
@@ -42,8 +50,10 @@ pub async fn activate_license(app: AppHandle) -> Result<LicenseState, String> {
     let pubkey = license::configured_pubkey()
         .ok_or_else(|| "License verification isn't configured in this build.".to_string())?;
 
-    let listener = TcpListener::bind(("127.0.0.1", PURCHASE_PORT)).map_err(|e| {
-        format!("Couldn't start the local activation listener on port {PURCHASE_PORT}: {e}")
+    let listener = TcpListener::bind(("127.0.0.1", PURCHASE_PORT)).map_err(|_| {
+        "Activation is already waiting in another window — finish checkout there, \
+         or restart Nod if this keeps happening."
+            .to_string()
     })?;
     open_in_browser(checkout_url)?;
 
@@ -62,11 +72,16 @@ fn wait_for_token(listener: TcpListener, pubkey: &str) -> Result<String, String>
 
     loop {
         if Instant::now() > deadline {
-            return Err("Activation timed out. Press Buy again after checkout.".to_string());
+            return Err(
+                "Activation timed out. If you already paid, reopen the receipt page — \
+                 the activation link works for 48 hours."
+                    .to_string(),
+            );
         }
         match listener.accept() {
             Ok((mut stream, _)) => {
                 stream.set_nonblocking(false).ok();
+                stream.set_read_timeout(Some(READ_TIMEOUT)).ok();
                 match handle_connection(&mut stream, pubkey) {
                     Some(token) => return Ok(token),
                     None => continue,

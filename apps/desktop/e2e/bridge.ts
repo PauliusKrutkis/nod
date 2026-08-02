@@ -83,6 +83,7 @@ export async function setupApp(page: Page, opts: AppOptions = {}) {
     const handlers: Record<string, (args: Record<string, unknown>) => unknown> =
       {
         activate_license: () => {
+          countCall("activate_license");
           if (cfg.activateLicense === "hang") {
             return new Promise(() => {
               /* intentionally pending */

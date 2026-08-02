@@ -1,6 +1,9 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRound } from "lucide-react";
 import { useState } from "react";
+import {
+  useLicenseState,
+  useSetLicenseState,
+} from "../hooks/use-license-state.ts";
 import { api } from "../lib/api.ts";
 
 /**
@@ -11,19 +14,18 @@ import { api } from "../lib/api.ts";
  * the activation listener receives a verified token, so success lands here
  * as the resolved license state and is written straight into the shared
  * license-state query — the card and the trial badge both flip without a
- * refetch. Dismissal is per-launch (plain state), matching UpdatePrompt.
+ * refetch. Later stays enabled during the wait (checkout can take many
+ * minutes, and abandoning it must not trap the card on screen); a dismissed
+ * card's pending activation still resolves into the shared query. Dismissal
+ * is per-launch (plain state), matching UpdatePrompt.
  */
 
 export function PurchasePrompt() {
   const [dismissed, setDismissed] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const queryClient = useQueryClient();
-
-  const { data: license } = useQuery({
-    queryFn: () => api.getLicenseState(),
-    queryKey: ["license-state"],
-  });
+  const license = useLicenseState();
+  const setLicenseState = useSetLicenseState();
 
   if (dismissed || license?.status !== "trialExpired") {
     return null;
@@ -33,8 +35,7 @@ export function PurchasePrompt() {
     setPurchasing(true);
     setError(null);
     try {
-      const activated = await api.activateLicense();
-      queryClient.setQueryData(["license-state"], activated);
+      setLicenseState(await api.activateLicense());
     } catch (e) {
       setError(String(e));
     } finally {
@@ -66,7 +67,6 @@ export function PurchasePrompt() {
           </button>
           <button
             className="qb-update-later"
-            disabled={purchasing}
             onClick={() => setDismissed(true)}
             type="button"
           >

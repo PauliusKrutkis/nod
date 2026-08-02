@@ -327,6 +327,7 @@ fn wait_for_code(listener: TcpListener, expected_state: &str) -> Result<String, 
         match listener.accept() {
             Ok((mut stream, _)) => {
                 stream.set_nonblocking(false).ok();
+                stream.set_read_timeout(Some(Duration::from_secs(5))).ok();
                 match handle_connection(&mut stream, expected_state) {
                     Ok(Some(code)) => return Ok(code),
                     Ok(None) => continue,
@@ -349,7 +350,10 @@ fn handle_connection(
     expected_state: &str,
 ) -> Result<Option<String>, String> {
     let mut buf = [0u8; 8192];
-    let n = stream.read(&mut buf).map_err(|e| e.to_string())?;
+    let n = match stream.read(&mut buf) {
+        Ok(n) => n,
+        Err(_) => return Ok(None),
+    };
     let req = String::from_utf8_lossy(&buf[..n]);
     let first_line = req.lines().next().unwrap_or("");
     let path = first_line.split_whitespace().nth(1).unwrap_or("");
