@@ -30,6 +30,7 @@ dist-ssr
 test-results/
 playwright-report/
 evidence/
+capture-out/
 
 # Claude Code local state (worktrees are per-machine; skills are shared)
 .claude/*
