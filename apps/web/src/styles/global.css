@@ -864,10 +864,11 @@ a {
   text-underline-offset: 3px;
 }
 
-/* Feature rows: copy beside a `.mini` window — the same app-shell frame the
-   hero's .dr window uses, at row scale. Row internals (inbox list, code pane)
-   are scoped inside each Feature*.astro component so the three miniatures can
-   evolve — and animate — independently; only the shared shell lives here. */
+/* Feature showcases: real app footage in the same app-shell frame the hero's
+   .dr window uses, at full content width so the app's own text stays
+   readable. The frame reserves the capture's exact 1152x720 aspect ratio, so
+   a video that is still loading (or never plays, under reduced motion)
+   occupies identical space and the page cannot shift. */
 .feats {
   margin-top: clamp(64px, 14vw, 112px);
 }
@@ -932,66 +933,40 @@ a {
   gap: clamp(52px, 9vw, 88px);
 }
 
-.feat {
-  display: grid;
-  gap: 22px;
-  align-items: center;
+.show__copy {
+  max-width: 60ch;
 }
 
-@media (min-width: 760px) {
-  .feat {
-    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
-    gap: clamp(32px, 5vw, 60px);
-  }
-
-  .feat:nth-of-type(even) .feat__copy {
-    order: 2;
-  }
-}
-
-.feat__title {
+.show__title {
   margin: 0;
   font-size: clamp(20px, 2.6vw, 24px);
   font-weight: 600;
   letter-spacing: -0.02em;
 }
 
-.feat__body {
+.show__body {
   margin: 10px 0 0;
-  max-width: 44ch;
   color: var(--muted);
   font-size: 15px;
 }
 
-.mini {
-  margin: 0;
+.show__fig {
+  margin: 22px 0 0;
 }
 
-.mini__window {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  height: 240px;
-  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+.show__video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1152 / 720;
+  background: var(--surface);
   border: 1px solid var(--line-2);
   border-radius: 14px;
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.03) inset,
     0 24px 64px -36px rgba(0, 0, 0, 0.9);
-  overflow: hidden;
 }
 
-.mini__bar {
-  display: flex;
-  align-items: center;
-  height: 42px;
-  flex-shrink: 0;
-  padding-inline: 16px;
-  border-bottom: 1px solid var(--line);
-  background: linear-gradient(180deg, var(--surface-2), transparent);
-}
-
-.mini__caption {
+.show__caption {
   padding-top: 12px;
   text-align: center;
   font-family: var(--font-mono);
@@ -999,7 +974,7 @@ a {
   color: var(--faint);
 }
 
-.mini__key {
+.show__key {
   display: inline-grid;
   place-items: center;
   min-width: 20px;
@@ -1012,6 +987,54 @@ a {
   border: 1px solid var(--line-2);
   border-radius: 5px;
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+}
+
+.locals {
+  margin-top: clamp(64px, 14vw, 112px);
+}
+
+.locals__head {
+  margin: 0 0 clamp(20px, 4vw, 32px);
+  text-align: center;
+  font-size: clamp(18px, 2.2vw, 22px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.locals__grid {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+@media (min-width: 720px) {
+  .locals__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.locals__item {
+  padding: 20px 22px;
+  background: var(--surface);
+}
+
+.locals__term {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.locals__body {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--muted);
 }
 
 .foot {

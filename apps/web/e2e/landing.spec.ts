@@ -54,24 +54,49 @@ test("leads with the inbox thesis in the hero", async ({ page }) => {
   );
 });
 
-test("shows each feature in action instead of static cards", async ({
+test("shows each capability as real footage with a poster", async ({
   page,
 }) => {
   await page.goto("/");
 
-  const rows = page.locator(".feat");
-  await expect(rows).toHaveCount(3);
-  for (const [i, title] of [
-    "Keyboard-first",
-    "Cache-first",
-    "Resume instantly",
-  ].entries()) {
-    await expect(rows.nth(i).getByRole("heading", { level: 2 })).toHaveText(
-      title
-    );
-    await expect(rows.nth(i).locator(".mini__window")).toBeVisible();
+  const shows = page.locator(".show");
+  await expect(shows).toHaveCount(3);
+  for (const [i, scene] of ["loop", "comments", "scan"].entries()) {
+    const video = shows.nth(i).locator("video");
+    await expect(video).toHaveAttribute("poster", `/landing/${scene}.png`);
+    await expect(video).toHaveAttribute("src", `/landing/${scene}.webm`);
   }
-  await expect(page.getByText("demo — coming soon")).toHaveCount(0);
+});
+
+test("plays footage only in view, never under reduced motion", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const firstVideo = page.locator(".show video").first();
+
+  await firstVideo.scrollIntoViewIfNeeded();
+  await expect
+    .poll(() => firstVideo.evaluate((v: HTMLVideoElement) => v.paused))
+    .toBe(false);
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect
+    .poll(() => firstVideo.evaluate((v: HTMLVideoElement) => v.paused))
+    .toBe(true);
+});
+
+test("states the local-first qualities plainly", async ({ page }) => {
+  await page.goto("/");
+
+  const strip = page.locator(".locals");
+  await expect(strip.getByRole("heading", { level: 2 })).toHaveText(
+    "Feels local, because it is"
+  );
+  for (const term of ["cache-first", "resume", "notify", "private"]) {
+    await expect(
+      strip.locator(".locals__term", { hasText: term })
+    ).toBeVisible();
+  }
 });
 
 test("sends the call to action to the downloads page", async ({ page }) => {
