@@ -46,6 +46,14 @@ async function waitForScrollToSettle(page: Page) {
   );
 }
 
+test("leads with the inbox thesis in the hero", async ({ page }) => {
+  await page.goto("/");
+
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Review PRs like an inbox, not a website."
+  );
+});
+
 test("sends the call to action to the downloads page", async ({ page }) => {
   await page.goto("/");
 
