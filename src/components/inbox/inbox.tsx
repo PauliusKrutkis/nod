@@ -1,12 +1,15 @@
 /**
  * Tabs hide when empty (and not active) so the bar reflects where work
- * actually is; digit hotkeys (1-5) still reach a hidden tab directly, so
- * InboxTabButton keeps its digit hint tied to the tab's fixed position in
- * TABS rather than its slot among the visible ones. cycleTab walks only the
- * visible tabs, falling back to index 0 when the active tab is itself
- * hidden. Watching repos is a separate action (the "w" hotkey, command
- * palette, and docked Watch button all open the same dialog), so the
- * Watching tab follows the same visibility rule as every other tab.
+ * actually is, and the digit hotkeys address what you can SEE: `1` is the
+ * leftmost visible tab, not a fixed slot in TABS. A digit therefore never
+ * summons an empty tab out of hiding, and the hints on the bar always read
+ * 1, 2, 3 with no gaps. cycleTab walks the same visible list, falling back
+ * to index 0 when the active tab is itself hidden. Watching repos is a
+ * separate action (the "w" hotkey, command palette, and docked Watch button
+ * all open the same dialog), so the Watching tab follows the same
+ * visibility rule as every other tab. A hidden tab keeps a KEYLESS binding
+ * so the command palette can still reach it — typing "watching" is an
+ * explicit request, where a digit is positional.
  *
  * On cold start, if the active tab turns out empty, `autoTabSelected` guards
  * a one-shot correction to the first tab with content — a module-level flag
@@ -317,6 +320,7 @@ export function Inbox() {
     selectTab,
     toggleArchived,
     undoArchive,
+    visibleTabs,
   });
 
   const activeTab = TABS.find((t) => t.key === tab) ?? TABS[0];
@@ -403,6 +407,7 @@ function useInboxHotkeys({
   cycleTab,
   selectTab,
   openWatchDialog,
+  visibleTabs,
 }: {
   next: () => void;
   prev: () => void;
@@ -414,22 +419,8 @@ function useInboxHotkeys({
   cycleTab: (dir: number) => void;
   selectTab: (key: InboxTabKey) => void;
   openWatchDialog: () => void;
+  visibleTabs: typeof TABS;
 }) {
-  const selectReviewRequested = () => {
-    selectTab("reviewRequested");
-  };
-  const selectAssigned = () => {
-    selectTab("assigned");
-  };
-  const selectCreated = () => {
-    selectTab("created");
-  };
-  const selectInvolved = () => {
-    selectTab("involved");
-  };
-  const selectSubscribed = () => {
-    selectTab("subscribed");
-  };
   const cycleTabForward = (e: KeyboardEvent) => {
     cycleTab(e.shiftKey ? -1 : 1);
   };
@@ -491,36 +482,15 @@ function useInboxHotkeys({
       keys: "tab",
       run: cycleTabForward,
     },
-    {
-      description: "Tab: Review requests",
-      group: "Tabs",
-      keys: "1",
-      run: selectReviewRequested,
-    },
-    {
-      description: "Tab: Assigned",
-      group: "Tabs",
-      keys: "2",
-      run: selectAssigned,
-    },
-    {
-      description: "Tab: Created",
-      group: "Tabs",
-      keys: "3",
-      run: selectCreated,
-    },
-    {
-      description: "Tab: Involved",
-      group: "Tabs",
-      keys: "4",
-      run: selectInvolved,
-    },
-    {
-      description: "Tab: Watching",
-      group: "Tabs",
-      keys: "5",
-      run: selectSubscribed,
-    },
+    ...TABS.map((t) => {
+      const slot = visibleTabs.indexOf(t);
+      return {
+        description: `Tab: ${t.label}`,
+        group: "Tabs",
+        keys: slot === -1 ? [] : String(slot + 1),
+        run: () => selectTab(t.key),
+      };
+    }),
     {
       description: "Watch repositories…",
       group: "Tabs",
@@ -552,11 +522,11 @@ function InboxTabBar({
 }) {
   return (
     <div className="qi-tabs shrink-0 border-line border-b px-3">
-      {tabs.map((t) => (
+      {tabs.map((t, slot) => (
         <InboxTabButton
           active={t.key === tab}
           count={counts[t.key]}
-          index={TABS.findIndex((d) => d.key === t.key)}
+          index={slot}
           key={t.key}
           onSelectTab={onSelectTab}
           tabDef={t}
