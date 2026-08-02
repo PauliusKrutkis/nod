@@ -88,9 +88,10 @@ function persistTreeMode(tree: boolean): void {
  * Keyboard navigation does not enter the tree: `r`/`t`/`Tab`/`e` still walk
  * the flat file order, and a folder auto-expands when the selection MOVES
  * into it — on selection change only, never on every render, or the folder
- * holding the current file could never be collapsed at all. That is an accepted limitation for now — a collapsed folder
- * would otherwise have to either swallow files from the cycle or advance the
- * cursor to a row that is not rendered.
+ * holding the current file could never be collapsed at all. That is an
+ * accepted limitation for now — a collapsed folder would otherwise have to
+ * either swallow files from the cycle or advance the cursor to a row that
+ * is not rendered.
  *
  * A mouse click blurs the row after selecting so its focus ring never lingers
  * once keyboard nav moves the active file elsewhere.

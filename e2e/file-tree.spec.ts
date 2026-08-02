@@ -90,8 +90,8 @@ function nestedFile(filename: string, status: "added" | "modified") {
   };
 }
 
-/** A PR shaped like real work: sibling folders, a deep chain, a root-level
- * leaf. Indexes follow array order, the same order GitHub returns. */
+// A PR shaped like real work: sibling folders, a deep chain, a root-level
+// leaf. Indexes follow array order, the same order GitHub returns.
 const NESTED_DETAIL = {
   ...DETAIL,
   comments: [],
@@ -111,11 +111,15 @@ test.describe("nested fixture", () => {
     await openFirstPr(page);
   });
 
+  // `components/review` is a single-child chain, so it renders as one
+  // breadcrumb row, while `src` — two subdirectories plus a file — stays a
+  // real level. The selection lands on a depth-2 file before the evidence
+  // shot so it shows the active row inside a folder; collapsing `lib` must
+  // hide exactly its own two files and leave every other row and the
+  // selection untouched.
   test("sibling folders, a collapsed chain and depth-2 rows render; one folder collapses alone", async ({
     page,
   }) => {
-    // `components/review` is a single-child chain → one breadcrumb row;
-    // `src` has two subdirectories plus a file, so it stays a real level.
     await expect(page.locator(".qf-file-dirrow")).toHaveText([
       "e2e",
       "src",
@@ -133,8 +137,6 @@ test.describe("nested fixture", () => {
     expect(await depthOf('.qf-file-dirrow[data-dir-path="src/lib"]')).toBe("1");
     expect(await depthOf('.qf-file[data-file-index="2"]')).toBe("2");
 
-    // Land the selection on a depth-2 file so the evidence shows the active
-    // row inside a folder, then screenshot the expanded tree.
     await page.locator('.qf-file[data-file-index="2"]').click();
     await expect(page.locator(".qf-file-active")).toHaveAttribute(
       "data-file-index",
@@ -142,8 +144,6 @@ test.describe("nested fixture", () => {
     );
     await page.screenshot({ path: "evidence/file-tree-nested.png" });
 
-    // Collapsing `lib` hides exactly its two files; the other folders and
-    // the selection are untouched.
     await page.locator('.qf-file-dirrow[data-dir-path="src/lib"]').click();
     await expect(page.locator(".qf-file[data-file-index]")).toHaveCount(4);
     await expect(page.locator('.qf-file[data-file-index="4"]')).toHaveCount(0);
@@ -154,6 +154,8 @@ test.describe("nested fixture", () => {
     await page.screenshot({ path: "evidence/file-tree-nested-collapsed.png" });
   });
 
+  // The pointer parks over empty sidebar space before the screenshot so
+  // neither the toggle's tooltip nor a diff row's hover state is caught.
   test("flat mode shows the same six files with full paths", async ({
     page,
   }) => {
@@ -163,8 +165,6 @@ test.describe("nested fixture", () => {
     await expect(page.locator(".qf-file-dir").nth(1)).toContainText(
       "src/components/review/"
     );
-    // Park the pointer over empty sidebar space so neither the toggle's
-    // tooltip nor a diff row's hover state is caught in the shot.
     await page.mouse.move(150, 600);
     await expect(page.locator(".q-tooltip")).toHaveCount(0);
     await page.screenshot({ path: "evidence/file-tree-nested-flat.png" });
