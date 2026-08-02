@@ -2,6 +2,7 @@ mod accounts;
 mod auth;
 mod commands;
 mod http;
+mod license;
 mod model;
 mod platform;
 #[allow(dead_code)]
@@ -72,6 +73,10 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .setup(|app| {
+            license::ensure_trial_started(app.handle());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             auth::login_with_github,
             auth::is_oauth_configured,
@@ -114,6 +119,7 @@ pub fn run() {
             update::install_update,
             update::get_app_version,
             update::list_releases,
+            license::get_license_state,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

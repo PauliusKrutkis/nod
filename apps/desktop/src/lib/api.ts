@@ -6,6 +6,7 @@ import type {
   GitHubUser,
   InboxBucket,
   InboxData,
+  LicenseState,
   PullRequestDetail,
   ReleaseInfo,
   RepoHit,
@@ -71,6 +72,7 @@ export const api = {
   getCachedSubscribed: () =>
     invoke<InboxBucket | null>("get_cached_subscribed"),
   getCurrentUser: () => invoke<GitHubUser>("get_current_user"),
+  getLicenseState: () => invoke<LicenseState>("get_license_state"),
 
   ensureRepoSnapshot: (owner: string, repo: string, sha: string) =>
     invoke<SnapshotStatus>("ensure_repo_snapshot", { owner, repo, sha }),

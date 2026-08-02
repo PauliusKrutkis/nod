@@ -18,6 +18,11 @@ export interface AppOptions {
   hangIssueComment?: boolean;
   hangReviewComment?: boolean;
   hasToken?: boolean;
+  licenseState?:
+    | { status: "licensed"; updatesUntil: string }
+    | { status: "trial"; daysLeft: number }
+    | { status: "trialExpired" }
+    | "error";
   releases?:
     | { tag: string; publishedAt: string | null; notes: string | null }[]
     | null;
@@ -41,6 +46,10 @@ export async function setupApp(page: Page, opts: AppOptions = {}) {
     hangIssueComment: opts.hangIssueComment ?? false,
     hangReviewComment: opts.hangReviewComment ?? false,
     hasToken: opts.hasToken ?? true,
+    licenseState: opts.licenseState ?? {
+      status: "licensed",
+      updatesUntil: "2099-01-01",
+    },
     releases: opts.releases ?? [],
     inbox: opts.inbox ?? INBOX,
     inboxByCall: opts.inboxByCall ?? null,
@@ -143,6 +152,12 @@ export async function setupApp(page: Page, opts: AppOptions = {}) {
             );
           }
           return blob;
+        },
+        get_license_state: () => {
+          if (cfg.licenseState === "error") {
+            throw new Error("license backend unavailable");
+          }
+          return cfg.licenseState;
         },
         get_pull_request_detail: () => {
           const result = seq(cfg.detailByCall, detailCalls, detail);
