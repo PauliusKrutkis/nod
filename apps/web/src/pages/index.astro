@@ -1,26 +1,11 @@
 ---
 import Base from "../layouts/Base.astro";
 import DiffReplay from "../components/DiffReplay.astro";
+import FeatureCache from "../components/FeatureCache.astro";
+import FeatureKeys from "../components/FeatureKeys.astro";
+import FeatureResume from "../components/FeatureResume.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteNav from "../components/SiteNav.astro";
-
-const features = [
-  {
-    key: "jk",
-    title: "Keyboard-first",
-    body: "Move through PRs, files, hunks, and comment threads without ever reaching for the mouse.",
-  },
-  {
-    key: "⚡",
-    title: "Cache-first",
-    body: "Everything you've seen paints instantly from a local cache. The network refreshes quietly in the background.",
-  },
-  {
-    key: "⏯",
-    title: "Resume instantly",
-    body: "Launch straight back into the last PR — the same file and scroll position you left it on.",
-  },
-];
 ---
 
 <Base
@@ -50,24 +35,11 @@ const features = [
       </div>
     </section>
 
-    <section class="wrap">
-      <div class="features">
-        {
-          features.map((f) => (
-            <article class="feature">
-              <span class="feature__key mono">{f.key}</span>
-              <h3 class="feature__title">{f.title}</h3>
-              <p class="feature__body">{f.body}</p>
-            </article>
-          ))
-        }
-      </div>
-    </section>
-
-    <section class="wrap demo" aria-label="Product demo">
-      <div class="demo__frame">
-        <span class="demo__label">▶ demo — coming soon</span>
-      </div>
+    <section class="wrap feats" aria-label="Features in action">
+      <p class="eyebrow feats__eyebrow">In action</p>
+      <FeatureKeys />
+      <FeatureCache />
+      <FeatureResume />
     </section>
   </main>
 
