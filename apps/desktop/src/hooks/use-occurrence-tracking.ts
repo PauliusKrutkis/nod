@@ -4,6 +4,14 @@
  * occurrence (mod+click), and captures/restores the DOM selection across the
  * marks repaint. Owns no state — everything arrives as refs so per-event
  * handlers stay interchangeable.
+ *
+ * READABLE_TEXT_SELECTOR is prose the user reads and copies but cannot edit
+ * (every Markdown render shares `.md`, plus the comment header and the whole
+ * collapsed-thread lead — matching containers, not prose leaves, so clicks on
+ * their padding or icons bail too). Occurrence handling must leave its caret
+ * alone: such text matches neither `.qf-row` nor `.qf-code`, so without the
+ * bail-out a click inside it fell through to the branch that clears the DOM
+ * selection whenever occurrence marks happen to be lit.
  */
 import { useEffect } from "react";
 import {
