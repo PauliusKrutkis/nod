@@ -4,7 +4,7 @@
  * metadata.subject assumption this depends on.
  */
 import type { Env } from "./lib/env";
-import { putLicense, putOrderIndex } from "./lib/kv";
+import { getLicense, putLicense, putOrderIndex } from "./lib/kv";
 import {
   extractSubject,
   isOrderPaidEvent,
@@ -36,7 +36,19 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 
   const orderId = result.event.data.id;
-  const updatesUntil = new Date(Date.now() + LICENSE_DURATION_MS).toISOString();
+  // A repeat purchase extends the running term rather than resetting it —
+  // "buy early, lose the remainder" would punish exactly the customers who
+  // renew before expiry. An already-lapsed (or unparseable) term extends
+  // from now instead of from the past.
+  const existing = await getLicense(context.env.LICENSES, subject);
+  const existingUntil = existing
+    ? Date.parse(existing.updatesUntil)
+    : Number.NaN;
+  const base = Math.max(
+    Number.isNaN(existingUntil) ? 0 : existingUntil,
+    Date.now()
+  );
+  const updatesUntil = new Date(base + LICENSE_DURATION_MS).toISOString();
   await putLicense(context.env.LICENSES, subject, { orderId, updatesUntil });
   await putOrderIndex(context.env.LICENSES, orderId, subject);
 
