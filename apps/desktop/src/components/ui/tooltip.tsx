@@ -2,7 +2,7 @@ import {
   cloneElement,
   type ReactElement,
   type ReactNode,
-  useEffectEvent,
+  useEffect,
   useId,
   useLayoutEffect,
   useRef,
@@ -59,30 +59,24 @@ export function Tooltip({
   const id = useId();
   const triggerRef = useRef<HTMLSpanElement | null>(null);
   const tipRef = useRef<HTMLDivElement | null>(null);
-  const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [open, setOpen] = useState(false);
+  const [intent, setIntent] = useState<"closed" | "instant" | "delayed">(
+    "closed"
+  );
+  const [delayedReady, setDelayedReady] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const [coords, setCoords] = useState<Coords | null>(null);
 
-  const cancelOpen = () => {
-    if (openTimer.current) {
-      clearTimeout(openTimer.current);
-      openTimer.current = null;
-    }
-  };
-
-  const show = useEffectEvent((immediate: boolean) => {
-    cancelOpen();
-    if (immediate) {
-      setOpen(true);
+  useEffect(() => {
+    if (intent !== "delayed") {
       return;
     }
-    openTimer.current = setTimeout(() => setOpen(true), OPEN_DELAY_MS);
-  });
+    const timer = setTimeout(() => setDelayedReady(true), OPEN_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [intent]);
 
-  const hide = useEffectEvent(() => {
-    cancelOpen();
-    setOpen(false);
-  });
+  const open =
+    !dismissed &&
+    (intent === "instant" || (intent === "delayed" && delayedReady));
 
   useLayoutEffect(() => {
     if (!open) {
@@ -106,7 +100,7 @@ export function Tooltip({
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        setOpen(false);
+        setDismissed(true);
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -118,19 +112,28 @@ export function Tooltip({
     "aria-describedby": open ? id : undefined,
     onBlur: (e: React.FocusEvent) => {
       childProps.onBlur?.(e);
-      hide();
+      setIntent("closed");
+      setDelayedReady(false);
+      setDismissed(false);
     },
     onFocus: (e: React.FocusEvent) => {
       childProps.onFocus?.(e);
-      show(true);
+      setDismissed(false);
+      setIntent("instant");
     },
     onPointerEnter: (e: React.PointerEvent) => {
       childProps.onPointerEnter?.(e);
-      show(false);
+      setDismissed(false);
+      if (!open) {
+        setIntent("delayed");
+        setDelayedReady(false);
+      }
     },
     onPointerLeave: (e: React.PointerEvent) => {
       childProps.onPointerLeave?.(e);
-      hide();
+      setIntent("closed");
+      setDelayedReady(false);
+      setDismissed(false);
     },
   });
 
