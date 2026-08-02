@@ -19,6 +19,8 @@ const STABLE_FRAMES = 3;
 
 const HERO_LOOP_PATTERN = /ir-out1/;
 
+const HERO_PANE_PATTERN = /ir-card1/;
+
 /**
  * Resolves once the scroll position has stopped moving. `scroll-behavior` is
  * smooth, so an anchor jump animates; any geometry read mid-flight describes a
@@ -65,6 +67,10 @@ test("the hero inbox triages itself, and freezes drained under reduced motion", 
     "animation-name",
     HERO_LOOP_PATTERN
   );
+  await expect(page.locator(".ir__card--1")).toHaveCSS(
+    "animation-name",
+    HERO_PANE_PATTERN
+  );
 
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.reload();
@@ -72,6 +78,9 @@ test("the hero inbox triages itself, and freezes drained under reduced motion", 
   await expect(archived).toHaveCSS("animation-name", "none");
   await expect(archived).toHaveCSS("height", "0px");
   await expect(page.locator(".ir__badge-n--6")).toHaveCSS("opacity", "1");
+  const composedCard = page.locator(".ir__card--4");
+  await expect(composedCard).toHaveCSS("opacity", "1");
+  await expect(composedCard).toContainText("Add fuzzy matching to search");
 });
 
 test("shows each capability as real footage with a poster", async ({
