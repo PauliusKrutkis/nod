@@ -384,6 +384,20 @@ coordinating a provider migration against installed apps — where a redirect
 would have been enough beforehand. Traction is precisely when this stops
 being cheap.
 
+### Product decision: source-available, not closed (2026-08-02)
+
+The repo stays public and is licensed **FSL-1.1-Apache-2.0** (root
+`LICENSE.md`; the repo previously had no license at all, i.e. accidental
+all-rights-reserved). Rationale: for an app that holds forge tokens, public
+source *is* the "your token stays on your machine" proof; self-builders were
+never customers and forgo signed builds and auto-updates; and going private
+would force the public-releases-repo split (see
+[Repo visibility](#repo-visibility-vs-auto-updates)) while the no-DRM stance
+makes license checks bypassable regardless. FSL permits reading, building,
+modifying and internal use, forbids offering a competing product, and each
+release converts to Apache 2.0 after two years. What's for sale is signed
+binaries, auto-updates, and licenses — not the code.
+
 ### Product decision: trial model and price (2026-08-02)
 
 **The app never blocks.** A free, full-featured 14-day intro (first-launch
