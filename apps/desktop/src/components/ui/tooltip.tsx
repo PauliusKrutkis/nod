@@ -2,7 +2,6 @@ import {
   cloneElement,
   type ReactElement,
   type ReactNode,
-  useEffectEvent,
   useId,
   useLayoutEffect,
   useRef,
@@ -70,19 +69,19 @@ export function Tooltip({
     }
   };
 
-  const show = useEffectEvent((immediate: boolean) => {
+  const show = (immediate: boolean) => {
     cancelOpen();
     if (immediate) {
       setOpen(true);
       return;
     }
     openTimer.current = setTimeout(() => setOpen(true), OPEN_DELAY_MS);
-  });
+  };
 
-  const hide = useEffectEvent(() => {
+  const hide = () => {
     cancelOpen();
     setOpen(false);
-  });
+  };
 
   useLayoutEffect(() => {
     if (!open) {
