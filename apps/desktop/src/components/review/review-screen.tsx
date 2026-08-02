@@ -434,7 +434,6 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   });
   const modelRef = useLatest(model);
 
-  // react-doctor-disable-next-line exhaustive-deps -- same rationale as the biome-ignore below
   // biome-ignore lint/correctness/useExhaustiveDependencies: model is rebuilt fresh every render (not memoized), so listing it would rerun this every render; openBoxes is the actual gate
   useLayoutEffect(() => {
     const pending = pendingBoxNudgeRef.current;
