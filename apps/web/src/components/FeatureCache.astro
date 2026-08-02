@@ -1,11 +1,12 @@
 ---
-// Cache-first feature row: a PR pane already painted from the local cache.
-// This ships the composed frame of the animation — content visible, status
-// strip showing the cache hit and the finished background sync — which is
-// also the reduced-motion freeze frame once the loop lands. The animation
-// contract: the code lines paint instantly (no skeleton), then the sync tick
-// arrives quietly after a beat. Styles are scoped so the miniatures animate
-// independently.
+// Cache-first feature row: a PR pane that paints from the local cache. One
+// shared 10s CSS loop, zero JS. Slots: a blank "just opened" beat (0–5%),
+// then every code line and the cache-hit readout paint at once by 6.5% — no
+// skeleton, no stagger — a dim "syncing…" eases in around 28% and crossfades
+// to the synced tick near 45%, and the composed frame holds until a quick
+// fade at 93–97%. Reduced motion skips the loop and freezes on the composed
+// frame, which is exactly the static markup below. Styles are scoped so the
+// miniatures animate independently.
 ---
 
 <article class="feat">
@@ -57,7 +58,10 @@
         </div>
         <div class="pane__status mono">
           <span class="pane__hit">cache · 0 ms</span>
-          <span class="pane__sync">synced ✓</span>
+          <span class="pane__net">
+            <span class="pane__syncing">syncing…</span>
+            <span class="pane__sync">synced ✓</span>
+          </span>
         </div>
       </div>
     </div>
@@ -175,7 +179,81 @@
     color: var(--faint);
   }
 
+  .pane__net {
+    display: grid;
+  }
+
+  .pane__syncing,
+  .pane__sync {
+    grid-area: 1 / 1;
+    justify-self: end;
+  }
+
+  .pane__syncing {
+    opacity: 0;
+  }
+
   .pane__sync {
     color: var(--add);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .pane__line,
+    .pane__hit {
+      animation: fc-paint 10s ease infinite;
+    }
+
+    .pane__syncing {
+      animation: fc-syncing 10s ease infinite;
+    }
+
+    .pane__sync {
+      animation: fc-sync 10s ease infinite;
+    }
+
+    @keyframes fc-paint {
+      0%,
+      5% {
+        opacity: 0;
+      }
+      6.5%,
+      93% {
+        opacity: 1;
+      }
+      97%,
+      100% {
+        opacity: 0;
+      }
+    }
+
+    @keyframes fc-syncing {
+      0%,
+      27% {
+        opacity: 0;
+      }
+      31%,
+      41% {
+        opacity: 1;
+      }
+      45%,
+      100% {
+        opacity: 0;
+      }
+    }
+
+    @keyframes fc-sync {
+      0%,
+      43% {
+        opacity: 0;
+      }
+      48%,
+      93% {
+        opacity: 1;
+      }
+      97%,
+      100% {
+        opacity: 0;
+      }
+    }
   }
 </style>
