@@ -35,3 +35,23 @@ export async function tokenCenter(page: Page, section: number, token: string) {
   }
   return rect;
 }
+
+/** Single-click a token (settling the hover first, like a real pointer). */
+export async function clickToken(page: Page, section: number, token: string) {
+  const { x, y } = await tokenCenter(page, section, token);
+  await page.mouse.move(x, y);
+  await page.waitForTimeout(100);
+  await page.mouse.click(x, y);
+}
+
+/** Double-click a token (settling the hover first, like a real pointer). */
+export async function dblclickToken(
+  page: Page,
+  section: number,
+  token: string
+) {
+  const { x, y } = await tokenCenter(page, section, token);
+  await page.mouse.move(x, y);
+  await page.waitForTimeout(100);
+  await page.mouse.dblclick(x, y);
+}

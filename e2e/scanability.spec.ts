@@ -1,5 +1,5 @@
 import { setupApp } from "./bridge.ts";
-import { tokenCenter } from "./dom.ts";
+import { clickToken } from "./dom.ts";
 import { expect, test } from "./test.ts";
 import type { Page } from "./types.ts";
 
@@ -7,14 +7,6 @@ const QF_LVL_ONE = /--qf-lvl:\s*1/;
 const SUBMIT_OR_REVIEW = /Submit review|Review/;
 const SIDEBAR_OPEN = /qf-sidebar-open/;
 const SIDEBAR_WIDTH_PX = 300;
-
-/** Single-click a token (settling the hover first, like a real pointer). */
-async function clickToken(page: Page, section: number, token: string) {
-  const { x, y } = await tokenCenter(page, section, token);
-  await page.mouse.move(x, y);
-  await page.waitForTimeout(100);
-  await page.mouse.click(x, y);
-}
 
 /**
  * Click the nth occurrence mark, optionally holding the mod key — Meta stands

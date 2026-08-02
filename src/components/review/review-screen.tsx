@@ -16,11 +16,12 @@
  * keyboard row navigation already uses via `nudgeItemIntoView`.
  *
  * READABLE_TEXT_SELECTOR is prose the user reads and copies but cannot edit
- * (every Markdown render shares `.md`, plus the collapsed-thread preview).
- * Occurrence handling must leave its caret alone: such text matches neither
- * `.qf-row` nor `.qf-code`, so without the bail-out a click inside it fell
- * through to the branch that clears the DOM selection whenever occurrence
- * marks happen to be lit.
+ * (every Markdown render shares `.md`, plus the comment header and the whole
+ * collapsed-thread lead — matching containers, not prose leaves, so clicks on
+ * their padding or icons bail too). Occurrence handling must leave its caret
+ * alone: such text matches neither `.qf-row` nor `.qf-code`, so without the
+ * bail-out a click inside it fell through to the branch that clears the DOM
+ * selection whenever occurrence marks happen to be lit.
  *
  * `activeThreadRef` — the thread `r`/`x`/`z`/`shift+e` act on — is written by
  * both hover and the cursor, so mouse-leave cannot simply null it: the cursor
@@ -693,7 +694,8 @@ function stepToNeighbourOccurrence(
 const EDITABLE_SURFACE_SELECTOR =
   'input, textarea, [contenteditable="true"], .qa-editor';
 
-const READABLE_TEXT_SELECTOR = ".md, .qf-resolved-snip";
+const READABLE_TEXT_SELECTOR =
+  ".md, .qf-comment-head, .qf-thread-collapsed-lead";
 
 /**
  * A plain click marks the word under the pointer; mod+click walks from it to the
