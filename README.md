@@ -278,3 +278,12 @@ team features · desktop/OS notifications · offline sync.
 Built as a 7-day experiment. The first milestone — *launch, see assigned PRs, open
 one, navigate files with the keyboard* — is the core of the product; everything
 else is iteration.
+
+## License
+
+Nod is **source-available** under the [Functional Source License,
+Version 1.1, with Apache 2.0 Future License](LICENSE.md)
+(FSL-1.1-Apache-2.0): read it, build it, modify it, use it internally —
+anything except offering a competing product. Each release automatically
+becomes Apache 2.0 two years after it ships. Signed binaries, auto-updates
+and licenses are what's for sale, not the code.
