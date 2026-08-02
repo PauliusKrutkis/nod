@@ -164,7 +164,37 @@ EOF
 )"
 ```
 
-### 9. Verify
+### 9. Refresh the downloads page
+
+The `/downloads` page reads the release list **at build time**, and
+Cloudflare Pages only rebuilds on a git push — publishing a release does not
+trigger a deploy. Without this step the page keeps serving the previous
+release until some unrelated commit lands.
+
+This has to run *after* step 8, not from `release.yml`: the workflow creates
+the release with the placeholder body, so a rebuild triggered there would
+bake the placeholder into the page instead of the curated notes.
+
+```sh
+if [ -n "$CF_PAGES_DEPLOY_HOOK" ]; then
+  curl -fsS -X POST "$CF_PAGES_DEPLOY_HOOK" -o /dev/null \
+    -w 'deploy hook: HTTP %{http_code}\n'
+else
+  echo "CF_PAGES_DEPLOY_HOOK not set — skipping; page self-corrects on the next push to main"
+fi
+```
+
+The guard is the normal path until the hook is created, not an edge case —
+without it an unset variable sends curl an empty URL and fails in a way that
+reads like a broken hook. `-o /dev/null -w` keeps Cloudflare's response body
+out of the transcript while still confirming the status code.
+
+The hook URL is itself the credential — anyone holding it can trigger a
+deploy — so read it from the environment, never paste it into a commit or a
+release note. See docs/RELEASING.md →
+[Downloads page](../../../docs/RELEASING.md#downloads-page).
+
+### 10. Verify
 
 ```sh
 gh release view vX.Y.Z --json body,assets,publishedAt
