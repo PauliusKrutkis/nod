@@ -1,0 +1,73 @@
+---
+// One feature shown as real app footage: copy, then a full-width app-shell
+// frame playing a captured loop from /landing (regenerate with
+// `pnpm capture:landing`). The video only plays while it is on screen and
+// never under prefers-reduced-motion — in both idle cases the poster (the
+// scene's composed frame) shows instead. The script below registers one
+// shared IntersectionObserver per page, not per instance: Astro hoists and
+// dedupes module scripts across component occurrences.
+
+interface Props {
+  title: string;
+  body: string;
+  scene: string;
+  label: string;
+}
+
+const { title, body, scene, label } = Astro.props;
+---
+
+<article class="show">
+  <div class="show__copy">
+    <h2 class="show__title">{title}</h2>
+    <p class="show__body">{body}</p>
+  </div>
+  <figure class="show__fig" aria-label={label}>
+    <video
+      class="show__video"
+      muted
+      loop
+      playsinline
+      preload="metadata"
+      poster={`/landing/${scene}.png`}
+      src={`/landing/${scene}.webm`}></video>
+    <figcaption class="show__caption"><slot /></figcaption>
+  </figure>
+</article>
+
+<script>
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)");
+  const videos = document.querySelectorAll<HTMLVideoElement>(".show__video");
+  const inView = new WeakSet<Element>();
+
+  const sync = (video: HTMLVideoElement) => {
+    if (inView.has(video) && !reduced.matches) {
+      video.play().catch(() => {});
+    } else {
+      video.pause();
+    }
+  };
+
+  const watcher = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          inView.add(entry.target);
+        } else {
+          inView.delete(entry.target);
+        }
+        sync(entry.target as HTMLVideoElement);
+      }
+    },
+    { threshold: 0.25 }
+  );
+
+  for (const video of videos) {
+    watcher.observe(video);
+  }
+  reduced.addEventListener("change", () => {
+    for (const video of videos) {
+      sync(video);
+    }
+  });
+</script>

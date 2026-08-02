@@ -1,9 +1,8 @@
 ---
 import Base from "../layouts/Base.astro";
 import DiffReplay from "../components/DiffReplay.astro";
-import FeatureCache from "../components/FeatureCache.astro";
-import FeatureKeys from "../components/FeatureKeys.astro";
-import FeatureResume from "../components/FeatureResume.astro";
+import FeatureShowcase from "../components/FeatureShowcase.astro";
+import LocalStrip from "../components/LocalStrip.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteNav from "../components/SiteNav.astro";
 
@@ -43,11 +42,37 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
     <section class="wrap feats" aria-label="Features in action">
       <p class="eyebrow feats__eyebrow">In action</p>
       <div class="feats__rows">
-        <FeatureKeys />
-        <FeatureCache />
-        <FeatureResume />
+        <FeatureShowcase
+          title="The whole loop, no mouse"
+          body="Triage the queue with j and k, open with Enter, step the diff, mark files viewed, submit — one unbroken keyboard motion."
+          scene="loop"
+          label="Real footage of Nod: triaging the inbox with j and k, opening a pull request, marking files viewed, and submitting the review."
+        >
+          <kbd class="show__key">j</kbd>
+          <kbd class="show__key">k</kbd> triage · <kbd class="show__key">e</kbd>
+          viewed · <kbd class="show__key">s</kbd> submit
+        </FeatureShowcase>
+        <FeatureShowcase
+          title="Comment without breaking stride"
+          body="c opens a composer on the cursor line. Batch comments into a pending review or send one now — either way it lands instantly."
+          scene="comments"
+          label="Real footage of Nod: opening an inline composer on the cursor line, typing a comment, and adding it to a pending review."
+        >
+          <kbd class="show__key">c</kbd> comment ·
+          <kbd class="show__key">⌘↵</kbd> add to review
+        </FeatureShowcase>
+        <FeatureShowcase
+          title="Built for reading diffs"
+          body="Click a token and every occurrence lights up. Find-in-diff ticks its matches on an overview ruler, and intraline emphasis shows exactly what a rename changed."
+          scene="scan"
+          label="Real footage of Nod: occurrence marks lighting up on a clicked token, then find-in-diff stepping through matches marked on the overview ruler."
+        >
+          double-click marks · <kbd class="show__key">⌘F</kbd> find in the diff
+        </FeatureShowcase>
       </div>
     </section>
+
+    <LocalStrip />
 
     <section class="wrap pricing" aria-label="Pricing" id="pricing">
       <p class="eyebrow">Pricing</p>

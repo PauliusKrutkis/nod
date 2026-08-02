@@ -1,0 +1,41 @@
+---
+// The qualities that don't film — they're about what DOESN'T happen (no
+// spinner, no reload, no cloud round-trip) — stated plainly as a quiet
+// strip instead of pretending to be scenes. Every claim here is literal app
+// behavior: cache-first paint with 60s/focus refresh, session resume,
+// review-request toasts, and a token that never leaves the Rust backend.
+---
+
+<section class="wrap locals" aria-label="Local-first qualities">
+  <h2 class="locals__head">Feels local, because it is</h2>
+  <dl class="locals__grid">
+    <div class="locals__item">
+      <dt class="locals__term mono">cache-first</dt>
+      <dd class="locals__body">
+        Everything you've seen paints instantly from a local cache. The network
+        refreshes quietly — every 60s and on focus.
+      </dd>
+    </div>
+    <div class="locals__item">
+      <dt class="locals__term mono">resume</dt>
+      <dd class="locals__body">
+        Launch straight back into the last PR — the same file and scroll
+        position you left it on.
+      </dd>
+    </div>
+    <div class="locals__item">
+      <dt class="locals__term mono">notify</dt>
+      <dd class="locals__body">
+        A fresh review request pops a keyboard-dismissable toast. Enter opens
+        it. No webhooks to set up.
+      </dd>
+    </div>
+    <div class="locals__item">
+      <dt class="locals__term mono">private</dt>
+      <dd class="locals__body">
+        No AI, no cloud. Your token stays in the Rust backend — it never
+        reaches the webview.
+      </dd>
+    </div>
+  </dl>
+</section>
