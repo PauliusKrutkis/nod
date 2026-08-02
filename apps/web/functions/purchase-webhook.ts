@@ -2,6 +2,13 @@
  * POST /purchase-webhook — Polar order.paid → verify signature → store a
  * license keyed by subject. See functions/lib/polar.ts for the
  * metadata.subject assumption this depends on.
+ *
+ * A repeat purchase extends the running term — max(existing updatesUntil,
+ * now) + 1 year — rather than resetting it: "buy early, lose the remainder"
+ * would punish exactly the customers who renew before expiry. A lapsed or
+ * unparseable stored term restarts from now. The read-modify-write is not
+ * atomic (KV has no transactions), so near-simultaneous orders for one
+ * subject could drop an extension — accepted at this scale.
  */
 import type { Env } from "./lib/env";
 import { getLicense, putLicense, putOrderIndex } from "./lib/kv";
@@ -36,19 +43,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 
   const orderId = result.event.data.id;
-  // A repeat purchase extends the running term rather than resetting it —
-  // "buy early, lose the remainder" would punish exactly the customers who
-  // renew before expiry. An already-lapsed (or unparseable) term extends
-  // from now instead of from the past.
   const existing = await getLicense(context.env.LICENSES, subject);
   const existingUntil = existing
     ? Date.parse(existing.updatesUntil)
     : Number.NaN;
-  const base = Math.max(
+  const extendFrom = Math.max(
     Number.isNaN(existingUntil) ? 0 : existingUntil,
     Date.now()
   );
-  const updatesUntil = new Date(base + LICENSE_DURATION_MS).toISOString();
+  const updatesUntil = new Date(extendFrom + LICENSE_DURATION_MS).toISOString();
   await putLicense(context.env.LICENSES, subject, { orderId, updatesUntil });
   await putOrderIndex(context.env.LICENSES, orderId, subject);
 
