@@ -155,11 +155,12 @@ a {
 
 .hero__title {
   margin: 18px auto 0;
-  max-width: 16ch;
+  max-width: 21ch;
   font-size: clamp(2.4rem, 6.2vw, 4.15rem);
   font-weight: 640;
   line-height: 1.03;
   letter-spacing: -0.035em;
+  text-wrap: balance;
 }
 
 .hero__title em {
@@ -172,25 +173,6 @@ a {
   max-width: 62ch;
   color: var(--muted);
   font-size: clamp(1rem, 1.4vw, 1.16rem);
-}
-
-.hero__thesis {
-  display: inline-block;
-  margin-top: 26px;
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--faint);
-  letter-spacing: -0.01em;
-}
-
-.hero__thesis b {
-  color: var(--fg);
-  font-weight: 500;
-}
-
-.hero__thesis::before {
-  content: "› ";
-  color: var(--accent);
 }
 
 .dr {
