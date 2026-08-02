@@ -1,4 +1,5 @@
 use super::{cache_path_segment, detail_cache_name, local_blob};
+use crate::model::MAX_BLOB_BYTES;
 use crate::snapshot::store::{partial_dir, promote, SnapshotKey};
 use std::path::{Path, PathBuf};
 
@@ -46,7 +47,9 @@ fn local_blob_matches_the_shape_the_host_path_returns() {
     let root = temp_root("hit");
     let key = snapshot_with(&root, "src/lib/api.ts", b"export const x = 1;");
 
-    let blob = local_blob(&root, &key, "src/lib/api.ts").expect("snapshot hit");
+    let blob = local_blob(&root, &key, "src/lib/api.ts")
+        .expect("snapshot hit")
+        .expect("under the cap");
 
     assert_eq!(blob.size, 19);
     assert_eq!(blob.base64, "ZXhwb3J0IGNvbnN0IHggPSAxOw==");
@@ -69,12 +72,29 @@ fn local_blob_misses_fall_through_to_the_network() {
 }
 
 #[test]
+fn local_blob_oversized_hits_error_instead_of_falling_through() {
+    let root = temp_root("oversized");
+    let big = vec![0u8; MAX_BLOB_BYTES + 1];
+    let key = snapshot_with(&root, "big.bin", &big);
+
+    let resolved = local_blob(&root, &key, "big.bin").expect("snapshot hit");
+
+    let Err(err) = resolved else {
+        panic!("expected the over-cap error");
+    };
+    assert!(err.contains("too large to preview"));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn local_blob_preserves_binary_content_exactly() {
     let root = temp_root("binary");
     let png = [0x89u8, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0xFF];
     let key = snapshot_with(&root, "logo.png", &png);
 
-    let blob = local_blob(&root, &key, "logo.png").expect("snapshot hit");
+    let blob = local_blob(&root, &key, "logo.png")
+        .expect("snapshot hit")
+        .expect("under the cap");
 
     assert_eq!(blob.size, 10);
     assert_eq!(blob.base64, "iVBORw0KGgoA/w==");
