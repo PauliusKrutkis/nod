@@ -1,11 +1,14 @@
 ---
-// Resume-instantly feature row: the app relaunched straight into the file
-// and scroll position the last session ended on. This ships the composed
-// frame of the animation — content restored, cursor on line 128, scrollbar
-// thumb mid-file, "resumed" chip visible — which is also the reduced-motion
-// freeze frame once the loop lands. The animation contract: the window
-// blinks through a relaunch, then everything below reappears in exactly this
-// state. Styles are scoped so the miniatures animate independently.
+// Resume-instantly feature row: the app relaunches straight into the file
+// and scroll position the last session ended on. The loop (11s, one shared
+// duration, slots in percentages): 0-13 holds the end-of-last-session frame
+// without the chip, 13-26 the shade dims the window to near-dark (quit),
+// 26-27 the shade snaps away in one step (relaunch — same cursor row, same
+// thumb, no progressive reveal), 30-34 the "resumed" chip pops in, then the
+// composed frame holds until the chip fades back out at 93-98. Reduced
+// motion freezes on the composed frame — content restored, cursor on line
+// 128, thumb mid-file, chip visible — which is exactly the static state
+// below. Styles are scoped so the miniatures animate independently.
 ---
 
 <article class="feat">
@@ -55,6 +58,7 @@
             <span class="file__thumb"></span>
           </div>
         </div>
+        <div class="file__shade"></div>
         <div class="file__chip mono">resumed · review.ts:128</div>
       </div>
     </div>
@@ -147,6 +151,14 @@
     background: var(--faint);
   }
 
+  .file__shade {
+    position: absolute;
+    inset: 0;
+    background: var(--bg);
+    opacity: 0;
+    pointer-events: none;
+  }
+
   .file__chip {
     position: absolute;
     right: 12px;
@@ -157,5 +169,48 @@
     background: var(--surface-hi);
     font-size: 10.5px;
     color: var(--muted);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .file__shade {
+      animation: fr-shade 11s ease infinite;
+    }
+
+    .file__chip {
+      animation: fr-chip 11s ease infinite;
+    }
+
+    @keyframes fr-shade {
+      0%,
+      13% {
+        opacity: 0;
+      }
+      18%,
+      26% {
+        opacity: 1;
+      }
+      27%,
+      100% {
+        opacity: 0;
+      }
+    }
+
+    @keyframes fr-chip {
+      0%,
+      30% {
+        opacity: 0;
+        transform: scale(0.5);
+      }
+      34%,
+      93% {
+        opacity: 1;
+        transform: scale(1);
+      }
+      98%,
+      100% {
+        opacity: 0;
+        transform: scale(0.5);
+      }
+    }
   }
 </style>
