@@ -64,7 +64,6 @@ import {
 import {
   useEffect,
   useLayoutEffect,
-  useReducer,
   useRef,
   useState,
   useSyncExternalStore,
@@ -77,6 +76,7 @@ import {
 import { useInboxDetailNudge } from "../../hooks/use-inbox-detail-nudge.ts";
 import { useLatest } from "../../hooks/use-latest.ts";
 import { usePullRequestDetail } from "../../hooks/use-pull-request-detail.ts";
+import { useReviewFind } from "../../hooks/use-review-find.ts";
 import { useReviewHeadShaSync } from "../../hooks/use-review-head-sha-sync.ts";
 import { useViewedFileReconcile } from "../../hooks/use-viewed-file-reconcile.ts";
 import type { Binding } from "../../keyboard/types.ts";
@@ -97,8 +97,7 @@ import {
   wordAtPoint,
 } from "../../lib/code-dom.ts";
 import { highlightRegistry } from "../../lib/custom-highlight.ts";
-import type { DiffRow } from "../../lib/diff.ts";
-import { type FindMatch, findInDiff } from "../../lib/find-in-diff.ts";
+import type { FindMatch } from "../../lib/find-in-diff.ts";
 import { warmHighlightCache } from "../../lib/highlight.ts";
 import { isImageFile } from "../../lib/image-file.ts";
 import {
@@ -162,7 +161,6 @@ import { FindBar } from "./find-bar.tsx";
 import { OverviewRuler } from "./overview-ruler.tsx";
 import { PrSearch } from "./pr-search.tsx";
 import {
-  type FindCurrent,
   type MarkSpec,
   ReviewList,
   type ReviewListCallbacks,
@@ -212,7 +210,6 @@ interface ReviewScreenProps {
 
 const EMPTY_COMMENTS: ReviewComment[] = [];
 const EMPTY_PENDING: PendingComment[] = [];
-const EMPTY_MATCHES: FindMatch[] = [];
 const EMPTY_OCC: OccurrenceMatch[] = [];
 const EMPTY_FRACTIONS: number[] = [];
 const EMPTY_COLLAPSED: ReadonlyMap<number, ReadonlySet<number>> = new Map();
@@ -1887,170 +1884,6 @@ function advanceToNextReview(
   }
 }
 
-interface FindUi {
-  caseSensitive: boolean;
-  focusSeq: number;
-  index: number | null;
-  open: boolean;
-  query: string;
-  seed: number | null;
-}
-
-type FindUiAction =
-  | { type: "close" }
-  | { focusSeq: number; type: "focus" }
-  | { index: number; type: "step" }
-  | { q: string; seed: number | null; type: "query" }
-  | { seed: number | null; selected?: string; type: "open" }
-  | { seed: number | null; type: "toggleCase" };
-
-const INITIAL_FIND_UI: FindUi = {
-  caseSensitive: false,
-  focusSeq: 0,
-  index: null,
-  open: false,
-  query: "",
-  seed: null,
-};
-
-function findUiReducer(state: FindUi, action: FindUiAction): FindUi {
-  switch (action.type) {
-    case "close":
-      return { ...state, open: false };
-    case "focus":
-      return { ...state, focusSeq: action.focusSeq };
-    case "open":
-      return {
-        ...state,
-        index: null,
-        open: true,
-        query: action.selected ?? state.query,
-        seed: action.seed,
-      };
-    case "query":
-      return { ...state, index: null, query: action.q, seed: action.seed };
-    case "step":
-      return { ...state, index: action.index };
-    case "toggleCase":
-      return {
-        ...state,
-        caseSensitive: !state.caseSensitive,
-        index: null,
-        seed: action.seed,
-      };
-    default:
-      return state;
-  }
-}
-
-function useReviewFind(args: {
-  files: ChangedFile[];
-  listRef: React.RefObject<ReviewListHandle | null>;
-  model: ReviewListModel;
-  rowsByFile: ReadonlyMap<number, readonly DiffRow[]>;
-  selectLine: (
-    fileIndex: number,
-    anchor: string,
-    opts?: { keepOccurrences?: boolean }
-  ) => void;
-}) {
-  const { files, listRef, model, rowsByFile, selectLine } = args;
-  const [findUi, dispatchFindUi] = useReducer(findUiReducer, INITIAL_FIND_UI);
-  const {
-    caseSensitive: findCase,
-    focusSeq: findFocusSeq,
-    index: findIndex,
-    open: findOpen,
-    query: findQuery,
-    seed: findSeed,
-  } = findUi;
-  const findJumpedRef = useRef(false);
-  const findOpenRef = useLatest(findOpen);
-
-  const findMatches =
-    findOpen && findQuery
-      ? findInDiff(files, findQuery, { caseSensitive: findCase, rowsByFile })
-      : EMPTY_MATCHES;
-  const findSeededIndex = seededMatchIndex(findMatches, model, findSeed);
-  const findSafeIndex =
-    findMatches.length > 0
-      ? Math.min(findIndex ?? findSeededIndex, findMatches.length - 1)
-      : 0;
-  const findCurrent = currentMatchAt(findMatches, findSafeIndex);
-
-  const changeFindQuery = (q: string) => {
-    dispatchFindUi({
-      q,
-      seed: listRef.current?.firstVisibleRowItem() ?? null,
-      type: "query",
-    });
-    findJumpedRef.current = false;
-  };
-
-  const toggleFindCase = () => {
-    dispatchFindUi({
-      seed: listRef.current?.firstVisibleRowItem() ?? null,
-      type: "toggleCase",
-    });
-    findJumpedRef.current = false;
-  };
-
-  const openFind = () => {
-    if (!findOpenRef.current) {
-      const selected =
-        window.getSelection()?.toString().split("\n")[0].trim() ?? "";
-      dispatchFindUi({
-        seed: listRef.current?.firstVisibleRowItem() ?? null,
-        selected: selected || undefined,
-        type: "open",
-      });
-      findJumpedRef.current = false;
-    }
-    dispatchFindUi({ focusSeq: findFocusSeq + 1, type: "focus" });
-  };
-
-  const closeFind = () => {
-    dispatchFindUi({ type: "close" });
-  };
-  const closeFindRef = useLatest(closeFind);
-
-  const findStep = (dir: 1 | -1) => {
-    const n = findMatches.length;
-    if (n === 0) {
-      return;
-    }
-    const next = findJumpedRef.current
-      ? (findSafeIndex + dir + n) % n
-      : findSafeIndex;
-    findJumpedRef.current = true;
-    dispatchFindUi({ index: next, type: "step" });
-    const m = findMatches[next];
-    selectLine(m.fileIndex, m.anchor);
-  };
-
-  const onFindNext = () => findStep(1);
-  const onFindPrev = () => findStep(-1);
-
-  return {
-    changeFindQuery,
-    closeFind,
-    closeFindRef,
-    findCase,
-    findCurrent,
-    findFocusSeq,
-    findMatches,
-    findOpen,
-    findOpenRef,
-    findQuery,
-    findSafeIndex,
-    findStep,
-    onFindNext,
-    onFindPrev,
-    openFind,
-    toggleFindCase,
-  };
-}
-
 function useReviewFileNavigation(args: {
   activeIndexRef: React.RefObject<number>;
   cursorMoverRefs: Parameters<typeof buildCursorMover>[0];
@@ -3410,52 +3243,6 @@ function buildOccNav(refs: {
     jumpTo(at + dir);
   };
   return { indexAt, jumpTo, step, stepTo };
-}
-
-/**
- * The first match at/after a captured viewport position (a list item index),
- * wrapping to the top when everything is behind it. Matches without an item
- * (collapsed hunks) can't be compared and are skipped.
- */
-function seededMatchIndex(
-  matches: FindMatch[],
-  model: ReviewListModel,
-  seedItemIndex: number | null
-): number {
-  if (seedItemIndex === null || matches.length === 0) {
-    return 0;
-  }
-  for (let i = 0; i < matches.length; i += 1) {
-    const m = matches[i];
-    const idx = model.anchorItem.get(fileAnchorKey(m.fileIndex, m.anchor));
-    if (idx !== undefined && idx >= seedItemIndex) {
-      return i;
-    }
-  }
-  return 0;
-}
-
-/**
- * The match at `index` as (file, row anchor, occurrence ordinal). Matches on
- * one line are adjacent in the list, so the ordinal is the run-length behind.
- */
-function currentMatchAt(
-  matches: FindMatch[],
-  index: number
-): FindCurrent | null {
-  const m = matches[index];
-  if (!m) {
-    return null;
-  }
-  let ordinal = 0;
-  for (let i = index - 1; i >= 0; i -= 1) {
-    const p = matches[i];
-    if (p.fileIndex !== m.fileIndex || p.anchor !== m.anchor) {
-      break;
-    }
-    ordinal += 1;
-  }
-  return { anchor: m.anchor, fileIndex: m.fileIndex, ordinal };
 }
 
 /** The inbox cache's view of a PR, for painting the shell before detail loads. */
