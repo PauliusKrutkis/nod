@@ -143,6 +143,27 @@ fn read_file_refuses_to_escape_the_snapshot() {
     assert_eq!(read_file(root.path(), &k, "../../../../secret.txt"), None);
 }
 
+#[cfg(unix)]
+#[test]
+fn read_file_refuses_symlinks_inside_the_snapshot() {
+    let root = TempRoot::new("symlink");
+    let k = key("abc123");
+    write(&root.path().join("secret.txt"), "top secret");
+    write(&partial_dir(root.path(), &k).join("README.md"), "hi");
+    promote(root.path(), &k).expect("promote");
+    std::os::unix::fs::symlink(
+        root.path().join("secret.txt"),
+        snapshot_dir(root.path(), &k).join("link.txt"),
+    )
+    .expect("symlink");
+
+    assert_eq!(read_file(root.path(), &k, "link.txt"), None);
+    assert_eq!(
+        read_file(root.path(), &k, "README.md"),
+        Some(b"hi".to_vec())
+    );
+}
+
 #[test]
 fn promote_replaces_an_existing_snapshot_at_the_same_sha() {
     let root = TempRoot::new("replace");
@@ -218,6 +239,24 @@ fn evict_global_trims_oldest_first_and_always_keeps_one() {
     assert!(!is_ready(root.path(), &key("old")));
     assert!(!is_ready(root.path(), &key("middle")));
     assert!(is_ready(root.path(), &key("newest")));
+}
+
+#[test]
+fn evict_global_sweeps_orphaned_partial_and_discard_dirs() {
+    let root = TempRoot::new("sweep");
+    let k = key("abc");
+    write(&partial_dir(root.path(), &k).join("f.txt"), "live");
+    promote(root.path(), &k).expect("promote");
+
+    let repo = repo_dir(root.path(), &k);
+    write(&repo.join("dead.partial").join("f.txt"), "orphan");
+    write(&repo.join("dead.discard").join("f.txt"), "orphan");
+
+    evict_global(root.path(), MAX_CACHE_BYTES);
+
+    assert!(!repo.join("dead.partial").exists());
+    assert!(!repo.join("dead.discard").exists());
+    assert!(is_ready(root.path(), &k));
 }
 
 #[test]
