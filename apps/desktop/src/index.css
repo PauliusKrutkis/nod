@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import "tailwindcss" source("../src");
 @import "./quiet.css";
 
 /* Nod theme — the "Quiet" palette (deep indigo canvas, one iris accent).
