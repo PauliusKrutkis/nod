@@ -851,8 +851,8 @@ a {
   text-decoration: none;
   border: 1px solid transparent;
   transition:
-    transform 0.12s ease,
-    background 0.15s ease;
+    background 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .btn--primary {
@@ -861,8 +861,12 @@ a {
 }
 
 .btn--primary:hover {
-  transform: translateY(-1px);
   background: #9a90ff;
+}
+
+/* The halo yields to the global :focus-visible ring, which is also a box-shadow. */
+.btn--primary:hover:not(:focus-visible) {
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .get__note {

@@ -158,6 +158,40 @@ test("points every download at a published release asset", async ({ page }) => {
   }
 });
 
+test.describe("the primary download button", () => {
+  /**
+   * The hover treatment must never move the button: a transform lift shifts
+   * the hit target away from a cursor resting on the button's edge, which
+   * makes the hover state flicker on and off. Feedback is colour-only.
+   */
+  test("keeps its position on hover", async ({ page }) => {
+    await page.goto("/downloads");
+
+    const button = activeOption(page).locator(".dl__btn");
+    const rest = await button.boundingBox();
+    if (!rest) {
+      throw new Error("download button has no layout box");
+    }
+    const clip = {
+      height: rest.height + 64,
+      width: rest.width + 128,
+      x: Math.max(0, rest.x - 64),
+      y: Math.max(0, rest.y - 32),
+    };
+    await page.screenshot({ clip, path: "evidence/dlbtn-hover-rest.png" });
+
+    await button.hover();
+    await expect(button).toHaveCSS("transform", "none");
+    await expect(button).not.toHaveCSS("box-shadow", "none");
+    // The settled hover colour; waiting on it keeps the screenshot
+    // post-transition rather than mid-fade.
+    await expect(button).toHaveCSS("background-color", "rgb(154, 144, 255)");
+
+    expect(await button.boundingBox()).toEqual(rest);
+    await page.screenshot({ clip, path: "evidence/dlbtn-hover-active.png" });
+  });
+});
+
 test.describe("without JavaScript", () => {
   test.use({ javaScriptEnabled: false });
 
