@@ -41,6 +41,9 @@ jobs:
           # deliberate style disagreements are configured in
           # doctor.config.json instead of tolerated as noise.
           blocking: warning
+          # The React app lives in the desktop workspace; doctor.config.json
+          # moved there with it.
+          directory: apps/desktop
         # Full reference: https://www.react.doctor/ci
         # with:
         #   blocking: error          # Gate level: "none" (advisory, the default) | "warning" | "error"

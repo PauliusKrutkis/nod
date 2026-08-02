@@ -58,7 +58,7 @@ fully keyboard-drivable.
 ## Current visual language
 
 A cool near-black with a violet cast. Tokens are defined once in
-`src/index.css` (`@theme`) and Tailwind v4 generates the utilities
+`apps/desktop/src/index.css` (`@theme`) and Tailwind v4 generates the utilities
 (`bg-surface`, `text-muted`, `border-line`…).
 
 | Token | Value | Role |
@@ -134,7 +134,7 @@ bolted on: **new-review notification toast**, **orient / "PR updated" banners**,
 
 ## Interaction model
 
-- **Scope-aware keyboard layer** (`src/keyboard/`): bindings register per scope
+- **Scope-aware keyboard layer** (`apps/desktop/src/keyboard/`): bindings register per scope
   (`inbox`, `review`, `palette`, `help`, plus `global`); only the active scope's
   single-key bindings fire, with `⌘K` / `?` always available. This is the
   product's differentiator — the rework must keep it front and centre, and keep

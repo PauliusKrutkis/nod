@@ -22,9 +22,9 @@ Every PR produced by this skill MUST satisfy all of the following before it is o
    pnpm typecheck  # tsc --noEmit
    pnpm test       # vitest unit tests
    pnpm knip       # no dead/unwired code
-   pnpm e2e        # playwright, required when src/ UI or e2e/ changed
+   pnpm e2e        # playwright, required when apps/desktop/src/ UI or apps/desktop/e2e/ changed
    ```
-   If `src-tauri/` changed, also run `cargo test` in `src-tauri/`.
+   If `apps/desktop/src-tauri/` changed, also run `cargo test` in `apps/desktop/src-tauri/`.
 5. **knip must be green in every PR.** This is the anti-dead-code rule and it shapes how you slice (see "Slicing strategy").
 6. **UI PRs require visual evidence** (see "UI evidence").
 
@@ -88,7 +88,7 @@ Do not push or open PRs without the user's go-ahead on the plan.
 
 ## UI evidence
 
-A PR counts as a UI PR if it changes anything rendered (components, styles, layout) under `src/`.
+A PR counts as a UI PR if it changes anything rendered (components, styles, layout) under `apps/desktop/src/`.
 
 ### Capture
 
@@ -98,7 +98,7 @@ A PR counts as a UI PR if it changes anything rendered (components, styles, layo
   pnpm exec playwright test <spec> --project=chromium
   ```
   with `use: { video: 'on' }` passed via a temporary config override or `--config` variant; use the resulting `test-results/**/video.webm`.
-- Every UI slice must include or extend a Playwright e2e spec in `e2e/` that exercises the changed UI; the evidence must come from that spec run, not from manually poking the dev server.
+- Every UI slice must include or extend a Playwright e2e spec in `apps/desktop/e2e/` that exercises the changed UI; the evidence must come from that spec run, not from manually poking the dev server.
 - Remember e2e runs on its own port (default 14205, `E2E_PORT` to override) and never reuses a running server.
 - Save captured files under `evidence/` with a slice-scoped prefix so asset names never collide across PRs (e.g. `p05-collapsed.png`, `chunk-keybind-cursor.png`).
 

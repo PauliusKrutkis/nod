@@ -9,9 +9,9 @@ What exists today, and what runs it:
 
 | Suite | Where | Command |
 | --- | --- | --- |
-| App unit | `src/**/*.test.ts` | `pnpm test` |
-| App e2e (vite + mocked Tauri bridge) | `e2e/` | `pnpm e2e` |
-| Rust unit | `src-tauri/` | `cargo test --manifest-path src-tauri/Cargo.toml` |
+| App unit | `apps/desktop/src/**/*.test.ts` | `pnpm test` |
+| App e2e (vite + mocked Tauri bridge) | `apps/desktop/e2e/` | `pnpm e2e` |
+| Rust unit | `apps/desktop/src-tauri/` | `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml` |
 | Site unit, types, e2e | `apps/web/` | see [Marketing site](#marketing-site-appsweb) |
 
 ## Why now
@@ -27,7 +27,7 @@ near-pure modules today — high value, low setup cost.
 | Layer | Runner | Notes |
 | --- | --- | --- |
 | TS unit + component | [Vitest](https://vitest.dev) + `@testing-library/react` + jsdom | Native Vite integration (we're on Vite 7); `pnpm test` |
-| Rust unit + integration | `cargo test` (built-in) | Fixture JSON under `src-tauri/tests/fixtures/`; no new deps beyond `serde_json` already present |
+| Rust unit + integration | `cargo test` (built-in) | Fixture JSON under `apps/desktop/src-tauri/tests/fixtures/`; no new deps beyond `serde_json` already present |
 | CI | Extend `.github/workflows` with a `test` job on PRs | Typecheck + vitest + cargo test; no bundling |
 
 Vitest over Jest: shares the Vite pipeline/config, no transform drift, faster
@@ -69,7 +69,7 @@ than calling handlers directly — the dispatch path is where the bugs were.
 query cache is empty), `useComments` mutation → query invalidation. Mock
 `lib/api.ts` at the module boundary; no Tauri runtime needed.
 
-## Coverage map — Rust (`src-tauri`)
+## Coverage map — Rust (`apps/desktop/src-tauri`)
 
 ### Priority 1 — provider mapping (unit, fixture-driven)
 

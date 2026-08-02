@@ -80,7 +80,7 @@ and state/caching notes. Overview:
 │  Inbox / Review screens  ·  keyboard layer  ·  zustand UI state          │
 │  TanStack Query (in-memory cache, 60s polling, refetch-on-focus)         │
 └───────────────────────────────┬──────────────────────────────────────────┘
-                                 │  invoke()  (typed wrappers in src/lib/api.ts)
+                                 │  invoke()  (typed wrappers in apps/desktop/src/lib/api.ts)
 ┌───────────────────────────────▼──────────────────────────────────────────┐
 │  Rust (Tauri commands)                                                    │
 │   • GitHub REST client (reqwest) — token never leaves the backend         │
@@ -94,12 +94,12 @@ the first paint is instant; the live fetch then reconciles in the background.
 
 Key source files:
 
-- `src-tauri/src/platform/github.rs` — GitHub client + commands: a single GraphQL request powers the inbox (all four tabs + counts at once); REST handles PR detail / diffs / comments
-- `src-tauri/src/storage.rs` — JSON file persistence + token storage
-- `src/lib/api.ts` — typed `invoke()` wrappers
-- `src/keyboard/` — the scope-aware keyboard system (the differentiator)
-- `src/hooks/` — TanStack Query data hooks (polling, focus refetch, cache seeding)
-- `src/components/inbox`, `src/components/review` — the two screens
+- `apps/desktop/src-tauri/src/platform/github.rs` — GitHub client + commands: a single GraphQL request powers the inbox (all four tabs + counts at once); REST handles PR detail / diffs / comments
+- `apps/desktop/src-tauri/src/storage.rs` — JSON file persistence + token storage
+- `apps/desktop/src/lib/api.ts` — typed `invoke()` wrappers
+- `apps/desktop/src/keyboard/` — the scope-aware keyboard system (the differentiator)
+- `apps/desktop/src/hooks/` — TanStack Query data hooks (polling, focus refetch, cache seeding)
+- `apps/desktop/src/components/inbox`, `apps/desktop/src/components/review` — the two screens
 
 ---
 
@@ -148,7 +148,7 @@ once):
    ```
    (Homepage URL can be anything, e.g. `http://127.0.0.1:8765`.)
 3. Create it, copy the **Client ID**, and **Generate a new client secret**.
-4. Put them in **`src-tauri/.env`** (copy the provided `src-tauri/.env.example`):
+4. Put them in **`apps/desktop/src-tauri/.env`** (copy the provided `apps/desktop/src-tauri/.env.example`):
    ```dotenv
    # Copy these exactly as shown on the OAuth App page — no prefix.
    PRFLOW_GH_CLIENT_ID=Ov23xxxxxxxxxxxxxxxx
@@ -159,7 +159,7 @@ once):
    pnpm tauri dev
    ```
 
-`src-tauri/.env` is **gitignored**, so the secret never gets committed; the app
+`apps/desktop/src-tauri/.env` is **gitignored**, so the secret never gets committed; the app
 loads it at startup (real shell environment variables, if set, take precedence).
 You can equally `export` the two vars instead of using `.env` — either works.
 
@@ -184,7 +184,7 @@ one-time application registration:
 2. Redirect URI: `http://127.0.0.1:8765/callback`, scope: **`api`**,
    **uncheck "Confidential"** (public client, PKCE) and **uncheck "Expire
    access tokens"** (otherwise tokens expire after 2h and you'd re-auth).
-3. Put the Application ID in `src-tauri/.env`:
+3. Put the Application ID in `apps/desktop/src-tauri/.env`:
    ```dotenv
    NOD_GITLAB_CLIENT_ID=xxxxxxxx
    ```
@@ -245,7 +245,7 @@ git tag v0.1.1 && git push origin v0.1.1
 The `release.yml` workflow builds macOS (arm64 + x64), Windows and Linux
 bundles, signs the updater artifacts, publishes a GitHub Release with
 `latest.json`, and bumps the Homebrew tap (when the `TAP_REPO_TOKEN` secret is
-set). Bump `version` in `src-tauri/tauri.conf.json` before
+set). Bump `version` in `apps/desktop/src-tauri/tauri.conf.json` before
 tagging — that's the version the updater compares against.
 
 Signing secrets (already configured): `TAURI_SIGNING_PRIVATE_KEY` (from

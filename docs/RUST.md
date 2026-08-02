@@ -1,6 +1,6 @@
 # Rust backend (Tauri)
 
-The desktop app's backend lives in `src-tauri/src/`. It holds
+The desktop app's backend lives in `apps/desktop/src-tauri/src/`. It holds
 tokens, talks to GitHub/GitLab, and writes on-disk caches. The React webview
 never calls host APIs directly.
 
@@ -12,7 +12,7 @@ For the full stack (webview → invoke → commands), see
 ## Request flow
 
 ```
-React (src/lib/api.ts)
+React (apps/desktop/src/lib/api.ts)
   → invoke("command_name", …)
   → lib.rs (handler registration)
   → #[tauri::command] in auth | accounts | commands | update
@@ -98,7 +98,7 @@ All handlers are registered in `lib.rs`. Grouped by source file:
 
 - `check_for_update`, `install_update`
 
-TypeScript wrappers live in `src/lib/api.ts`.
+TypeScript wrappers live in `apps/desktop/src/lib/api.ts`.
 
 ---
 
@@ -183,7 +183,7 @@ fetch commands write through to the same paths.
    `accounts::upsert_github` or GitLab equivalent.
 
 Credentials come from env (`PRFLOW_GH_*`, `PRFLOW_GL_*`) or compile-time
-`option_env!` for release builds. `dotenvy` loads `src-tauri/.env` in dev.
+`option_env!` for release builds. `dotenvy` loads `apps/desktop/src-tauri/.env` in dev.
 
 Token paste (`set_token` / `add_account`) bypasses OAuth but still validates
 the token against the host before persisting.
