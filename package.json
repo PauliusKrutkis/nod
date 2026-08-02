@@ -21,7 +21,8 @@
     "doctor": "pnpm --filter @nod/desktop doctor",
     "check": "ultracite check",
     "fix": "ultracite fix",
-    "knip": "knip"
+    "knip": "knip",
+    "capture:landing": "bash scripts/capture-landing.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.7",
