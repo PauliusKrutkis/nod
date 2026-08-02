@@ -35,7 +35,7 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
         <p class="get__note">
           macOS, Windows, and Linux — or install with{" "}<a
             href="/downloads#homebrew">Homebrew</a
-          >. Free to try for 14 days.
+          >. Free to evaluate — no time limit.
         </p>
       </div>
     </section>
@@ -53,11 +53,11 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
       <p class="eyebrow">Pricing</p>
       <div class="pricing__card">
         <p class="pricing__price">
-          $29 <span class="pricing__term">one-time · a year of updates</span>
+          $39 <span class="pricing__term">one-time · a year of updates</span>
         </p>
         <p class="pricing__copy">
-          Every feature is free for 14 days. After that Nod keeps working —
-          forever — and a license keeps the updates coming.
+          Nod is free to evaluate, every feature, no time limit. A license
+          funds development and keeps the updates coming.
         </p>
         {
           checkoutUrl ? (
@@ -66,7 +66,7 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
             </a>
           ) : (
             <a class="btn btn--primary" href="/downloads">
-              Start the free intro
+              Evaluate for free
             </a>
           )
         }

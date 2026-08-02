@@ -7,17 +7,17 @@ import {
 import { api } from "../lib/api.ts";
 
 /**
- * Trial-ended purchase card in the alert stack. Appears only in the
- * trialExpired state, and never blocks anything — the app stays fully usable
- * behind it, per the no-DRM stance; a license buys a year of updates. Buy
- * opens checkout in the browser and the backend command stays pending until
- * the activation listener receives a verified token, so success lands here
- * as the resolved license state and is written straight into the shared
- * license-state query — the card and the trial badge both flip without a
- * refetch. Later stays enabled during the wait (checkout can take many
+ * The purchase card, and the only licensing surface an evaluator ever sees:
+ * evaluation is free and time-unlimited (Sublime-style — no countdown, no
+ * lock), so nothing licensing-related renders at all until the backend's
+ * 14-day grace window ends, after which this dismissable card asks once per
+ * launch and updates pause until a license exists. Buy opens checkout in
+ * the browser and the backend command stays pending until the activation
+ * listener receives a verified token, so success lands here as the resolved
+ * license state and is written straight into the shared license-state
+ * query. Later stays enabled during the wait (checkout can take many
  * minutes, and abandoning it must not trap the card on screen); a dismissed
- * card's pending activation still resolves into the shared query. Dismissal
- * is per-launch (plain state), matching UpdatePrompt.
+ * card's pending activation still resolves into the shared query.
  */
 
 export function PurchasePrompt() {
@@ -50,10 +50,11 @@ export function PurchasePrompt() {
       </span>
       <div className="qb-update-body">
         <div className="qb-update-head">
-          <span className="qb-update-title">Your trial has ended</span>
+          <span className="qb-update-title">Enjoying Nod?</span>
         </div>
         <p className="qb-update-text">
-          Nod keeps working — a license unlocks a year of updates.
+          Nod is free to evaluate. A license is $39 — it funds development and
+          keeps a year of updates coming.
         </p>
         {error ? <p className="qb-update-err">{error}</p> : null}
         <div className="qb-update-actions">
@@ -63,7 +64,7 @@ export function PurchasePrompt() {
             onClick={buy}
             type="button"
           >
-            {purchasing ? "Waiting for the browser…" : "Buy Nod — $29"}
+            {purchasing ? "Waiting for the browser…" : "Buy Nod — $39"}
           </button>
           <button
             className="qb-update-later"

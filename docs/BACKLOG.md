@@ -691,18 +691,20 @@ an open item: production-build perf e2e). Landing page (§0) and MoR account
 `/activate` is a success page with a 48-hour window, zero-click loopback
 push (port 8766, PNA preflight handled) and a `prflow://purchase` deep
 link the app registers; the desktop app verifies tokens offline
-(`ed25519-dalek`, cross-stack fixture tests), runs the never-blocking
-14-day trial with countdown badge and purchase card, and gates updates on
-`updates_until`; the landing page states $29 / a year of updates with the
-buy button env-gated until checkout exists. **Still blocked on live
+(`ed25519-dalek`, cross-stack fixture tests), runs the free unlimited
+evaluation (nothing licensing-visible for 14 days, then a dismissable
+purchase card; reframed same day from a "trial" — countdown badge removed),
+and gates updates on `updates_until`; the landing page states $39 / a year
+of updates with the buy button env-gated until checkout exists. Licensing:
+source-available under FSL-1.1-Apache-2.0 (root LICENSE.md). **Still blocked on live
 accounts:** Polar (verify `metadata.subject` + success-URL param, set
 `POLAR_WEBHOOK_SECRET`), the Ed25519 keypair (`LICENSE_SIGNING_SEED`
 secret / `NOD_LICENSE_PUBKEY` + `NOD_CHECKOUT_URL` in release builds,
 `PUBLIC_CHECKOUT_URL` on the site), forge identity at checkout
 (success-page OAuth — nothing puts `metadata.subject` on orders yet),
-`/restore` (needs `POLAR_API_KEY`), and Apple notarization. Trial/price
+`/restore` (needs `POLAR_API_KEY`), and Apple notarization. Evaluation/price
 decisions are recorded in
-[RELEASING.md](./RELEASING.md#product-decision-trial-model-and-price-2026-08-02).
+[RELEASING.md](./RELEASING.md#product-decision-evaluation-model-and-price-2026-08-02-reframed-same-day).
 
 The 2026-07-30 audit below is kept for history — its "missing entirely"
 list is what the update above closed.
