@@ -74,6 +74,8 @@ type TimelineEntry =
   | { kind: "comment"; at: string; comment: IssueComment }
   | { kind: "review"; at: string; review: ReviewSummary };
 
+const noop = () => undefined;
+
 const REVIEW_STATES: Record<string, { label: string; cls: string }> = {
   APPROVED: { cls: "q-pill-approved", label: "Approved" },
   CHANGES_REQUESTED: { cls: "q-pill-changes", label: "Changes requested" },
@@ -284,146 +286,33 @@ export function RightPanel({
         </div>
 
         <div className="qf-drawer-body" ref={bodyRef}>
-          <section className="qf-drawer-section">
-            <div className="qf-drawer-pr">
-              <span className="qf-pr-num">#{pr.number}</span>
-              <span className="qf-drawer-pr-title">
-                <TicketTitle title={pr.title} trackerBase={trackerBase} />
-              </span>
-            </div>
-            <div className="qf-drawer-meta">
-              <Avatar name={pr.author} size={15} url={pr.authorAvatarUrl} />
-              <span>{pr.author}</span>
-              <span className="qf-dot">·</span>
-              <span>
-                {fileCount} file{fileCount === 1 ? "" : "s"}
-              </span>
-              <span className="qf-dot">·</span>
-              <span className="qf-add">+{pr.additions}</span>
-              <span className="qf-del">−{pr.deletions}</span>
-              <span className="qf-dot">·</span>
-              <span className="qf-muted" title={formatAbsolute(pr.updatedAt)}>
-                {formatRelativeTime(pr.updatedAt)}
-              </span>
-            </div>
-            <div className="qf-drawer-links">
-              <CiPill ci={ci} />
-              <Tooltip label={pr.url}>
-                <button
-                  className="qf-drawer-link qf-focusable"
-                  onClick={onOpenPr}
-                  type="button"
-                >
-                  {openOnProviderLabel(pr.url)}
-                  <ExternalLink aria-hidden size={13} />
-                </button>
-              </Tooltip>
-            </div>
-          </section>
+          <DrawerMeta
+            ci={ci}
+            fileCount={fileCount}
+            onOpenPr={onOpenPr}
+            pr={pr}
+            trackerBase={trackerBase}
+          />
 
-          <section className="qf-drawer-section">
-            <h3 className="qf-drawer-h">Description</h3>
-            {body ? (
-              <Markdown owner={pr.owner} repo={pr.name}>
-                {body}
-              </Markdown>
-            ) : (
-              <p className="text-faint text-sm">No description.</p>
-            )}
-          </section>
+          <DrawerDescription body={body} owner={pr.owner} repo={pr.name} />
 
-          <section className="qf-drawer-section">
-            <h3 className="qf-drawer-h">
-              Conversation
-              {timeline.length > 0 && (
-                <span className="qf-drawer-count">{timeline.length}</span>
-              )}
-            </h3>
-            {timeline.length === 0 ? (
-              <p className="text-faint text-sm">
-                No discussion yet — start one below.
-              </p>
-            ) : (
-              <div className="qf-convo">
-                {timeline.map((entry) =>
-                  entry.kind === "comment" ? (
-                    <ConversationItem
-                      at={entry.comment.createdAt}
-                      avatarUrl={entry.comment.userAvatarUrl}
-                      body={entry.comment.body}
-                      commentId={entry.comment.id}
-                      editing={editingId === entry.comment.id}
-                      key={`c-${entry.comment.id}`}
-                      onCancelEdit={cancelEdit}
-                      onDelete={onDeleteIssueComment}
-                      onStartEdit={startEdit}
-                      onSubmitEdit={submitEdit}
-                      own={
-                        entry.comment.id > 0 && entry.comment.user === ownLogin
-                      }
-                      owner={pr.owner}
-                      repo={pr.name}
-                      user={entry.comment.user}
-                    />
-                  ) : (
-                    <ConversationItem
-                      at={entry.review.submittedAt}
-                      avatarUrl={entry.review.userAvatarUrl}
-                      body={entry.review.body}
-                      key={`r-${entry.review.id}`}
-                      owner={pr.owner}
-                      repo={pr.name}
-                      state={entry.review.state}
-                      user={entry.review.user}
-                    />
-                  )
-                )}
-              </div>
-            )}
-          </section>
+          <DrawerConversation
+            editingId={editingId}
+            onCancelEdit={cancelEdit}
+            onDelete={onDeleteIssueComment}
+            onStartEdit={startEdit}
+            onSubmitEdit={submitEdit}
+            owner={pr.owner}
+            ownLogin={ownLogin}
+            repo={pr.name}
+            timeline={timeline}
+          />
 
           {threads.length > 0 && (
-            <section className="qf-drawer-section">
-              <h3 className="qf-drawer-h">
-                Code discussion
-                <span className="qf-drawer-count">{threads.length}</span>
-              </h3>
-              <div className="qf-drawer-threads">
-                {threads.map(({ root, replyCount }) => (
-                  <button
-                    className="qf-thread-row qf-focusable"
-                    data-thread-path={root.path}
-                    data-thread-root={root.id}
-                    key={root.id}
-                    onClick={handleJumpToThread}
-                    title="Jump to this thread in the diff"
-                    type="button"
-                  >
-                    <span className="qf-thread-loc">
-                      {!!root.resolved && (
-                        <CheckCircle2
-                          aria-label="Resolved"
-                          className="qf-thread-check"
-                          size={12}
-                        />
-                      )}
-                      <span className="qf-thread-path">{root.path}</span>
-                      <span className="qf-thread-line">
-                        {root.line === null ? " · outdated" : `:${root.line}`}
-                      </span>
-                      {replyCount > 0 && (
-                        <span className="qf-thread-replies">
-                          {replyCount} {replyCount === 1 ? "reply" : "replies"}
-                        </span>
-                      )}
-                    </span>
-                    <span className="qf-thread-snip">
-                      {firstLine(root.body)}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </section>
+            <DrawerCodeDiscussion
+              onJumpToThread={handleJumpToThread}
+              threads={threads}
+            />
           )}
         </div>
 
@@ -464,6 +353,209 @@ export function RightPanel({
         </div>
       </aside>
     </>
+  );
+}
+
+interface DrawerMetaProps {
+  ci: CiStatus | undefined;
+  fileCount: number;
+  onOpenPr: () => void;
+  pr: PullRequest;
+  trackerBase: string | undefined;
+}
+
+/** The drawer's header section: PR number/title, author, stats, CI, link. */
+function DrawerMeta({
+  ci,
+  fileCount,
+  onOpenPr,
+  pr,
+  trackerBase,
+}: DrawerMetaProps) {
+  return (
+    <section className="qf-drawer-section">
+      <div className="qf-drawer-pr">
+        <span className="qf-pr-num">#{pr.number}</span>
+        <span className="qf-drawer-pr-title">
+          <TicketTitle title={pr.title} trackerBase={trackerBase} />
+        </span>
+      </div>
+      <div className="qf-drawer-meta">
+        <Avatar name={pr.author} size={15} url={pr.authorAvatarUrl} />
+        <span>{pr.author}</span>
+        <span className="qf-dot">·</span>
+        <span>
+          {fileCount} file{fileCount === 1 ? "" : "s"}
+        </span>
+        <span className="qf-dot">·</span>
+        <span className="qf-add">+{pr.additions}</span>
+        <span className="qf-del">−{pr.deletions}</span>
+        <span className="qf-dot">·</span>
+        <span className="qf-muted" title={formatAbsolute(pr.updatedAt)}>
+          {formatRelativeTime(pr.updatedAt)}
+        </span>
+      </div>
+      <div className="qf-drawer-links">
+        <CiPill ci={ci} />
+        <Tooltip label={pr.url}>
+          <button
+            className="qf-drawer-link qf-focusable"
+            onClick={onOpenPr}
+            type="button"
+          >
+            {openOnProviderLabel(pr.url)}
+            <ExternalLink aria-hidden size={13} />
+          </button>
+        </Tooltip>
+      </div>
+    </section>
+  );
+}
+
+interface DrawerDescriptionProps {
+  body: string;
+  owner: string;
+  repo: string;
+}
+
+function DrawerDescription({ body, owner, repo }: DrawerDescriptionProps) {
+  return (
+    <section className="qf-drawer-section">
+      <h3 className="qf-drawer-h">Description</h3>
+      {body ? (
+        <Markdown owner={owner} repo={repo}>
+          {body}
+        </Markdown>
+      ) : (
+        <p className="text-faint text-sm">No description.</p>
+      )}
+    </section>
+  );
+}
+
+interface DrawerConversationProps {
+  editingId: number | null;
+  onCancelEdit: () => void;
+  onDelete: (a: { commentId: number }) => Promise<void>;
+  onStartEdit: (commentId: number) => void;
+  onSubmitEdit: (commentId: number, body: string) => void;
+  ownLogin: string | undefined;
+  owner: string;
+  repo: string;
+  timeline: TimelineEntry[];
+}
+
+function DrawerConversation({
+  editingId,
+  onCancelEdit,
+  onDelete,
+  onStartEdit,
+  onSubmitEdit,
+  ownLogin,
+  owner,
+  repo,
+  timeline,
+}: DrawerConversationProps) {
+  return (
+    <section className="qf-drawer-section">
+      <h3 className="qf-drawer-h">
+        Conversation
+        {timeline.length > 0 && (
+          <span className="qf-drawer-count">{timeline.length}</span>
+        )}
+      </h3>
+      {timeline.length === 0 ? (
+        <p className="text-faint text-sm">
+          No discussion yet — start one below.
+        </p>
+      ) : (
+        <div className="qf-convo">
+          {timeline.map((entry) =>
+            entry.kind === "comment" ? (
+              <ConversationItem
+                at={entry.comment.createdAt}
+                avatarUrl={entry.comment.userAvatarUrl}
+                body={entry.comment.body}
+                commentId={entry.comment.id}
+                editing={editingId === entry.comment.id}
+                key={`c-${entry.comment.id}`}
+                onCancelEdit={onCancelEdit}
+                onDelete={onDelete}
+                onStartEdit={onStartEdit}
+                onSubmitEdit={onSubmitEdit}
+                own={entry.comment.id > 0 && entry.comment.user === ownLogin}
+                owner={owner}
+                repo={repo}
+                user={entry.comment.user}
+              />
+            ) : (
+              <ConversationItem
+                at={entry.review.submittedAt}
+                avatarUrl={entry.review.userAvatarUrl}
+                body={entry.review.body}
+                key={`r-${entry.review.id}`}
+                owner={owner}
+                repo={repo}
+                state={entry.review.state}
+                user={entry.review.user}
+              />
+            )
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+interface DrawerCodeDiscussionProps {
+  onJumpToThread: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  threads: { replyCount: number; root: ReviewComment }[];
+}
+
+function DrawerCodeDiscussion({
+  onJumpToThread,
+  threads,
+}: DrawerCodeDiscussionProps) {
+  return (
+    <section className="qf-drawer-section">
+      <h3 className="qf-drawer-h">
+        Code discussion
+        <span className="qf-drawer-count">{threads.length}</span>
+      </h3>
+      <div className="qf-drawer-threads">
+        {threads.map(({ root, replyCount }) => (
+          <button
+            className="qf-thread-row qf-focusable"
+            data-thread-path={root.path}
+            data-thread-root={root.id}
+            key={root.id}
+            onClick={onJumpToThread}
+            title="Jump to this thread in the diff"
+            type="button"
+          >
+            <span className="qf-thread-loc">
+              {!!root.resolved && (
+                <CheckCircle2
+                  aria-label="Resolved"
+                  className="qf-thread-check"
+                  size={12}
+                />
+              )}
+              <span className="qf-thread-path">{root.path}</span>
+              <span className="qf-thread-line">
+                {root.line === null ? " · outdated" : `:${root.line}`}
+              </span>
+              {replyCount > 0 && (
+                <span className="qf-thread-replies">
+                  {replyCount} {replyCount === 1 ? "reply" : "replies"}
+                </span>
+              )}
+            </span>
+            <span className="qf-thread-snip">{firstLine(root.body)}</span>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -512,8 +604,6 @@ function ConversationItem({
   const handleDelete = (id: number) => {
     onDelete?.({ commentId: id })?.catch(() => undefined);
   };
-
-  const noop = () => undefined;
 
   return (
     <div className="qf-convo-item">
