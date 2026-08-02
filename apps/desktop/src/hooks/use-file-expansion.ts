@@ -350,6 +350,7 @@ export function useExpansionScrollRestore(
 ): void {
   const onRestoredRef = useLatest(onRestored);
   const activeRef = useRef<{ cancel: () => void } | null>(null);
+  // react-doctor-disable-next-line effect-needs-cleanup -- every timer/rAF here is owned by cancel(); the mount-only effect below cancels on unmount, and this effect deliberately has no deps (it re-checks pendingRestoreRef every render), so its own cleanup cannot own cancellation
   useLayoutEffect(() => {
     const target = pendingRestoreRef.current;
     if (!target) {
