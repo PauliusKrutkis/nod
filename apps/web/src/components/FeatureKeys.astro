@@ -1,0 +1,151 @@
+---
+// Keyboard-first feature row: the PR inbox miniature. This ships the
+// composed frame of the animation — the cursor resting on the third row
+// after two `j` steps — which is also the reduced-motion freeze frame once
+// the loop lands. The cursor bar and the active row's brightening animate
+// together, so `--active` stays on the same row the cursor covers. Styles
+// are scoped here (unlike the hero's .dr, which lives in global.css) so the
+// three feature miniatures can animate independently without sharing
+// keyframe namespaces.
+---
+
+<article class="feat">
+  <div class="feat__copy">
+    <h2 class="feat__title">Keyboard-first</h2>
+    <p class="feat__body">
+      Move through PRs, files, hunks, and comment threads without ever reaching
+      for the mouse.
+    </p>
+  </div>
+
+  <figure
+    class="mini"
+    aria-label="The Nod inbox: a list of open pull requests stepped through with the j and k keys."
+  >
+    <div class="mini__window" aria-hidden="true">
+      <div class="inbox">
+        <div class="inbox__head">
+          <span>Inbox</span>
+          <span class="inbox__count mono">5 open</span>
+        </div>
+        <div class="inbox__list">
+          <div class="inbox__cursor"></div>
+          <div class="inbox__row">
+            <span class="inbox__dot"></span>
+            <span class="inbox__title">Cache eviction for stale diffs</span>
+            <span class="inbox__meta mono">#61 · 1h</span>
+          </div>
+          <div class="inbox__row">
+            <span class="inbox__dot"></span>
+            <span class="inbox__title">Keyboard map for review actions</span>
+            <span class="inbox__meta mono">#62 · 2h</span>
+          </div>
+          <div class="inbox__row inbox__row--active">
+            <span class="inbox__dot"></span>
+            <span class="inbox__title">Handle empty cache on open</span>
+            <span class="inbox__meta mono">#58 · 3h</span>
+          </div>
+          <div class="inbox__row">
+            <span class="inbox__dot"></span>
+            <span class="inbox__title">Restore scroll position on relaunch</span>
+            <span class="inbox__meta mono">#57 · 5h</span>
+          </div>
+          <div class="inbox__row">
+            <span class="inbox__dot"></span>
+            <span class="inbox__title">Quiet background refresh</span>
+            <span class="inbox__meta mono">#55 · 1d</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="mini__caption">
+      <kbd class="mini__key">j</kbd>
+      <kbd class="mini__key">k</kbd> through the queue ·
+      <kbd class="mini__key">o</kbd> opens
+    </figcaption>
+  </figure>
+</article>
+
+<style>
+  .inbox {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .inbox__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 42px;
+    flex-shrink: 0;
+    padding-inline: 16px;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, var(--surface-2), transparent);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  .inbox__count {
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+    font-size: 11px;
+  }
+
+  .inbox__list {
+    position: relative;
+    flex: 1;
+    padding-block: 6px;
+  }
+
+  .inbox__cursor {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 6px;
+    height: 37px;
+    background: var(--accent-soft);
+    border-left: 2px solid var(--accent);
+    transform: translateY(74px);
+  }
+
+  .inbox__row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 37px;
+    padding-inline: 16px;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+
+  .inbox__row--active {
+    color: var(--fg);
+  }
+
+  .inbox__dot {
+    width: 7px;
+    height: 7px;
+    flex-shrink: 0;
+    border-radius: 999px;
+    background: var(--add);
+  }
+
+  .inbox__title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .inbox__meta {
+    flex-shrink: 0;
+    font-size: 10.5px;
+    color: var(--faint);
+  }
+</style>

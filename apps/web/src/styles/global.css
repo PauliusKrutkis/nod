@@ -864,81 +864,91 @@ a {
   text-underline-offset: 3px;
 }
 
-.features {
-  margin-top: clamp(56px, 14vw, 104px);
+/* Feature rows: copy beside a `.mini` window — the same app-shell frame the
+   hero's .dr window uses, at row scale. Row internals (inbox list, code pane)
+   are scoped inside each Feature*.astro component so the three miniatures can
+   evolve — and animate — independently; only the shared shell lives here. */
+.feats {
+  margin-top: clamp(64px, 14vw, 112px);
   display: grid;
-  gap: 1px;
-  background: var(--line);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  overflow: hidden;
+  gap: clamp(52px, 9vw, 88px);
 }
 
-@media (min-width: 720px) {
-  .features {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-.feature {
-  background: var(--surface);
-  padding: 24px 22px 26px;
-}
-
-.feature__key {
-  display: inline-grid;
-  place-items: center;
-  min-width: 30px;
-  height: 30px;
-  padding-inline: 8px;
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--accent);
-  background: var(--accent-soft);
-  border: 1px solid var(--accent-line);
-  border-radius: 7px;
-}
-
-.feature__title {
-  margin: 16px 0 6px;
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.feature__body {
-  margin: 0;
-  font-size: 14px;
-  color: var(--muted);
-}
-
-.demo {
-  margin-top: 32px;
-}
-
-.demo__frame {
-  display: grid;
-  place-items: center;
-  width: min(100%, 480px);
-  aspect-ratio: 16 / 9;
-  margin-inline: auto;
-  border: 1px dashed var(--line-2);
-  border-radius: 14px;
-  background: repeating-linear-gradient(
-    -45deg,
-    transparent,
-    transparent 12px,
-    rgba(255, 255, 255, 0.012) 12px,
-    rgba(255, 255, 255, 0.012) 24px
-  );
-  color: var(--faint);
+.feats__eyebrow {
+  margin: 0 0 -36px;
   text-align: center;
 }
 
-.demo__label {
+.feat {
+  display: grid;
+  gap: 22px;
+  align-items: center;
+}
+
+@media (min-width: 760px) {
+  .feat {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    gap: clamp(32px, 5vw, 60px);
+  }
+
+  .feat:nth-of-type(even) .feat__copy {
+    order: 2;
+  }
+}
+
+.feat__title {
+  margin: 0;
+  font-size: clamp(20px, 2.6vw, 24px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.feat__body {
+  margin: 10px 0 0;
+  max-width: 44ch;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.mini {
+  margin: 0;
+}
+
+.mini__window {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 240px;
+  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.03) inset,
+    0 24px 64px -36px rgba(0, 0, 0, 0.9);
+  overflow: hidden;
+}
+
+.mini__caption {
+  padding-top: 12px;
+  text-align: center;
   font-family: var(--font-mono);
   font-size: 12px;
-  letter-spacing: 0.02em;
+  color: var(--faint);
+}
+
+.mini__key {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding-inline: 5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--surface-hi);
+  border: 1px solid var(--line-2);
+  border-radius: 5px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
 }
 
 .foot {

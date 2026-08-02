@@ -1,0 +1,161 @@
+---
+// Resume-instantly feature row: the app relaunched straight into the file
+// and scroll position the last session ended on. This ships the composed
+// frame of the animation — content restored, cursor on line 128, scrollbar
+// thumb mid-file, "resumed" chip visible — which is also the reduced-motion
+// freeze frame once the loop lands. The animation contract: the window
+// blinks through a relaunch, then everything below reappears in exactly this
+// state. Styles are scoped so the miniatures animate independently.
+---
+
+<article class="feat">
+  <div class="feat__copy">
+    <h2 class="feat__title">Resume instantly</h2>
+    <p class="feat__body">
+      Launch straight back into the last PR — the same file and scroll position
+      you left it on.
+    </p>
+  </div>
+
+  <figure
+    class="mini"
+    aria-label="Nod relaunching into the same file and scroll position the previous session ended on."
+  >
+    <div class="mini__window" aria-hidden="true">
+      <div class="file">
+        <div class="file__bar">
+          <span class="file__name mono">review.ts</span>
+          <span class="file__pos mono">line 128</span>
+        </div>
+        <div class="file__body">
+          <div class="file__code mono">
+            <div class="file__line">
+              <span class="file__ln">125</span><span
+                ><span class="file__tok--key">if</span> (!thread.resolved) {'{'}</span
+              >
+            </div>
+            <div class="file__line">
+              <span class="file__ln">126</span><span
+                >  queue.<span class="file__tok--fn">push</span>(thread)</span
+              >
+            </div>
+            <div class="file__line">
+              <span class="file__ln">127</span><span>{'}'}</span>
+            </div>
+            <div class="file__line file__line--cursor">
+              <span class="file__ln">128</span><span
+                ><span class="file__tok--key">return</span> queue</span
+              >
+            </div>
+            <div class="file__line">
+              <span class="file__ln">129</span><span>{'}'}</span>
+            </div>
+          </div>
+          <div class="file__rail">
+            <span class="file__thumb"></span>
+          </div>
+        </div>
+        <div class="file__chip mono">resumed · review.ts:128</div>
+      </div>
+    </div>
+    <figcaption class="mini__caption">
+      relaunch — same file, same scroll position
+    </figcaption>
+  </figure>
+</article>
+
+<style>
+  .file {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .file__bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 42px;
+    flex-shrink: 0;
+    padding-inline: 16px;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, var(--surface-2), transparent);
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+
+  .file__pos {
+    font-size: 10.5px;
+    color: var(--faint);
+  }
+
+  .file__body {
+    position: relative;
+    flex: 1;
+  }
+
+  .file__code {
+    padding-block: 12px;
+    font-size: 12px;
+    line-height: 34px;
+  }
+
+  .file__line {
+    display: grid;
+    grid-template-columns: 46px 1fr;
+    height: 34px;
+    padding-right: 24px;
+    white-space: pre;
+  }
+
+  .file__ln {
+    color: var(--faint);
+    font-size: 10.5px;
+    text-align: right;
+    padding-right: 12px;
+  }
+
+  .file__line--cursor {
+    background: var(--accent-soft);
+    box-shadow: inset 2px 0 0 var(--accent);
+  }
+
+  .file__tok--key {
+    color: var(--accent);
+  }
+
+  .file__tok--fn {
+    color: #cdb8ff;
+  }
+
+  .file__rail {
+    position: absolute;
+    top: 8px;
+    bottom: 8px;
+    right: 5px;
+    width: 4px;
+    border-radius: 999px;
+    background: var(--line);
+  }
+
+  .file__thumb {
+    position: absolute;
+    top: 52%;
+    width: 100%;
+    height: 34px;
+    border-radius: 999px;
+    background: var(--faint);
+  }
+
+  .file__chip {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    padding: 4px 9px;
+    border: 1px solid var(--accent-line);
+    border-radius: 999px;
+    background: var(--surface-hi);
+    font-size: 10.5px;
+    color: var(--muted);
+  }
+</style>

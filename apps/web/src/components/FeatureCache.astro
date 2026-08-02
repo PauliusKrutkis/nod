@@ -1,0 +1,181 @@
+---
+// Cache-first feature row: a PR pane already painted from the local cache.
+// This ships the composed frame of the animation — content visible, status
+// strip showing the cache hit and the finished background sync — which is
+// also the reduced-motion freeze frame once the loop lands. The animation
+// contract: the code lines paint instantly (no skeleton), then the sync tick
+// arrives quietly after a beat. Styles are scoped so the miniatures animate
+// independently.
+---
+
+<article class="feat">
+  <div class="feat__copy">
+    <h2 class="feat__title">Cache-first</h2>
+    <p class="feat__body">
+      Everything you've seen paints instantly from a local cache. The network
+      refreshes quietly in the background.
+    </p>
+  </div>
+
+  <figure
+    class="mini"
+    aria-label="A pull request pane in Nod, painted instantly from the local cache while the network syncs in the background."
+  >
+    <div class="mini__window" aria-hidden="true">
+      <div class="pane">
+        <div class="pane__bar">
+          <span class="pane__pill"><span class="pane__dot"></span>Open</span>
+          <span class="pane__title">Quiet background refresh</span>
+          <span class="pane__meta mono">#55</span>
+        </div>
+        <div class="pane__code mono">
+          <div class="pane__line">
+            <span class="pane__ln">21</span><span class="pane__sign"></span><span
+              ><span class="pane__tok--key">const</span> cached = store.<span
+                class="pane__tok--fn">read</span
+              >(id)</span
+            >
+          </div>
+          <div class="pane__line">
+            <span class="pane__ln">22</span><span class="pane__sign"></span><span
+              ><span class="pane__tok--key">if</span> (cached) <span
+                class="pane__tok--fn">paint</span
+              >(cached)</span
+            >
+          </div>
+          <div class="pane__line pane__line--add">
+            <span class="pane__ln">23</span><span class="pane__sign">+</span><span
+              class="pane__add-text"
+              >queue.<span class="pane__tok--fn">refresh</span>(id)</span
+            >
+          </div>
+          <div class="pane__line">
+            <span class="pane__ln">24</span><span class="pane__sign"></span><span
+              ><span class="pane__tok--fn">render</span>(diff)</span
+            >
+          </div>
+        </div>
+        <div class="pane__status mono">
+          <span class="pane__hit">cache · 0 ms</span>
+          <span class="pane__sync">synced ✓</span>
+        </div>
+      </div>
+    </div>
+    <figcaption class="mini__caption">
+      painted from cache — refreshed in the background
+    </figcaption>
+  </figure>
+</article>
+
+<style>
+  .pane {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .pane__bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 42px;
+    flex-shrink: 0;
+    padding-inline: 14px;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, var(--surface-2), transparent);
+  }
+
+  .pane__pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    padding: 2px 8px;
+    border: 1px solid var(--line-2);
+    border-radius: 999px;
+    font-size: 10.5px;
+    color: var(--muted);
+  }
+
+  .pane__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--add);
+  }
+
+  .pane__title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12.5px;
+    font-weight: 550;
+  }
+
+  .pane__meta {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--faint);
+  }
+
+  .pane__code {
+    flex: 1;
+    padding-block: 10px;
+    font-size: 12px;
+    line-height: 30px;
+  }
+
+  .pane__line {
+    display: grid;
+    grid-template-columns: 40px 18px 1fr;
+    height: 30px;
+    padding-right: 14px;
+    white-space: pre;
+  }
+
+  .pane__ln {
+    color: var(--faint);
+    font-size: 10.5px;
+    text-align: right;
+    padding-right: 10px;
+  }
+
+  .pane__sign {
+    text-align: center;
+  }
+
+  .pane__line--add {
+    background: rgba(95, 208, 138, 0.07);
+  }
+
+  .pane__line--add .pane__sign,
+  .pane__add-text {
+    color: var(--add);
+  }
+
+  .pane__tok--key {
+    color: var(--accent);
+  }
+
+  .pane__tok--fn {
+    color: #cdb8ff;
+  }
+
+  .pane__status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 34px;
+    flex-shrink: 0;
+    padding-inline: 14px;
+    border-top: 1px solid var(--line);
+    background: var(--surface);
+    font-size: 11px;
+    color: var(--faint);
+  }
+
+  .pane__sync {
+    color: var(--add);
+  }
+</style>

@@ -54,6 +54,26 @@ test("leads with the inbox thesis in the hero", async ({ page }) => {
   );
 });
 
+test("shows each feature in action instead of static cards", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  const rows = page.locator(".feat");
+  await expect(rows).toHaveCount(3);
+  for (const [i, title] of [
+    "Keyboard-first",
+    "Cache-first",
+    "Resume instantly",
+  ].entries()) {
+    await expect(rows.nth(i).getByRole("heading", { level: 2 })).toHaveText(
+      title
+    );
+    await expect(rows.nth(i).locator(".mini__window")).toBeVisible();
+  }
+  await expect(page.getByText("demo — coming soon")).toHaveCount(0);
+});
+
 test("sends the call to action to the downloads page", async ({ page }) => {
   await page.goto("/");
 
