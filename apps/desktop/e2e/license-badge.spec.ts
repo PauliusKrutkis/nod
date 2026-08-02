@@ -40,3 +40,12 @@ test("a licensed build shows no licensing chrome", async ({ page }) => {
     page.getByRole("status").filter({ hasText: "Trial" })
   ).toHaveCount(0);
 });
+
+test("a license backend failure never breaks boot", async ({ page }) => {
+  await setupApp(page, { licenseState: "error" });
+
+  await expect(page.getByRole("option").first()).toBeVisible();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Trial" })
+  ).toHaveCount(0);
+});

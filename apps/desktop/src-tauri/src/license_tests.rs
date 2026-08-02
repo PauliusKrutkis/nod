@@ -11,6 +11,7 @@ use super::{trial_days_left, verify_license_token, LicensePayload};
 
 const PUBKEY: &str = "248acbdbaf9e050196de704bea2d68770e519150d103b587dae2d9cad53dd930";
 const TOKEN: &str = "eyJvcmRlcklkIjoib3JkZXJfMSIsInN1YmplY3QiOiJnaXRodWI6Z2l0aHViLmNvbTo1ODMyMzEiLCJ1cGRhdGVzVW50aWwiOiIyMDI3LTA3LTE4Iiwic2lnbmF0dXJlIjoiMjcyMjI4ZDk0NGI2M2M1OWQ5NjNmZjRjNmM5YzU3N2NiNzAxZWE3ZjYyY2Q4YzUwNTI4OTU0ZWIyOTI3ZDUyNjVlZDEzZjBkYjE1YjBhMTc0OWQyN2FjMDkwZTgxMjkwZmM3NGZlNmRjNmJmZDBiMzkxOTBhNmIxODcxMjYyMDIifQ";
+const UNICODE_TOKEN: &str = "eyJvcmRlcklkIjoib3JkZXJfMiIsInN1YmplY3QiOiJnaXRsYWI6bcO8bmNoZW4uZXhhbXBsZTo0MiIsInVwZGF0ZXNVbnRpbCI6IjIwMjctMDctMTgiLCJzaWduYXR1cmUiOiI4YjVjZTdmYzQwMDAzZThhNzUwMTZmYTNiMzg2NDdjYjZlYWZiN2FkYTJhZDI2ODBhNTBkYjI3ODgxMTFmZjAzOWNmNDdhNTIxZTQzZTkwOThmNjA5Y2E4ZjZiNTFkOTA5OTc1OGU5ODZiOTM1MWUxMjhiMzlkZDc4NzU0ZGUwMSJ9";
 
 const DAY: u64 = 24 * 60 * 60;
 
@@ -33,6 +34,12 @@ fn verifies_a_token_signed_by_the_web_stack() {
             updates_until: "2027-07-18".into(),
         }
     );
+}
+
+#[test]
+fn verifies_a_unicode_subject_signed_by_the_web_stack() {
+    let payload = verify_license_token(UNICODE_TOKEN, PUBKEY).expect("unicode fixture must verify");
+    assert_eq!(payload.subject, "gitlab:münchen.example:42");
 }
 
 #[test]
@@ -63,6 +70,8 @@ fn malformed_input_is_none_not_a_panic() {
         &rewrap("{\"orderId\":\"x\"}"),
         &rewrap("{\"orderId\":\"x\",\"subject\":\"y\",\"updatesUntil\":\"z\",\"signature\":\"nothex\"}"),
         &rewrap("{\"orderId\":\"x\",\"subject\":\"y\",\"updatesUntil\":\"z\",\"signature\":\"abcd\"}"),
+        &rewrap("{\"orderId\":\"x\",\"subject\":\"y\",\"updatesUntil\":\"z\",\"signature\":\"😀😀\"}"),
+        &rewrap("{\"orderId\":\"x\",\"subject\":\"y\",\"updatesUntil\":\"z\",\"signature\":\"+a\"}"),
     ] {
         assert_eq!(verify_license_token(garbage, PUBKEY), None);
     }

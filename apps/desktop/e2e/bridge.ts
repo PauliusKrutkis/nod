@@ -21,7 +21,8 @@ export interface AppOptions {
   licenseState?:
     | { status: "licensed"; updatesUntil: string }
     | { status: "trial"; daysLeft: number }
-    | { status: "trialExpired" };
+    | { status: "trialExpired" }
+    | "error";
   releases?:
     | { tag: string; publishedAt: string | null; notes: string | null }[]
     | null;
@@ -80,7 +81,6 @@ export async function setupApp(page: Page, opts: AppOptions = {}) {
     const handlers: Record<string, (args: Record<string, unknown>) => unknown> =
       {
         check_for_update: () => null,
-        get_license_state: () => cfg.licenseState,
         create_issue_comment: () =>
           cfg.hangIssueComment
             ? new Promise(() => {
@@ -152,6 +152,12 @@ export async function setupApp(page: Page, opts: AppOptions = {}) {
             );
           }
           return blob;
+        },
+        get_license_state: () => {
+          if (cfg.licenseState === "error") {
+            throw new Error("license backend unavailable");
+          }
+          return cfg.licenseState;
         },
         get_pull_request_detail: () => {
           const result = seq(cfg.detailByCall, detailCalls, detail);
