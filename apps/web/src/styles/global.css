@@ -764,7 +764,7 @@ a {
 .cmd {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   padding: 11px 12px 11px 16px;
   background: var(--surface);
   border: 1px solid var(--line-2);
@@ -772,6 +772,18 @@ a {
   font-family: var(--font-mono);
   font-size: 13.5px;
   color: var(--fg);
+  text-align: left;
+}
+
+.cmd__lines {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.cmd__line {
+  display: block;
+  overflow-wrap: anywhere;
 }
 
 .cmd__prompt {
@@ -798,9 +810,33 @@ a {
   border-color: var(--accent-line);
 }
 
-.cmd__copy[data-copied="true"] {
+.cmd[data-copy-state="copied"] .cmd__copy {
   color: var(--add);
   border-color: rgba(95, 208, 138, 0.45);
+}
+
+.cmd[data-copy-state="failed"] .cmd__copy {
+  color: var(--del);
+  border-color: rgba(255, 112, 136, 0.5);
+}
+
+.cmd__status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.cmd[data-copy-state="failed"] .cmd__status {
+  position: static;
+  width: auto;
+  height: auto;
+  clip-path: none;
+  white-space: normal;
+  font-size: 11.5px;
+  color: var(--del);
 }
 
 .btn {
@@ -977,46 +1013,154 @@ a {
   color: var(--fg);
 }
 
-.dl__brew {
-  margin-top: 30px;
+.dl__pick {
+  margin-top: clamp(30px, 6vw, 44px);
 }
 
-.dl__hint {
-  margin: 10px 0 0;
+.dl__option {
+  display: none;
+}
+
+.dl__option[data-active] {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+}
+
+.dl__note {
+  margin: 4px auto 0;
+  max-width: 52ch;
   font-size: 12.5px;
   color: var(--faint);
 }
 
-.dl__hint a {
+.dl__note a {
   color: var(--muted);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 
-.dl__grid {
-  margin: clamp(36px, 8vw, 56px) 0 0;
-  padding: 0;
+.dl__brew {
+  margin-top: clamp(38px, 8vw, 60px);
+  padding-top: clamp(24px, 5vw, 34px);
+  border-top: 1px solid var(--line);
+  scroll-margin-top: 76px;
+}
+
+.dl__brew-head {
+  margin: 0 0 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.dl__btn {
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 26px;
+  line-height: 1.25;
+}
+
+.dl__btn-meta {
+  font-size: 11.5px;
+  font-weight: 400;
+  opacity: 0.85;
+}
+
+.dl__alt {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--faint);
+}
+
+.dl__alt a {
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.dl__alt a:hover {
+  color: var(--fg);
+}
+
+.dl__all {
+  margin-top: clamp(30px, 7vw, 48px);
+}
+
+.dl__summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
   list-style: none;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--faint);
+  transition: color 0.15s ease;
+}
+
+.dl__summary::-webkit-details-marker {
+  display: none;
+}
+
+.dl__summary::before {
+  content: "▶";
+  font-size: 9px;
+  line-height: 1;
+  transition: transform 0.18s ease;
+}
+
+.dl__all[open] .dl__summary::before {
+  transform: rotate(90deg);
+}
+
+.dl__summary:hover {
+  color: var(--muted);
+}
+
+.dl__groups {
   display: grid;
-  gap: 10px;
+  gap: 22px;
+  margin-top: 18px;
   text-align: left;
 }
 
 @media (min-width: 640px) {
-  .dl__grid {
+  .dl__groups {
     grid-template-columns: repeat(3, 1fr);
+    gap: 26px;
   }
 }
 
-.dl__item {
+.dl__group-head {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.dl__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
   display: grid;
-  grid-template-columns: 1fr auto;
+  gap: 6px;
+}
+
+.dl__item {
+  display: flex;
   align-items: baseline;
-  gap: 2px 10px;
-  padding: 14px 16px;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 13px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 9px;
   transition:
     border-color 0.15s ease,
     background 0.15s ease;
@@ -1027,23 +1171,15 @@ a {
   border-color: var(--accent-line);
 }
 
-.dl__plat {
-  font-size: 14.5px;
-  font-weight: 500;
+.dl__detail {
+  font-size: 13px;
+  color: var(--fg);
 }
 
 .dl__size {
-  grid-row: 1 / span 2;
-  grid-column: 2;
-  align-self: center;
-  font-size: 11.5px;
+  flex-shrink: 0;
+  font-size: 11px;
   color: var(--faint);
-}
-
-.dl__detail {
-  grid-column: 1;
-  font-size: 12.5px;
-  color: var(--muted);
 }
 
 .vers {
@@ -1176,7 +1312,8 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vers__summary::before {
+  .vers__summary::before,
+  .dl__summary::before {
     transition: none;
   }
 }

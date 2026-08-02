@@ -1,15 +1,28 @@
 ---
 interface Props {
-  command: string;
+  commands: string[];
   label?: string;
 }
 
-const { command, label = "Copy install command" } = Astro.props;
+const { commands, label = "Copy install commands" } = Astro.props;
 ---
 
 <div class="cmd">
-  <span class="mono"><span class="cmd__prompt">$</span> {command}</span>
-  <button type="button" class="cmd__copy" data-copy={command} aria-label={label}>
+  <span class="cmd__lines">
+    {
+      commands.map((command) => (
+        <span class="cmd__line">
+          <span class="cmd__prompt">$</span> {command}
+        </span>
+      ))
+    }
+  </span>
+  <button
+    type="button"
+    class="cmd__copy"
+    data-copy={commands.join("\n")}
+    aria-label={label}
+  >
     <svg
       width="14"
       height="14"
@@ -25,24 +38,42 @@ const { command, label = "Copy install command" } = Astro.props;
       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
     </svg>
   </button>
+  <span class="cmd__status" role="status" aria-live="polite"></span>
 </div>
 
 <script>
-  // Progressive enhancement: the command is selectable text without JS; this
-  // just adds one-click copy with a brief confirmation. Astro bundles this
-  // once no matter how many times the component is used on a page.
+  // Progressive enhancement: the commands are selectable text without JS; this
+  // just adds one-click copy. Both outcomes report through the same call, so
+  // the icon state and the announced text can't drift apart — and the failed
+  // state un-hides the status line, since a blocked clipboard is otherwise
+  // invisible to anyone who can see the button. Astro bundles this once no
+  // matter how many times the component is used on a page.
+  const COPIED_MS = 1400;
+  const FAILED_MS = 5000;
+
   for (const btn of document.querySelectorAll<HTMLButtonElement>(".cmd__copy")) {
+    const box = btn.closest<HTMLElement>(".cmd");
+    const status = box?.querySelector(".cmd__status");
+    let resetTimer: ReturnType<typeof setTimeout>;
+
+    function report(state: string, message: string, holdMs: number) {
+      if (box) box.dataset.copyState = state;
+      if (status) status.textContent = message;
+      clearTimeout(resetTimer);
+      resetTimer = setTimeout(() => {
+        box?.removeAttribute("data-copy-state");
+        if (status) status.textContent = "";
+      }, holdMs);
+    }
+
     btn.addEventListener("click", async () => {
       const text = btn.dataset.copy;
       if (!text) return;
       try {
         await navigator.clipboard.writeText(text);
-        btn.dataset.copied = "true";
-        setTimeout(() => {
-          btn.removeAttribute("data-copied");
-        }, 1400);
+        report("copied", "Copied", COPIED_MS);
       } catch {
-        // Clipboard blocked (e.g. insecure context) — leave the text to select.
+        report("failed", "Couldn't copy — select the text instead", FAILED_MS);
       }
     });
   }

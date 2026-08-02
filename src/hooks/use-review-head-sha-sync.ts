@@ -1,10 +1,16 @@
 import { useEffect, useRef } from "react";
 import { usePerfStore } from "../lib/perf.ts";
 import { updateReviewMemory } from "../lib/review-memory.ts";
-import { useAppStore } from "../store/app-store.ts";
 import type { PullRequest } from "../types.ts";
 
-/** Tracks head SHA changes for perf + memory and nudges when the PR updates. */
+/**
+ * Tracks head SHA changes for the open-perf mark and review memory.
+ *
+ * Deliberately silent: announcing the update is the reconcile toast's job
+ * (`unviewedReconcileToast`), which names the files that changed, and the
+ * per-file "updated" chip's. Both share the store's single toast slot, so a
+ * generic "Pull request updated" here only raced the informative one.
+ */
 export function useReviewHeadShaSync(
   routeKey: string,
   pr: PullRequest | undefined
@@ -25,10 +31,6 @@ export function useReviewHeadShaSync(
     if (pr.headSha && pr.headSha !== seen) {
       mountShaRef.current = pr.headSha;
       updateReviewMemory(routeKey, { headSha: pr.headSha });
-      useAppStore.getState().setToast({
-        message: "Showing the latest changes.",
-        title: "Pull request updated",
-      });
     }
   }, [pr, routeKey]);
 }

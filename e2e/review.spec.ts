@@ -3,6 +3,7 @@ import { DETAIL_NO_CI } from "./fixtures.ts";
 import { expect, test } from "./test.ts";
 import type { Page } from "./types.ts";
 
+const ANY_TITLE = /./;
 const SUBMIT_REVIEW = /Submit review/;
 const COPY_FILE_PATH = /Copy file path/;
 const COPY_PR_LINK = /Copy PR link/;
@@ -147,7 +148,7 @@ test("pending drafts survive leaving and reopening the PR", async ({
 test("text search (mod+r) lands on the line and seeds the comment cursor", async ({
   page,
 }) => {
-  await page.keyboard.press("Control+r");
+  await page.keyboard.press("ControlOrMeta+r");
   const input = page.getByPlaceholder("Search code in this PR…");
   await expect(input).toBeFocused();
   await input.fill("gamma");
@@ -163,7 +164,7 @@ test("text search (mod+r) lands on the line and seeds the comment cursor", async
 test("find bar: mod+f opens it, typing counts, Enter steps and wraps", async ({
   page,
 }) => {
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press("ControlOrMeta+f");
   const input = page.getByPlaceholder("Find in diff");
   await expect(input).toBeFocused();
 
@@ -298,7 +299,7 @@ test("find seeds from the viewport: the current match is the one near you, not t
     page.locator('.qf-row[data-file-index="1"]').first()
   ).toBeVisible();
 
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press("ControlOrMeta+f");
   await page.getByPlaceholder("Find in diff").fill("return");
   const count = page.locator(".qf-findbar-count");
   await expect(count).toHaveText("3/3");
@@ -317,7 +318,7 @@ test("find seeds from the viewport: the current match is the one near you, not t
 test("find bar: Esc closes, clears marks, and j moves the cursor immediately", async ({
   page,
 }) => {
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press("ControlOrMeta+f");
   const input = page.getByPlaceholder("Find in diff");
   await input.fill("gamma");
   await expect(page.locator(".qf-findbar-count")).toHaveText("1/2");
@@ -337,11 +338,11 @@ test("find bar: Esc closes, clears marks, and j moves the cursor immediately", a
 test("find bar: reopening keeps the query selected; typing replaces it", async ({
   page,
 }) => {
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press("ControlOrMeta+f");
   const input = page.getByPlaceholder("Find in diff");
   await input.fill("gamma");
   await page.keyboard.press("Escape");
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press("ControlOrMeta+f");
   await expect(page.getByPlaceholder("Find in diff")).toBeFocused();
   await page.keyboard.type("beta");
   await expect(page.locator(".qf-findbar-count")).toHaveText("1/1");
@@ -412,13 +413,13 @@ test("y and mod+shift+c copy with toast confirmations", async ({ page }) => {
   await expect(toast).toContainText("Copied PR link");
   await expect(toast).toContainText("https://github.com/acme/rocket/pull/1");
 
-  await page.keyboard.press("Control+Shift+C");
+  await page.keyboard.press("ControlOrMeta+Shift+C");
   await expect(toast).toContainText("Copied file path");
   await expect(toast).toContainText("src/lib/fuzzy.ts");
 });
 
 test("the palette lists the copy actions in review scope", async ({ page }) => {
-  await page.keyboard.press("Control+k");
+  await page.keyboard.press("ControlOrMeta+k");
   await page.getByPlaceholder("Run a command…").fill("copy");
   await expect(
     page.getByRole("button", { name: COPY_FILE_PATH })
@@ -564,7 +565,7 @@ test("comment posting is optimistic even when the network hangs", async ({
     name: "Comment on this pull request…",
   });
   await box.fill("Ship it when green");
-  await page.keyboard.press("Control+Enter");
+  await page.keyboard.press("ControlOrMeta+Enter");
   await expect(
     page.locator(".qf-convo").getByText("Ship it when green")
   ).toBeVisible({ timeout: 1000 });
@@ -744,7 +745,12 @@ test("the header shows an approvals verdict with the reviewer's face", async ({
 }) => {
   const pill = page.locator(".qf-verdict-approved");
   await expect(pill).toBeVisible();
-  await expect(pill).toHaveAttribute("title", "Approved · dave");
+  await expect(pill).toHaveAttribute("aria-label", "Approved · dave");
+  await expect(pill).not.toHaveAttribute("title", ANY_TITLE);
+  await expect(pill.locator(".q-avatar")).not.toHaveAttribute(
+    "title",
+    ANY_TITLE
+  );
   await expect(pill.locator(".q-avatar")).toHaveCount(1);
   await expect(page.locator(".qf-verdict-changes")).toHaveCount(0);
 });
@@ -766,4 +772,37 @@ test("a repo without CI shows no pill", async ({ page }) => {
   await setupApp(page, { detailByCall: [DETAIL_NO_CI] });
   await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
   await expect(page.locator(".qf-ci")).toHaveCount(0);
+});
+
+test("code search: the matched line is never clipped, and the pane is wider", async ({
+  page,
+}) => {
+  await page.keyboard.press("ControlOrMeta+r");
+  const input = page.getByPlaceholder("Search code in this PR…");
+  await input.fill("gamma");
+  const snippet = page.locator(".qsp-snippet").first();
+  await expect(snippet).toBeVisible();
+
+  const hit = snippet.locator(".qsp-snip-line-hit").first();
+  const wrap = await hit
+    .locator(".qsp-snip-code")
+    .evaluate((el) => getComputedStyle(el).whiteSpace);
+  expect(wrap).toBe("pre-wrap");
+
+  const mark = hit.locator("mark.q-hl").first();
+  await expect(mark).toBeVisible();
+  await expect(mark).toBeInViewport();
+
+  await expect(page.locator(".qsp-panel-code")).toHaveCount(1);
+  const panel = await page.locator(".qsp-panel-code").boundingBox();
+  const row = await page.locator(".qsp-row").first().boundingBox();
+  expect(panel?.width ?? 0).toBeGreaterThan(680);
+  expect(row?.width ?? 0).toBeGreaterThan((panel?.width ?? 0) * 0.9);
+  await expect(snippet.locator(".qsp-snip-line")).toHaveCount(5);
+  await page.screenshot({ path: "evidence/code-search-snippet.png" });
+
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("ControlOrMeta+t");
+  await expect(page.getByPlaceholder("Find a file in this PR…")).toBeFocused();
+  await expect(page.locator(".qsp-panel-code")).toHaveCount(0);
 });

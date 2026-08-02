@@ -1,45 +1,12 @@
 import { setupApp } from "./bridge.ts";
+import { tokenCenter } from "./dom.ts";
 import { expect, test } from "./test.ts";
 import type { Page } from "./types.ts";
 
 const QF_LVL_ONE = /--qf-lvl:\s*1/;
 const SUBMIT_OR_REVIEW = /Submit review|Review/;
 const SIDEBAR_OPEN = /qf-sidebar-open/;
-
-/**
- * Viewport-centre of `token`'s first occurrence within a real (non-hunk) diff
- * code line of file section `section` (same helper as occurrences.spec.ts).
- */
-async function tokenCenter(page: Page, section: number, token: string) {
-  const rect = await page.evaluate(
-    ({ section: fileSection, token: wordToken }) => {
-      const codes = document.querySelectorAll(
-        `.qf-row[data-file-index="${fileSection}"]:not(.qf-row-hunk) .qf-code`
-      );
-      for (const code of codes) {
-        const walker = document.createTreeWalker(code, NodeFilter.SHOW_TEXT);
-        while (walker.nextNode()) {
-          const node = walker.currentNode as Text;
-          const i = node.data.indexOf(wordToken);
-          if (i === -1) {
-            continue;
-          }
-          const range = document.createRange();
-          range.setStart(node, i);
-          range.setEnd(node, i + wordToken.length);
-          const r = range.getBoundingClientRect();
-          return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
-        }
-      }
-      return null;
-    },
-    { section, token }
-  );
-  if (!rect) {
-    throw new Error(`token not found in diff: ${token}`);
-  }
-  return rect;
-}
+const SIDEBAR_WIDTH_PX = 300;
 
 /** Single-click a token (settling the hover first, like a real pointer). */
 async function clickToken(page: Page, section: number, token: string) {
@@ -206,7 +173,7 @@ test("intraline emphasis is paint-only and survives find marks on top", async ({
   const row = page.locator('.qf-row-add[data-file-index="2"]').first();
   const before = await row.boundingBox();
 
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press("ControlOrMeta+f");
   await page.getByPlaceholder("Find in diff").fill("retryLimit");
   await expect(page.locator(".qf-findbar-count")).toHaveText("1/1");
   await expect(page.locator("mark.qf-find-mark")).toHaveCount(2);
@@ -234,7 +201,7 @@ test("overview ruler: find ticks map matches across the whole PR", async ({
 }) => {
   await expect(page.locator(".qf-ruler")).toHaveCount(0);
 
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press("ControlOrMeta+f");
   await page.getByPlaceholder("Find in diff").fill("const");
   await expect(page.locator(".qf-findbar-count")).toHaveText("1/9");
   const ticks = page.locator(".qf-ruler-tick");
@@ -370,22 +337,91 @@ test("file tree collapses to an overlay on small screens", async ({ page }) => {
   await expect(overlay).not.toHaveClass(SIDEBAR_OPEN);
 });
 
+// `b` is pressed mid-read, so the tree must land at its final size in the same
+// frame — in both the inline (push column) and overlay modes, scrim included.
+test("toggling the file tree is instant, not animated", async ({ page }) => {
+  await page.setViewportSize({ height: 800, width: 1280 });
+  const inline = page.locator(".qf-sidebar-inline");
+  await expect(inline).toBeVisible();
+
+  const inlineOpen = await inline.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return {
+      animation: style.animationName,
+      duration: style.transitionDuration,
+      width: (el as HTMLElement).offsetWidth,
+    };
+  });
+  expect(inlineOpen.duration).toBe("0s");
+  expect(inlineOpen.animation).toBe("none");
+  expect(inlineOpen.width).toBe(SIDEBAR_WIDTH_PX);
+
+  await page.keyboard.press("b");
+  await expect(inline).not.toHaveClass(SIDEBAR_OPEN);
+  const closedWidth = await inline.evaluate(
+    (el) => (el as HTMLElement).offsetWidth
+  );
+  expect(closedWidth).toBeLessThanOrEqual(1);
+
+  await page.setViewportSize({ height: 800, width: 900 });
+  await expect(page.locator(".qf-sidebar-overlay")).toBeAttached();
+  await expect(page.locator(".qf-sidebar-scrim")).toBeAttached();
+  const motion = await page.evaluate(() => {
+    const read = (selector: string) => {
+      const el = document.querySelector(selector);
+      if (!el) {
+        return null;
+      }
+      const style = getComputedStyle(el);
+      return {
+        animation: style.animationName,
+        duration: style.transitionDuration,
+      };
+    };
+    return {
+      overlay: read(".qf-sidebar-overlay"),
+      scrim: read(".qf-sidebar-scrim"),
+    };
+  });
+  expect(motion.overlay).toEqual({ animation: "none", duration: "0s" });
+  expect(motion.scrim).toEqual({ animation: "none", duration: "0s" });
+});
+
 // A new file must read as a break in the diff, not blend into the code plane:
 // the header sits on a raised surface distinct from the diff body background.
 test("the file header stands off the diff background", async ({ page }) => {
   const bg = await page.evaluate(() => {
     const head = document.querySelector(".qf-fsec-head");
     const code = document.querySelector(".qf-row:not(.qf-row-hunk) .qf-code");
-    if (!(head && code)) {
+    const hunk = document.querySelector(".qf-row-hunk");
+    if (!(head && code && hunk)) {
       return null;
     }
+    const headStyle = getComputedStyle(head);
+    const name = head.querySelector(".qf-fsec-name");
     return {
-      head: getComputedStyle(head).backgroundColor,
       body: getComputedStyle(code.closest(".qf-diff") ?? code).backgroundColor,
+      codeSize: getComputedStyle(code).fontSize,
+      head: headStyle.backgroundColor,
+      headBorderTop: headStyle.borderTopWidth,
+      hunk: getComputedStyle(hunk).backgroundColor,
+      nameSize: name && getComputedStyle(name).fontSize,
     };
   });
   expect(bg).not.toBeNull();
   expect(bg?.head).not.toBe(bg?.body);
+  expect(bg?.head).not.toBe(bg?.hunk);
+  expect(Number.parseFloat(bg?.headBorderTop ?? "0")).toBeGreaterThanOrEqual(2);
+  expect(Number.parseFloat(bg?.nameSize ?? "0")).toBeGreaterThanOrEqual(
+    Number.parseFloat(bg?.codeSize ?? "0")
+  );
+
+  await page.locator(".qf-row-hunk").first().hover();
+  const hunkHover = await page
+    .locator(".qf-row-hunk")
+    .first()
+    .evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(hunkHover).not.toBe(bg?.head);
 
   if (process.env.CAPTURE_EVIDENCE) {
     await page

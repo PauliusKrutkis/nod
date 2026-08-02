@@ -11,6 +11,7 @@ import { occurrenceRangesInLine } from "./occurrences.ts";
  */
 
 const LANG_BY_EXT: Record<string, string> = {
+  astro: "xml",
   bash: "bash",
   c: "c",
   cc: "cpp",

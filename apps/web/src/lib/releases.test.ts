@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
+import type { Release } from "./releases";
 import {
   assertInstallable,
   formatSize,
+  groupByPlatform,
   isVersionTag,
   parseNotes,
   pickDownloads,
@@ -84,6 +86,32 @@ describe("pickDownloads", () => {
   });
 });
 
+describe("groupByPlatform", () => {
+  it("offers the first build per platform as that platform's download", () => {
+    const groups = groupByPlatform(pickDownloads(V040_ASSETS));
+
+    expect(
+      groups.map((group) => `${group.platform}: ${group.primary.detail}`)
+    ).toEqual([
+      "macOS: Apple silicon",
+      "Windows: x64 installer",
+      "Linux: Debian / Ubuntu",
+    ]);
+  });
+
+  it("keeps the remaining builds as alternates, in target order", () => {
+    const groups = groupByPlatform(pickDownloads(V040_ASSETS));
+
+    expect(
+      groups.map((group) => group.alternates.map((build) => build.detail))
+    ).toEqual([["Intel"], [], ["AppImage", "Fedora / RHEL"]]);
+  });
+
+  it("returns nothing when the release matched no installer", () => {
+    expect(groupByPlatform([])).toEqual([]);
+  });
+});
+
 describe("parseNotes", () => {
   it("strips bullet markers and the workflow's sign-off", () => {
     const body = [
@@ -96,6 +124,17 @@ describe("parseNotes", () => {
     expect(parseNotes(body)).toEqual([
       "Press shift+c to open the composer",
       "Fixed: GitLab full-file view expands correctly",
+    ]);
+  });
+
+  it("drops headings and unwraps inline code and bold", () => {
+    const body = [
+      "## Fixed",
+      "- `shift+c` opens the composer from **anywhere**",
+    ].join("\n");
+
+    expect(parseNotes(body)).toEqual([
+      "shift+c opens the composer from anywhere",
     ]);
   });
 
@@ -142,6 +181,32 @@ describe("toReleases", () => {
     expect(releases[0]?.notes).toEqual(["Real note"]);
   });
 
+  it("puts the most recently published release first", () => {
+    const releases = toReleases([
+      {
+        tag_name: "v0.4.0",
+        published_at: "2026-07-23T07:16:34Z",
+        body: "- Newest commit, so GitHub lists it first",
+        draft: false,
+        prerelease: false,
+        assets: V040_ASSETS,
+      },
+      {
+        tag_name: "v0.3.1",
+        published_at: "2026-07-24T00:00:00Z",
+        body: "- Hotfix tagged off an older commit, published later",
+        draft: false,
+        prerelease: false,
+        assets: V040_ASSETS,
+      },
+    ]);
+
+    expect(releases.map((release) => release.tag)).toEqual([
+      "v0.3.1",
+      "v0.4.0",
+    ]);
+  });
+
   it("tolerates a release with a null body", () => {
     const releases = toReleases([
       {
@@ -168,7 +233,7 @@ const NO_RELEASES_PATTERN = /No published version/;
 const NO_INSTALLER_PATTERN = /matched no installer/;
 
 describe("assertInstallable", () => {
-  const release = {
+  const release: Release = {
     tag: "v0.4.0",
     version: "0.4.0",
     publishedAt: "2026-07-01T00:00:00Z",

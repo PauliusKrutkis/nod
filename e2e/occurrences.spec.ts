@@ -1,4 +1,5 @@
 import { setupApp } from "./bridge.ts";
+import { tokenCenter } from "./dom.ts";
 import { expect, test } from "./test.ts";
 import type { Page } from "./types.ts";
 
@@ -10,42 +11,6 @@ test.beforeEach(async ({ page }) => {
   await page.keyboard.press("Enter");
   await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
 });
-
-/**
- * Viewport-centre of `token`'s first occurrence within a real (non-hunk) diff
- * code line of file section `section` — so the mouse can double-click the
- * exact word, wherever hljs tokenization put it.
- */
-async function tokenCenter(page: Page, section: number, token: string) {
-  const rect = await page.evaluate(
-    ({ section: fileSection, token: wordToken }) => {
-      const codes = document.querySelectorAll(
-        `.qf-row[data-file-index="${fileSection}"]:not(.qf-row-hunk) .qf-code`
-      );
-      for (const code of codes) {
-        const walker = document.createTreeWalker(code, NodeFilter.SHOW_TEXT);
-        while (walker.nextNode()) {
-          const node = walker.currentNode as Text;
-          const i = node.data.indexOf(wordToken);
-          if (i === -1) {
-            continue;
-          }
-          const range = document.createRange();
-          range.setStart(node, i);
-          range.setEnd(node, i + wordToken.length);
-          const r = range.getBoundingClientRect();
-          return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
-        }
-      }
-      return null;
-    },
-    { section, token }
-  );
-  if (!rect) {
-    throw new Error(`token not found in diff: ${token}`);
-  }
-  return rect;
-}
 
 async function dblclickToken(page: Page, section: number, token: string) {
   const { x, y } = await tokenCenter(page, section, token);
@@ -208,7 +173,7 @@ test("the find bar suppresses occurrence marks; closing it restores them", async
   await dblclickToken(page, 1, "gamma");
   await expect(occMarks(page)).toHaveCount(2);
 
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press("ControlOrMeta+f");
   await expect(page.locator(".qf-findbar")).toBeVisible();
   await expect(occMarks(page)).toHaveCount(0);
   await expect(page.locator("mark.qf-find-mark")).toHaveCount(2);
@@ -222,7 +187,7 @@ test("the find bar suppresses occurrence marks; closing it restores them", async
 test("with find open, selecting a token hands off: find closes, occurrences take over", async ({
   page,
 }) => {
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press("ControlOrMeta+f");
   await expect(page.locator(".qf-findbar")).toBeVisible();
   await page.locator(".qf-findbar-input").fill("alpha");
   await expect(page.locator("mark.qf-find-mark").first()).toBeVisible();

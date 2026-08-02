@@ -10,7 +10,21 @@
  *
  * Notes are plain bullet lists by convention — the `release` skill writes
  * them — so they're parsed as such rather than pulling in a markdown
- * dependency. A body line that isn't a bullet survives as its own line.
+ * dependency. A body line that isn't a bullet survives as its own line;
+ * headings are dropped because the page supplies its own structure, and
+ * inline code/bold are unwrapped so a hand-edited release can't leak literal
+ * backticks or asterisks into the list.
+ *
+ * TARGETS order is load-bearing beyond display order: groupByPlatform takes
+ * the first match per platform as that platform's recommended build, which is
+ * what /downloads offers as the one-click download. Apple silicon before
+ * Intel, .deb before AppImage and .rpm. The platform names come from
+ * ./platform because the page's client script matches against them.
+ *
+ * Releases are sorted by publishedAt rather than trusting the API's order:
+ * GitHub sorts by the tag's created_at, so a hotfix tagged off an older
+ * commit would otherwise sort ahead of the release that actually shipped
+ * last, and the page presents releases[0] as "latest".
  *
  * A failed fetch throws rather than degrading to an empty page: Cloudflare
  * Pages keeps the previous deploy live when a build fails, which is a better
@@ -20,6 +34,7 @@
  * otherwise build clean and publish an "Install Nod" page with an empty grid.
  */
 
+import type { Platform } from "./platform";
 import { REPO_SLUG } from "./site";
 
 const RELEASES_API = `https://api.github.com/repos/${REPO_SLUG}/releases`;
@@ -32,7 +47,17 @@ const VERSION_TAG_PATTERN = /^v\d+\.\d+\.\d+$/;
 
 const BULLET_MARKER_PATTERN = /^[-*]\s+/;
 
-const TARGETS = [
+const HEADING_PATTERN = /^#{1,6}\s/;
+
+const INLINE_CODE_PATTERN = /`([^`]+)`/g;
+
+const INLINE_BOLD_PATTERN = /\*\*([^*]+)\*\*/g;
+
+const TARGETS: {
+  platform: Platform;
+  detail: string;
+  matches: (name: string) => boolean;
+}[] = [
   {
     platform: "macOS",
     detail: "Apple silicon",
@@ -72,7 +97,7 @@ export interface ReleaseAsset {
 }
 
 export interface Download {
-  platform: string;
+  platform: Platform;
   detail: string;
   url: string;
   size: string;
@@ -94,8 +119,18 @@ export function parseNotes(body: string): string[] {
   return body
     .split("\n")
     .map((line) => line.trim())
-    .filter((line) => line.length > 0 && !line.startsWith(SIGN_OFF))
-    .map((line) => line.replace(BULLET_MARKER_PATTERN, ""));
+    .filter(
+      (line) =>
+        line.length > 0 &&
+        !line.startsWith(SIGN_OFF) &&
+        !HEADING_PATTERN.test(line)
+    )
+    .map((line) =>
+      line
+        .replace(BULLET_MARKER_PATTERN, "")
+        .replace(INLINE_CODE_PATTERN, "$1")
+        .replace(INLINE_BOLD_PATTERN, "$1")
+    );
 }
 
 export function formatSize(bytes: number): string {
@@ -126,6 +161,31 @@ export function pickDownloads(assets: ReleaseAsset[]): Download[] {
   return downloads;
 }
 
+export interface PlatformGroup {
+  platform: Platform;
+  primary: Download;
+  alternates: Download[];
+}
+
+export function groupByPlatform(downloads: Download[]): PlatformGroup[] {
+  const groups: PlatformGroup[] = [];
+  for (const download of downloads) {
+    const group = groups.find(
+      (candidate) => candidate.platform === download.platform
+    );
+    if (group) {
+      group.alternates.push(download);
+    } else {
+      groups.push({
+        platform: download.platform,
+        primary: download,
+        alternates: [],
+      });
+    }
+  }
+  return groups;
+}
+
 interface ApiRelease {
   tag_name: string;
   published_at: string;
@@ -147,7 +207,8 @@ export function toReleases(apiReleases: ApiRelease[]): Release[] {
       publishedAt: release.published_at,
       notes: parseNotes(release.body ?? ""),
       downloads: pickDownloads(release.assets),
-    }));
+    }))
+    .sort((left, right) => right.publishedAt.localeCompare(left.publishedAt));
 }
 
 export async function fetchReleases(): Promise<Release[]> {

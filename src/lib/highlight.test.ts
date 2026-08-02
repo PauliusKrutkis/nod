@@ -18,6 +18,12 @@ describe("language resolution", () => {
     expect(isHighlightable("photo.png")).toBe(false);
     expect(isHighlightable("LICENSE")).toBe(false);
   });
+
+  it("resolves component-file extensions that highlight.js has no grammar for", () => {
+    expect(isHighlightable("src/pages/index.astro")).toBe(true);
+    expect(isHighlightable("src/App.svelte")).toBe(true);
+    expect(isHighlightable("src/App.vue")).toBe(true);
+  });
 });
 
 describe("highlightLine", () => {
@@ -30,6 +36,12 @@ describe("highlightLine", () => {
   it("emits hljs token spans for known languages", () => {
     const html = highlightLine("const x = 1;", "a.ts");
     expect(html).toContain("hljs-keyword");
+  });
+
+  it("tokenizes astro markup through the xml grammar", () => {
+    const html = highlightLine('<div class="hero">', "src/pages/index.astro");
+    expect(html).toContain("hljs-tag");
+    expect(html).toContain("hljs-attr");
   });
 
   it("treats block-comment continuation lines as comments (per-line quirk)", () => {

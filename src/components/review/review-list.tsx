@@ -39,6 +39,7 @@ import { useAppStore } from "../../store/app-store.ts";
 import type { AccountInfo, ChangedFile, PendingComment } from "../../types.ts";
 import { Markdown } from "../markdown.tsx";
 import { Avatar } from "../ui/avatar.tsx";
+import { Kbd } from "../ui/kbd.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
 import { AddCommentBox } from "./add-comment-box.tsx";
 import { CodeCell } from "./code-cell.tsx";
@@ -127,6 +128,7 @@ export interface ReviewListCallbacks {
 interface ReviewListProps {
   activeIndex: number;
   addPending: boolean;
+  replyPending: boolean;
   baseSha: string;
   callbacks: ReviewListCallbacks;
   changedSinceViewed: ReadonlySet<string>;
@@ -167,7 +169,7 @@ interface ListContext {
  * The sticky group-header band the cursor must clear when moving upward.
  * Measured lazily from the rendered header; this is the pre-measure fallback.
  */
-const HEADER_FALLBACK_PX = 36;
+const HEADER_FALLBACK_PX = 42;
 
 /**
  * Where the expand/collapse swap parks the row you're reading: a constant
@@ -432,7 +434,7 @@ function measureMonoColWidth(host: HTMLElement): number {
 function MappedCommentThread({
   thread,
   filename,
-  addPending,
+  replyPending,
   replyRequest,
   toggleRequest,
   editRequest,
@@ -442,7 +444,7 @@ function MappedCommentThread({
 }: {
   thread: ReviewCommentsItem["threads"][number];
   filename: string;
-  addPending: boolean;
+  replyPending: boolean;
   replyRequest: ReplyRequest | null;
   toggleRequest: ToggleRequest | null;
   editRequest: EditRequest | null;
@@ -465,7 +467,7 @@ function MappedCommentThread({
       onReply={callbacks.onReply}
       onResolve={callbacks.onResolveThread}
       owner={owner}
-      replyPending={addPending}
+      replyPending={replyPending}
       replyRequest={replyRequest}
       repo={repo}
       toggleRequest={toggleRequest}
@@ -477,10 +479,12 @@ function PendingCommentCard({
   comment,
   activeAccount,
   onRemovePending,
+  showDiscardKbd,
 }: {
   comment: PendingComment;
   activeAccount: AccountInfo | undefined;
   onRemovePending: (id: string) => void;
+  showDiscardKbd: boolean;
 }) {
   const handleRemove = () => {
     onRemovePending(comment.id);
@@ -505,11 +509,17 @@ function PendingCommentCard({
             </span>
           )}
           <button
+            aria-label="Discard pending comment"
             className="qf-pending-remove qf-focusable"
             onClick={handleRemove}
             type="button"
           >
             Discard
+            {showDiscardKbd && (
+              <span aria-hidden className="qf-key-hint">
+                <Kbd combo="shift+d" />
+              </span>
+            )}
           </button>
         </div>
         <div className="qf-comment-body">
@@ -583,6 +593,7 @@ function CommentsBlock({
   item,
   filename,
   addPending,
+  replyPending,
   cursorHere,
   replyRequest,
   toggleRequest,
@@ -594,6 +605,7 @@ function CommentsBlock({
   item: ReviewCommentsItem;
   filename: string;
   addPending: boolean;
+  replyPending: boolean;
   cursorHere: boolean;
   replyRequest: ReplyRequest | null;
   toggleRequest: ToggleRequest | null;
@@ -617,24 +629,25 @@ function CommentsBlock({
     >
       {item.threads.map((thread) => (
         <MappedCommentThread
-          addPending={addPending}
           callbacks={callbacks}
           editRequest={editRequest}
           filename={filename}
           key={thread[0].id}
           owner={owner}
+          replyPending={replyPending}
           replyRequest={replyRequest}
           repo={repo}
           thread={thread}
           toggleRequest={toggleRequest}
         />
       ))}
-      {item.pending.map((pending) => (
+      {item.pending.map((pending, pendingIndex) => (
         <PendingCommentCard
           activeAccount={activeAccount}
           comment={pending}
           key={pending.id}
           onRemovePending={callbacks.onRemovePending}
+          showDiscardKbd={pendingIndex === item.pending.length - 1}
         />
       ))}
       {item.boxOpen && target !== null && (
@@ -851,6 +864,7 @@ function renderCommentsItem(
       filename={file.filename}
       item={item}
       owner={p.owner}
+      replyPending={p.replyPending}
       replyRequest={
         p.replyRequest && p.replyRequest.path === file.filename
           ? p.replyRequest
