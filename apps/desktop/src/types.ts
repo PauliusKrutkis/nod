@@ -8,6 +8,8 @@
  * handle — null hides the resolve affordance. PendingComment.line is the
  * range end for multi-line drafts; startLine is the start when present.
  * ViewedFileMap maps filename → content fingerprint ("?" = legacy mark).
+ * LicenseState.updatesUntil bounds update eligibility, not app function —
+ * a licensed app never stops working, it stops receiving newer releases.
  */
 
 export interface GitHubUser {

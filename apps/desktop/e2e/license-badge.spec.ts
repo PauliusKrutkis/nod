@@ -6,29 +6,28 @@
  */
 import { setupApp } from "./bridge.ts";
 import { expect, test } from "./test.ts";
+import type { Page } from "./types.ts";
+
+const trialBadge = (page: Page) =>
+  page.getByRole("status").filter({ hasText: "Trial" });
 
 test("a running trial shows the days left", async ({ page }) => {
   await setupApp(page, { licenseState: { daysLeft: 12, status: "trial" } });
 
-  const badge = page.getByRole("status").filter({ hasText: "Trial" });
-  await expect(badge).toBeVisible();
-  await expect(badge).toHaveText("Trial — 12 days left");
+  await expect(trialBadge(page)).toBeVisible();
+  await expect(trialBadge(page)).toHaveText("Trial — 12 days left");
 });
 
 test("the last trial day reads singular", async ({ page }) => {
   await setupApp(page, { licenseState: { daysLeft: 1, status: "trial" } });
 
-  await expect(
-    page.getByRole("status").filter({ hasText: "Trial" })
-  ).toHaveText("Trial — 1 day left");
+  await expect(trialBadge(page)).toHaveText("Trial — 1 day left");
 });
 
 test("an ended trial says so without blocking the app", async ({ page }) => {
   await setupApp(page, { licenseState: { status: "trialExpired" } });
 
-  await expect(
-    page.getByRole("status").filter({ hasText: "Trial" })
-  ).toHaveText("Trial ended");
+  await expect(trialBadge(page)).toHaveText("Trial ended");
   await expect(page.getByRole("option").first()).toBeVisible();
 });
 
@@ -36,16 +35,12 @@ test("a licensed build shows no licensing chrome", async ({ page }) => {
   await setupApp(page);
 
   await expect(page.getByRole("option").first()).toBeVisible();
-  await expect(
-    page.getByRole("status").filter({ hasText: "Trial" })
-  ).toHaveCount(0);
+  await expect(trialBadge(page)).toHaveCount(0);
 });
 
 test("a license backend failure never breaks boot", async ({ page }) => {
   await setupApp(page, { licenseState: "error" });
 
   await expect(page.getByRole("option").first()).toBeVisible();
-  await expect(
-    page.getByRole("status").filter({ hasText: "Trial" })
-  ).toHaveCount(0);
+  await expect(trialBadge(page)).toHaveCount(0);
 });
