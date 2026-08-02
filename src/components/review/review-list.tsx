@@ -26,6 +26,7 @@ import { occurrenceRangesInLine } from "../../lib/occurrences.ts";
 import {
   fileAnchorKey,
   fileRenderMeta,
+  navKey,
   type ReviewCommentsItem,
   type ReviewHunkItem,
   type ReviewImageItem,
@@ -38,6 +39,7 @@ import { useAppStore } from "../../store/app-store.ts";
 import type { AccountInfo, ChangedFile, PendingComment } from "../../types.ts";
 import { Markdown } from "../markdown.tsx";
 import { Avatar } from "../ui/avatar.tsx";
+import { Kbd } from "../ui/kbd.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
 import { AddCommentBox } from "./add-comment-box.tsx";
 import { CodeCell } from "./code-cell.tsx";
@@ -126,6 +128,7 @@ export interface ReviewListCallbacks {
 interface ReviewListProps {
   activeIndex: number;
   addPending: boolean;
+  replyPending: boolean;
   baseSha: string;
   callbacks: ReviewListCallbacks;
   changedSinceViewed: ReadonlySet<string>;
@@ -166,7 +169,7 @@ interface ListContext {
  * The sticky group-header band the cursor must clear when moving upward.
  * Measured lazily from the rendered header; this is the pre-measure fallback.
  */
-const HEADER_FALLBACK_PX = 36;
+const HEADER_FALLBACK_PX = 42;
 
 /**
  * Where the expand/collapse swap parks the row you're reading: a constant
@@ -175,6 +178,25 @@ const HEADER_FALLBACK_PX = 36;
  * below the line, which is the point of expanding). See useExpansionScrollRestore.
  */
 const READING_LINE_FRACTION = 1 / 3;
+
+/**
+ * How close to a fold the cursor may sit before a nudge is worth doing. Kept
+ * deliberately tight so `f`/`g`/`n`/`p` stay still whenever the row is already
+ * comfortably in frame — this is the trigger only, never where the row lands.
+ */
+const CURSOR_EDGE_EPSILON_PX = 4;
+
+/**
+ * Rows of breathing room a nudge leaves between the cursor and the fold it was
+ * pushed away from. Landing flush against the edge read as "stuck to the
+ * bottom" with nothing to scan into, and Virtuoso's item geometry is estimated
+ * often enough that flush also meant the destination row arrived sliced in
+ * half; a few rows of slack buys the context and absorbs that error.
+ */
+const CURSOR_CONTEXT_ROWS = 4;
+
+/** Pre-measure fallback for one code row; see codeRowPx. */
+const ROW_FALLBACK_PX = 26;
 
 function glyphFor(status: string): { letter: string; cls: string } {
   switch (status) {
@@ -370,6 +392,7 @@ function DiffLine({
             aria-label="Add comment"
             className="qf-add-btn"
             onClick={handleAddClick}
+            onPointerCancel={onPlusDragEnd}
             onPointerDown={handleAddPointerDown}
             onPointerMove={handleAddPointerMove}
             onPointerUp={onPlusDragEnd}
@@ -411,19 +434,23 @@ function measureMonoColWidth(host: HTMLElement): number {
 function MappedCommentThread({
   thread,
   filename,
-  addPending,
+  replyPending,
   replyRequest,
   toggleRequest,
   editRequest,
   callbacks,
+  owner,
+  repo,
 }: {
   thread: ReviewCommentsItem["threads"][number];
   filename: string;
-  addPending: boolean;
+  replyPending: boolean;
   replyRequest: ReplyRequest | null;
   toggleRequest: ToggleRequest | null;
   editRequest: EditRequest | null;
   callbacks: ReviewListCallbacks;
+  owner: string;
+  repo: string;
 }) {
   const rootId = thread[0].id;
   const handleHoverChange = (hovering: boolean) => {
@@ -439,8 +466,10 @@ function MappedCommentThread({
       onHoverChange={handleHoverChange}
       onReply={callbacks.onReply}
       onResolve={callbacks.onResolveThread}
-      replyPending={addPending}
+      owner={owner}
+      replyPending={replyPending}
       replyRequest={replyRequest}
+      repo={repo}
       toggleRequest={toggleRequest}
     />
   );
@@ -450,10 +479,12 @@ function PendingCommentCard({
   comment,
   activeAccount,
   onRemovePending,
+  showDiscardKbd,
 }: {
   comment: PendingComment;
   activeAccount: AccountInfo | undefined;
   onRemovePending: (id: string) => void;
+  showDiscardKbd: boolean;
 }) {
   const handleRemove = () => {
     onRemovePending(comment.id);
@@ -478,11 +509,17 @@ function PendingCommentCard({
             </span>
           )}
           <button
+            aria-label="Discard pending comment"
             className="qf-pending-remove qf-focusable"
             onClick={handleRemove}
             type="button"
           >
             Discard
+            {showDiscardKbd && (
+              <span aria-hidden className="qf-key-hint">
+                <Kbd combo="shift+d" />
+              </span>
+            )}
           </button>
         </div>
         <div className="qf-comment-body">
@@ -542,6 +579,7 @@ function CommentAddBox({
       placeholder="Add a review comment…"
       secondaryLabel="Comment now"
       submitLabel="Add to review"
+      suggestionFile={filename}
       suggestionText={
         target.side === "RIGHT"
           ? (item.rangeContent ?? item.rowContent ?? undefined)
@@ -555,18 +593,26 @@ function CommentsBlock({
   item,
   filename,
   addPending,
+  replyPending,
+  cursorHere,
   replyRequest,
   toggleRequest,
   editRequest,
   callbacks,
+  owner,
+  repo,
 }: {
   item: ReviewCommentsItem;
   filename: string;
   addPending: boolean;
+  replyPending: boolean;
+  cursorHere: boolean;
   replyRequest: ReplyRequest | null;
   toggleRequest: ToggleRequest | null;
   editRequest: EditRequest | null;
   callbacks: ReviewListCallbacks;
+  owner: string;
+  repo: string;
 }) {
   const activeAccount = useAppStore((s) =>
     s.accounts.find((a) => a.id === s.activeAccountId)
@@ -575,27 +621,33 @@ function CommentsBlock({
 
   return (
     <div
-      className="js-comment qf-comment-wrap"
+      className={cn(
+        "js-comment qf-comment-wrap",
+        cursorHere && "qf-thread-active"
+      )}
       data-file-index={item.fileIndex}
     >
       {item.threads.map((thread) => (
         <MappedCommentThread
-          addPending={addPending}
           callbacks={callbacks}
           editRequest={editRequest}
           filename={filename}
           key={thread[0].id}
+          owner={owner}
+          replyPending={replyPending}
           replyRequest={replyRequest}
+          repo={repo}
           thread={thread}
           toggleRequest={toggleRequest}
         />
       ))}
-      {item.pending.map((pending) => (
+      {item.pending.map((pending, pendingIndex) => (
         <PendingCommentCard
           activeAccount={activeAccount}
           comment={pending}
           key={pending.id}
           onRemovePending={callbacks.onRemovePending}
+          showDiscardKbd={pendingIndex === item.pending.length - 1}
         />
       ))}
       {item.boxOpen && target !== null && (
@@ -801,6 +853,9 @@ function renderCommentsItem(
     <CommentsBlock
       addPending={p.addPending}
       callbacks={p.callbacks}
+      cursorHere={
+        navKey(item.fileIndex, item.anchor, "comments") === p.cursorKey
+      }
       editRequest={
         p.editRequest && p.editRequest.path === file.filename
           ? p.editRequest
@@ -808,11 +863,14 @@ function renderCommentsItem(
       }
       filename={file.filename}
       item={item}
+      owner={p.owner}
+      replyPending={p.replyPending}
       replyRequest={
         p.replyRequest && p.replyRequest.path === file.filename
           ? p.replyRequest
           : null
       }
+      repo={p.repo}
       toggleRequest={
         p.toggleRequest && p.toggleRequest.path === file.filename
           ? p.toggleRequest
@@ -1013,6 +1071,13 @@ export function ReviewList({
     return el?.offsetHeight ?? HEADER_FALLBACK_PX;
   }
 
+  function codeRowPx(): number {
+    const el = scrollerRef.current?.querySelector<HTMLElement>(
+      ".qf-row:not(.qf-row-hunk)"
+    );
+    return el?.offsetHeight ?? ROW_FALLBACK_PX;
+  }
+
   const cursorViewLocation: CalculateViewLocation = ({
     itemTop,
     itemBottom,
@@ -1020,12 +1085,18 @@ export function ReviewList({
     viewportBottom,
     locationParams: { behavior, align: _align, ...rest },
   }) => {
-    const headerPx = stickyHeaderPx() + 4;
-    if (itemTop < viewportTop + headerPx) {
-      return { ...rest, align: "start", behavior, offset: -headerPx };
+    const headerPx = stickyHeaderPx();
+    const contextPx = codeRowPx() * CURSOR_CONTEXT_ROWS;
+    if (itemTop < viewportTop + headerPx + CURSOR_EDGE_EPSILON_PX) {
+      return {
+        ...rest,
+        align: "start",
+        behavior,
+        offset: -(headerPx + contextPx),
+      };
     }
-    if (itemBottom > viewportBottom - 4) {
-      return { ...rest, align: "end", behavior, offset: 4 };
+    if (itemBottom > viewportBottom - CURSOR_EDGE_EPSILON_PX) {
+      return { ...rest, align: "end", behavior, offset: contextPx };
     }
     return null;
   };

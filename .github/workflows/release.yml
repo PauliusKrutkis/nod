@@ -53,8 +53,6 @@ jobs:
             librsvg2-dev
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v4
         with:
@@ -70,7 +68,7 @@ jobs:
           workspaces: src-tauri
 
       - name: Install frontend dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --trust-lockfile
 
       - name: Build and publish
         uses: tauri-apps/tauri-action@v0
@@ -94,7 +92,7 @@ jobs:
           includeUpdaterJson: true
           args: ${{ matrix.args }}
 
-  # Bumps the Homebrew tap so `brew install --cask pauliuskrutkis/tap/nod`
+  # Bumps the Homebrew tap so `brew install pauliuskrutkis/tap/nod`
   # serves the new version. Pushes over SSH with the TAP_DEPLOY_KEY secret —
   # a deploy key that can write ONLY to PauliusKrutkis/homebrew-tap.
   update-tap:

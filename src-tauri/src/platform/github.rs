@@ -55,6 +55,7 @@ pub(crate) async fn fetch_user(client: &reqwest::Client) -> Result<GitHubUser, S
 /// total count plus a "latest comment" teaser for the pane.
 const FRAGMENT_P: &str = r#"fragment P on PullRequest {
   databaseId number title url state isDraft createdAt updatedAt
+  headRefName baseRefName
   body additions deletions changedFiles
   author { login avatarUrl }
   repository { name owner { login } }
@@ -137,8 +138,8 @@ fn pr_from_graphql(v: &Value) -> PullRequest {
         comments_count,
         head_sha: String::new(),
         base_sha: String::new(),
-        head_ref: String::new(),
-        base_ref: String::new(),
+        head_ref: fstr(v, "headRefName"),
+        base_ref: fstr(v, "baseRefName"),
         additions: fu64(v, "additions"),
         deletions: fu64(v, "deletions"),
         changed_files: fu64(v, "changedFiles"),

@@ -1,3 +1,34 @@
+/**
+ * `scrollToFile` (in `useReviewFileNavigation`) is the single entry point
+ * every file jump routes through — `e`, `r`/`t`, Tab, the sidebar, and the
+ * file search all call it. It also seeds the line cursor on the target
+ * file's first nav row, because everything the cursor drives afterwards
+ * (`f`/`g`, `j`/`k`, `c`, selection) steps from wherever the cursor is, and
+ * leaving it on the file just left makes those keys act on the wrong file.
+ * Files with no nav rows (image, binary, fully collapsed) keep the previous
+ * cursor rather than clearing it.
+ *
+ * A freshly opened comment box (`c`, drag-select, or the `+` button) can
+ * render partly or fully below the fold on a short viewport.
+ * `reviewListOnOpenBox` flags the anchor it just opened in
+ * `pendingBoxNudgeRef`, and a layout effect nudges it into view once the
+ * model that contains it has rebuilt — same instant, no-animation easing
+ * keyboard row navigation already uses via `nudgeItemIntoView`.
+ *
+ * READABLE_TEXT_SELECTOR is prose the user reads and copies but cannot edit
+ * (every Markdown render shares `.md`, plus the collapsed-thread preview).
+ * Occurrence handling must leave its caret alone: such text matches neither
+ * `.qf-row` nor `.qf-code`, so without the bail-out a click inside it fell
+ * through to the branch that clears the DOM selection whenever occurrence
+ * marks happen to be lit.
+ *
+ * `activeThreadRef` — the thread `r`/`x`/`z`/`shift+e` act on — is written by
+ * both hover and the cursor, so mouse-leave cannot simply null it: the cursor
+ * may be parked on a comment block, and `q` scrolls threads out from under a
+ * stationary pointer, which fires leave events nobody asked for.
+ * `reviewListOnThreadHover` therefore falls back to the cursor's own thread
+ * (`armedThreadAt`) instead, and only a cursor that is not on a block disarms.
+ */
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   ArrowDown,
@@ -27,6 +58,7 @@ import {
   Search,
   Send,
   TextSearch,
+  Trash2,
 } from "lucide-react";
 import {
   useEffect,
@@ -48,7 +80,9 @@ import { useReviewHeadShaSync } from "../../hooks/use-review-head-sha-sync.ts";
 import { useViewedFileReconcile } from "../../hooks/use-viewed-file-reconcile.ts";
 import type { Binding } from "../../keyboard/types.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
+import { copyTextToClipboard } from "../../lib/clipboard.ts";
 import { cn } from "../../lib/cn.ts";
+import { highlightRegistry } from "../../lib/custom-highlight.ts";
 import type { DiffRow } from "../../lib/diff.ts";
 import { type FindMatch, findInDiff } from "../../lib/find-in-diff.ts";
 import { warmHighlightCache } from "../../lib/highlight.ts";
@@ -63,10 +97,15 @@ import { usePerfStore } from "../../lib/perf.ts";
 import { isGitlabPrUrl } from "../../lib/provider.ts";
 import { queryClient, queryKeys } from "../../lib/query-client.ts";
 import {
+  adjacentCommentItem,
   adjacentSelectableAnchor,
   anchorLine,
+  armedThreadAt,
   buildReviewItems,
+  clampFastStep,
   fileAnchorKey,
+  type NavKind,
+  navKey,
   type ReviewListModel,
 } from "../../lib/review-items.ts";
 import {
@@ -107,12 +146,15 @@ import {
   type ReviewListHandle,
 } from "./review-list.tsx";
 import { ReviewVerdicts } from "./review-verdicts.tsx";
-import { RightPanel } from "./right-panel.tsx";
+import { RightPanel, type RightPanelHandle } from "./right-panel.tsx";
 import { SubmitReviewModal } from "./submit-review-modal.tsx";
 
 const RE_WORD = /\w/;
 const RE_WORD_2 = /\w/;
 const FAST_CURSOR_STEP = 5;
+const OCC_LINK = "qf-occ-link";
+
+const isModKey = (key: string): boolean => key === "Meta" || key === "Control";
 
 /**
  * Full-screen PR review: a virtualized diff list, keyboard cursor, multi-line
@@ -125,6 +167,23 @@ const FAST_CURSOR_STEP = 5;
  * - Multi-line selection (shift+j/k, gutter drag) is independent of the
  *   cursor once created; plain cursor moves collapse it.
  * - Find-in-diff (mod+f) seeds from the viewport, not the top of the PR.
+ * - Occurrences: a plain click marks every occurrence of the word under the
+ *   pointer within that file and never moves the viewport — hover has already
+ *   put the cursor on the row, so the click has nowhere to travel to. Walking
+ *   the matches is a separate, deliberate gesture: n/p, or mod+click (the
+ *   editor's go-to-next-reference). mod+click reads the file rather than the
+ *   current highlight, so it works on any word on first contact — no need to
+ *   click one first. A match already in frame is left where it is; one that
+ *   isn't is brought in by the shared cursor nudge, which leaves
+ *   CURSOR_CONTEXT_ROWS of slack (review-list.tsx) rather than landing the row
+ *   flush against a fold. Holding the mod key underlines the word under the
+ *   pointer (useOccLinkAffordance) so the gesture is discoverable rather than
+ *   folklore; OCC_LINK is deliberately one token for both the body class that
+ *   arms the pointer cursor and the highlight name quiet.css paints.
+ * - A double-click keeps the browser's own word selection, painted in the
+ *   accent by quiet.css. Two distinct colours for two distinct things: the grey
+ *   marks say "here is that word again", the accent says "this text is
+ *   selected, ready to copy".
  */
 interface ReviewScreenProps {
   routeKey: string;
@@ -132,9 +191,17 @@ interface ReviewScreenProps {
 
 type OccState = OccurrenceSpec & { fileIndex: number };
 
+interface PointerWord {
+  anchor: string;
+  column: number;
+  range: Range;
+  spec: OccState;
+}
+
 interface CursorPos {
   anchor: string;
   fileIndex: number;
+  kind: NavKind;
 }
 
 /** A multi-line comment range: a one-side, hunk-contiguous run of rows.
@@ -160,17 +227,12 @@ const MAIN_SKELETON_WIDTHS = Array.from(
   (_, index) => ((index * 37) % 52) + 32
 );
 
-function copyTextToClipboard(text: string): void {
-  navigator.clipboard?.writeText(text).catch(() => undefined);
-}
-
 function applyLineSelection(args: {
   anchor: string;
   clearOccurrences: boolean;
   fileIndex: number;
   flashKey: string;
   setActiveIndex: React.Dispatch<React.SetStateAction<number>>;
-  setCommentIndex: React.Dispatch<React.SetStateAction<number>>;
   setCursor: React.Dispatch<React.SetStateAction<CursorPos | null>>;
   setFlashKey: React.Dispatch<React.SetStateAction<string | null>>;
   setInputMode: React.Dispatch<React.SetStateAction<"keyboard" | "mouse">>;
@@ -178,15 +240,14 @@ function applyLineSelection(args: {
 }) {
   const { anchor, clearOccurrences, fileIndex, flashKey } = args;
   args.setActiveIndex((cur) => (cur === fileIndex ? cur : fileIndex));
-  args.setCommentIndex((cur) => (cur === 0 ? cur : 0));
   if (clearOccurrences) {
     args.setOccSpec((cur) => (cur === null ? cur : null));
   }
   args.setInputMode((mode) => (mode === "keyboard" ? mode : "keyboard"));
   args.setCursor((cur) =>
-    cur?.fileIndex === fileIndex && cur.anchor === anchor
+    cur?.fileIndex === fileIndex && cur.anchor === anchor && cur.kind === "row"
       ? cur
-      : { anchor, fileIndex }
+      : { anchor, fileIndex, kind: "row" }
   );
   args.setFlashKey((cur) => (cur === flashKey ? cur : flashKey));
 }
@@ -446,7 +507,14 @@ function occurrenceOriginFromPoint(
   return { anchor, column: bounds ? bounds[0] : col };
 }
 
-function wordAtPoint(x: number, y: number): OccState | null {
+/**
+ * The whole word whose glyphs sit under (x, y) in a diff code line: its
+ * occurrence spec, where it starts (row anchor + code column, the coordinates
+ * occurrenceMatches reports matches in), and a live Range over it for painting.
+ * Null unless the pointer is really on the word — its trailing padding and the
+ * gaps between tokens are not it.
+ */
+function wordAtPoint(x: number, y: number): PointerWord | null {
   const caret = caretNodeAtPoint(x, y);
   if (!caret || caret.node.nodeType !== Node.TEXT_NODE) {
     return null;
@@ -460,7 +528,8 @@ function wordAtPoint(x: number, y: number): OccState | null {
     return null;
   }
   const fileIndex = fileIndexOfElement(code);
-  if (fileIndex === null) {
+  const anchor = parent.closest("[data-anchor]")?.getAttribute("data-anchor");
+  if (fileIndex === null || !anchor) {
     return null;
   }
 
@@ -490,7 +559,9 @@ function wordAtPoint(x: number, y: number): OccState | null {
     return null;
   }
   const spec = occurrenceSpecFromSelection(text.slice(s, e));
-  return spec ? { ...spec, fileIndex } : null;
+  return spec
+    ? { anchor, column: s, range, spec: { ...spec, fileIndex } }
+    : null;
 }
 
 function specFromDomSelection(): OccState | null {
@@ -534,11 +605,11 @@ function extendExistingSelection(
   }
   if (next === sel.from) {
     setSelection(null);
-    setCursor({ anchor: next, fileIndex: sel.fileIndex });
+    setCursor({ anchor: next, fileIndex: sel.fileIndex, kind: "row" });
     return true;
   }
   setSelection({ ...sel, to: next });
-  setCursor({ anchor: next, fileIndex: sel.fileIndex });
+  setCursor({ anchor: next, fileIndex: sel.fileIndex, kind: "row" });
   const itemIndex = m.anchorItem.get(fileAnchorKey(sel.fileIndex, next));
   if (itemIndex !== undefined) {
     listRef.current?.nudgeItemIntoView(itemIndex);
@@ -577,44 +648,90 @@ function startSelectionFromCursor(
     side: item.target.side,
     to: next,
   });
-  setCursor({ anchor: next, fileIndex: cur.fileIndex });
+  setCursor({ anchor: next, fileIndex: cur.fileIndex, kind: "row" });
   const itemIndex = m.anchorItem.get(fileAnchorKey(cur.fileIndex, next));
   if (itemIndex !== undefined) {
     listRef.current?.nudgeItemIntoView(itemIndex);
   }
 }
 
-function jumpFromOccMark(
-  mark: Element,
+/**
+ * mod+click on any word in a diff line: mark its occurrences in that file and
+ * move to the one after the word clicked, or to the one before it when the click
+ * landed on the last. Whether that word was already the marked one is beside the
+ * point — the gesture reads the file, not the current highlight state, so it
+ * works on first contact. False when the pointer wasn't on a word at all, which
+ * hands the click back to the ordinary path.
+ */
+function stepToNeighbourOccurrence(
+  e: MouseEvent,
+  matchesFor: (spec: OccState) => OccurrenceMatch[],
   occNav: OccNav,
-  occNavRef: React.RefObject<number>
+  commit: (
+    next: OccState | null,
+    origin?: { anchor: string; column: number } | null
+  ) => void
 ): boolean {
-  const code = codeAround(mark);
-  const anchor = mark.closest("[data-anchor]")?.getAttribute("data-anchor");
-  const textNode = mark.firstChild;
-  if (!(code && anchor && textNode)) {
+  const word = wordAtPoint(e.clientX, e.clientY);
+  if (!word) {
     return false;
   }
-  const column = codeColumnOf(code, textNode);
-  const at = column === null ? -1 : occNav.indexAt(anchor, column);
-  occNav.jumpTo((at >= 0 ? at : occNavRef.current) + 1);
+  const matches = matchesFor(word.spec);
+  const at = matches.findIndex(
+    (m) =>
+      m.anchor === word.anchor && m.start <= word.column && word.column <= m.end
+  );
+  if (at < 0) {
+    return false;
+  }
+  window.getSelection()?.removeAllRanges();
+  commit(word.spec, { anchor: word.anchor, column: word.column });
+  occNav.stepTo(word.spec, matches, at);
   return true;
 }
 
+const EDITABLE_SURFACE_SELECTOR =
+  'input, textarea, [contenteditable="true"], .qa-editor';
+
+const READABLE_TEXT_SELECTOR = ".md, .qf-resolved-snip";
+
+/**
+ * A plain click marks the word under the pointer; mod+click walks from it to the
+ * next occurrence instead. Multi-click clicks are left alone so the browser's own
+ * word selection stands (see the file header).
+ *
+ * A click into an editable surface must not disturb its caret (composers
+ * render inside rows, so they'd otherwise hit the removeAllRanges paths
+ * below), and the click that ends a drag-select must not wipe the selection
+ * it just made — selectionchange owns occurrence state for real selections.
+ */
 function handleOccPointerClick(
   e: MouseEvent,
-  occSpecRef: React.RefObject<OccState | null>,
+  refs: {
+    matchesForRef: React.RefObject<(spec: OccState) => OccurrenceMatch[]>;
+    occSpecRef: React.RefObject<OccState | null>;
+  },
   occNav: OccNav,
-  occNavRef: React.RefObject<number>,
   commit: (
     next: OccState | null,
     origin?: { anchor: string; column: number } | null
   ) => void
 ): void {
+  const { matchesForRef, occSpecRef } = refs;
   if (e.detail > 1) {
     return;
   }
   const target = e.target instanceof Element ? e.target : null;
+  if (
+    target?.closest(EDITABLE_SURFACE_SELECTOR) ||
+    target?.closest(READABLE_TEXT_SELECTOR)
+  ) {
+    return;
+  }
+  const domSel = window.getSelection();
+  if (domSel && !domSel.isCollapsed) {
+    return;
+  }
   const row = target?.closest(".qf-row:not(.qf-row-hunk)");
   const code = codeAtPoint(e.clientX, e.clientY);
   if (!(row || code)) {
@@ -625,8 +742,10 @@ function handleOccPointerClick(
     return;
   }
 
-  const mark = target?.closest("mark.qf-occ-mark");
-  if (mark && occSpecRef.current && jumpFromOccMark(mark, occNav, occNavRef)) {
+  if (
+    (e.metaKey || e.ctrlKey) &&
+    stepToNeighbourOccurrence(e, matchesForRef.current, occNav, commit)
+  ) {
     return;
   }
 
@@ -642,17 +761,18 @@ function handleOccPointerClick(
     commit(null);
     return;
   }
-  const spec = wordAtPoint(e.clientX, e.clientY);
-  if (!spec) {
+  const word = wordAtPoint(e.clientX, e.clientY);
+  if (!word) {
     commit(null);
     return;
   }
-  commit(spec, clickOrigin);
+  commit(word.spec, clickOrigin);
 }
 
 function useOccurrenceTracking(refs: {
   closeFindRef: React.RefObject<() => void>;
   findOpenRef: React.RefObject<boolean>;
+  matchesForRef: React.RefObject<(spec: OccState) => OccurrenceMatch[]>;
   occMatchListRef: React.RefObject<OccurrenceMatch[]>;
   occNavRef: React.RefObject<number>;
   occOriginRef: React.RefObject<{ anchor: string; column: number } | null>;
@@ -670,6 +790,7 @@ function useOccurrenceTracking(refs: {
   const {
     closeFindRef,
     findOpenRef,
+    matchesForRef,
     occMatchListRef,
     occNavRef,
     occOriginRef,
@@ -738,7 +859,7 @@ function useOccurrenceTracking(refs: {
         clearTimeout(timer);
         timer = null;
       }
-      handleOccPointerClick(e, occSpecRef, occNav, occNavRef, commit);
+      handleOccPointerClick(e, { matchesForRef, occSpecRef }, occNav, commit);
     }
 
     document.addEventListener("selectionchange", onSelectionChange);
@@ -753,6 +874,7 @@ function useOccurrenceTracking(refs: {
   }, [
     closeFindRef,
     findOpenRef,
+    matchesForRef,
     occMatchListRef,
     occNavRef,
     occOriginRef,
@@ -761,6 +883,106 @@ function useOccurrenceTracking(refs: {
     selectLineRef,
     setOccSpec,
   ]);
+}
+
+/**
+ * Underlines whichever word the pointer is on while the mod key is held, so
+ * mod+click advertises itself the way it does in an editor.
+ *
+ * The word usually has no element of its own to style — mod+click works on any
+ * identifier, not just the marked ones — so this paints through the Custom
+ * Highlight API, which styles a Range without touching the DOM React owns. Rows
+ * are never re-rendered for it: repainting a code line on every pointer move is
+ * the kind of work this screen is built to avoid, and a stale <mark> layer would
+ * fight the occurrence marks for the same text. Where the API is missing the
+ * gesture still works, it just goes unadvertised.
+ *
+ * A painted Range is only as durable as the text nodes under it, and both a
+ * click (the row it lands on repaints its marks) and a scroll (Virtuoso recycles
+ * rows) replace those out from under it, collapsing the paint to nothing while
+ * the pointer never moved. So the Range is re-registered on every repaint rather
+ * than diffed against the last one, and a click or scroll schedules a repaint on
+ * the next frame — by which time React has committed and the word under the
+ * pointer may legitimately be a different one. Recomputing measured at ~0.01ms.
+ *
+ * It tracks the pointer itself instead of borrowing the screen's lastPointRef,
+ * which is not a live position — isRealPointer deliberately leaves it stale
+ * while the keyboard holds the cursor. Listening on the document also means
+ * leaving the diff clears the paint, which a listener on the list would miss.
+ */
+function useOccLinkAffordance(): void {
+  useEffect(() => {
+    const registry = highlightRegistry();
+    let held = false;
+    let at: { x: number; y: number } | null = null;
+    let painted = false;
+
+    const paint = (word: PointerWord | null) => {
+      if (!word) {
+        if (painted) {
+          painted = false;
+          document.body.classList.remove(OCC_LINK);
+          registry?.delete(OCC_LINK);
+        }
+        return;
+      }
+      painted = true;
+      document.body.classList.add(OCC_LINK);
+      registry?.set(OCC_LINK, new Highlight(word.range));
+    };
+    const repaint = () => {
+      paint(held && at ? wordAtPoint(at.x, at.y) : null);
+    };
+    let frame: number | null = null;
+    const repaintNextFrame = () => {
+      if (frame === null) {
+        frame = requestAnimationFrame(() => {
+          frame = null;
+          repaint();
+        });
+      }
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      at = { x: e.clientX, y: e.clientY };
+      repaint();
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (isModKey(e.key) && !held) {
+        held = true;
+        repaint();
+      }
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (isModKey(e.key)) {
+        held = false;
+        repaint();
+      }
+    };
+    const clear = () => {
+      held = false;
+      repaint();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", clear);
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("click", repaintNextFrame);
+    document.addEventListener("scroll", repaintNextFrame, true);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", clear);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("click", repaintNextFrame);
+      document.removeEventListener("scroll", repaintNextFrame, true);
+      if (frame !== null) {
+        cancelAnimationFrame(frame);
+      }
+      clear();
+    };
+  }, []);
 }
 
 function isRealPointer(
@@ -800,6 +1022,7 @@ interface ReviewListCallbackArgs {
   ) => void;
   addReviewComment: ReturnType<typeof useCommentMutations>["addReviewComment"];
   copyTimerRef: React.RefObject<ReturnType<typeof setTimeout> | null>;
+  cursorRef: React.RefObject<CursorPos | null>;
   deleteReviewComment: ReturnType<
     typeof useCommentMutations
   >["deleteReviewComment"];
@@ -825,6 +1048,10 @@ interface ReviewListCallbackArgs {
     toItem: number;
   } | null>;
   modelRef: React.RefObject<ReviewListModel>;
+  pendingBoxNudgeRef: React.RefObject<{
+    fileIndex: number;
+    anchor: string;
+  } | null>;
   removePendingStore: (key: string, id: string) => void;
   toggleExpand: (fileIndex: number) => void;
   reply: ReturnType<typeof useCommentMutations>["reply"];
@@ -924,7 +1151,19 @@ function reviewListOnThreadHover(
   args: ReviewListCallbackArgs,
   t: { rootId: number; path: string } | null
 ): void {
-  args.activeThreadRef.current = t;
+  if (t) {
+    args.activeThreadRef.current = t;
+    return;
+  }
+  const cur = args.cursorRef.current;
+  const m = args.modelRef.current;
+  const navIdx = cur
+    ? m.navIndexOf.get(navKey(cur.fileIndex, cur.anchor, cur.kind))
+    : undefined;
+  args.activeThreadRef.current =
+    navIdx === undefined
+      ? null
+      : armedThreadAt(m, args.filesRef.current, m.nav[navIdx].itemIndex);
 }
 
 function syncActiveIndexRef(
@@ -967,6 +1206,7 @@ function reviewListOnOpenBox(
   anchor: string,
   startLine?: number
 ): void {
+  args.pendingBoxNudgeRef.current = { anchor, fileIndex };
   args.setOpenBoxes((prev) =>
     new Map(prev).set(fileAnchorKey(fileIndex, anchor), startLine ?? null)
   );
@@ -981,7 +1221,7 @@ function reviewListOnPlusDragOver(
   if (!d || fileIndex !== d.fileIndex) {
     return;
   }
-  args.setCursor({ anchor, fileIndex });
+  args.setCursor({ anchor, fileIndex, kind: "row" });
   if (anchor === d.from) {
     args.setSelection(null);
     return;
@@ -1105,9 +1345,12 @@ function useReviewListCallbacks(
         mo === "mouse" ? mo : "mouse"
       );
       args.setCursor((cur: CursorPos | null) =>
-        cur && cur.fileIndex === fileIndex && cur.anchor === anchor
+        cur &&
+        cur.fileIndex === fileIndex &&
+        cur.anchor === anchor &&
+        cur.kind === "row"
           ? cur
-          : { anchor, fileIndex }
+          : { anchor, fileIndex, kind: "row" }
       );
       args.setActiveIndex((cur) => (cur === fileIndex ? cur : fileIndex));
     },
@@ -1240,7 +1483,11 @@ function commentAtCursorPos(
     return;
   }
   if (!cur) {
-    setCursor({ anchor: entry.anchor, fileIndex: entry.fileIndex });
+    setCursor({
+      anchor: entry.anchor,
+      fileIndex: entry.fileIndex,
+      kind: "row",
+    });
     setActiveIndex(entry.fileIndex);
     activeIndexRef.current = entry.fileIndex;
   }
@@ -1424,18 +1671,20 @@ function ReviewScreenPending({
 function useReviewHotkeys(config: {
   closeFind: () => void;
   commentAtCursor: () => void;
+  commentOnPr: () => void;
   copyFilePath: () => void;
   copyLink: () => void;
   cursorMoverRefs: Parameters<typeof buildCursorMover>[0];
   cycleFile: (dir: number) => void;
   editActiveThreadComment: () => void;
+  discardPendingAtCursor: () => void;
   extendSelection: (delta: 1 | -1) => void;
   findOpen: boolean;
   findOpenRef: React.RefObject<boolean>;
   findStep: (dir: 1 | -1) => void;
   goInbox: () => void;
   goToComment: (delta: number) => void;
-  moveCursorFast: (delta: 1 | -1) => void;
+  moveCursorFast: (delta: 1 | -1, isRepeat: boolean) => void;
   markViewedAndNext: () => void;
   occNavRefs: Parameters<typeof buildOccNav>[0];
   occSpec: OccState | null;
@@ -1502,6 +1751,13 @@ function useReviewHotkeys(config: {
       run: config.commentAtCursor,
     },
     {
+      description: "Comment on the pull request",
+      group: "Comments",
+      icon: MessageSquarePlus,
+      keys: "shift+c",
+      run: config.commentOnPr,
+    },
+    {
       description: "Reply to comment / next file",
       group: "Files",
       icon: ChevronRight,
@@ -1520,9 +1776,9 @@ function useReviewHotkeys(config: {
       group: "Navigation",
       icon: ChevronsDown,
       keys: "f",
-      run: () => {
+      run: (e: KeyboardEvent) => {
         config.setSelection(null);
-        config.moveCursorFast(1);
+        config.moveCursorFast(1, e.repeat);
       },
     },
     {
@@ -1530,9 +1786,9 @@ function useReviewHotkeys(config: {
       group: "Navigation",
       icon: ChevronsUp,
       keys: "g",
-      run: () => {
+      run: (e: KeyboardEvent) => {
         config.setSelection(null);
-        config.moveCursorFast(-1);
+        config.moveCursorFast(-1, e.repeat);
       },
     },
     {
@@ -1560,14 +1816,14 @@ function useReviewHotkeys(config: {
       description: "Next comment",
       group: "Comments",
       icon: MessageSquare,
-      keys: "]c",
+      keys: "q",
       run: () => config.goToComment(1),
     },
     {
       description: "Previous comment",
       group: "Comments",
       icon: MessageSquare,
-      keys: "[c",
+      keys: "w",
       run: () => config.goToComment(-1),
     },
     {
@@ -1588,6 +1844,18 @@ function useReviewHotkeys(config: {
       icon: Pencil,
       keys: "shift+e",
       run: config.editActiveThreadComment,
+    },
+    {
+      description: "Discard pending comment",
+      group: "Comments",
+      icon: Trash2,
+      keys: "shift+d",
+      run: (e: KeyboardEvent) => {
+        if (e.repeat) {
+          return;
+        }
+        config.discardPendingAtCursor();
+      },
     },
     {
       description: "Expand / collapse comment",
@@ -1798,19 +2066,21 @@ function flashCommentThread(
 function useReviewThreadActions(args: {
   activeIndexRef: React.RefObject<number>;
   activeThreadRef: React.RefObject<{ rootId: number; path: string } | null>;
-  commentIndex: number;
   commentsRef: React.RefObject<ReviewComment[]>;
+  cursorRef: React.RefObject<CursorPos | null>;
   editNonceRef: React.RefObject<number>;
   filesRef: React.RefObject<ChangedFile[]>;
+  keyValue: string;
   listRef: React.RefObject<ReviewListHandle | null>;
   modelRef: React.RefObject<ReviewListModel>;
   nextFile: () => void;
+  removePendingStore: (key: string, id: string) => void;
   replyNonceRef: React.RefObject<number>;
   requestResolveThread: ReturnType<
     typeof useCommentMutations
   >["requestResolveThread"];
   setActiveIndex: React.Dispatch<React.SetStateAction<number>>;
-  setCommentIndex: React.Dispatch<React.SetStateAction<number>>;
+  setCursor: React.Dispatch<React.SetStateAction<CursorPos | null>>;
   setEditReq: React.Dispatch<
     React.SetStateAction<{
       rootId: number;
@@ -1818,6 +2088,7 @@ function useReviewThreadActions(args: {
       nonce: number;
     } | null>
   >;
+  setInputMode: React.Dispatch<React.SetStateAction<"keyboard" | "mouse">>;
   setReplyReq: React.Dispatch<
     React.SetStateAction<{
       rootId: number;
@@ -1865,22 +2136,62 @@ function useReviewThreadActions(args: {
   };
 
   const goToComment = (delta: number) => {
-    const list = args.modelRef.current.commentItems;
-    if (list.length === 0) {
+    const m = args.modelRef.current;
+    const cur = args.cursorRef.current;
+    const curNav = cur
+      ? m.navIndexOf.get(navKey(cur.fileIndex, cur.anchor, cur.kind))
+      : undefined;
+    const fromItem = curNav === undefined ? -1 : m.nav[curNav].itemIndex;
+    const target = adjacentCommentItem(m, fromItem, delta);
+    if (target === undefined) {
       return;
     }
-    const next = (args.commentIndex + delta + list.length) % list.length;
-    args.setCommentIndex(next);
-    args.listRef.current?.centerItem(list[next]);
+    const item = m.items[target];
+    if (item?.kind !== "comments") {
+      return;
+    }
+    args.setInputMode("keyboard");
+    args.setActiveIndex(item.fileIndex);
+    args.activeIndexRef.current = item.fileIndex;
+    args.setCursor({
+      anchor: item.anchor,
+      fileIndex: item.fileIndex,
+      kind: "comments",
+    });
+    args.listRef.current?.centerItem(target);
+    args.activeThreadRef.current = armedThreadAt(
+      m,
+      args.filesRef.current,
+      target
+    );
+  };
 
-    const item = args.modelRef.current.items[list[next]];
-    args.activeThreadRef.current =
-      item?.kind === "comments" && item.threads.length > 0
-        ? {
-            path: args.filesRef.current[item.fileIndex]?.filename ?? "",
-            rootId: item.threads[0][0].id,
-          }
-        : null;
+  const discardPendingAtCursor = () => {
+    const m = args.modelRef.current;
+    const cur = args.cursorRef.current;
+    if (!cur) {
+      return;
+    }
+    const navIdx = m.navIndexOf.get(
+      navKey(cur.fileIndex, cur.anchor, "comments")
+    );
+    if (navIdx === undefined) {
+      return;
+    }
+    const item = m.items[m.nav[navIdx].itemIndex];
+    if (item?.kind !== "comments") {
+      return;
+    }
+    const newest = item.pending.at(-1);
+    if (!newest) {
+      return;
+    }
+    args.removePendingStore(args.keyValue, newest.id);
+    const blockSurvives =
+      item.pending.length > 1 || item.threads.length > 0 || item.boxOpen;
+    if (cur.kind === "comments" && !blockSurvives) {
+      args.setCursor({ ...cur, kind: "row" });
+    }
   };
 
   const replyToActiveThreadOrNextFile = () => {
@@ -1927,6 +2238,7 @@ function useReviewThreadActions(args: {
   };
 
   return {
+    discardPendingAtCursor,
     editActiveThreadComment,
     goToComment,
     jumpToThread,
@@ -2139,7 +2451,6 @@ function useReviewFileNavigation(args: {
   persistFileIndex: (index: number) => void;
   selectionRef: React.RefObject<LineSelection | null>;
   setActiveIndex: React.Dispatch<React.SetStateAction<number>>;
-  setCommentIndex: React.Dispatch<React.SetStateAction<number>>;
   setCursor: React.Dispatch<React.SetStateAction<CursorPos | null>>;
   setInputMode: React.Dispatch<React.SetStateAction<"keyboard" | "mouse">>;
   setOccSpec: (next: OccState | null) => void;
@@ -2154,10 +2465,20 @@ function useReviewFileNavigation(args: {
     args.setActiveIndex(target);
     syncActiveIndexRef(args.activeIndexRef, target);
     args.persistFileIndex(target);
-    args.setCommentIndex(0);
     args.setOccSpec(null);
     args.setSelection(null);
     args.listRef.current?.scrollToFileStart(target);
+    const entry = args.modelRef.current.nav.find(
+      (n) => n.fileIndex === target && n.kind === "row"
+    );
+    if (entry) {
+      markKeyboardNavigation(args);
+      args.setCursor({
+        anchor: entry.anchor,
+        fileIndex: entry.fileIndex,
+        kind: "row",
+      });
+    }
   };
 
   const fileDeltaRef = useRef(0);
@@ -2200,11 +2521,18 @@ function useReviewFileNavigation(args: {
     }
   };
 
-  const moveCursorFast = (delta: 1 | -1) => {
-    buildCursorMover(args.cursorMoverRefs).move(
-      delta * FAST_CURSOR_STEP,
-      false
-    );
+  const moveCursorFast = (delta: 1 | -1, isRepeat: boolean) => {
+    const refs = args.cursorMoverRefs;
+    const m = refs.modelRef.current;
+    const cur = refs.cursorRef.current;
+    const curIdx = cur
+      ? m.navIndexOf.get(navKey(cur.fileIndex, cur.anchor, cur.kind))
+      : undefined;
+    const step =
+      curIdx === undefined
+        ? delta * FAST_CURSOR_STEP
+        : clampFastStep(m, curIdx, delta * FAST_CURSOR_STEP, isRepeat) - curIdx;
+    buildCursorMover(refs).move(step, false);
   };
 
   const extendSelection = (delta: 1 | -1) => {
@@ -2249,17 +2577,6 @@ function useReviewFileNavigation(args: {
     );
   };
 
-  const selectFileFromSearch = (fileIndex: number) => {
-    scrollToFile(fileIndex);
-    const entry = args.modelRef.current.nav.find(
-      (n) => n.fileIndex === fileIndex
-    );
-    if (entry) {
-      markKeyboardNavigation(args);
-      args.setCursor({ anchor: entry.anchor, fileIndex: entry.fileIndex });
-    }
-  };
-
   return {
     commentAtCursor,
     cycleFile,
@@ -2270,8 +2587,30 @@ function useReviewFileNavigation(args: {
     pageScroll,
     prevFile,
     scrollToFile,
-    selectFileFromSearch,
   };
+}
+
+/**
+ * Where `e` should land after marking the file at `from` viewed: the next file
+ * the reviewer still has to review, walking forward and wrapping past the end
+ * of the list — files get skipped over by the sidebar, `mod+p` file search and
+ * `r`/`t`, so unreviewed work is not always ahead of you. `from` is never a
+ * candidate (it was just marked), so `e` can't bounce in place. `null` when
+ * nothing is left: `e` then stays put instead of parking the reviewer on an
+ * already-viewed file, where another `e` would silently unmark it.
+ */
+function nextUnviewedFileIndex(
+  files: readonly ChangedFile[],
+  viewedSet: ReadonlySet<string>,
+  from: number
+): number | null {
+  for (let step = 1; step < files.length; step += 1) {
+    const index = (from + step) % files.length;
+    if (!viewedSet.has(files[index].filename)) {
+      return index;
+    }
+  }
+  return null;
 }
 
 function useReviewSubmitActions(args: {
@@ -2310,15 +2649,14 @@ function useReviewSubmitActions(args: {
     if (wasViewed) {
       return;
     }
-    const from = args.activeIndexRef.current;
-    let target = from + 1;
-    for (let i = from + 1; i < args.files.length; i += 1) {
-      if (!args.viewedSet.has(args.files[i].filename)) {
-        target = i;
-        break;
-      }
+    const target = nextUnviewedFileIndex(
+      args.files,
+      args.viewedSet,
+      args.activeIndexRef.current
+    );
+    if (target !== null) {
+      args.scrollToFile(target);
     }
-    args.scrollToFile(target);
   };
 
   const copyLink = () => {
@@ -2411,6 +2749,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const [activeIndex, setActiveIndex] = useState(initialMem?.fileIndex ?? 0);
   const [rightOpen, setRightOpen] = useState(false);
   const rightOpenRef = useLatest(rightOpen);
+  const rightPanelRef = useRef<RightPanelHandle>(null);
   const sidebarCompact = useSyncExternalStore(
     subscribeSidebarCompact,
     getSidebarCompactSnapshot,
@@ -2427,7 +2766,6 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const sidebarOverlayOpen = sidebarCompact && sidebarOpen;
   const sidebarOverlayOpenRef = useLatest(sidebarOverlayOpen);
   const [drawerWide, setDrawerWide] = useState(readDrawerWide);
-  const [commentIndex, setCommentIndex] = useState(0);
   const [submitOpen, setSubmitOpen] = useState(false);
   const [prSearch, setPrSearch] = useState<null | "files" | "text">(null);
   const [reconcileDismissed, setReconcileDismissed] = useState<Set<string>>(
@@ -2476,6 +2814,10 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const toggleNonceRef = useRef(0);
   const editNonceRef = useRef(0);
   const threadFlashRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingBoxNudgeRef = useRef<{
+    fileIndex: number;
+    anchor: string;
+  } | null>(null);
 
   const activeThreadRef = useRef<{ rootId: number; path: string } | null>(null);
   const keyboardHoldRef = useRef(false);
@@ -2587,6 +2929,22 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   });
   const modelRef = useLatest(model);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: model is rebuilt fresh every render (not memoized), so listing it would rerun this every render; openBoxes is the actual gate
+  useLayoutEffect(() => {
+    const pending = pendingBoxNudgeRef.current;
+    if (!pending) {
+      return;
+    }
+    pendingBoxNudgeRef.current = null;
+    const navIdx = model.navIndexOf.get(
+      navKey(pending.fileIndex, pending.anchor, "comments")
+    );
+    if (navIdx === undefined) {
+      return;
+    }
+    listRef.current?.nudgeItemIntoView(model.nav[navIdx].itemIndex);
+  }, [openBoxes]);
+
   /**
    * The expand/collapse swap shifts rows under a stationary pointer, and the
    * browser re-dispatches hover on those shifts — through the settle window
@@ -2616,7 +2974,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
 
   const liveCursor =
     cursor &&
-    model.navIndexOf.has(fileAnchorKey(cursor.fileIndex, cursor.anchor))
+    model.navIndexOf.has(navKey(cursor.fileIndex, cursor.anchor, cursor.kind))
       ? cursor
       : null;
 
@@ -2679,7 +3037,6 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
       fileIndex,
       flashKey: key,
       setActiveIndex,
-      setCommentIndex,
       setCursor,
       setFlashKey,
       setInputMode,
@@ -2742,8 +3099,6 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
 
   const cursorRef = useLatest(liveCursor);
 
-  const userMovedCursorRef = useRef(false);
-
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
   const isRealPointerAt = (x: number, y: number) =>
     isRealPointer(x, y, keyboardHoldRef, lastPointRef);
@@ -2754,8 +3109,10 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
 
   const cursorMoverRefs = {
     activeIndexRef,
+    activeThreadRef,
     cursorRafRef,
     cursorRef,
+    filesRef,
     heldRepeatsRef,
     keyboardHoldRef,
     listRef,
@@ -2764,7 +3121,6 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     setActiveIndex,
     setCursor,
     setInputMode,
-    userMovedCursorRef,
   };
 
   const dragRef = useRef<{
@@ -2779,6 +3135,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     addPendingStore,
     addReviewComment,
     copyTimerRef,
+    cursorRef,
     deleteReviewComment,
     dragRef,
     filesRef,
@@ -2790,6 +3147,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     lastPointRef,
     liveSelectionRef,
     modelRef,
+    pendingBoxNudgeRef,
     removePendingStore,
     reply,
     requestResolveThread,
@@ -2817,7 +3175,6 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     pageScroll,
     prevFile,
     scrollToFile,
-    selectFileFromSearch,
   } = useReviewFileNavigation({
     activeIndexRef,
     cursorMoverRefs,
@@ -2831,7 +3188,6 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     persistFileIndex,
     selectionRef,
     setActiveIndex,
-    setCommentIndex,
     setCursor,
     setInputMode,
     setOccSpec,
@@ -2876,13 +3232,15 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     ]
   );
 
-  const occMatchList = occSpec
-    ? occurrenceMatches(
-        files[occSpec.fileIndex] ?? {},
-        occSpec,
-        expandedRows.get(occSpec.fileIndex)
-      )
-    : EMPTY_OCC;
+  const matchesFor = (spec: OccState) =>
+    occurrenceMatches(
+      files[spec.fileIndex] ?? {},
+      spec,
+      expandedRows.get(spec.fileIndex)
+    );
+  const matchesForRef = useLatest(matchesFor);
+
+  const occMatchList = occSpec ? matchesFor(occSpec) : EMPTY_OCC;
   const occMatchListRef = useLatest(occMatchList);
 
   const occNavRefs = {
@@ -2896,6 +3254,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   useOccurrenceTracking({
     closeFindRef,
     findOpenRef,
+    matchesForRef,
     occMatchListRef,
     occNavRef,
     occOriginRef,
@@ -2904,6 +3263,8 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     selectLineRef,
     setOccSpec,
   });
+
+  useOccLinkAffordance();
 
   useLayoutEffect(() => {
     const captured = occRestoreRef.current;
@@ -2928,6 +3289,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     advanceToNextReview(owner, repo, number, goInbox);
 
   const {
+    discardPendingAtCursor,
     editActiveThreadComment,
     goToComment,
     jumpToThread,
@@ -2937,18 +3299,21 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   } = useReviewThreadActions({
     activeIndexRef,
     activeThreadRef,
-    commentIndex,
     commentsRef,
+    cursorRef,
     editNonceRef,
     filesRef,
+    keyValue,
     listRef,
     modelRef,
     nextFile,
+    removePendingStore,
     replyNonceRef,
     requestResolveThread,
     setActiveIndex,
-    setCommentIndex,
+    setCursor,
     setEditReq,
+    setInputMode,
     setReplyReq,
     setRightOpen,
     setToggleReq,
@@ -3019,11 +3384,9 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
       setRightOpen(true);
       return;
     }
-    setDrawerWide((wide) => {
-      const next = !wide;
-      persistDrawerWide(next);
-      return next;
-    });
+    const next = !drawerWide;
+    setDrawerWide(next);
+    persistDrawerWide(next);
   };
 
   const onCloseSubmitModal = () => {
@@ -3036,6 +3399,11 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
 
   const onAddIssueComment = async (body: string) => {
     await addIssueComment.mutateAsync({ body });
+  };
+
+  const onCommentOnPr = () => {
+    setRightOpen(true);
+    rightPanelRef.current?.openComposer();
   };
 
   const onEditIssueComment = async (a: { commentId: number; body: string }) => {
@@ -3057,10 +3425,12 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   useReviewHotkeys({
     closeFind,
     commentAtCursor,
+    commentOnPr: onCommentOnPr,
     copyFilePath,
     copyLink,
     cursorMoverRefs,
     cycleFile,
+    discardPendingAtCursor,
     editActiveThreadComment,
     extendSelection,
     findOpen,
@@ -3109,7 +3479,6 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const stateClass = resolvePrStateClass(pr);
   const stateLabel = resolvePrStateLabel(pr);
 
-  const viewedNow = viewedSet.size;
   const isOwnPr = !!activeLogin && pr.author === activeLogin;
   const reviews = detail.reviews ?? [];
 
@@ -3206,9 +3575,6 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
 
           <div className="qf-header-actions flex shrink-0 items-center gap-4">
             <ReviewVerdicts reviews={reviews} />
-            <span className="qf-header-meta qf-muted text-xs">
-              {viewedNow}/{fileCount} viewed
-            </span>
             <Tooltip combo="i" label={infoTitle}>
               <button
                 aria-pressed={rightOpen}
@@ -3258,14 +3624,18 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
           ) : (
             <ReviewList
               activeIndex={clampedIndex}
-              addPending={false}
+              addPending={addReviewComment.isPending}
               baseSha={pr.baseSha}
               callbacks={listCallbacks}
               changedSinceViewed={changedSinceViewed}
               copiedPathIndex={copiedPathIndex}
               cursorKey={
                 liveCursor
-                  ? fileAnchorKey(liveCursor.fileIndex, liveCursor.anchor)
+                  ? navKey(
+                      liveCursor.fileIndex,
+                      liveCursor.anchor,
+                      liveCursor.kind
+                    )
                   : null
               }
               dragging={dragging}
@@ -3282,6 +3652,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
               model={model}
               owner={owner}
               ref={listRef}
+              replyPending={reply.isPending}
               replyRequest={replyReq}
               repo={repo}
               restoreState={initialMem?.listState}
@@ -3310,6 +3681,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
       </main>
 
       <RightPanel
+        addIssueCommentPending={addIssueComment.isPending}
         ci={detail.ciStatus}
         conversation={detail.issueComments ?? []}
         fileCount={fileCount}
@@ -3323,12 +3695,13 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
         onToggleWide={onToggleDrawerWide}
         open={rightOpen}
         pr={pr}
+        ref={rightPanelRef}
         reviews={reviews}
         wide={drawerWide}
       />
 
       <SubmitReviewModal
-        busy={false}
+        busy={submitReview.isPending}
         error={null}
         onClose={onCloseSubmitModal}
         onSubmit={handleSubmitReview}
@@ -3341,7 +3714,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
         files={files}
         mode={prSearch ?? "files"}
         onClose={onClosePrSearch}
-        onSelectFile={selectFileFromSearch}
+        onSelectFile={scrollToFile}
         onSelectLine={selectLine}
         open={prSearch !== null}
       />
@@ -3356,20 +3729,30 @@ function buildCursorMover(refs: {
   modelRef: React.RefObject<ReviewListModel>;
   cursorRef: React.RefObject<CursorPos | null>;
   activeIndexRef: React.RefObject<number>;
+  activeThreadRef: React.RefObject<{ rootId: number; path: string } | null>;
+  filesRef: React.RefObject<ChangedFile[]>;
   pendingDeltaRef: React.RefObject<number>;
   cursorRafRef: React.RefObject<number | null>;
   heldRepeatsRef: React.RefObject<number>;
   keyboardHoldRef: React.RefObject<boolean>;
-  userMovedCursorRef: React.RefObject<boolean>;
   listRef: React.RefObject<ReviewListHandle | null>;
   setCursor: React.Dispatch<React.SetStateAction<CursorPos | null>>;
   setActiveIndex: (i: number) => void;
   setInputMode: (m: "keyboard" | "mouse") => void;
 }): { move: (delta: number, isRepeat: boolean) => void } {
-  const place = (entry: { fileIndex: number; anchor: string }) => {
-    refs.setCursor({ anchor: entry.anchor, fileIndex: entry.fileIndex });
+  const place = (entry: ReviewListModel["nav"][number]) => {
+    refs.setCursor({
+      anchor: entry.anchor,
+      fileIndex: entry.fileIndex,
+      kind: entry.kind,
+    });
     refs.setActiveIndex(entry.fileIndex);
     refs.activeIndexRef.current = entry.fileIndex; // eager — see scrollToFile
+    refs.activeThreadRef.current = armedThreadAt(
+      refs.modelRef.current,
+      refs.filesRef.current,
+      entry.itemIndex
+    );
   };
   const flush = () => {
     refs.cursorRafRef.current = null;
@@ -3380,9 +3763,8 @@ function buildCursorMover(refs: {
       return;
     }
     const cur = refs.cursorRef.current;
-    refs.userMovedCursorRef.current = true;
     const curIdx = cur
-      ? m.navIndexOf.get(fileAnchorKey(cur.fileIndex, cur.anchor))
+      ? m.navIndexOf.get(navKey(cur.fileIndex, cur.anchor, cur.kind))
       : undefined;
     if (curIdx === undefined) {
       const start = refs.listRef.current?.firstVisibleRowItem() ?? 0;
@@ -3419,11 +3801,18 @@ function buildCursorMover(refs: {
  Index in the match list of the occurrence covering (anchor, column).
  Jump to match `index` (wrapping), keeping the marks alive.
  n/p: step relative to the last-jumped position (or the origin
- occurrence — the clicked/selected one — before any jump). */
+ occurrence — the clicked/selected one — before any jump).
+ stepTo: the neighbour of `from` within an explicitly supplied match list — the
+ next match, or the previous one when `from` is already the last. mod+click can
+ retarget the marks as it navigates, so it hands in the list it resolved rather
+ than reading occMatchListRef, which is a render behind. It also aims at a
+ specific match, so wrapping to the top of the file would throw the eye away;
+ n/p still wrap. */
 interface OccNav {
   indexAt: (anchor: string, column: number) => number;
   jumpTo: (index: number) => void;
   step: (dir: 1 | -1) => void;
+  stepTo: (spec: OccState, matches: OccurrenceMatch[], from: number) => void;
 }
 
 function buildOccNav(refs: {
@@ -3450,22 +3839,36 @@ function buildOccNav(refs: {
     occMatchListRef.current.findIndex(
       (m) => m.anchor === anchor && m.start <= column && column <= m.end
     );
+  const land = (
+    spec: OccState,
+    matches: OccurrenceMatch[],
+    index: number
+  ): void => {
+    occNavRef.current = index;
+    selectLineRef.current(spec.fileIndex, matches[index].anchor, {
+      keepOccurrences: true,
+      nudge: true,
+    });
+  };
   const jumpTo = (index: number): void => {
     const spec = occSpecRef.current;
-    const n = occMatchListRef.current.length;
-    if (!spec || n === 0) {
+    const matches = occMatchListRef.current;
+    if (!spec || matches.length === 0) {
       return;
     }
-    const next = ((index % n) + n) % n;
-    occNavRef.current = next;
-    selectLineRef.current(
-      spec.fileIndex,
-      occMatchListRef.current[next].anchor,
-      {
-        keepOccurrences: true,
-        nudge: true,
-      }
-    );
+    const n = matches.length;
+    land(spec, matches, ((index % n) + n) % n);
+  };
+  const stepTo = (
+    spec: OccState,
+    matches: OccurrenceMatch[],
+    from: number
+  ): void => {
+    const n = matches.length;
+    if (n < 2) {
+      return;
+    }
+    land(spec, matches, from + 1 < n ? from + 1 : from - 1);
   };
   const step = (dir: 1 | -1): void => {
     if (occMatchListRef.current.length === 0) {
@@ -3491,7 +3894,7 @@ function buildOccNav(refs: {
     }
     jumpTo(at + dir);
   };
-  return { indexAt, jumpTo, step };
+  return { indexAt, jumpTo, step, stepTo };
 }
 
 /**

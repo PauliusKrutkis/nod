@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("mod+k opens; fuzzy filters; esc closes", async ({ page }) => {
-  await page.keyboard.press("Control+k");
+  await page.keyboard.press("ControlOrMeta+k");
   const input = page.getByPlaceholder("Run a command…");
   await expect(input).toBeFocused();
   await input.fill("arch");
@@ -22,7 +22,7 @@ test("mod+k opens; fuzzy filters; esc closes", async ({ page }) => {
 });
 
 test("running a command acts on the app", async ({ page }) => {
-  await page.keyboard.press("Control+k");
+  await page.keyboard.press("ControlOrMeta+k");
   await page.getByPlaceholder("Run a command…").fill("watching");
   await page.keyboard.press("Enter");
   await expect(page.getByRole("button", { name: WATCHING })).toHaveAttribute(

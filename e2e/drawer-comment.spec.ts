@@ -2,6 +2,8 @@ import { setupApp } from "./bridge.ts";
 import { DETAIL_WITH_OWN_COMMENT } from "./fixtures.ts";
 import { expect, test } from "./test.ts";
 
+test.use({ permissions: ["clipboard-read", "clipboard-write"] });
+
 test.beforeEach(async ({ page }) => {
   await setupApp(page, { detail: DETAIL_WITH_OWN_COMMENT });
   await expect(page.getByRole("option").first()).toBeVisible();
@@ -60,6 +62,22 @@ test("editing a conversation comment prefills the markdown and saves", async ({
   expect(sent.body).toContain("Then production.");
 });
 
+test("the first click arms the confirm; leaving the button disarms it", async ({
+  page,
+}) => {
+  const mine = page
+    .locator(".qf-convo-item")
+    .filter({ hasText: "Deploying to staging first." });
+  const del = mine.getByRole("button", { name: "Delete comment" });
+
+  await del.click();
+  await expect(del).toHaveText("Delete?");
+
+  await mine.getByText("Deploying to staging first.").hover();
+  await expect(del).toHaveText("Delete");
+  await expect(page.getByText("Deploying to staging first.")).toBeVisible();
+});
+
 test("deleting a conversation comment takes the two-step confirm", async ({
   page,
 }) => {
@@ -92,4 +110,40 @@ test("review verdicts never grow edit/delete tools", async ({ page }) => {
   await expect(
     verdict.getByRole("button", { name: "Delete comment" })
   ).toHaveCount(0);
+});
+
+test("shift+c opens the composer focused, from the diff or the open drawer", async ({
+  page,
+}) => {
+  await page.keyboard.press("Shift+c");
+  const editor = page.getByRole("textbox", {
+    name: "Comment on this pull request…",
+  });
+  await expect(editor).toBeFocused();
+
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("button", { name: "Comment on this pull request…" })
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.locator("aside.qf-drawer-open")).toHaveCount(0);
+
+  await page.keyboard.press("Shift+c");
+  await expect(page.locator("aside.qf-drawer-open")).toHaveCount(1);
+  await expect(editor).toBeFocused();
+});
+
+test("copy is offered on every conversation comment, not just your own", async ({
+  page,
+}) => {
+  const theirs = page
+    .locator(".qf-convo-item")
+    .filter({ hasText: "Nice direction overall." });
+
+  await theirs.hover();
+  await theirs.getByRole("button", { name: "Copy comment text" }).click();
+  await expect(theirs.getByText("Copied")).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    "Nice direction overall."
+  );
 });

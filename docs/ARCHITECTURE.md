@@ -48,9 +48,12 @@ belong in one of three places:
    rationale: non-obvious invariants, performance constraints, field semantics
    on shared types, or cross-cutting behavior that applies to the whole file.
 
-2. **Function docs** — `/** … */` immediately above a function (or method) when
-   the name and signature are not enough. Not on variables, hooks, or React
-   state inside a component body.
+2. **Function docs** — `/** … */` immediately above a top-level function
+   declaration (or method) when the name and signature are not enough. Not on
+   variables, hooks, or React state inside a component or hook body — this
+   includes local `const` arrow/function expressions assigned inside a
+   component or hook, even when they read like a function. Their rationale
+   moves to the file header instead.
 
 3. **Nowhere** — if the code is self-explanatory, delete the comment.
 
@@ -64,6 +67,11 @@ belong in one of three places:
   in the file header if needed.
 - **Component state and refs** — no doc blocks between `useState` / `useRef`
   declarations; put interaction-model notes in the file header once.
+- **Local functions inside a component or hook body** — a `const` arrow
+  function (or nested `function`) assigned inside a component or custom hook
+  is still "inside the body," not a top-level declaration; it does not
+  qualify for function docs under rule 2 no matter how function-shaped it
+  looks. Move the rationale to the file header.
 - **JSX markup** — no `{/* … */}` section labels in render trees (`{/* file list
   */}`, `{/* ============ CENTER ============ */}`). Layout should be obvious
   from structure and class names; non-obvious UI behaviour belongs in the file

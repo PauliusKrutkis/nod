@@ -35,14 +35,20 @@ function initials(name: string): string {
  * Quiet avatar — a real GitHub image when available, falling back to initials
  * on a deterministic tint (offline, broken URL, or empty src). Renders the
  * shared `.q-avatar` shape at any size.
+ *
+ * `silent` drops the native `title`, for avatars sitting inside a surface that
+ * already names them — otherwise hovering a face raises the OS tooltip on top
+ * of the app's own.
  */
 export function Avatar({
   url,
   name,
+  silent = false,
   size = 22,
 }: {
   url?: string | null;
   name: string;
+  silent?: boolean;
   size?: number;
 }) {
   const [broken, setBroken] = useState(false);
@@ -61,7 +67,7 @@ export function Avatar({
         onError={onError}
         src={url ?? undefined}
         style={{ height: size, width: size }}
-        title={name}
+        title={silent ? undefined : name}
         width={size}
       />
     );
@@ -77,7 +83,7 @@ export function Avatar({
         height: size,
         width: size,
       }}
-      title={name}
+      title={silent ? undefined : name}
     >
       {initials(name)}
     </span>

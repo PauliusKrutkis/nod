@@ -31,15 +31,11 @@ function capLabel(part: string): string {
 /**
  * Break a key descriptor into the individual caps to display.
  * - "mod+k" -> ["mod", "k"]
- * - "]c"    -> ["]", "c"] (a two-key sequence: each char is its own cap)
  * - "enter" -> ["enter"]
  */
 function toCaps(combo: string): string[] {
   if (combo.includes("+")) {
     return combo.split("+").filter(Boolean);
-  }
-  if (combo.length === 2 && !NAMED[combo.toLowerCase()]) {
-    return [combo[0], combo[1]];
   }
   return [combo];
 }

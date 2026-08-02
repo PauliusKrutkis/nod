@@ -1,2 +1,22 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# esbuild's install script fetches its platform binary; vite cannot build
+# without it. Every other dependency stays script-less by omission.
 allowBuilds:
-  esbuild: set this to true or false
+  esbuild: true
+
+# Quarantine freshly published versions for a week. This is the control that
+# actually matters: the common attack is a compromised maintainer account
+# publishing a malicious patch that gets auto-pulled within hours, and those are
+# caught and yanked well inside seven days.
+minimumReleaseAge: 10080
+
+# Flag a package that loses its trust level (trusted publisher -> provenance
+# only -> nothing), but only for versions published in the last 30 days, which
+# is where that signal carries information. Without the window, no-downgrade
+# re-flags every long-settled transitive on every install: semver@6.3.1 (via
+# @babel/core) blocked all local installs simply for predating provenance.
+trustPolicy: no-downgrade
+trustPolicyIgnoreAfter: 43200

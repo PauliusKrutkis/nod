@@ -2,6 +2,14 @@
  * The PR detail drawer: CI, verdict summary, and the conversation timeline.
  * Your own conversation comments (never verdicts) carry the same quiet
  * Edit/Delete tools as inline threads, with the in-place "Delete?" confirm.
+ * The composer starts as a one-line prompt and expands on intent; it stays
+ * mounted (hidden) while collapsed so a half-typed draft survives Esc —
+ * "drafts are never lost" (DESIGN.md) — and the prompt advertises the draft.
+ * It docks as the drawer's footer: always reachable without scrolling, and
+ * the expanded editor (with its submit row) is on-screen by construction.
+ * The footer's divider only appears once the body scrolls, which is measured
+ * by observing the body *and its sections* — the body's own box is pinned by
+ * the drawer, so growing conversation only ever resizes a section.
  */
 import {
   CheckCircle2,
@@ -9,8 +17,15 @@ import {
   PanelRightClose,
   PanelRightOpen,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import {
+  type Ref,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { cn } from "../../lib/cn.ts";
+import { firstLine } from "../../lib/comment-format.ts";
 import { openOnProviderLabel } from "../../lib/provider.ts";
 import { formatAbsolute, formatRelativeTime } from "../../lib/time.ts";
 import { useAppStore } from "../../store/app-store.ts";
@@ -23,16 +38,23 @@ import type {
 } from "../../types.ts";
 import { Markdown } from "../markdown.tsx";
 import { Avatar } from "../ui/avatar.tsx";
+import { Kbd } from "../ui/kbd.tsx";
 import { TicketTitle } from "../ui/ticket-title.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
-import { AddCommentBox } from "./add-comment-box.tsx";
+import { AddCommentBox, type AddCommentBoxHandle } from "./add-comment-box.tsx";
 import { CiPill } from "./ci-pill.tsx";
+import { CommentBody, CommentTools } from "./comment-item.tsx";
+
+export interface RightPanelHandle {
+  openComposer: () => void;
+}
 
 interface RightPanelProps {
   ci: CiStatus | undefined;
   conversation: IssueComment[];
   fileCount: number;
   inlineComments: ReviewComment[];
+  addIssueCommentPending: boolean;
   onAddIssueComment: (body: string) => Promise<void>;
   onClose: () => void;
   onDeleteIssueComment: (a: { commentId: number }) => Promise<void>;
@@ -42,6 +64,7 @@ interface RightPanelProps {
   onToggleWide: () => void;
   open: boolean;
   pr: PullRequest;
+  ref?: Ref<RightPanelHandle>;
   reviews: ReviewSummary[];
   wide: boolean;
 }
@@ -61,10 +84,12 @@ const REVIEW_STATES: Record<string, { label: string; cls: string }> = {
 /**
  * The info drawer (toggled with `i`, Esc closes): the PR description, the
  * complete conversation (PR-level comments merged with review verdicts), an
- * index of inline code threads, and a composer. Comments post optimistically —
- * the composer never blocks.
+ * index of inline code threads, and a composer that expands from a one-line
+ * prompt (Esc backs out of the composer first, then the drawer). Comments
+ * post optimistically — the composer never blocks.
  */
 export function RightPanel({
+  ref,
   ci,
   pr,
   fileCount,
@@ -75,6 +100,7 @@ export function RightPanel({
   wide,
   onClose,
   onToggleWide,
+  addIssueCommentPending,
   onAddIssueComment,
   onDeleteIssueComment,
   onEditIssueComment,
@@ -120,6 +146,54 @@ export function RightPanel({
     }
   }, [open]);
 
+  const [composing, setComposing] = useState(false);
+  const [draftEmpty, setDraftEmpty] = useState(true);
+  const composerRef = useRef<AddCommentBoxHandle>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [bodyScrolls, setBodyScrolls] = useState(false);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-scans el.children, which gains the "Code discussion" section once inlineComments goes non-empty
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el) {
+      return;
+    }
+    const measure = () => {
+      setBodyScrolls(el.scrollHeight > el.clientHeight + 1);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    for (const section of el.children) {
+      ro.observe(section);
+    }
+    return () => ro.disconnect();
+  }, [inlineComments.length > 0]);
+
+  useEffect(() => {
+    if (composing) {
+      composerRef.current?.focus();
+    }
+  }, [composing]);
+
+  const startComposing = () => {
+    setComposing(true);
+  };
+
+  useImperativeHandle(
+    ref,
+    (): RightPanelHandle => ({
+      openComposer: startComposing,
+    }),
+    // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler (vite.config.ts) stabilizes startComposing; a manual useCallback would be dead weight
+    [startComposing]
+  );
+
+  const collapseComposer = () => {
+    setComposing(false);
+    panelRef.current?.focus({ preventScroll: true });
+  };
+
   const timeline: TimelineEntry[] = [
     ...conversation.map((c) => ({
       at: c.createdAt,
@@ -152,7 +226,8 @@ export function RightPanel({
   };
 
   const handleAddIssueComment = (text: string) => {
-    onAddIssueComment(text);
+    onAddIssueComment(text).catch(() => undefined);
+    collapseComposer();
   };
 
   return (
@@ -208,7 +283,7 @@ export function RightPanel({
           </div>
         </div>
 
-        <div className="qf-drawer-body">
+        <div className="qf-drawer-body" ref={bodyRef}>
           <section className="qf-drawer-section">
             <div className="qf-drawer-pr">
               <span className="qf-pr-num">#{pr.number}</span>
@@ -249,7 +324,9 @@ export function RightPanel({
           <section className="qf-drawer-section">
             <h3 className="qf-drawer-h">Description</h3>
             {body ? (
-              <Markdown>{body}</Markdown>
+              <Markdown owner={pr.owner} repo={pr.name}>
+                {body}
+              </Markdown>
             ) : (
               <p className="text-faint text-sm">No description.</p>
             )}
@@ -284,6 +361,8 @@ export function RightPanel({
                       own={
                         entry.comment.id > 0 && entry.comment.user === ownLogin
                       }
+                      owner={pr.owner}
+                      repo={pr.name}
                       user={entry.comment.user}
                     />
                   ) : (
@@ -292,6 +371,8 @@ export function RightPanel({
                       avatarUrl={entry.review.userAvatarUrl}
                       body={entry.review.body}
                       key={`r-${entry.review.id}`}
+                      owner={pr.owner}
+                      repo={pr.name}
                       state={entry.review.state}
                       user={entry.review.user}
                     />
@@ -344,21 +425,63 @@ export function RightPanel({
               </div>
             </section>
           )}
+        </div>
 
-          <section className="qf-drawer-section">
+        <div
+          className={cn(
+            "qf-drawer-foot",
+            bodyScrolls && "qf-drawer-foot-divided"
+          )}
+        >
+          <div hidden={!composing}>
             <AddCommentBox
               autoFocus={false}
-              onCancel={onClose}
+              onCancel={collapseComposer}
+              onEmptyChange={setDraftEmpty}
               onSubmit={handleAddIssueComment}
-              pending={false}
+              pending={addIssueCommentPending}
               placeholder="Comment on this pull request…"
+              ref={composerRef}
               submitLabel="Comment"
             />
-          </section>
+          </div>
+          {!composing && (
+            <button
+              className="qf-comment-prompt qf-focusable"
+              onClick={startComposing}
+              type="button"
+            >
+              <span>
+                {draftEmpty
+                  ? "Comment on this pull request…"
+                  : "Continue your draft…"}
+              </span>
+              <span aria-hidden className="qf-comment-prompt-key">
+                <Kbd combo="shift+c" />
+              </span>
+            </button>
+          )}
         </div>
       </aside>
     </>
   );
+}
+
+interface ConversationItemProps {
+  at: string;
+  avatarUrl: string;
+  body: string;
+  commentId?: number;
+  editing?: boolean;
+  onCancelEdit?: () => void;
+  onDelete?: (a: { commentId: number }) => Promise<void>;
+  onStartEdit?: (commentId: number) => void;
+  onSubmitEdit?: (commentId: number, body: string) => void;
+  own?: boolean;
+  owner: string;
+  repo: string;
+  state?: string;
+  user: string;
 }
 
 /** A single conversation row — a comment, or a review verdict with its chip. */
@@ -375,30 +498,10 @@ function ConversationItem({
   onCancelEdit,
   onSubmitEdit,
   onDelete,
-}: {
-  user: string;
-  avatarUrl: string;
-  at: string;
-  body: string;
-  state?: string;
-  commentId?: number;
-  own?: boolean;
-  editing?: boolean;
-  onStartEdit?: (commentId: number) => void;
-  onCancelEdit?: () => void;
-  onSubmitEdit?: (commentId: number, body: string) => void;
-  onDelete?: (a: { commentId: number }) => Promise<void>;
-}) {
+  owner,
+  repo,
+}: ConversationItemProps) {
   const chip = state ? (REVIEW_STATES[state] ?? REVIEW_STATES.COMMENTED) : null;
-  const trimmed = body.trim();
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-
-  const handleStartEdit = () => {
-    if (commentId !== undefined) {
-      setConfirmingDelete(false);
-      onStartEdit?.(commentId);
-    }
-  };
 
   const handleSubmitEdit = (text: string) => {
     if (commentId !== undefined) {
@@ -406,21 +509,11 @@ function ConversationItem({
     }
   };
 
-  const handleDelete = () => {
-    if (commentId === undefined) {
-      return;
-    }
-    if (confirmingDelete) {
-      setConfirmingDelete(false);
-      onDelete?.({ commentId })?.catch(() => undefined);
-    } else {
-      setConfirmingDelete(true);
-    }
+  const handleDelete = (id: number) => {
+    onDelete?.({ commentId: id })?.catch(() => undefined);
   };
 
-  const disarmDelete = () => {
-    setConfirmingDelete(false);
-  };
+  const noop = () => undefined;
 
   return (
     <div className="qf-convo-item">
@@ -434,54 +527,24 @@ function ConversationItem({
           <span className="qf-comment-time" title={formatAbsolute(at)}>
             {formatRelativeTime(at)}
           </span>
-          {own && !editing && (
-            <span className="qf-comment-tools">
-              <button
-                aria-label="Edit comment"
-                className="qf-comment-tool qf-focusable"
-                onClick={handleStartEdit}
-                type="button"
-              >
-                Edit
-              </button>
-              <button
-                aria-label="Delete comment"
-                className={cn(
-                  "qf-comment-tool qf-focusable",
-                  confirmingDelete && "qf-comment-tool-danger"
-                )}
-                onBlur={disarmDelete}
-                onClick={handleDelete}
-                onMouseLeave={disarmDelete}
-                type="button"
-              >
-                {confirmingDelete ? "Delete?" : "Delete"}
-              </button>
-            </span>
+          {!editing && commentId !== undefined && (
+            <CommentTools
+              body={body}
+              commentId={commentId}
+              onDelete={own && onDelete ? handleDelete : undefined}
+              onStartEdit={own ? onStartEdit : undefined}
+            />
           )}
         </div>
-        {editing ? (
-          <AddCommentBox
-            autoFocus
-            initialMarkdown={body}
-            onCancel={onCancelEdit ?? disarmDelete}
-            onSubmit={handleSubmitEdit}
-            pending={false}
-            placeholder="Edit your comment…"
-            submitLabel="Save"
-          />
-        ) : (
-          !!trimmed && (
-            <div className="qf-comment-body">
-              <Markdown>{trimmed}</Markdown>
-            </div>
-          )
-        )}
+        <CommentBody
+          body={body}
+          editing={editing}
+          onCancelEdit={onCancelEdit ?? noop}
+          onSubmitEdit={handleSubmitEdit}
+          owner={owner}
+          repo={repo}
+        />
       </div>
     </div>
   );
-}
-
-function firstLine(body: string): string {
-  return body.trim().split("\n")[0] ?? "";
 }

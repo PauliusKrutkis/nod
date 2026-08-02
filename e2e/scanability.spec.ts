@@ -1,45 +1,12 @@
 import { setupApp } from "./bridge.ts";
+import { tokenCenter } from "./dom.ts";
 import { expect, test } from "./test.ts";
 import type { Page } from "./types.ts";
 
 const QF_LVL_ONE = /--qf-lvl:\s*1/;
 const SUBMIT_OR_REVIEW = /Submit review|Review/;
 const SIDEBAR_OPEN = /qf-sidebar-open/;
-
-/**
- * Viewport-centre of `token`'s first occurrence within a real (non-hunk) diff
- * code line of file section `section` (same helper as occurrences.spec.ts).
- */
-async function tokenCenter(page: Page, section: number, token: string) {
-  const rect = await page.evaluate(
-    ({ section: fileSection, token: wordToken }) => {
-      const codes = document.querySelectorAll(
-        `.qf-row[data-file-index="${fileSection}"]:not(.qf-row-hunk) .qf-code`
-      );
-      for (const code of codes) {
-        const walker = document.createTreeWalker(code, NodeFilter.SHOW_TEXT);
-        while (walker.nextNode()) {
-          const node = walker.currentNode as Text;
-          const i = node.data.indexOf(wordToken);
-          if (i === -1) {
-            continue;
-          }
-          const range = document.createRange();
-          range.setStart(node, i);
-          range.setEnd(node, i + wordToken.length);
-          const r = range.getBoundingClientRect();
-          return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
-        }
-      }
-      return null;
-    },
-    { section, token }
-  );
-  if (!rect) {
-    throw new Error(`token not found in diff: ${token}`);
-  }
-  return rect;
-}
+const SIDEBAR_WIDTH_PX = 300;
 
 /** Single-click a token (settling the hover first, like a real pointer). */
 async function clickToken(page: Page, section: number, token: string) {
@@ -47,6 +14,28 @@ async function clickToken(page: Page, section: number, token: string) {
   await page.mouse.move(x, y);
   await page.waitForTimeout(100);
   await page.mouse.click(x, y);
+}
+
+/**
+ * Click the nth occurrence mark, optionally holding the mod key — Meta stands
+ * in for either half of the app's `metaKey || ctrlKey`, on any platform.
+ */
+async function clickMark(page: Page, nth: number, opts?: { mod?: boolean }) {
+  const box = await page.locator("mark.qf-occ-mark").nth(nth).boundingBox();
+  if (!box) {
+    throw new Error(`occurrence mark ${nth} has no bounding box`);
+  }
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(x, y);
+  await page.waitForTimeout(100);
+  if (opts?.mod) {
+    await page.keyboard.down("Meta");
+  }
+  await page.mouse.click(x, y);
+  if (opts?.mod) {
+    await page.keyboard.up("Meta");
+  }
 }
 
 test.beforeEach(async ({ page }) => {
@@ -184,7 +173,7 @@ test("intraline emphasis is paint-only and survives find marks on top", async ({
   const row = page.locator('.qf-row-add[data-file-index="2"]').first();
   const before = await row.boundingBox();
 
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press("ControlOrMeta+f");
   await page.getByPlaceholder("Find in diff").fill("retryLimit");
   await expect(page.locator(".qf-findbar-count")).toHaveText("1/1");
   await expect(page.locator("mark.qf-find-mark")).toHaveCount(2);
@@ -212,7 +201,7 @@ test("overview ruler: find ticks map matches across the whole PR", async ({
 }) => {
   await expect(page.locator(".qf-ruler")).toHaveCount(0);
 
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press("ControlOrMeta+f");
   await page.getByPlaceholder("Find in diff").fill("const");
   await expect(page.locator(".qf-findbar-count")).toHaveText("1/9");
   const ticks = page.locator(".qf-ruler-tick");
@@ -256,7 +245,13 @@ test("overview ruler: occurrence ticks on click, cleared by a blank click", asyn
   await expect(page.locator(".qf-ruler")).toHaveCount(0);
 });
 
-test("occurrence navigation: n/p and mark clicks jump between occurrences", async ({
+// Two occurrences of `gamma`, so every gesture has a visible destination and
+// the wrap rules are exercised in a couple of presses. A plain click on a mark
+// only re-marks the word — it must never walk to another match, the behaviour
+// this file guarded the other way round before mod+click existed. mod+click
+// steps forward from whichever mark was clicked, and back instead when that
+// mark is the last one, so clicking each of the two lands on the other.
+test("occurrence navigation: n/p step, mod+click walks from the clicked mark", async ({
   page,
 }) => {
   await clickToken(page, 1, "gamma");
@@ -275,20 +270,16 @@ test("occurrence navigation: n/p and mark clicks jump between occurrences", asyn
   await page.keyboard.press("p");
   await expect(flash).toContainText("return gamma");
 
-  const markBox = await marks.nth(1).boundingBox();
-  if (!markBox) {
-    throw new Error("occurrence mark bounding box not found");
-  }
-  await page.mouse.move(
-    markBox.x + markBox.width / 2,
-    markBox.y + markBox.height / 2
-  );
-  await page.waitForTimeout(100);
-  await page.mouse.click(
-    markBox.x + markBox.width / 2,
-    markBox.y + markBox.height / 2
-  );
-  await expect(flash).toContainText("const gamma");
+  await clickMark(page, 1);
+  await expect(page.locator(".qf-row-active")).toContainText("return gamma");
+  await expect(marks).toHaveCount(2);
+
+  await clickMark(page, 1, { mod: true });
+  await expect(page.locator(".qf-row-active")).toContainText("const gamma");
+  await expect(marks).toHaveCount(2);
+
+  await clickMark(page, 0, { mod: true });
+  await expect(page.locator(".qf-row-active")).toContainText("return gamma");
   await expect(marks).toHaveCount(2);
 
   await expect(page.locator(".qf-ruler-tick.qf-ruler-occ")).toHaveCount(2);
@@ -346,22 +337,91 @@ test("file tree collapses to an overlay on small screens", async ({ page }) => {
   await expect(overlay).not.toHaveClass(SIDEBAR_OPEN);
 });
 
+// `b` is pressed mid-read, so the tree must land at its final size in the same
+// frame — in both the inline (push column) and overlay modes, scrim included.
+test("toggling the file tree is instant, not animated", async ({ page }) => {
+  await page.setViewportSize({ height: 800, width: 1280 });
+  const inline = page.locator(".qf-sidebar-inline");
+  await expect(inline).toBeVisible();
+
+  const inlineOpen = await inline.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return {
+      animation: style.animationName,
+      duration: style.transitionDuration,
+      width: (el as HTMLElement).offsetWidth,
+    };
+  });
+  expect(inlineOpen.duration).toBe("0s");
+  expect(inlineOpen.animation).toBe("none");
+  expect(inlineOpen.width).toBe(SIDEBAR_WIDTH_PX);
+
+  await page.keyboard.press("b");
+  await expect(inline).not.toHaveClass(SIDEBAR_OPEN);
+  const closedWidth = await inline.evaluate(
+    (el) => (el as HTMLElement).offsetWidth
+  );
+  expect(closedWidth).toBeLessThanOrEqual(1);
+
+  await page.setViewportSize({ height: 800, width: 900 });
+  await expect(page.locator(".qf-sidebar-overlay")).toBeAttached();
+  await expect(page.locator(".qf-sidebar-scrim")).toBeAttached();
+  const motion = await page.evaluate(() => {
+    const read = (selector: string) => {
+      const el = document.querySelector(selector);
+      if (!el) {
+        return null;
+      }
+      const style = getComputedStyle(el);
+      return {
+        animation: style.animationName,
+        duration: style.transitionDuration,
+      };
+    };
+    return {
+      overlay: read(".qf-sidebar-overlay"),
+      scrim: read(".qf-sidebar-scrim"),
+    };
+  });
+  expect(motion.overlay).toEqual({ animation: "none", duration: "0s" });
+  expect(motion.scrim).toEqual({ animation: "none", duration: "0s" });
+});
+
 // A new file must read as a break in the diff, not blend into the code plane:
 // the header sits on a raised surface distinct from the diff body background.
 test("the file header stands off the diff background", async ({ page }) => {
   const bg = await page.evaluate(() => {
     const head = document.querySelector(".qf-fsec-head");
     const code = document.querySelector(".qf-row:not(.qf-row-hunk) .qf-code");
-    if (!(head && code)) {
+    const hunk = document.querySelector(".qf-row-hunk");
+    if (!(head && code && hunk)) {
       return null;
     }
+    const headStyle = getComputedStyle(head);
+    const name = head.querySelector(".qf-fsec-name");
     return {
-      head: getComputedStyle(head).backgroundColor,
       body: getComputedStyle(code.closest(".qf-diff") ?? code).backgroundColor,
+      codeSize: getComputedStyle(code).fontSize,
+      head: headStyle.backgroundColor,
+      headBorderTop: headStyle.borderTopWidth,
+      hunk: getComputedStyle(hunk).backgroundColor,
+      nameSize: name && getComputedStyle(name).fontSize,
     };
   });
   expect(bg).not.toBeNull();
   expect(bg?.head).not.toBe(bg?.body);
+  expect(bg?.head).not.toBe(bg?.hunk);
+  expect(Number.parseFloat(bg?.headBorderTop ?? "0")).toBeGreaterThanOrEqual(2);
+  expect(Number.parseFloat(bg?.nameSize ?? "0")).toBeGreaterThanOrEqual(
+    Number.parseFloat(bg?.codeSize ?? "0")
+  );
+
+  await page.locator(".qf-row-hunk").first().hover();
+  const hunkHover = await page
+    .locator(".qf-row-hunk")
+    .first()
+    .evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(hunkHover).not.toBe(bg?.head);
 
   if (process.env.CAPTURE_EVIDENCE) {
     await page

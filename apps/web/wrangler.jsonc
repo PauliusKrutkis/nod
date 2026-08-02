@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Pages Functions config. This is NOT local-dev-only: Cloudflare Pages reads
+  // it during every CI build, and once it exists it is authoritative — runtime
+  // bindings and vars set in the dashboard are ignored and become read-only
+  // there. Add bindings here, not in the UI.
+  "name": "nod-web",
+  "compatibility_date": "2026-07-18",
+  "pages_build_output_dir": "dist",
+  // Production store. Preview deployments get their own namespace below so PR
+  // builds can never write into the one holding real customer licenses;
+  // `env.preview` is the Pages mechanism for that, not the Workers-only
+  // `preview_id`. KV is a non-inheritable key — if any other binding is ever
+  // overridden per environment, every binding must be repeated in that block.
+  "kv_namespaces": [
+    { "binding": "LICENSES", "id": "6e569935e5a0412e86e87e55cda058b9" }
+  ],
+  "env": {
+    "preview": {
+      "kv_namespaces": [
+        { "binding": "LICENSES", "id": "8a9184da4e5443ef9f63f485436d22dc" }
+      ]
+    }
+  }
+  // Secrets are deliberately absent and must stay that way:
+  // POLAR_WEBHOOK_SECRET, LICENSE_SIGNING_SEED (32-byte hex Ed25519 seed),
+  // POLAR_API_KEY (for /restore, unused so far). Set them with
+  // `wrangler pages secret put`. The signing keypair's public half is not a
+  // binding at all — it ships embedded in the desktop app, which is the only
+  // thing that verifies tokens.
+}
