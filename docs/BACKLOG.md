@@ -981,8 +981,9 @@ only format the in-app updater touches.
       Extracted `copyTextToClipboard` to `src/lib/clipboard.ts`, replacing
       the private copy in `review-screen.tsx`.
 - [x] 🟢 **Comment text selection is cancelled by the occurrence handler** —
-      **done**; `handleOccPointerClick` now bails out on `.qf-comment-body`
-      and `.qf-resolved-snip` alongside the editable surfaces. A comment body
+      **done**; `handleOccPointerClick` now bails out on `.md` (every
+      Markdown surface, comment bodies included) and `.qf-resolved-snip`
+      alongside the editable surfaces. A comment body
       matches neither `.qf-row` nor `.qf-code`, so a click inside one fell
       through to the branch that clears the DOM selection whenever occurrence
       marks happen to be lit — killing the caret. Original text below.
