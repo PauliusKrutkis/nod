@@ -3312,9 +3312,6 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   );
 }
 
-/** The rAF-coalesced j/k cursor over the flattened nav list — see
- *  cursorMoverRefs. Stateless over refs, so per-event instances are
- *  interchangeable; holding the key accelerates (3×/6× after ~¼s/~¾s). */
 /* Occurrence navigation over the current match list — see occNavRefs.
  Index in the match list of the occurrence covering (anchor, column).
  Jump to match `index` (wrapping), keeping the marks alive.

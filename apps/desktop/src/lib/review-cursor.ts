@@ -216,6 +216,9 @@ export function nextUnviewedFileIndex(
   return null;
 }
 
+/** The rAF-coalesced j/k cursor over the flattened nav list — see
+ *  cursorMoverRefs. Stateless over refs, so per-event instances are
+ *  interchangeable; holding the key accelerates (3×/6× after ~¼s/~¾s). */
 export function buildCursorMover(refs: {
   modelRef: React.RefObject<ReviewListModel>;
   cursorRef: React.RefObject<CursorPos | null>;
