@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { api } from "../lib/api.ts";
 import { usePerfStore } from "../lib/perf.ts";
+import { migrateStorageKeys } from "../lib/storage-migrations.ts";
 import {
   autoUnviewedKey,
   reconcileViewedEntry,
@@ -16,6 +17,8 @@ import type {
   ViewedMap,
 } from "../types.ts";
 
+migrateStorageKeys();
+
 export type Route =
   | { name: "loading" }
   | { name: "token" }
@@ -26,7 +29,7 @@ export type Route =
  * We remember the inbox/review screen you were last on (never the token/loading
  * screens) so the next launch reopens it instead of always landing on the inbox.
  */
-const LAST_ROUTE_KEY = "pr-flow:lastRoute";
+const LAST_ROUTE_KEY = "pr-flow:lastRoute:v1";
 type ResumableRoute = Extract<Route, { name: "inbox" } | { name: "review" }>;
 
 function saveLastRoute(route: Route) {
@@ -62,7 +65,7 @@ export function loadLastRoute(): ResumableRoute | null {
 }
 
 /** Which inbox tab you were last on, so a restart doesn't reset it. */
-const LAST_TAB_KEY = "pr-flow:lastInboxTab";
+const LAST_TAB_KEY = "pr-flow:lastInboxTab:v1";
 const TAB_KEYS: readonly InboxTabKey[] = [
   "reviewRequested",
   "assigned",
@@ -116,7 +119,7 @@ if (typeof window !== "undefined") {
   window.addEventListener("beforeunload", flushPersistViewed);
 }
 
-const LAST_SEEN_KEY = "pr-flow:lastSeen";
+const LAST_SEEN_KEY = "pr-flow:lastSeen:v1";
 function loadLastSeen(): Record<string, string> {
   try {
     const v = JSON.parse(localStorage.getItem(LAST_SEEN_KEY) ?? "{}");
@@ -139,7 +142,7 @@ function saveLastSeen(map: Record<string, string>) {
  * resurfaces the PR on its own.
  */
 
-const DISMISSED_KEY = "pr-flow:dismissed";
+const DISMISSED_KEY = "pr-flow:dismissed:v1";
 function loadDismissed(): Record<string, string> {
   try {
     const v = JSON.parse(localStorage.getItem(DISMISSED_KEY) ?? "{}");
@@ -161,7 +164,7 @@ function saveDismissed(map: Record<string, string>) {
  * app — never loses a drafted comment.
  */
 
-const PENDING_KEY = "pr-flow:pendingComments";
+const PENDING_KEY = "pr-flow:pendingComments:v1";
 function loadPending(): Record<string, PendingComment[]> {
   try {
     const v = JSON.parse(localStorage.getItem(PENDING_KEY) ?? "{}");
@@ -179,7 +182,7 @@ function savePending(map: Record<string, PendingComment[]>) {
 }
 let pendingIdCounter = 0;
 
-const TRACKERS_KEY = "pr-flow:issueTrackers";
+const TRACKERS_KEY = "pr-flow:issueTrackers:v1";
 function loadTrackers(): Record<string, string> {
   try {
     const v = JSON.parse(localStorage.getItem(TRACKERS_KEY) ?? "{}");
