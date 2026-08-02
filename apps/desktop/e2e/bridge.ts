@@ -38,6 +38,12 @@ export interface AppOptions {
     notes: string | null;
     version: string;
   } | null;
+  updateAfterActivation?: {
+    currentVersion: string;
+    eligible: boolean;
+    notes: string | null;
+    version: string;
+  } | null;
   watchedRepos?: string[];
 }
 
@@ -65,6 +71,7 @@ export async function setupApp(page: Page, opts: AppOptions = {}) {
     subscribed: opts.subscribed ?? { count: 0, prs: [] },
     subscribedDelayMs: opts.subscribedDelayMs ?? 0,
     update: opts.update ?? null,
+    updateAfterActivation: opts.updateAfterActivation ?? null,
     watchedRepos: opts.watchedRepos ?? [],
   };
 
@@ -78,6 +85,7 @@ export async function setupApp(page: Page, opts: AppOptions = {}) {
 
     let detailCalls = 0;
     let inboxCalls = 0;
+    let activated = false;
     const counts: Record<string, number> = {};
     const countCall = (name: string) => {
       counts[name] = (counts[name] ?? 0) + 1;
@@ -99,9 +107,11 @@ export async function setupApp(page: Page, opts: AppOptions = {}) {
           if (cfg.activateLicense === "error") {
             throw new Error("Purchasing isn't configured in this build.");
           }
+          activated = true;
           return { status: "licensed", updatesUntil: "2027-08-02" };
         },
-        check_for_update: () => cfg.update,
+        check_for_update: () =>
+          activated ? (cfg.updateAfterActivation ?? cfg.update) : cfg.update,
         create_issue_comment: () =>
           cfg.hangIssueComment
             ? new Promise(() => {

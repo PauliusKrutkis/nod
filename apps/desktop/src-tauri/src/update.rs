@@ -10,7 +10,9 @@
 //! eligible for licensed users: the feed always stamps `pub_date`, and a
 //! missing one should never lock a paying customer out. `install_update`
 //! re-checks the gate so the UI can't be tricked into installing past it —
-//! gating, not DRM: the app itself never stops working.
+//! gating, not DRM: the app itself never stops working. That re-check can
+//! see a different release than the card showed (latest-only feed); an
+//! ineligible one fails closed, an eligible one installs.
 
 use serde::Serialize;
 use tauri::AppHandle;
@@ -28,7 +30,10 @@ pub struct UpdateInfo {
 }
 
 fn iso_date(date: Option<time::OffsetDateTime>) -> Option<String> {
-    date.map(|d| format!("{:04}-{:02}-{:02}", d.year(), u8::from(d.month()), d.day()))
+    date.map(|d| {
+        let utc = d.to_offset(time::UtcOffset::UTC);
+        format!("{:04}-{:02}-{:02}", utc.year(), u8::from(utc.month()), utc.day())
+    })
 }
 
 fn update_allowed(state: &LicenseState, release_date: Option<&str>) -> bool {
@@ -137,29 +142,6 @@ pub async fn list_releases() -> Result<Option<Vec<ReleaseInfo>>, String> {
     Ok(Some(releases))
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{update_allowed, LicenseState};
-
-    #[test]
-    fn trial_gets_every_update_and_expired_gets_none() {
-        let trial = LicenseState::Trial { days_left: 3 };
-        assert!(update_allowed(&trial, Some("2099-01-01")));
-        assert!(!update_allowed(&LicenseState::TrialExpired, Some("2020-01-01")));
-    }
-
-    #[test]
-    fn licensed_updates_stop_at_updates_until() {
-        let licensed = LicenseState::Licensed {
-            updates_until: "2027-08-02T10:00:00.000Z".to_string(),
-        };
-        assert!(update_allowed(&licensed, Some("2027-08-01")));
-        assert!(update_allowed(&licensed, Some("2027-08-02")));
-        assert!(!update_allowed(&licensed, Some("2027-08-03")));
-        assert!(update_allowed(&licensed, None));
-    }
-}
-
 /// Download + install the available update (verifying its signature against the
 /// configured public key), then relaunch into the new version. Surfaces real
 /// errors here because the user explicitly opted in by pressing "Install".
@@ -184,3 +166,7 @@ pub async fn install_update(app: AppHandle) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     app.restart();
 }
+
+#[cfg(test)]
+#[path = "update_tests.rs"]
+mod tests;

@@ -18,6 +18,7 @@ export const queryClient = new QueryClient({
 });
 
 export const queryKeys = {
+  appUpdate: (licenseKey: string) => ["app-update", licenseKey] as const,
   currentUser: ["currentUser"] as const,
   inbox: ["inbox"] as const,
   licenseState: ["licenseState"] as const,

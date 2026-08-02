@@ -1,8 +1,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, KeyRound, RefreshCw } from "lucide-react";
 import { useState } from "react";
-import { useSetLicenseState } from "../hooks/use-license-state.ts";
+import {
+  useLicenseState,
+  useSetLicenseState,
+} from "../hooks/use-license-state.ts";
 import { api } from "../lib/api.ts";
+import { queryKeys } from "../lib/query-client.ts";
 
 /**
  * "Update available" prompt. Checks the release feed on launch, then every few
@@ -10,9 +14,13 @@ import { api } from "../lib/api.ts";
  * unreachable), so a long-running app still notices new releases. When a newer
  * signed build exists it offers a one-click install + relaunch — unless the
  * release falls outside the license's update window, in which case the same
- * card explains and offers the purchase flow instead: a completed activation
- * updates the shared license state and re-checks the feed, so the card flips
- * to installable on its own.
+ * card explains and offers the purchase flow instead. The license state is
+ * part of the query key, so any transition — in-card purchase, deep-link
+ * activation, trial expiring mid-session — re-derives eligibility on its
+ * own; an install rejected by the backend gate also invalidates, so the card
+ * recovers instead of retrying into the same error. In trialExpired the
+ * ineligible face yields entirely: PurchasePrompt owns that state, and two
+ * differently-worded cards selling the same license would race each other.
  */
 
 const RECHECK_MS = 4 * 60 * 60 * 1000;
@@ -23,12 +31,17 @@ export function UpdatePrompt() {
   const [installing, setInstalling] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const license = useLicenseState();
   const setLicenseState = useSetLicenseState();
   const queryClient = useQueryClient();
 
+  const licenseKey = license
+    ? `${license.status}:${license.status === "licensed" ? license.updatesUntil : ""}`
+    : "unknown";
+
   const { data: available } = useQuery({
     queryFn: () => api.checkForUpdate().catch(() => null),
-    queryKey: ["app-update"],
+    queryKey: queryKeys.appUpdate(licenseKey),
     refetchInterval: RECHECK_MS,
     refetchIntervalInBackground: true,
     refetchOnWindowFocus: true,
@@ -49,6 +62,7 @@ export function UpdatePrompt() {
     } catch (e) {
       setError(String(e));
       setInstalling(false);
+      await queryClient.invalidateQueries({ queryKey: ["app-update"] });
     }
   };
 
@@ -57,7 +71,6 @@ export function UpdatePrompt() {
     setError(null);
     try {
       setLicenseState(await api.activateLicense());
-      await queryClient.invalidateQueries({ queryKey: ["app-update"] });
     } catch (e) {
       setError(String(e));
     } finally {
@@ -66,6 +79,9 @@ export function UpdatePrompt() {
   };
 
   if (!update) {
+    return null;
+  }
+  if (!update.eligible && license?.status === "trialExpired") {
     return null;
   }
 
