@@ -324,7 +324,9 @@ pub async fn submit_review(
 ///
 /// The size cap is applied to local reads too: it exists because the blob is
 /// base64'd into the webview, which is just as true when the bytes came off
-/// local disk.
+/// local disk. An oversized local hit fails immediately with the error the
+/// host path would produce — downloading the file first could only reproduce
+/// the same answer.
 #[tauri::command]
 pub async fn get_file_blob(
     app: AppHandle,
@@ -341,25 +343,35 @@ pub async fn get_file_blob(
         sha: r#ref.clone(),
     };
     if let Ok(root) = storage::cache_dir(&app) {
-        if let Some(blob) = local_blob(&root, &key, &path) {
-            return Ok(blob);
+        if let Some(resolved) = local_blob(&root, &key, &path) {
+            return resolved;
         }
     }
     let platform = accounts::platform_for(&account)?;
     platform.file_blob(&owner, &repo, &path, &r#ref).await
 }
 
-/// Reads a blob out of the snapshot in the shape the host path returns, or
-/// `None` for anything the caller should fetch over the network instead.
-fn local_blob(root: &std::path::Path, key: &SnapshotKey, path: &str) -> Option<FileBlob> {
-    if snapshot_store::file_size(root, key, path)? > MAX_BLOB_BYTES as u64 {
-        return None;
+/// Reads a blob out of the snapshot in the shape the host path returns.
+/// `None` means the snapshot has nothing for this key and the caller should
+/// fetch over the network; `Some(Err)` is an oversized hit, answered from
+/// local metadata instead of a download that could only end the same way.
+fn local_blob(
+    root: &std::path::Path,
+    key: &SnapshotKey,
+    path: &str,
+) -> Option<Result<FileBlob, String>> {
+    let size = snapshot_store::file_size(root, key, path)?;
+    if size > MAX_BLOB_BYTES as u64 {
+        return Some(Err(format!(
+            "File is too large to preview ({} MB).",
+            size / (1024 * 1024)
+        )));
     }
     let bytes = snapshot_store::read_file(root, key, path)?;
-    Some(FileBlob {
+    Some(Ok(FileBlob {
         base64: STANDARD.encode(&bytes),
         size: bytes.len() as u64,
-    })
+    }))
 }
 
 async fn snapshot_key(
