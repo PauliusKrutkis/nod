@@ -2809,6 +2809,7 @@ dependencies = [
  "tauri-plugin-deep-link",
  "tauri-plugin-opener",
  "tauri-plugin-updater",
+ "time",
  "tokio",
  "url",
 ]
