@@ -350,6 +350,7 @@ export function useExpansionScrollRestore(
 ): void {
   const onRestoredRef = useLatest(onRestored);
   const activeRef = useRef<{ cancel: () => void } | null>(null);
+  // react-doctor-disable-next-line effect-needs-cleanup -- every timer/rAF here is owned by cancel(); the mount-only effect below cancels on unmount, and this effect deliberately has no deps (it re-checks pendingRestoreRef every render), so its own cleanup cannot own cancellation
   useLayoutEffect(() => {
     const target = pendingRestoreRef.current;
     if (!target) {
@@ -366,9 +367,13 @@ export function useExpansionScrollRestore(
     const itemIndex = restoreItemIndex(modelRef.current, target);
 
     const swapScroller = listRef.current?.scroller() ?? null;
+    let swapinTimer: ReturnType<typeof setTimeout> | null = null;
     if (swapScroller) {
       swapScroller.classList.add("qf-swapin", "qf-swap-mask");
-      setTimeout(() => swapScroller.classList.remove("qf-swapin"), 300);
+      swapinTimer = setTimeout(
+        () => swapScroller.classList.remove("qf-swapin"),
+        300
+      );
     }
 
     const place = () => {
@@ -387,10 +392,17 @@ export function useExpansionScrollRestore(
     let cancelled = false;
     let revealed = false;
     let frameId: number | null = null;
+    let graceTimer: ReturnType<typeof setTimeout> | null = null;
     const cancel = () => {
       cancelled = true;
       if (frameId !== null) {
         cancelAnimationFrame(frameId);
+      }
+      if (swapinTimer !== null) {
+        clearTimeout(swapinTimer);
+      }
+      if (graceTimer !== null) {
+        clearTimeout(graceTimer);
       }
       if (activeRef.current === self) {
         activeRef.current = null;
@@ -404,7 +416,7 @@ export function useExpansionScrollRestore(
       revealed = true;
       swapScroller?.classList.remove("qf-swap-mask");
       onRestoredRef.current(target);
-      setTimeout(cancel, REVEAL_GRACE_MS);
+      graceTimer = setTimeout(cancel, REVEAL_GRACE_MS);
     };
 
     let framesSinceResize = -SETTLE_MIN_FRAMES;
