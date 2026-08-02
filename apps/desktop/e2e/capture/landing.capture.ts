@@ -10,13 +10,16 @@
  * "comments" (inline composer -> add to review -> existing thread), "scan"
  * (occurrence marks -> find bar -> ruler ticks). The poster frame each scene
  * marks is the one the landing page shows under prefers-reduced-motion.
- * Token double-clicks resolve the token's own box via a DOM Range, because
- * clicking the center of a code line lands on trailing blank space, which
- * deliberately clears marks instead of setting them.
+ * The "hero" scene is poster-only: one frame of the demo fixture queue at
+ * the hero iframe's exact size, shown until the visitor starts the live
+ * demo. Token double-clicks resolve the token's own box via a DOM Range,
+ * because clicking the center of a code line lands on trailing blank space,
+ * which deliberately clears marks instead of setting them.
  */
 
 import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { DEMO_INBOX } from "../../demo/fixtures.ts";
 import { setupApp } from "../bridge.ts";
 import type { InboxFixture } from "../fixtures.ts";
 import { makePr } from "../fixtures.ts";
@@ -235,4 +238,19 @@ test("scan: occurrence marks, find bar, ruler ticks", async ({ page }) => {
   await page.keyboard.press("Escape");
   await rec.hold(page, 1.2);
   rec.finish();
+});
+
+test.describe("hero poster", () => {
+  test.use({ viewport: { height: 588, width: 940 } });
+
+  test("hero: the demo queue at the embed's size", async ({ page }) => {
+    const rec = new SceneRecorder("hero");
+    await setupApp(page, { inbox: DEMO_INBOX });
+    await page.getByRole("option").first().waitFor();
+    await page.keyboard.press("j");
+
+    await rec.hold(page, 1.0);
+    rec.markPoster();
+    rec.finish();
+  });
 });
