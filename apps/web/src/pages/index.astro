@@ -1,6 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
-import DiffReplay from "../components/DiffReplay.astro";
+import InboxReplay from "../components/InboxReplay.astro";
 import FeatureShowcase from "../components/FeatureShowcase.astro";
 import LocalStrip from "../components/LocalStrip.astro";
 import SiteFooter from "../components/SiteFooter.astro";
@@ -27,7 +27,7 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
         review request, read the diff, leave a comment, move on.
       </p>
 
-      <DiffReplay />
+      <InboxReplay />
 
       <div class="get">
         <a class="btn btn--primary" href="/downloads">Download Nod</a>
