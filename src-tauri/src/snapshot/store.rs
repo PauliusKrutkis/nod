@@ -4,8 +4,8 @@
 //! Layout under the cache dir: `snapshots/{host}/{owner}__{repo}/{sha}/`. The
 //! host is part of the key because the same `owner/repo` exists on github.com
 //! and on a self-hosted GitLab, and their trees are unrelated. Path segments
-//! are sanitised the same way `commands::cache_path_segment` sanitises JSON
-//! cache names — hosts and owners are attacker-influenced strings.
+//! are sanitised more strictly than `commands::cache_path_segment` sanitises
+//! JSON cache names — hosts and owners are attacker-influenced strings.
 //!
 //! Extraction writes to a sibling `{sha}.partial` directory and renames it into
 //! place only once complete, so a torn or aborted download can never be read as
@@ -16,6 +16,10 @@
 //! Windows drive prefix must never escape the snapshot directory. Everything
 //! that materialises an entry goes through it, and it is fail-closed —
 //! anything not a plain relative component returns `None`.
+//!
+//! Snapshots contain no symlinks — the extractor never materialises them — and
+//! `read_file` refuses them regardless, so even a symlink smuggled onto disk by
+//! some other means cannot alias a read outside the snapshot directory.
 //!
 //! Eviction runs on every successful extraction rather than on a timer: keep
 //! the newest `keep` SHAs per repo (the current head plus a little history for
@@ -31,6 +35,7 @@ pub const MAX_CACHE_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 
 const SNAPSHOTS_DIR: &str = "snapshots";
 const PARTIAL_SUFFIX: &str = ".partial";
+const DISCARD_SUFFIX: &str = ".discard";
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SnapshotKey {
@@ -112,7 +117,8 @@ pub fn read_file(root: &Path, key: &SnapshotKey, path: &str) -> Option<Vec<u8>> 
         return None;
     }
     let target = safe_join(&base, path)?;
-    if !target.is_file() {
+    let meta = fs::symlink_metadata(&target).ok()?;
+    if meta.file_type().is_symlink() || !meta.is_file() {
         return None;
     }
     fs::read(target).ok()
@@ -129,11 +135,11 @@ pub fn file_size(root: &Path, key: &SnapshotKey, path: &str) -> Option<u64> {
 /// Replaces any existing snapshot at `key` with the staged `.partial`
 /// directory.
 ///
-/// Re-snapshotting a SHA must not open a window where the reader sees nothing,
-/// so an existing tree is moved aside, the staged one renamed into place, and
-/// only then is the old tree deleted. If the second rename fails the old tree
-/// is put back, leaving the caller exactly where it started rather than with a
-/// missing snapshot.
+/// An existing tree is moved aside before the staged one is renamed into
+/// place so a failed promote can roll it back: the caller ends exactly where
+/// it started, never with a missing snapshot. The swap itself is not atomic —
+/// a reader can catch the brief gap between the two renames — but that
+/// transient miss falls back to the network like any other miss.
 pub fn promote(root: &Path, key: &SnapshotKey) -> Result<(), String> {
     let staged = partial_dir(root, key);
     let final_dir = snapshot_dir(root, key);
@@ -141,7 +147,7 @@ pub fn promote(root: &Path, key: &SnapshotKey) -> Result<(), String> {
         return Err("snapshot staging directory is missing".to_string());
     }
 
-    let discard = repo_dir(root, key).join(format!("{}.discard", segment(&key.sha)));
+    let discard = repo_dir(root, key).join(format!("{}{DISCARD_SUFFIX}", segment(&key.sha)));
     let replacing = final_dir.exists();
     if replacing {
         let _ = fs::remove_dir_all(&discard);
@@ -194,12 +200,12 @@ fn snapshot_dirs(repo: &Path) -> Vec<PathBuf> {
         .filter(|p| {
             p.file_name()
                 .and_then(|n| n.to_str())
-                .is_some_and(|n| !n.ends_with(PARTIAL_SUFFIX) && !n.ends_with(".discard"))
+                .is_some_and(|n| !n.ends_with(PARTIAL_SUFFIX) && !n.ends_with(DISCARD_SUFFIX))
         })
         .collect()
 }
 
-fn all_snapshot_dirs(root: &Path) -> Vec<PathBuf> {
+fn all_repo_dirs(root: &Path) -> Vec<PathBuf> {
     let snapshots = root.join(SNAPSHOTS_DIR);
     let Ok(hosts) = fs::read_dir(&snapshots) else {
         return Vec::new();
@@ -209,15 +215,36 @@ fn all_snapshot_dirs(root: &Path) -> Vec<PathBuf> {
         let Ok(repos) = fs::read_dir(&host) else {
             continue;
         };
-        for repo in repos.flatten().map(|e| e.path()).filter(|p| p.is_dir()) {
-            out.extend(snapshot_dirs(&repo));
-        }
+        out.extend(repos.flatten().map(|e| e.path()).filter(|p| p.is_dir()));
     }
     out
 }
 
-fn sort_oldest_first(dirs: &mut [PathBuf]) {
-    dirs.sort_by_key(|p| modified_at(p));
+fn all_snapshot_dirs(root: &Path) -> Vec<PathBuf> {
+    all_repo_dirs(root)
+        .iter()
+        .flat_map(|repo| snapshot_dirs(repo))
+        .collect()
+}
+
+/// Deletes `.partial`/`.discard` directories orphaned by a crash between
+/// extraction and promote/discard. They are never readable, sit outside the
+/// size accounting, and would otherwise accumulate unbounded.
+fn sweep_orphans(root: &Path) {
+    for repo in all_repo_dirs(root) {
+        let Ok(entries) = fs::read_dir(&repo) else {
+            continue;
+        };
+        for path in entries.flatten().map(|e| e.path()) {
+            let orphan = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n.ends_with(PARTIAL_SUFFIX) || n.ends_with(DISCARD_SUFFIX));
+            if orphan {
+                let _ = fs::remove_dir_all(&path);
+            }
+        }
+    }
 }
 
 /// Trims one repo to its newest `keep` snapshots.
@@ -226,7 +253,7 @@ pub fn evict_repo(root: &Path, key: &SnapshotKey, keep: usize) {
     if dirs.len() <= keep {
         return;
     }
-    sort_oldest_first(&mut dirs);
+    dirs.sort_by_key(|p| modified_at(p));
     let excess = dirs.len() - keep;
     for dir in dirs.into_iter().take(excess) {
         let _ = fs::remove_dir_all(dir);
@@ -235,8 +262,10 @@ pub fn evict_repo(root: &Path, key: &SnapshotKey, keep: usize) {
 
 /// Trims oldest snapshots across every repo until the tree fits `max_bytes`.
 /// The newest snapshot is never removed, so a single repo larger than the cap
-/// degrades to "one snapshot" instead of thrashing.
+/// degrades to "one snapshot" instead of thrashing. Orphaned staging
+/// directories are swept first so crash residue cannot leak past the cap.
 pub fn evict_global(root: &Path, max_bytes: u64) {
+    sweep_orphans(root);
     let mut sized: Vec<(PathBuf, u64)> = all_snapshot_dirs(root)
         .into_iter()
         .map(|path| {
