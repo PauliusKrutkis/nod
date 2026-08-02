@@ -55,6 +55,14 @@ function optimisticComment(c: {
   };
 }
 
+function useLazyRef<T>(init: () => T): React.RefObject<T> {
+  const ref = useRef<T | null>(null);
+  if (ref.current === null) {
+    ref.current = init();
+  }
+  return ref as React.RefObject<T>;
+}
+
 export function useCommentMutations(
   owner: string,
   repo: string,
@@ -325,7 +333,7 @@ export function useCommentMutations(
     },
   });
 
-  const resolveIntentRef = useRef(new Map<string, boolean>());
+  const resolveIntentRef = useLazyRef(() => new Map<string, boolean>());
   const resolveInflightRef = useRef<string | null>(null);
 
   const patchThreadResolved = (threadId: string, resolved: boolean) => {
@@ -349,10 +357,14 @@ export function useCommentMutations(
     if (!detail) {
       return;
     }
+    const resolvedByThread = new Map<string, boolean | undefined>();
+    for (const c of detail.comments) {
+      if (c.threadId !== null && !resolvedByThread.has(c.threadId)) {
+        resolvedByThread.set(c.threadId, c.resolved);
+      }
+    }
     for (const [threadId, intent] of resolveIntentRef.current) {
-      const current = detail.comments.find(
-        (c) => c.threadId === threadId
-      )?.resolved;
+      const current = resolvedByThread.get(threadId);
       if (current !== undefined && current !== intent) {
         resolveInflightRef.current = threadId;
         resolveThread.mutate({ resolved: intent, threadId });
