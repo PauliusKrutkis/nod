@@ -13,24 +13,29 @@
  * Polar's checkout success URL templates in is still an assumption pending a
  * real account — see docs/RELEASING.md.
  *
- * There is deliberately no automatic loopback handoff here yet. An earlier
- * draft fetched http://127.0.0.1:8765/callback from an inline script, but the
- * desktop app has no purchase listener on that port — only the OAuth code
- * catcher in src-tauri/src/auth.rs, which such a fetch would abort mid-sign-in
- * (its /callback handler treats a token-only query as a CSRF state mismatch)
- * while an opaque no-cors response flipped this page to a false "you're all
- * set". The zero-click fetch ships together with the app-side listener.
- * The response is no-store because the token is baked into the markup.
+ * An inline script also pushes the token to the app's dedicated purchase
+ * listener (127.0.0.1:8766, src-tauri/src/activation.rs — deliberately not
+ * the OAuth port, whose code catcher a token fetch would abort mid-sign-in),
+ * so an app-initiated purchase activates with zero clicks where the browser
+ * allows it: Firefox fires plainly, Chromium preflights (answered by the
+ * listener) or prompts under Local Network Access, Safari blocks
+ * https→loopback mixed content and always needs the button. The page never
+ * claims success from the fetch — a no-cors response is opaque and anything
+ * on the port could have answered — so the copy stays non-committal and the
+ * app's own window is the confirmation. The response is no-store because the
+ * token is baked into the markup.
  */
 import type { Env } from "./lib/env";
 import { getLicense, getOrderIndex, putOrderIndex } from "./lib/kv";
 import { signLicenseToken } from "./lib/license-token";
 
 const DEEP_LINK_BASE = "prflow://purchase";
+const PURCHASE_LISTENER_BASE = "http://127.0.0.1:8766/callback";
 const ACTIVATION_WINDOW_SECONDS = 48 * 60 * 60;
 
 function activationPage(token: string): string {
   const deepLink = `${DEEP_LINK_BASE}?token=${encodeURIComponent(token)}`;
+  const listenerUrl = `${PURCHASE_LISTENER_BASE}?token=${encodeURIComponent(token)}`;
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -60,6 +65,9 @@ function activationPage(token: string): string {
   <p class="alt">Don't have it installed yet? <a href="/downloads">Download
   Nod</a>, then press Open Nod — this link works for 48 hours.</p>
 </main>
+<script>
+  fetch(${JSON.stringify(listenerUrl)}, { mode: "no-cors" }).catch(() => {});
+</script>
 </body>
 </html>`;
 }

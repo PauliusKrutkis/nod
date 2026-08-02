@@ -1,4 +1,5 @@
 mod accounts;
+mod activation;
 mod auth;
 mod commands;
 mod http;
@@ -120,6 +121,7 @@ pub fn run() {
             update::get_app_version,
             update::list_releases,
             license::get_license_state,
+            activation::activate_license,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

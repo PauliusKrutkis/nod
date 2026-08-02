@@ -8,8 +8,10 @@ import { setupApp } from "./bridge.ts";
 import { expect, test } from "./test.ts";
 import type { Page } from "./types.ts";
 
+const BADGE_TEXT = /Trial (—|ended)/;
+
 const trialBadge = (page: Page) =>
-  page.getByRole("status").filter({ hasText: "Trial" });
+  page.getByRole("status").filter({ hasText: BADGE_TEXT });
 
 test("a running trial shows the days left", async ({ page }) => {
   await setupApp(page, { licenseState: { daysLeft: 12, status: "trial" } });
