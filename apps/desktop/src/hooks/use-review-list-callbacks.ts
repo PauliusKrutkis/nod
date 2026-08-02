@@ -4,6 +4,13 @@
  * bookkeeping and copy-path — plus the small pointer/keyboard helpers the
  * file-navigation path shares (isRealPointer, markKeyboardNavigation,
  * syncActiveIndexRef).
+ *
+ * `activeThreadRef` — the thread `r`/`x`/`z`/`shift+e` act on — is written by
+ * both hover and the cursor, so mouse-leave cannot simply null it: the cursor
+ * may be parked on a comment block, and `q` scrolls threads out from under a
+ * stationary pointer, which fires leave events nobody asked for.
+ * `reviewListOnThreadHover` therefore falls back to the cursor's own thread
+ * (`armedThreadAt`) instead, and only a cursor that is not on a block disarms.
  */
 
 import type React from "react";
