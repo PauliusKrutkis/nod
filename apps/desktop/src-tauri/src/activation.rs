@@ -1,8 +1,8 @@
 //! Browser-brokered license activation. `activate_license` opens the checkout
 //! page, listens on a dedicated loopback port and waits for the activation
 //! token — either pushed automatically by the /activate success page's inline
-//! fetch, or delivered when the buyer presses its Open Nod button once the
-//! prflow:// deep link lands. The received token is verified offline
+//! fetch, or via the prflow:// deep link behind its Open Nod button
+//! (watch_deep_links below). The received token is verified offline
 //! (license::verify_license_token) and persisted; the command resolves to the
 //! new license state so the webview can flip without a refetch.
 //!
