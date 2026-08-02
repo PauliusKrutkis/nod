@@ -8,6 +8,10 @@
 //! Every entry is untrusted. Three separate limits apply, because a size cap on
 //! the compressed download says nothing about what it expands to: total bytes
 //! written, number of entries, and per-path validation via `store::safe_join`.
+//! The entry cap counts every header, not just materialised files, so an
+//! archive of endless directory or link entries still terminates. Declared
+//! entry sizes are equally untrusted — GNU base-256 encodes up to `u64::MAX`,
+//! so the running total is a checked add, never a wrapping one.
 //! Only regular files are materialised — symlinks and hardlinks are skipped
 //! outright rather than resolved, since a link is the cheapest way to point a
 //! later write outside the tree, and no review surface needs them.
@@ -17,7 +21,6 @@
 //! having no snapshot at all.
 
 use std::fs;
-use std::io::Read;
 use std::path::{Component, Path};
 
 use flate2::read::GzDecoder;
@@ -63,19 +66,32 @@ fn strip_root(path: &Path) -> Result<Option<String>, String> {
 
 /// Extracts a gzipped tar into `dest`, which must already exist.
 pub fn extract_tar_gz(archive: &[u8], dest: &Path) -> Result<ExtractStats, String> {
+    extract_with_limits(archive, dest, MAX_EXTRACTED_BYTES, MAX_ENTRIES)
+}
+
+/// The worker behind `extract_tar_gz`, with the caps injectable so tests can
+/// drive both rejection paths without gigabyte-sized fixtures.
+fn extract_with_limits(
+    archive: &[u8],
+    dest: &Path,
+    max_bytes: u64,
+    max_entries: usize,
+) -> Result<ExtractStats, String> {
     let mut tar = tar::Archive::new(GzDecoder::new(archive));
     let entries = tar
         .entries()
         .map_err(|e| format!("could not read archive: {e}"))?;
 
     let mut stats = ExtractStats { files: 0, bytes: 0 };
+    let mut entries_seen: usize = 0;
     for entry in entries {
         let mut entry = entry.map_err(|e| format!("could not read archive entry: {e}"))?;
+        entries_seen += 1;
+        if entries_seen > max_entries {
+            return Err("archive has too many entries".to_string());
+        }
         if !entry.header().entry_type().is_file() {
             continue;
-        }
-        if stats.files >= MAX_ENTRIES {
-            return Err("archive has too many files".to_string());
         }
         let raw = entry
             .path()
@@ -89,7 +105,11 @@ pub fn extract_tar_gz(archive: &[u8], dest: &Path) -> Result<ExtractStats, Strin
         };
 
         let size = entry.header().size().unwrap_or(0);
-        if stats.bytes + size > MAX_EXTRACTED_BYTES {
+        let projected = stats
+            .bytes
+            .checked_add(size)
+            .ok_or_else(|| "archive expands to too much data".to_string())?;
+        if projected > max_bytes {
             return Err("archive expands to too much data".to_string());
         }
 
@@ -97,14 +117,13 @@ pub fn extract_tar_gz(archive: &[u8], dest: &Path) -> Result<ExtractStats, Strin
             fs::create_dir_all(parent)
                 .map_err(|e| format!("could not create snapshot directory: {e}"))?;
         }
-        let mut buf: Vec<u8> = Vec::with_capacity(size as usize);
-        entry
-            .read_to_end(&mut buf)
-            .map_err(|e| format!("could not read archive entry: {e}"))?;
-        fs::write(&target, &buf).map_err(|e| format!("could not write snapshot file: {e}"))?;
+        let mut file =
+            fs::File::create(&target).map_err(|e| format!("could not write snapshot file: {e}"))?;
+        let written = std::io::copy(&mut entry, &mut file)
+            .map_err(|e| format!("could not write snapshot file: {e}"))?;
 
         stats.files += 1;
-        stats.bytes += buf.len() as u64;
+        stats.bytes += written;
     }
     Ok(stats)
 }
