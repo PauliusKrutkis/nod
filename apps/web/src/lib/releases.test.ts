@@ -5,6 +5,7 @@ import {
   formatSize,
   groupByPlatform,
   isVersionTag,
+  limitHistory,
   parseNotes,
   pickDownloads,
   toReleases,
@@ -220,6 +221,55 @@ describe("toReleases", () => {
     ]);
 
     expect(releases[0]?.notes).toEqual([]);
+  });
+});
+
+function releaseNamed(tag: string): Release {
+  return {
+    tag,
+    version: tag.slice(1),
+    publishedAt: "2026-07-01T00:00:00Z",
+    notes: [],
+    downloads: [],
+  };
+}
+
+function releasesNumbered(count: number): Release[] {
+  return Array.from({ length: count }, (_, index) =>
+    releaseNamed(`v0.0.${count - index}`)
+  );
+}
+
+describe("limitHistory", () => {
+  it("shows everything when there is less history than the limit", () => {
+    const history = limitHistory(releasesNumbered(6), 10);
+
+    expect(history.shown).toHaveLength(6);
+    expect(history.hasMore).toBe(false);
+  });
+
+  it("shows everything when the history exactly fills the limit", () => {
+    const history = limitHistory(releasesNumbered(10), 10);
+
+    expect(history.shown).toHaveLength(10);
+    expect(history.hasMore).toBe(false);
+  });
+
+  it("keeps the newest and reports that it dropped the rest", () => {
+    const history = limitHistory(releasesNumbered(11), 10);
+
+    expect(history.shown).toHaveLength(10);
+    expect(history.hasMore).toBe(true);
+    expect(history.shown[0]?.tag).toBe("v0.0.11");
+    expect(history.shown.at(-1)?.tag).toBe("v0.0.2");
+    expect(history.shown.map((release) => release.tag)).not.toContain("v0.0.1");
+  });
+
+  it("handles a first release, which has no history behind it", () => {
+    const history = limitHistory([], 10);
+
+    expect(history.shown).toEqual([]);
+    expect(history.hasMore).toBe(false);
   });
 });
 

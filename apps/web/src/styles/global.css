@@ -758,7 +758,6 @@ a {
   justify-content: center;
   gap: 14px;
   margin-top: 40px;
-  scroll-margin-top: 76px;
 }
 
 .cmd {
@@ -1298,7 +1297,8 @@ a {
   padding: 2px 0 18px 22px;
 }
 
-.vers__assets {
+.vers__assets,
+.vers__all {
   display: inline-block;
   margin-top: 12px;
   font-family: var(--font-mono);
@@ -1307,8 +1307,13 @@ a {
   transition: color 0.15s ease;
 }
 
-.vers__assets:hover {
+.vers__assets:hover,
+.vers__all:hover {
   color: var(--accent);
+}
+
+.vers__all {
+  margin-top: 20px;
 }
 
 @media (prefers-reduced-motion: reduce) {
