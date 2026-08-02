@@ -62,16 +62,21 @@ export function Tooltip({
   const [intent, setIntent] = useState<"closed" | "instant" | "delayed">(
     "closed"
   );
-  const [open, setOpen] = useState(false);
+  const [delayedReady, setDelayedReady] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const [coords, setCoords] = useState<Coords | null>(null);
 
   useEffect(() => {
-    if (intent === "delayed") {
-      const timer = setTimeout(() => setOpen(true), OPEN_DELAY_MS);
-      return () => clearTimeout(timer);
+    if (intent !== "delayed") {
+      return;
     }
-    setOpen(intent === "instant");
+    const timer = setTimeout(() => setDelayedReady(true), OPEN_DELAY_MS);
+    return () => clearTimeout(timer);
   }, [intent]);
+
+  const open =
+    !dismissed &&
+    (intent === "instant" || (intent === "delayed" && delayedReady));
 
   useLayoutEffect(() => {
     if (!open) {
@@ -95,7 +100,7 @@ export function Tooltip({
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        setOpen(false);
+        setDismissed(true);
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -108,18 +113,27 @@ export function Tooltip({
     onBlur: (e: React.FocusEvent) => {
       childProps.onBlur?.(e);
       setIntent("closed");
+      setDelayedReady(false);
+      setDismissed(false);
     },
     onFocus: (e: React.FocusEvent) => {
       childProps.onFocus?.(e);
+      setDismissed(false);
       setIntent("instant");
     },
     onPointerEnter: (e: React.PointerEvent) => {
       childProps.onPointerEnter?.(e);
-      setIntent("delayed");
+      setDismissed(false);
+      if (!open) {
+        setIntent("delayed");
+        setDelayedReady(false);
+      }
     },
     onPointerLeave: (e: React.PointerEvent) => {
       childProps.onPointerLeave?.(e);
       setIntent("closed");
+      setDelayedReady(false);
+      setDismissed(false);
     },
   });
 
