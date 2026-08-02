@@ -32,7 +32,7 @@ pub const MAX_CACHE_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 const SNAPSHOTS_DIR: &str = "snapshots";
 const PARTIAL_SUFFIX: &str = ".partial";
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SnapshotKey {
     pub host: String,
     pub owner: String,

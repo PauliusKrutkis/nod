@@ -155,8 +155,8 @@ fn traversal_entries_abort_the_extraction() {
 }
 
 #[test]
-fn oversized_archives_abort_before_filling_the_disk() {
-    let dest = TempDir::new("toobig");
+fn archives_over_the_byte_cap_abort_before_filling_the_disk() {
+    let dest = TempDir::new("bytecap");
     let big = vec![b'x'; 1024];
     let mut builder = TarBuilder::new();
     for i in 0..4 {
@@ -164,9 +164,42 @@ fn oversized_archives_abort_before_filling_the_disk() {
     }
     let archive = builder.build();
 
-    let stats = extract_tar_gz(&archive, dest.path()).expect("under the real cap");
-    assert_eq!(stats.files, 4);
-    assert_eq!(stats.bytes, 4096);
+    let err =
+        extract_with_limits(&archive, dest.path(), 3 * 1024, MAX_ENTRIES).expect_err("must reject");
+
+    assert!(err.contains("too much data"), "unexpected: {err}");
+    assert!(!dest.path().join("f3.bin").exists());
+}
+
+#[test]
+fn archives_with_too_many_entries_are_rejected() {
+    let dest = TempDir::new("entrycap");
+    let big = vec![b'x'; 8];
+    let mut builder = TarBuilder::new();
+    for i in 0..5 {
+        builder = builder.file(&format!("root/f{i}.bin"), &big);
+    }
+    let archive = builder.build();
+
+    let err = extract_with_limits(&archive, dest.path(), MAX_EXTRACTED_BYTES, 4)
+        .expect_err("must reject");
+
+    assert!(err.contains("too many entries"), "unexpected: {err}");
+}
+
+#[test]
+fn header_only_entries_count_against_the_entry_cap() {
+    let dest = TempDir::new("headerbomb");
+    let mut builder = TarBuilder::new().file("root/ok.txt", b"ok");
+    for i in 0..8 {
+        builder = builder.symlink(&format!("root/link{i}"), "target");
+    }
+    let archive = builder.build();
+
+    let err = extract_with_limits(&archive, dest.path(), MAX_EXTRACTED_BYTES, 4)
+        .expect_err("must reject");
+
+    assert!(err.contains("too many entries"), "unexpected: {err}");
 }
 
 #[test]
