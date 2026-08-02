@@ -72,10 +72,12 @@ pub fn run() {
     let _ = dotenvy::dotenv();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             license::ensure_trial_started(app.handle());
+            activation::watch_deep_links(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
