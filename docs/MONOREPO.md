@@ -1,7 +1,12 @@
 # Monorepo conversion + web deployment
 
-> **Status: planned, not started.** PR 1 is buildable now; PR 2 is blocked on
-> the open feature branches merging.
+> **Status: done (2026-08-02).** PR 1 shipped (`apps/web` + Cloudflare Pages);
+> PR 2 (desktop → `apps/desktop`) shipped once the open feature branches
+> merged. Deviations from the plan below, made because configs evolved after
+> it was written: `knip.jsonc` stayed at the root (it became workspace-aware
+> and now carries an `apps/web` section), and `check`/`fix` (ultracite) plus
+> `@playwright/test` stayed root-level so repo-wide lint coverage and
+> root-invoked `pnpm exec playwright` keep working.
 
 ## Context
 

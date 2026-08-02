@@ -7,8 +7,8 @@ description: Cut a new Nod (Tauri desktop app) release — bump the version, dra
 
 Automates the full desktop release: version bump → drafted changelog → tag/push →
 signed build → curated release notes on GitHub, which is what the in-app
-"What's new" card (`src/components/whats-new.tsx`) and release history
-(`src/components/release-history.tsx`) read from.
+"What's new" card (`apps/desktop/src/components/whats-new.tsx`) and release history
+(`apps/desktop/src/components/release-history.tsx`) read from.
 
 ## The gap this closes
 
@@ -20,20 +20,20 @@ notes anyway — those were added by hand afterwards with `gh release edit`.
 This skill does that edit as part of the same flow instead of leaving it as a
 manual follow-up.
 
-`src-tauri/src/update.rs::list_releases` fetches public releases and passes
-`body` straight through as `notes`. `e2e/whats-new.spec.ts` encodes the exact
+`apps/desktop/src-tauri/src/update.rs::list_releases` fetches public releases and passes
+`body` straight through as `notes`. `apps/desktop/e2e/whats-new.spec.ts` encodes the exact
 contract this feeds: a release needs `tag` (`vX.Y.Z`), `publishedAt`, and
 non-empty `notes` for the card and history view to show anything.
 
 ## Version source of truth
 
-The shipped version comes from `src-tauri/tauri.conf.json`'s `"version"`
+The shipped version comes from `apps/desktop/src-tauri/tauri.conf.json`'s `"version"`
 field — Tauri uses it in the built binary, and `get_app_version` in
-`src-tauri/src/update.rs` surfaces it via `app.package_info().version`. This
+`apps/desktop/src-tauri/src/update.rs` surfaces it via `app.package_info().version`. This
 is what the What's-new gate and release-history "current" dot compare
 against.
 
-`package.json` and `src-tauri/Cargo.toml` also carry a `version` field but
+`package.json` and `apps/desktop/src-tauri/Cargo.toml` also carry a `version` field but
 **past releases only bumped `tauri.conf.json`** (check `git show --stat` on
 any `release: vX.Y.Z` commit — one file changes). As a result they're
 currently stale (`0.1.0`) while `tauri.conf.json` is at `0.2.0`. Bump all
@@ -90,15 +90,15 @@ update — it's worth a quick edit pass, not a rubber stamp.
 Update all three files to the agreed `X.Y.Z` (no `v` prefix in these files,
 tags get the `v`):
 
-- `src-tauri/tauri.conf.json` → `"version"`
-- `package.json` → `"version"`
-- `src-tauri/Cargo.toml` → `[package] version`
+- `apps/desktop/src-tauri/tauri.conf.json` → `"version"`
+- `package.json` and `apps/desktop/package.json` → `"version"` (root mirrors the app version)
+- `apps/desktop/src-tauri/Cargo.toml` → `[package] version`
 
 Then refresh the lockfile's entry for the local package (offline — it's a
 path package, nothing to fetch):
 
 ```sh
-cd src-tauri && cargo update -p pr-flow --offline
+cd apps/desktop/src-tauri && cargo update -p pr-flow --offline
 ```
 
 ### 4. Run the gate
@@ -107,7 +107,7 @@ Same bar as any other change to this repo:
 
 ```sh
 pnpm check && pnpm typecheck && pnpm test && pnpm knip
-cd src-tauri && cargo check
+cd apps/desktop/src-tauri && cargo check
 ```
 
 A version bump shouldn't break any of these, but confirm before tagging —
@@ -117,7 +117,7 @@ force-moved (see Judgment calls).
 ### 5. Commit
 
 ```sh
-git add src-tauri/tauri.conf.json package.json src-tauri/Cargo.toml src-tauri/Cargo.lock
+git add apps/desktop/src-tauri/tauri.conf.json package.json apps/desktop/package.json apps/desktop/src-tauri/Cargo.toml apps/desktop/src-tauri/Cargo.lock
 git commit -m "release: vX.Y.Z"
 ```
 

@@ -9,7 +9,7 @@ Nod (PR Flow) codebase. For product overview and the runtime diagram, see the
 ## Layering
 
 ```
-Webview (React)  →  invoke() / typed wrappers (src/lib/api.ts)
+Webview (React)  →  invoke() / typed wrappers (apps/desktop/src/lib/api.ts)
                  →  Tauri commands (auth, accounts, commands, update)
                  →  accounts::active_platform
                  →  Platform seam (platform.rs)
@@ -27,17 +27,17 @@ Key directories:
 
 | Path | Role |
 | ---- | ---- |
-| `src/components/` | Screens and UI |
-| `src/lib/` | Pure logic (diff parsing, find, highlights) |
-| `src/store/` | Zustand UI state (viewed files, pending comments, route) |
-| `src/keyboard/` | Global hotkey layer |
-| `src-tauri/src/` | Backend — see [RUST.md](./RUST.md) |
+| `apps/desktop/src/components/` | Screens and UI |
+| `apps/desktop/src/lib/` | Pure logic (diff parsing, find, highlights) |
+| `apps/desktop/src/store/` | Zustand UI state (viewed files, pending comments, route) |
+| `apps/desktop/src/keyboard/` | Global hotkey layer |
+| `apps/desktop/src-tauri/src/` | Backend — see [RUST.md](./RUST.md) |
 
 ---
 
 ## Comments
 
-These rules apply to production code (`src/`, Rust
+These rules apply to production code (`apps/desktop/src/`, Rust
 backend).
 
 Do **not** use inline `//` line comments in production source files. Comments
@@ -61,7 +61,7 @@ belong in one of three places:
 
 - **Type or interface members** — no `/** … */` on individual properties inside
   `interface`, `type`, props, or store shapes. Fold non-obvious field meaning
-  into the file header (see `src/types.ts`).
+  into the file header (see `apps/desktop/src/types.ts`).
 - **Exported types and constants** — no separate doc block on `export interface
   Foo`, `export const BAR`, or `export const Foo = forwardRef(…)`; describe them
   in the file header if needed.
@@ -77,7 +77,7 @@ belong in one of three places:
   from structure and class names; non-obvious UI behaviour belongs in the file
   header.
 - **CSS** — no mid-file `/* … */` comments in production stylesheets. One
-  file-header block at the top only. `src/quiet.css` is legacy
+  file-header block at the top only. `apps/desktop/src/quiet.css` is legacy
   and being migrated incrementally.
 
 ### Allowed exceptions
@@ -116,7 +116,7 @@ line:
 
 **Decision (2026-07-15):** every surface that renders code — the diff, and the
 planned full-file context expansion — is built on our own rendering stack
-(highlight.js per line + `CodeCell` + the pure matchers in `src/lib/`), not on
+(highlight.js per line + `CodeCell` + the pure matchers in `apps/desktop/src/lib/`), not on
 an editor component like CodeMirror or Monaco. Reading-and-navigation features
 (find bar, occurrence highlighting, future go-to-definition once repo sync
 lands) are added to this stack, not bought.
@@ -150,9 +150,9 @@ component — the same split VS Code uses internally, one FindController across
 editor and diff editor):
 
 - **One paint unit** — `CodeCell` / `highlightRowHtml`
-  (`src/components/review/code-cell.tsx`): the only way a code line reaches
+  (`apps/desktop/src/components/review/code-cell.tsx`): the only way a code line reaches
   the DOM. New surfaces must render it.
-- **One matcher** — `findMatchRangesInLine` (`src/lib/find-in-diff.ts`); find
+- **One matcher** — `findMatchRangesInLine` (`apps/desktop/src/lib/find-in-diff.ts`); find
   and occurrences both ride it, so "what counts as a hit" cannot fork.
 - **One navigation** — anchors + `buildOccNav`/find-step over match lists;
   surfaces differ only in their match *source* and scroll-to-anchor.

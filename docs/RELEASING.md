@@ -8,7 +8,7 @@ plan (forge-account-as-license, browser-brokered activation — no license keys)
 
 ```bash
 # 1. Bump the app version (this is what the updater compares against)
-#    src-tauri/tauri.conf.json  →  "version": "0.1.1"
+#    apps/desktop/src-tauri/tauri.conf.json  →  "version": "0.1.1"
 
 # 2. Commit, tag, push
 git commit -am "release: v0.1.1"
@@ -141,7 +141,7 @@ drive the whole loop on your machine:
    ```bash
    cd /path/to/pr-flow
    TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/prflow.key)" pnpm tauri build --bundles app
-   cp -r "src-tauri/target/release/bundle/macos/Nod.app" /Applications/
+   cp -r "apps/desktop/src-tauri/target/release/bundle/macos/Nod.app" /Applications/
    ```
 
 2. **Point the updater at localhost** — temporarily, in `tauri.conf.json`:
@@ -159,7 +159,7 @@ drive the whole loop on your machine:
 
 3. **Build the "new" version**: bump `version` to `0.1.1` in
    `tauri.conf.json`, rebuild with the same command. Collect from
-   `src-tauri/target/release/bundle/macos/`:
+   `apps/desktop/src-tauri/target/release/bundle/macos/`:
    - `Nod.app.tar.gz`
    - `Nod.app.tar.gz.sig`
 
@@ -214,7 +214,7 @@ Gotchas learned the hard way:
   including release downloads, so the updater endpoint keeps working).
 - [x] **Icon: the keycap** (resting variant from the original design exploration,
   view 9) — `app-icon.svg` is the source; platform sizes in
-  `src-tauri/icons/` were regenerated with `pnpm tauri icon`. To change it
+  `apps/desktop/src-tauri/icons/` were regenerated with `pnpm tauri icon`. To change it
   later: edit the SVG, export 1024×1024 PNG, re-run `pnpm tauri icon <png>`.
 - [x] **Repo visibility** — public (`PauliusKrutkis/pr-flow`). If the code goes
   private later, split to a public releases-only repo (above).
@@ -329,7 +329,7 @@ pnpm --filter @nod/web run typecheck:functions
 - **Redirect target.** The plan below says `/activate` redirects to
   `prflow://purchase?token=…`. The app doesn't have a custom URL scheme —
   `tauri-plugin-deep-link` isn't a dependency. The *existing* GitHub sign-in
-  (`src-tauri/src/auth.rs`) uses a loopback HTTP server instead
+  (`apps/desktop/src-tauri/src/auth.rs`) uses a loopback HTTP server instead
   (`127.0.0.1:8765/callback`), which is what `activate.ts` redirects to today
   (`ACTIVATION_REDIRECT_BASE`, one constant). Swap it for a real `prflow://`
   deep link when/if that plugin gets added — until then this is the
@@ -400,7 +400,7 @@ lost keys.
 
 **Identity: the forge account is the license, not GitHub specifically.** The
 app signs in against GitHub, gitlab.com and self-hosted GitLab, and
-`accounts::account_id` (src-tauri/src/accounts.rs) already identifies an
+`accounts::account_id` (apps/desktop/src-tauri/src/accounts.rs) already identifies an
 account by `(provider, host, login)`. The license server mirrors that with a
 **subject**: `<provider>:<host>:<id>`, e.g. `github:github.com:583231`. An
 earlier draft keyed on a bare `github_id`, which would have left paying GitLab
@@ -449,7 +449,7 @@ same deep-link path, no keys.
 | **Payments** | Merchant of record (MoR), **not** raw Stripe. MoR hosts checkout, processes cards, handles global VAT/sales tax. ~5% + ~50¢/sale. | Paddle, Lemon Squeezy (Stripe-owned), or **Polar** (dev-focused, GitHub-native — good audience fit). Paddle requires site approval → landing page comes first regardless. |
 | **License server** | One Cloudflare Worker — three endpoints, tiny KV or D1 for `subject → license` mapping. Not zero-state, but minimal. | Same Cloudflare account as the landing page. |
 | **Auth** | None new. The forge account already in the app **is** the license identity (subject = `<provider>:<host>:<id>`). | Existing `auth.rs` + compile-time OAuth secrets. |
-| **In-app (Rust)** | Trial, license verify, updater gating, deep-link handler. | `src-tauri/` — see below. |
+| **In-app (Rust)** | Trial, license verify, updater gating, deep-link handler. | `apps/desktop/src-tauri/` — see below. |
 
 No traditional backend. No user database you operate — the MoR is the customer
 record; the Worker holds only `subject → { updates_until, order_id }`.

@@ -19,7 +19,7 @@ Review the full file for every touched file, not just the hunks — a diff-only 
 
 ## Check 1 — Comments match docs/ARCHITECTURE.md
 
-Read `docs/ARCHITECTURE.md` (section "Comments") first; it is the source of truth and overrides this summary. Condensed rules for production code (`src/`, `src-tauri/src/`):
+Read `docs/ARCHITECTURE.md` (section "Comments") first; it is the source of truth and overrides this summary. Condensed rules for production code (`apps/desktop/src/`, `apps/desktop/src-tauri/src/`):
 
 - No inline `//` prose comments. Comments live in exactly three places: one `/** … */` file header (Rust: `//!`), `/** … */` on functions where the signature isn't enough (Rust: `///`), or nowhere.
 - No doc blocks on interface/type members, exported consts, `useState`/`useRef` declarations, or JSX (`{/* … */}` section labels are violations).
@@ -27,7 +27,7 @@ Read `docs/ARCHITECTURE.md` (section "Comments") first; it is the source of trut
 - Allowed as-is: `// eslint-disable-next-line`, `// @ts-expect-error`, `// biome-ignore`, `/* ignore */` in intentionally-empty catch blocks.
 - Tests (e2e): file-level scenario block OK; step narration (`// Click submit`) is a violation unless it documents a timing/race workaround.
 
-Scan test files too — run this check over `e2e/` specs, not just `src/` and `src-tauri/src/`. Step narration in specs is the most commonly missed violation.
+Scan test files too — run this check over `apps/desktop/e2e/` specs, not just `apps/desktop/src/` and `apps/desktop/src-tauri/src/`. Step narration in specs is the most commonly missed violation.
 
 Flag both directions: comments added where they're banned, and deleted code whose non-obvious rationale should have moved to a file header.
 
@@ -51,7 +51,7 @@ shadcn/ui components ship with keyboard navigation, focus management, ARIA wirin
 
 Repo-specific nuance:
 
-- Reuse first: if an equivalent already exists under `src/components/ui/`, the finding is "use the existing primitive", not "add shadcn".
+- Reuse first: if an equivalent already exists under `apps/desktop/src/components/ui/`, the finding is "use the existing primitive", not "add shadcn".
 - Restyling is not a blocker — shadcn components are owned source and can be themed to the Quiet system; say so in the finding.
 - Do not flag simple presentational markup (a styled `div`, a badge, a list). The trigger is interactive behavior that's hard to get right, not any custom JSX.
 
@@ -81,12 +81,12 @@ Skip micro-optimizations with no measurable path to user-visible impact; this ap
 
 Hard layering rules (per ARCHITECTURE.md — violations are blockers):
 
-- Webview never holds tokens or does network I/O; new backend calls go through typed wrappers in `src/lib/api.ts`.
-- Pure logic belongs in `src/lib/`, UI state in `src/store/`, reusable primitives in `src/components/ui/`, Rust backend code in `src-tauri/src/`.
+- Webview never holds tokens or does network I/O; new backend calls go through typed wrappers in `apps/desktop/src/lib/api.ts`.
+- Pure logic belongs in `apps/desktop/src/lib/`, UI state in `apps/desktop/src/store/`, reusable primitives in `apps/desktop/src/components/ui/`, Rust backend code in `apps/desktop/src-tauri/src/`.
 
 Softer placement recommendations (propose a target path and name the convention the current placement breaks):
 
-- Business logic written inline in a component when `src/lib/` is the home for it; store selectors/derivations living in components instead of `src/store/`.
+- Business logic written inline in a component when `apps/desktop/src/lib/` is the home for it; store selectors/derivations living in components instead of `apps/desktop/src/store/`.
 - Utilities duplicated instead of joining the existing shared location; a new folder introduced when an existing one fits the responsibility.
 - Test specs that don't sit where the repo's other e2e specs sit.
 - Oversized files: when a change pushes a file well past its neighbors' norms, recommend the split and where each piece belongs.
@@ -107,7 +107,7 @@ Softer placement recommendations (propose a target path and name the convention 
 - Correctness: broken edge cases, race conditions, unhandled errors (especially `invoke` rejections), wrong types papered over with `as`.
 - Dead code: unexported-but-unused, or exported-and-unwired (knip will catch it — say so).
 - Tests: does the PR carry the tests that prove its own change (see TESTING.md)?
-- Gate: note whether `pnpm check`, `pnpm typecheck`, `pnpm test`, `pnpm knip` (and `cargo test` if `src-tauri/` changed) pass; run them if the working tree matches the reviewed diff.
+- Gate: note whether `pnpm check`, `pnpm typecheck`, `pnpm test`, `pnpm knip` (and `cargo test` if `apps/desktop/src-tauri/` changed) pass; run them if the working tree matches the reviewed diff.
 
 ## Reporting and confirmation (required)
 
