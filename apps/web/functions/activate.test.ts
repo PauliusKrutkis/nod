@@ -12,6 +12,7 @@ import { verifyLicenseToken } from "./lib/license-token";
 
 const SIGNING_SEED = "ab".repeat(32);
 const SUBJECT = "github:github.com:583231";
+const DEEP_LINK_PATTERN = /href="(prflow:\/\/purchase\?token=[^"]+)"/;
 
 function fakeKv(seed: Record<string, string> = {}): KVNamespace {
   const store = new Map<string, string>(Object.entries(seed));
@@ -57,18 +58,24 @@ describe("GET /activate", () => {
     expect(response.status).toBe(400);
   });
 
-  it("signs a token for the subject behind the order id", async () => {
+  it("signs a token and bakes it into both handoff paths", async () => {
     const kv = licensedKv();
     const response = await activate(
       kv,
       "https://x.test/activate?order_id=order_1"
     );
 
-    expect(response.status).toBe(302);
-    const token = new URL(
-      response.headers.get("location") ?? ""
-    ).searchParams.get("token");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+
+    const html = await response.text();
+    const deepLink = html.match(DEEP_LINK_PATTERN);
+    expect(deepLink).not.toBeNull();
+    const token = new URL(deepLink?.[1] ?? "").searchParams.get("token");
     expect(token).not.toBeNull();
+    expect(html).toContain(
+      `http://127.0.0.1:8765/callback?token=${token ?? ""}`
+    );
 
     const { getPublicKeyAsync } = await import("@noble/ed25519");
     const publicKey = Array.from(
@@ -95,7 +102,7 @@ describe("GET /activate", () => {
       kv,
       "https://x.test/activate?order_id=order_1"
     );
-    expect(first.status).toBe(302);
+    expect(first.status).toBe(200);
 
     const replay = await activate(
       kv,
