@@ -181,6 +181,7 @@ export interface AccountsInfo {
 
 export interface UpdateInfo {
   currentVersion: string;
+  eligible: boolean;
   notes: string | null;
   version: string;
 }

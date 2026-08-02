@@ -2,15 +2,23 @@
 //! the webview calls these thin wrappers; the download, signature verification
 //! and install happen in Rust.
 //!
-//! SCAFFOLD: `plugins.updater` in `tauri.conf.json` currently holds placeholder
-//! `endpoints` + `pubkey`, and release bundles aren't signed yet. Until a real
-//! signing key and release feed exist (see the "Auto-updates" section in the
-//! README), `check_for_update` is best-effort and simply reports "no update"
-//! rather than surfacing configuration errors to the user.
+//! Update eligibility is gated client-side on license state — `latest.json`
+//! stays fully static. A running trial gets every update; an expired trial
+//! gets none (that is what a license buys); a licensed install gets releases
+//! published up to its `updatesUntil`, compared as ISO dates so a same-day
+//! release still qualifies. A release with no publish date counts as
+//! eligible for licensed users: the feed always stamps `pub_date`, and a
+//! missing one should never lock a paying customer out. `install_update`
+//! re-checks the gate so the UI can't be tricked into installing past it —
+//! gating, not DRM: the app itself never stops working. That re-check can
+//! see a different release than the card showed (latest-only feed); an
+//! ineligible one fails closed, an eligible one installs.
 
 use serde::Serialize;
 use tauri::AppHandle;
 use tauri_plugin_updater::UpdaterExt;
+
+use crate::license::{self, LicenseState};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -18,6 +26,25 @@ pub struct UpdateInfo {
     pub version: String,
     pub current_version: String,
     pub notes: Option<String>,
+    pub eligible: bool,
+}
+
+fn iso_date(date: Option<time::OffsetDateTime>) -> Option<String> {
+    date.map(|d| {
+        let utc = d.to_offset(time::UtcOffset::UTC);
+        format!("{:04}-{:02}-{:02}", utc.year(), u8::from(utc.month()), utc.day())
+    })
+}
+
+fn update_allowed(state: &LicenseState, release_date: Option<&str>) -> bool {
+    match state {
+        LicenseState::Trial { .. } => true,
+        LicenseState::TrialExpired => false,
+        LicenseState::Licensed { updates_until } => match release_date {
+            Some(date) => date <= updates_until.as_str(),
+            None => true,
+        },
+    }
 }
 
 /// Check the configured endpoint for a newer signed release. Returns `None`
@@ -30,11 +57,16 @@ pub async fn check_for_update(app: AppHandle) -> Result<Option<UpdateInfo>, Stri
         Err(_) => return Ok(None),
     };
     match updater.check().await {
-        Ok(Some(update)) => Ok(Some(UpdateInfo {
-            version: update.version.clone(),
-            current_version: update.current_version.clone(),
-            notes: update.body.clone(),
-        })),
+        Ok(Some(update)) => {
+            let state = license::get_license_state(app.clone());
+            let release_date = iso_date(update.date);
+            Ok(Some(UpdateInfo {
+                version: update.version.clone(),
+                current_version: update.current_version.clone(),
+                notes: update.body.clone(),
+                eligible: update_allowed(&state, release_date.as_deref()),
+            }))
+        }
         Ok(None) => Ok(None),
         Err(_) => Ok(None),
     }
@@ -121,9 +153,20 @@ pub async fn install_update(app: AppHandle) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "No update available".to_string())?;
+    let state = license::get_license_state(app.clone());
+    if !update_allowed(&state, iso_date(update.date).as_deref()) {
+        return Err(
+            "This release is outside your update window — get a license for another year of updates."
+                .to_string(),
+        );
+    }
     update
         .download_and_install(|_chunk_len, _content_len| {}, || {})
         .await
         .map_err(|e| e.to_string())?;
     app.restart();
 }
+
+#[cfg(test)]
+#[path = "update_tests.rs"]
+mod tests;
