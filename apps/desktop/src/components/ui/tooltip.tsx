@@ -2,6 +2,7 @@ import {
   cloneElement,
   type ReactElement,
   type ReactNode,
+  useEffect,
   useId,
   useLayoutEffect,
   useRef,
@@ -58,30 +59,19 @@ export function Tooltip({
   const id = useId();
   const triggerRef = useRef<HTMLSpanElement | null>(null);
   const tipRef = useRef<HTMLDivElement | null>(null);
-  const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [intent, setIntent] = useState<"closed" | "instant" | "delayed">(
+    "closed"
+  );
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState<Coords | null>(null);
 
-  const cancelOpen = () => {
-    if (openTimer.current) {
-      clearTimeout(openTimer.current);
-      openTimer.current = null;
+  useEffect(() => {
+    if (intent === "delayed") {
+      const timer = setTimeout(() => setOpen(true), OPEN_DELAY_MS);
+      return () => clearTimeout(timer);
     }
-  };
-
-  const show = (immediate: boolean) => {
-    cancelOpen();
-    if (immediate) {
-      setOpen(true);
-      return;
-    }
-    openTimer.current = setTimeout(() => setOpen(true), OPEN_DELAY_MS);
-  };
-
-  const hide = () => {
-    cancelOpen();
-    setOpen(false);
-  };
+    setOpen(intent === "instant");
+  }, [intent]);
 
   useLayoutEffect(() => {
     if (!open) {
@@ -117,19 +107,19 @@ export function Tooltip({
     "aria-describedby": open ? id : undefined,
     onBlur: (e: React.FocusEvent) => {
       childProps.onBlur?.(e);
-      hide();
+      setIntent("closed");
     },
     onFocus: (e: React.FocusEvent) => {
       childProps.onFocus?.(e);
-      show(true);
+      setIntent("instant");
     },
     onPointerEnter: (e: React.PointerEvent) => {
       childProps.onPointerEnter?.(e);
-      show(false);
+      setIntent("delayed");
     },
     onPointerLeave: (e: React.PointerEvent) => {
       childProps.onPointerLeave?.(e);
-      hide();
+      setIntent("closed");
     },
   });
 
