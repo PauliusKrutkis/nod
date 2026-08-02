@@ -15,7 +15,8 @@
     "test:watch": "vitest",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
-    "doctor": "npx react-doctor@latest"
+    "doctor": "npx react-doctor@latest",
+    "build:demo": "vite build --config vite.demo.config.ts"
   },
   "dependencies": {
     "@fontsource-variable/geist-mono": "^5.2.8",
