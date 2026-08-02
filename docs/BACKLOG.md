@@ -677,16 +677,37 @@ an open item: production-build perf e2e). Landing page (§0) and MoR account
 - [ ] 🟡 **Phase 0** — landing page on custom domain (~$15/yr).
 - [ ] 🔴 **Phase 1** — Apple notarization (hard prerequisite; drop `xattr` docs).
 - [ ] 🔴 **Phase 1** — MoR product + checkout linked to GitHub identity.
-- [ ] 🟡 **Phase 1** — Cloudflare Worker (`/purchase-webhook`, `/activate`,
-      `/license/:subject`, `/restore`).
-- [ ] 🟡 **Phase 1** — `prflow://purchase` deep link + Ed25519 token verify in Rust.
-- [ ] 🟡 **Phase 1** — Trial (first-launch timestamp) + purchase prompt UI.
-- [ ] 🟡 **Phase 1** — Updater gating on local `updates_until` (static `latest.json`).
+- [x] 🟡 **Phase 1** — endpoint code (`/purchase-webhook`, `/activate`,
+      `/license/:subject`); `/restore` still a 501 stub.
+- [x] 🟡 **Phase 1** — `prflow://purchase` deep link + Ed25519 token verify in Rust.
+- [x] 🟡 **Phase 1** — Trial (first-launch timestamp) + purchase prompt UI.
+- [x] 🟡 **Phase 1** — Updater gating on local `updates_until` (static `latest.json`).
 - [ ] ⏸ `nod-keygen` CLI for manual/support grants.
 
-#### 11c status — what actually exists (audited 2026-07-30)
+#### 11c status — what actually exists (audited 2026-07-30, updated 2026-08-02)
 
-Short version: **the server skeleton is real, the purchase flow is not.** Nothing
+**2026-08-02 update — the purchase flow is now code-complete** (PRs #123,
+#125, #129, #133, #138, #140, #143): repeat purchases extend the term;
+`/activate` is a success page with a 48-hour window, zero-click loopback
+push (port 8766, PNA preflight handled) and a `prflow://purchase` deep
+link the app registers; the desktop app verifies tokens offline
+(`ed25519-dalek`, cross-stack fixture tests), runs the never-blocking
+14-day trial with countdown badge and purchase card, and gates updates on
+`updates_until`; the landing page states $29 / a year of updates with the
+buy button env-gated until checkout exists. **Still blocked on live
+accounts:** Polar (verify `metadata.subject` + success-URL param, set
+`POLAR_WEBHOOK_SECRET`), the Ed25519 keypair (`LICENSE_SIGNING_SEED`
+secret / `NOD_LICENSE_PUBKEY` + `NOD_CHECKOUT_URL` in release builds,
+`PUBLIC_CHECKOUT_URL` on the site), forge identity at checkout
+(success-page OAuth — nothing puts `metadata.subject` on orders yet),
+`/restore` (needs `POLAR_API_KEY`), and Apple notarization. Trial/price
+decisions are recorded in
+[RELEASING.md](./RELEASING.md#product-decision-trial-model-and-price-2026-08-02).
+
+The 2026-07-30 audit below is kept for history — its "missing entirely"
+list is what the update above closed.
+
+Short version then: **the server skeleton is real, the purchase flow is not.** Nothing
 can be bought today, and the desktop app contains no licensing code at all.
 
 *Built and merged* (`apps/web/functions/`): `purchase-webhook.ts` (Standard

@@ -300,10 +300,11 @@ file instead.
 
 The license server is `apps/web/functions` — Cloudflare **Pages Functions**
 (file-based routing, deployed automatically by the same git integration as
-the rest of `apps/web`), not a standalone Worker. This is a skeleton: the
-endpoints and crypto are real and tested, but nothing calls them yet (no
-landing-page buy button, no in-app Rust verification) and no live Cloudflare
-KV namespace or secrets exist.
+the rest of `apps/web`), not a standalone Worker. As of 2026-08-02 this is
+no longer a skeleton: the desktop app verifies tokens, runs the trial, shows
+the purchase prompt, and receives activation over loopback and deep link
+(PRs #123, #125, #129, #133, #138, #140, #143). What's still missing is
+everything that needs live accounts — see the checklist at the bottom.
 
 ```
 functions/
@@ -326,35 +327,31 @@ pnpm --filter @nod/web run typecheck:functions
 
 **Corrections to the plan below, found while building this:**
 
-- **Redirect target.** The plan below says `/activate` redirects to
-  `prflow://purchase?token=…`. The app doesn't have a custom URL scheme —
-  `tauri-plugin-deep-link` isn't a dependency. The *existing* GitHub sign-in
-  (`apps/desktop/src-tauri/src/auth.rs`) uses a loopback HTTP server instead
-  (`127.0.0.1:8765/callback`), which is what `activate.ts` redirects to today
-  (`ACTIVATION_REDIRECT_BASE`, one constant). Swap it for a real `prflow://`
-  deep link when/if that plugin gets added — until then this is the
-  faithful reuse of the mechanism that already works.
+- **Token delivery (updated 2026-08-02).** `/activate` is a real success
+  page now, not a bare redirect: an inline script pushes the token to the
+  app's dedicated purchase listener (`127.0.0.1:8766`, `activation.rs` —
+  zero-click when the app initiated checkout; a separate port from OAuth's
+  8765 so neither flow can abort the other; the listener answers Chromium's
+  private-network preflight; Safari blocks https→loopback mixed content and
+  always needs the button), and the **Open Nod** button carries the same
+  token as a `prflow://purchase?token=…` deep link, registered via
+  `tauri-plugin-deep-link`. The activation link stays valid for 48 hours
+  after first open — strict single-use burned the token for anyone who
+  closed the tab before installing, with `/restore` still a stub.
 - **Checkout metadata field name** (`metadata.subject` on the Polar
   order) is still an assumption, not confirmed against a real Polar account
   — flagged in `functions/lib/polar.ts`'s file header. Verify against
   Polar's API reference once an account exists.
-- **`/activate` is keyed by `?order_id=`, not `?subject=`.** An earlier
-  version of this took a bare subject, which is public — anyone could
-  have minted themselves a signed license token for any known customer's
-  account with zero proof of purchase. The webhook now also stores a
-  single-use `order_id → subject` index (`putOrderIndex` / `getOrderIndex`
-  / `deleteOrderIndex` in `functions/lib/kv.ts`); `/activate` deletes it once
-  it has signed a token, so an activation link only works once and only if
-  you have the opaque order id, not just a username. Which query param Polar's actual checkout success URL templates
-  in is still to be confirmed once an account exists.
-
-- **Repeat purchases reset the term, they don't extend it.** The webhook
-  writes `updatesUntil = now + 1 year` on every `order.paid`, so a customer
-  who buys a second time before their first year is up loses the remainder
-  rather than stacking it. Fine while there is no renewal flow — worth
-  revisiting the moment one exists, since "buy early, lose time" is a bad
-  surprise. The fix is to read the existing record and take
-  `max(existing.updatesUntil, now) + 1 year`.
+- **`/activate` is keyed by `?order_id=`, not `?subject=`.** A bare subject
+  is public — anyone could have minted themselves a signed license token for
+  any known customer's account with zero proof of purchase. The webhook
+  stores an `order_id → subject` index (`functions/lib/kv.ts`); order ids
+  are unguessable and the index expires 48 hours after first activation.
+  Which query param Polar's actual checkout success URL templates in is
+  still to be confirmed once an account exists.
+- **Repeat purchases extend the term** (fixed in PR #123): the webhook takes
+  `max(existing.updatesUntil, now) + 1 year`; a lapsed or unparseable term
+  restarts from now.
 
 **Required secrets** (not in the repo, set via `wrangler pages secret put`
 or the Cloudflare dashboard once an account exists): `POLAR_WEBHOOK_SECRET`,
@@ -386,6 +383,21 @@ shipped binaries have a license-server host compiled in, changing it means
 coordinating a provider migration against installed apps — where a redirect
 would have been enough beforehand. Traction is precisely when this stops
 being cheap.
+
+### Product decision: trial model and price (2026-08-02)
+
+**The app never blocks.** A free, full-featured 14-day intro (first-launch
+timestamp in the config dir, quiet countdown badge), and after it ends Nod
+keeps working forever — expiry gates updates and shows a dismissable
+purchase card, never a lock screen. A **$29 one-time license buys a year of
+updates** (webhook writes `updatesUntil`; the updater compares release dates
+against it client-side, `latest.json` stays static). Character themes join
+the paid side when theming ships — the entitlement check arrives with that
+feature, not before. Rationale: developers don't trust an app that can hold
+their work hostage; "expired trial" and "expired license year" are the same
+state (`updatesUntil` absent or past), so one gate serves both. Hard-block
+trials convert better, but pre-validation, trust and word-of-mouth outrank
+conversion pressure — tighten later if the data demands it.
 
 ### Product decision: no license keys
 
@@ -487,23 +499,26 @@ embedded public key — same mental model as updater signatures, second keypair)
 Renewals: second MoR product ("+1 year of updates") → webhook updates
 `updates_until` for the same `subject`.
 
-### In-app work (Rust)
+### In-app work (Rust) — shipped 2026-08-02
 
-- **`ed25519-dalek` verify** with embedded public key (parallel to existing
-  updater minisign chain).
-- **Trial:** first-launch timestamp in config dir; on expiry → purchase prompt
-  with checkout link (no key field).
-- **Deep link:** `prflow://purchase?token=…` via `tauri-plugin-deep-link`
-  (also used by §11a extension flow in the backlog). App verifies token,
-  stores license locally, dismisses prompt.
-- **Launch check:** none needed — the signed token verifies offline against
-  the embedded public key. `GET /license/:subject` is for restore, not the
-  normal path.
-- **Updater gating:** `latest.json` stays fully static; client checks local
-  `updates_until` before offering an update. Gating is client-side — fine under
-  the no-DRM stance.
-- **`nod-keygen` CLI** (optional): same signing crate for manual/support grants
-  and refund fixes.
+All of this exists now (`apps/desktop/src-tauri/src/license.rs` +
+`activation.rs`, PRs #129/#133/#138/#140):
+
+- **`ed25519-dalek` verify** with the compile-time `NOD_LICENSE_PUBKEY`;
+  a cross-stack fixture test proves Rust's canonical bytes match the web
+  signer's `JSON.stringify` byte-for-byte (unicode subjects included).
+- **Trial:** first-launch timestamp in the config dir, quiet countdown
+  badge, dismissable purchase card on expiry — the app never blocks.
+- **Activation:** `activate_license` opens checkout and waits on
+  `127.0.0.1:8766` (read-timeout hardened, PNA preflight answered);
+  `prflow://purchase?token=…` via `tauri-plugin-deep-link` covers Safari
+  and web-initiated purchases.
+- **Launch check:** none — the stored token verifies offline every launch.
+- **Updater gating:** `check_for_update` marks releases eligible against
+  `updates_until` (trial: all; expired trial: none); `install_update`
+  re-checks; `latest.json` stays fully static.
+- **`nod-keygen` CLI** (optional, not built): same signing crate for
+  manual/support grants and refund fixes.
 
 ### User flows
 
@@ -563,14 +578,24 @@ Running costs: domain + Apple $99/yr + per-sale MoR fees. Fixed monthly: $0
 - [ ] Download buttons → GitHub release assets
 - [ ] §11c release gate satisfied
 
-**Phase 1**
+**Phase 1** — code side shipped 2026-08-02 (PRs #123–#143); what's left
+needs live accounts:
 
 - [ ] Apple Developer cert → signing + notarization (drop `xattr` from install docs)
-- [ ] MoR account + product(s) — base license + renewal SKU
-- [ ] Cloudflare Worker deployed (`/purchase-webhook`, `/activate`, `/license/:id`, `/restore`)
-- [ ] Ed25519 license signing keypair (separate from updater minisign key)
-- [ ] `tauri-plugin-deep-link` — `prflow://purchase` handler
-- [ ] Trial + purchase prompt UI
-- [ ] Updater gating on `updates_until`
-- [ ] Checkout success page with **Open Nod** button
-- [ ] GitHub identity linked at purchase (checkout field or success-page OAuth)
+- [ ] MoR account + product(s) — base license + renewal SKU; confirm
+      `metadata.subject` and the success-URL query param against real Polar
+- [ ] Generate the Ed25519 keypair: `LICENSE_SIGNING_SEED` as a Pages
+      secret (with `POLAR_WEBHOOK_SECRET`), public half baked into release
+      builds as `NOD_LICENSE_PUBKEY`, checkout URL as `NOD_CHECKOUT_URL`,
+      buy button on via `PUBLIC_CHECKOUT_URL` — until then dev builds
+      fail activation fast and the site shows "purchasing opens soon"
+- [x] Endpoint code (`/purchase-webhook`, `/activate`, `/license/:subject`;
+      `/restore` still a 501 stub pending `POLAR_API_KEY`)
+- [x] `tauri-plugin-deep-link` — `prflow://purchase` handler
+- [x] Trial + purchase prompt UI (never blocks — see the trial-model decision)
+- [x] Updater gating on `updates_until`
+- [x] Checkout success page with **Open Nod** button (zero-click loopback
+      push when the app initiated checkout)
+- [ ] GitHub identity linked at purchase (checkout field or success-page
+      OAuth) — nothing puts `metadata.subject` on the order yet, so the
+      webhook has nothing to key a license to; GitLab/self-hosted unsolved
