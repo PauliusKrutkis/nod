@@ -17,9 +17,7 @@ const PLATFORM_NAME_PATTERN = /macOS|Windows|Linux/;
 
 const STABLE_FRAMES = 3;
 
-const HERO_LOOP_PATTERN = /ir-out1/;
-
-const HERO_PANE_PATTERN = /ir-card1/;
+const START_DEMO_PATTERN = /try the real app/i;
 
 /**
  * Resolves once the scroll position has stopped moving. `scroll-behavior` is
@@ -58,29 +56,31 @@ test("leads with the inbox thesis in the hero", async ({ page }) => {
   );
 });
 
-test("the hero inbox triages itself, and freezes drained under reduced motion", async ({
+test("the hero starts as a poster, with no demo bundle loaded", async ({
   page,
 }) => {
   await page.goto("/");
 
-  await expect(page.locator(".ir__row--out1")).toHaveCSS(
-    "animation-name",
-    HERO_LOOP_PATTERN
-  );
-  await expect(page.locator(".ir__card--1")).toHaveCSS(
-    "animation-name",
-    HERO_PANE_PATTERN
-  );
+  await expect(page.locator(".hd__poster")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: START_DEMO_PATTERN })
+  ).toBeVisible();
+  await expect(page.locator(".hd__iframe")).toHaveCount(0);
+});
 
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.reload();
-  const archived = page.locator(".ir__row--out1");
-  await expect(archived).toHaveCSS("animation-name", "none");
-  await expect(archived).toHaveCSS("height", "0px");
-  await expect(page.locator(".ir__badge-n--6")).toHaveCSS("opacity", "1");
-  const composedCard = page.locator(".ir__card--4");
-  await expect(composedCard).toHaveCSS("opacity", "1");
-  await expect(composedCard).toContainText("Add fuzzy matching to search");
+test("starting the hero embeds the real app and hands it the keyboard", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: START_DEMO_PATTERN }).click();
+
+  const demo = page.frameLocator(".hd__iframe");
+  const options = demo.getByRole("option");
+  await expect(options.first()).toBeVisible();
+  await expect(options.nth(0)).toHaveAttribute("aria-selected", "true");
+
+  await page.keyboard.press("j");
+  await expect(options.nth(1)).toHaveAttribute("aria-selected", "true");
 });
 
 test("shows each capability as real footage with a poster", async ({

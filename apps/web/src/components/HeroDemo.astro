@@ -1,0 +1,144 @@
+---
+// The hero IS the app: a poster of the demo queue (regenerate with
+// `pnpm capture:landing`) that swaps for the real frontend — the /demo/
+// bundle built from apps/desktop — when the visitor starts it. The iframe
+// keeps the app's keyboard fully contained: keys only reach it while it has
+// focus, so the page never hijacks typing or scrolling, and clicking
+// outside hands focus back. Coarse pointers and narrow viewports open
+// /demo/ in its own tab instead of embedding a keyboard app where there is
+// no keyboard. Nothing from the 780KB demo bundle loads until the visitor
+// asks for it — idle visitors pay only for the poster.
+---
+
+<figure
+  class="hd"
+  aria-label="A live, keyboard-driveable build of the real Nod frontend running on fixture pull requests."
+>
+  <div class="hd__frame">
+    <img
+      alt=""
+      class="hd__poster"
+      decoding="async"
+      height="588"
+      src="/landing/hero.png"
+      width="940"
+    />
+    <button class="hd__start" type="button">
+      Try the real app — press <kbd class="hd__kbd mono">j</kbd>
+    </button>
+  </div>
+  <figcaption class="hd__caption mono">
+    the actual Nod frontend on fixture PRs — click outside to leave
+  </figcaption>
+</figure>
+
+<script>
+  const frame = document.querySelector<HTMLElement>(".hd__frame");
+  const start = document.querySelector<HTMLButtonElement>(".hd__start");
+
+  const embeddable = () =>
+    !matchMedia("(pointer: coarse)").matches && window.innerWidth >= 720;
+
+  start?.addEventListener("click", () => {
+    if (!frame) {
+      return;
+    }
+    if (!embeddable()) {
+      window.open("/demo/", "_blank", "noopener");
+      return;
+    }
+    const demo = document.createElement("iframe");
+    demo.className = "hd__iframe";
+    demo.src = "/demo/";
+    demo.title = "Nod live demo";
+    demo.addEventListener("load", () => {
+      demo.contentWindow?.focus();
+    });
+    frame.append(demo);
+    frame.classList.add("hd__frame--live");
+  });
+</script>
+
+<style>
+  .hd {
+    margin: 44px auto 0;
+    max-width: 940px;
+    text-align: left;
+  }
+
+  .hd__frame {
+    position: relative;
+    aspect-ratio: 940 / 588;
+    background: var(--surface);
+    border: 1px solid var(--line-2);
+    border-radius: 14px;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.03) inset,
+      0 30px 80px -40px rgba(0, 0, 0, 0.9);
+    overflow: hidden;
+  }
+
+  .hd__poster {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .hd__start {
+    position: absolute;
+    left: 50%;
+    bottom: 22px;
+    transform: translateX(-50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #14111f;
+    font-size: 14px;
+    font-weight: 550;
+    cursor: pointer;
+    transition:
+      background 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  .hd__start:hover {
+    background: #9a90ff;
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+
+  .hd__frame--live .hd__poster,
+  .hd__frame--live .hd__start {
+    display: none;
+  }
+
+  .hd__kbd {
+    display: inline-grid;
+    place-items: center;
+    min-width: 20px;
+    height: 20px;
+    padding-inline: 5px;
+    border-radius: 5px;
+    background: rgba(20, 17, 31, 0.18);
+    font-size: 12px;
+  }
+
+  :global(.hd__iframe) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+
+  .hd__caption {
+    padding-top: 12px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--faint);
+  }
+</style>

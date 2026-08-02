@@ -22,3 +22,6 @@ for scene in loop comments scan; do
   cp "capture-out/$scene/poster.png" "$out/$scene.png"
   echo "$scene: $(du -h "$out/$scene.webm" | cut -f1) webm, $(du -h "$out/$scene.png" | cut -f1) poster"
 done
+
+cp capture-out/hero/poster.png "$out/hero.png"
+echo "hero: $(du -h "$out/hero.png" | cut -f1) poster"
