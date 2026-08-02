@@ -152,6 +152,7 @@ export function RightPanel({
   const bodyRef = useRef<HTMLDivElement>(null);
   const [bodyScrolls, setBodyScrolls] = useState(false);
 
+  // react-doctor-disable-next-line exhaustive-deps -- same rationale as the biome-ignore below
   // biome-ignore lint/correctness/useExhaustiveDependencies: re-scans el.children, which gains the "Code discussion" section once inlineComments goes non-empty
   useEffect(() => {
     const el = bodyRef.current;
@@ -185,6 +186,7 @@ export function RightPanel({
     (): RightPanelHandle => ({
       openComposer: startComposing,
     }),
+    // react-doctor-disable-next-line exhaustive-deps -- same rationale as the biome-ignore below
     // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler (vite.config.ts) stabilizes startComposing; a manual useCallback would be dead weight
     [startComposing]
   );

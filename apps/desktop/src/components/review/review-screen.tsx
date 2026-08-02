@@ -232,6 +232,7 @@ function openPrFilesInBrowser(pr: PullRequest | undefined): void {
   openUrl(pr.url + urlFilesPath);
 }
 
+// react-doctor-disable-next-line no-giant-component -- what remains after the 8-stage split (PRs #126-#151) is the screen's state wiring; BACKLOG § Tech debt records why the rest deliberately stays (selectLine init cycle, per-render model build, the useState block)
 function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const { name: repo, number, owner } = parsePrKey(routeKey);
   const keyValue = routeKey;
@@ -433,6 +434,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   });
   const modelRef = useLatest(model);
 
+  // react-doctor-disable-next-line exhaustive-deps -- same rationale as the biome-ignore below
   // biome-ignore lint/correctness/useExhaustiveDependencies: model is rebuilt fresh every render (not memoized), so listing it would rerun this every render; openBoxes is the actual gate
   useLayoutEffect(() => {
     const pending = pendingBoxNudgeRef.current;
