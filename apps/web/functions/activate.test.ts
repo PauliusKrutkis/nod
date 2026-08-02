@@ -1,9 +1,9 @@
 /**
  * Handler-level tests for /activate. The KV helpers are covered in
- * lib/kv.test.ts; what matters here is the ordering this endpoint imposes on
- * them — the order index is a customer's single activation link, so it must
- * survive every failure path and be consumed only once a token actually
- * exists. Swapping the sign and delete calls leaves every unit test green.
+ * lib/kv.test.ts; what matters here is the lifecycle this endpoint imposes on
+ * the order index — it must survive every failure path untouched, and only a
+ * successful token signing may start the 48-hour activation window. Swapping
+ * the sign and re-put calls leaves every unit test green.
  */
 import { describe, expect, it } from "vitest";
 import { onRequestGet } from "./activate";
@@ -14,17 +14,28 @@ const SIGNING_SEED = "ab".repeat(32);
 const SUBJECT = "github:github.com:583231";
 const DEEP_LINK_PATTERN = /href="(prflow:\/\/purchase\?token=[^"]+)"/;
 
-function fakeKv(seed: Record<string, string> = {}): KVNamespace {
+interface FakeKv {
+  kv: KVNamespace;
+  ttls: Map<string, number | undefined>;
+}
+
+function fakeKv(seed: Record<string, string> = {}): FakeKv {
   const store = new Map<string, string>(Object.entries(seed));
-  return {
+  const ttls = new Map<string, number | undefined>();
+  const kv = {
     get: ((key: string, type?: string) => {
       const value = store.get(key) ?? null;
       return Promise.resolve(
         type === "json" && value !== null ? JSON.parse(value) : value
       );
     }) as KVNamespace["get"],
-    put: ((key: string, value: string) => {
+    put: ((
+      key: string,
+      value: string,
+      options?: { expirationTtl?: number }
+    ) => {
       store.set(key, value);
+      ttls.set(key, options?.expirationTtl);
       return Promise.resolve();
     }) as KVNamespace["put"],
     delete: ((key: string) => {
@@ -32,9 +43,10 @@ function fakeKv(seed: Record<string, string> = {}): KVNamespace {
       return Promise.resolve();
     }) as KVNamespace["delete"],
   } as KVNamespace;
+  return { kv, ttls };
 }
 
-function licensedKv(): KVNamespace {
+function licensedKv(): FakeKv {
   return fakeKv({
     "order:order_1": SUBJECT,
     [`license:${SUBJECT}`]: JSON.stringify({
@@ -52,14 +64,23 @@ function activate(kv: KVNamespace, url: string): Promise<Response> {
   return (onRequestGet as (c: typeof context) => Promise<Response>)(context);
 }
 
+async function tokenFromPage(response: Response): Promise<string | null> {
+  const html = await response.text();
+  const deepLink = html.match(DEEP_LINK_PATTERN)?.[1];
+  if (!deepLink) {
+    return null;
+  }
+  return new URL(deepLink).searchParams.get("token");
+}
+
 describe("GET /activate", () => {
   it("rejects a request with no order id", async () => {
-    const response = await activate(licensedKv(), "https://x.test/activate");
+    const response = await activate(licensedKv().kv, "https://x.test/activate");
     expect(response.status).toBe(400);
   });
 
-  it("signs a token and bakes it into both handoff paths", async () => {
-    const kv = licensedKv();
+  it("signs a token into the Open Nod deep link", async () => {
+    const { kv } = licensedKv();
     const response = await activate(
       kv,
       "https://x.test/activate?order_id=order_1"
@@ -68,14 +89,8 @@ describe("GET /activate", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
 
-    const html = await response.text();
-    const deepLink = html.match(DEEP_LINK_PATTERN);
-    expect(deepLink).not.toBeNull();
-    const token = new URL(deepLink?.[1] ?? "").searchParams.get("token");
+    const token = await tokenFromPage(response);
     expect(token).not.toBeNull();
-    expect(html).toContain(
-      `http://127.0.0.1:8765/callback?token=${token ?? ""}`
-    );
 
     const { getPublicKeyAsync } = await import("@noble/ed25519");
     const publicKey = Array.from(
@@ -96,35 +111,39 @@ describe("GET /activate", () => {
     });
   });
 
-  it("consumes the activation link so a replay fails", async () => {
-    const kv = licensedKv();
+  it("starts the activation window instead of consuming the link", async () => {
+    const { kv, ttls } = licensedKv();
+
     const first = await activate(
       kv,
       "https://x.test/activate?order_id=order_1"
     );
     expect(first.status).toBe(200);
+    expect(ttls.get("order:order_1")).toBe(48 * 60 * 60);
 
-    const replay = await activate(
+    const reload = await activate(
       kv,
       "https://x.test/activate?order_id=order_1"
     );
-    expect(replay.status).toBe(404);
+    expect(reload.status).toBe(200);
+    expect(await tokenFromPage(reload)).toEqual(await tokenFromPage(first));
   });
 
-  it("keeps the link usable when no license backs the order id", async () => {
-    const kv = fakeKv({ "order:order_1": SUBJECT });
+  it("keeps the link intact when no license backs the order id", async () => {
+    const { kv, ttls } = fakeKv({ "order:order_1": SUBJECT });
 
-    const first = await activate(
+    const response = await activate(
       kv,
       "https://x.test/activate?order_id=order_1"
     );
-    expect(first.status).toBe(404);
+    expect(response.status).toBe(404);
 
     expect(await kv.get("order:order_1")).toBe(SUBJECT);
+    expect(ttls.has("order:order_1")).toBe(false);
   });
 
-  it("keeps the link usable when signing fails", async () => {
-    const kv = licensedKv();
+  it("keeps the link intact when signing fails", async () => {
+    const { kv, ttls } = licensedKv();
     const context = {
       request: new Request("https://x.test/activate?order_id=order_1"),
       env: { LICENSES: kv, LICENSE_SIGNING_SEED: "not-a-valid-seed" } as Env,
@@ -135,11 +154,12 @@ describe("GET /activate", () => {
     ).rejects.toThrow();
 
     expect(await kv.get("order:order_1")).toBe(SUBJECT);
+    expect(ttls.has("order:order_1")).toBe(false);
   });
 
   it("404s an order id that was never issued", async () => {
     const response = await activate(
-      licensedKv(),
+      licensedKv().kv,
       "https://x.test/activate?order_id=order_nope"
     );
     expect(response.status).toBe(404);

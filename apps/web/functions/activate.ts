@@ -1,35 +1,36 @@
 /**
- * GET /activate — post-checkout success page: look up the one-time order_id
- * index the webhook stored, sign an activation token, hand it to the app.
+ * GET /activate — post-checkout success page: look up the order_id index the
+ * webhook stored, sign an activation token, render an "Open Nod" page whose
+ * button carries the token as a prflow://purchase deep link.
  *
  * Keyed by `?order_id=` (Polar's opaque order/checkout identifier), not
- * `?subject=` — a subject is public, so trusting it alone here would
- * let anyone mint a signed token for a known customer's account with no
- * proof of purchase. order_id is unguessable and single-use: the index is
- * deleted once a token has actually been signed, so replaying an old
- * activation link 404s while a failure part-way through leaves the link
- * usable. The exact query param Polar's checkout success URL templates in
- * is still an assumption pending a real account — see docs/RELEASING.md.
+ * `?subject=` — a subject is public, so trusting it alone here would let
+ * anyone mint a signed token for a known customer's account with no proof of
+ * purchase. order_id is unguessable, and once a token has been signed the
+ * index is re-put with a 48-hour TTL: the link keeps working while the buyer
+ * installs the app (strict delete-on-first-render stranded anyone who closed
+ * the tab, with /restore still a stub), then expires. The exact query param
+ * Polar's checkout success URL templates in is still an assumption pending a
+ * real account — see docs/RELEASING.md.
  *
- * The token travels by two paths, covering both ways a purchase starts.
- * App-initiated (trial prompt opened checkout): the app is already listening
- * on the OAuth loopback port (127.0.0.1:8765, see src-tauri/src/auth.rs), so
- * an inline script posts the token there and activation completes with zero
- * clicks. Web-initiated (nothing listening): the fetch fails silently and the
- * visible "Open Nod" button carries the same token as a prflow:// deep link.
- * The response is no-store because the token is baked into the markup — a
- * cached copy would outlive the single-use order index that guards it.
+ * There is deliberately no automatic loopback handoff here yet. An earlier
+ * draft fetched http://127.0.0.1:8765/callback from an inline script, but the
+ * desktop app has no purchase listener on that port — only the OAuth code
+ * catcher in src-tauri/src/auth.rs, which such a fetch would abort mid-sign-in
+ * (its /callback handler treats a token-only query as a CSRF state mismatch)
+ * while an opaque no-cors response flipped this page to a false "you're all
+ * set". The zero-click fetch ships together with the app-side listener.
+ * The response is no-store because the token is baked into the markup.
  */
 import type { Env } from "./lib/env";
-import { deleteOrderIndex, getLicense, getOrderIndex } from "./lib/kv";
+import { getLicense, getOrderIndex, putOrderIndex } from "./lib/kv";
 import { signLicenseToken } from "./lib/license-token";
 
-const LOOPBACK_CALLBACK_BASE = "http://127.0.0.1:8765/callback";
 const DEEP_LINK_BASE = "prflow://purchase";
+const ACTIVATION_WINDOW_SECONDS = 48 * 60 * 60;
 
 function activationPage(token: string): string {
   const deepLink = `${DEEP_LINK_BASE}?token=${encodeURIComponent(token)}`;
-  const loopbackUrl = `${LOOPBACK_CALLBACK_BASE}?token=${encodeURIComponent(token)}`;
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -53,21 +54,12 @@ function activationPage(token: string): string {
 </head>
 <body>
 <main>
-  <h1 id="headline">Payment received</h1>
-  <p id="detail">Thanks for buying Nod. One click finishes activation.</p>
+  <h1>Payment received</h1>
+  <p>Thanks for buying Nod. Press the button to finish activation.</p>
   <a class="open" href="${deepLink}">Open Nod</a>
-  <p class="alt">Nothing happening? <a href="/downloads">Download Nod</a>,
-  then press Open Nod again — keep this tab open.</p>
+  <p class="alt">Don't have it installed yet? <a href="/downloads">Download
+  Nod</a>, then press Open Nod — this link works for 48 hours.</p>
 </main>
-<script>
-  fetch(${JSON.stringify(loopbackUrl)}, { mode: "no-cors" })
-    .then(() => {
-      document.getElementById("headline").textContent = "You're all set";
-      document.getElementById("detail").textContent =
-        "Nod picked up your license — you can close this tab.";
-    })
-    .catch(() => {});
-</script>
 </body>
 </html>`;
 }
@@ -94,7 +86,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     { orderId: record.orderId, subject, updatesUntil: record.updatesUntil },
     context.env.LICENSE_SIGNING_SEED
   );
-  await deleteOrderIndex(context.env.LICENSES, orderId);
+  await putOrderIndex(
+    context.env.LICENSES,
+    orderId,
+    subject,
+    ACTIVATION_WINDOW_SECONDS
+  );
 
   return new Response(activationPage(token), {
     headers: {
