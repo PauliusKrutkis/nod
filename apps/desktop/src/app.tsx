@@ -16,7 +16,6 @@ import { GlobalSearch } from "./components/global-search.tsx";
 import { HelpOverlay } from "./components/help-overlay.tsx";
 import { Inbox } from "./components/inbox/inbox.tsx";
 import { IssueTrackerDialog } from "./components/issue-tracker-dialog.tsx";
-import { LicenseBadge } from "./components/license-badge.tsx";
 import { PurchasePrompt } from "./components/purchase-prompt.tsx";
 import { ReleaseHistory } from "./components/release-history.tsx";
 import { ReviewScreen } from "./components/review/review-screen.tsx";
@@ -248,7 +247,6 @@ export default function App() {
         {showRouteChrome ? <WhatsNew onShowHistory={openHistory} /> : null}
         {showRouteChrome ? <ReviewNotifier /> : null}
         {showRouteChrome ? <PurchasePrompt /> : null}
-        {showRouteChrome ? <LicenseBadge /> : null}
         {!!toast && (
           <div className="qb-toast" role="alert">
             <span aria-hidden className="qb-toast-rail" />

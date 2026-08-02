@@ -301,7 +301,8 @@ file instead.
 The license server is `apps/web/functions` — Cloudflare **Pages Functions**
 (file-based routing, deployed automatically by the same git integration as
 the rest of `apps/web`), not a standalone Worker. As of 2026-08-02 this is
-no longer a skeleton: the desktop app verifies tokens, runs the trial, shows
+no longer a skeleton: the desktop app verifies tokens, runs the evaluation
+grace window, shows
 the purchase prompt, and receives activation over loopback and deep link
 (PRs #123, #125, #129, #133, #138, #140, #143). What's still missing is
 everything that needs live accounts — see the checklist at the bottom.
@@ -398,20 +399,30 @@ modifying and internal use, forbids offering a competing product, and each
 release converts to Apache 2.0 after two years. What's for sale is signed
 binaries, auto-updates, and licenses — not the code.
 
-### Product decision: trial model and price (2026-08-02)
+### Product decision: evaluation model and price (2026-08-02, reframed same day)
 
-**The app never blocks.** A free, full-featured 14-day intro (first-launch
-timestamp in the config dir, quiet countdown badge), and after it ends Nod
-keeps working forever — expiry gates updates and shows a dismissable
-purchase card, never a lock screen. A **$29 one-time license buys a year of
-updates** (webhook writes `updatesUntil`; the updater compares release dates
-against it client-side, `latest.json` stays static). Character themes join
-the paid side when theming ships — the entitlement check arrives with that
-feature, not before. Rationale: developers don't trust an app that can hold
-their work hostage; "expired trial" and "expired license year" are the same
-state (`updatesUntil` absent or past), so one gate serves both. Hard-block
-trials convert better, but pre-validation, trust and word-of-mouth outrank
-conversion pressure — tighten later if the data demands it.
+**Sublime-style unlimited evaluation — there is no trial.** Nod is free to
+evaluate with every feature and no time limit, and nothing licensing-related
+is even visible for the first 14 days (first-launch timestamp in the config
+dir, no countdown anywhere). After that grace window, two gentle levers and
+only two: a dismissable once-per-launch purchase card ("Enjoying Nod?"), and
+updates pause until a license exists. The app itself never blocks. A **$39
+one-time license buys a year of updates** (webhook writes `updatesUntil`;
+the updater compares release dates against it client-side, `latest.json`
+stays static). Character themes join the paid side when theming ships — the
+entitlement check arrives with that feature, not before.
+
+Why this over a trial: an earlier same-day draft was a "14-day trial" with a
+countdown badge — but nothing turned off at day 14, so it was nagware worded
+like JetBrains: the countdown implied an expiry that never came, and "you
+can't update" has zero force on a fresh install anyway. The evaluation
+framing says exactly what happens. Internally the states are still named
+`Trial`/`TrialExpired` (`license.rs`) — "expired evaluation grace" and
+"expired license year" remain one gate. Hard-block trials convert better,
+but pre-validation, trust and word-of-mouth outrank conversion pressure —
+tighten later if the data demands it. Price sits low-mid for the category
+(Dash $30, Fork $60, Proxyman $69, TablePlus $89, Sublime Merge $99) and is
+usually expensed anyway.
 
 ### Product decision: no license keys
 
@@ -521,28 +532,29 @@ All of this exists now (`apps/desktop/src-tauri/src/license.rs` +
 - **`ed25519-dalek` verify** with the compile-time `NOD_LICENSE_PUBKEY`;
   a cross-stack fixture test proves Rust's canonical bytes match the web
   signer's `JSON.stringify` byte-for-byte (unicode subjects included).
-- **Trial:** first-launch timestamp in the config dir, quiet countdown
-  badge, dismissable purchase card on expiry — the app never blocks.
+- **Evaluation:** first-launch timestamp in the config dir; nothing
+  licensing-related renders for 14 days, then a dismissable purchase card —
+  the app never blocks.
 - **Activation:** `activate_license` opens checkout and waits on
   `127.0.0.1:8766` (read-timeout hardened, PNA preflight answered);
   `prflow://purchase?token=…` via `tauri-plugin-deep-link` covers Safari
   and web-initiated purchases.
 - **Launch check:** none — the stored token verifies offline every launch.
 - **Updater gating:** `check_for_update` marks releases eligible against
-  `updates_until` (trial: all; expired trial: none); `install_update`
+  `updates_until` (evaluation window: all; after it: none); `install_update`
   re-checks; `latest.json` stays fully static.
 - **`nod-keygen` CLI** (optional, not built): same signing crate for
   manual/support grants and refund fixes.
 
 ### User flows
 
-**Trial expired → purchase**
+**Grace window over → purchase**
 
 ```
-Your trial has ended.
-[ Purchase ]  →  browser opens MoR checkout  →  pay
-Thanks!  [ Open Nod ]  →  prflow://purchase?token=…
-App: ✓ Purchase verified. Welcome back.
+Enjoying Nod?  Nod is free to evaluate. A license is $39 …
+[ Buy Nod — $39 ]  →  browser opens MoR checkout  →  pay
+Payment received  [ Open Nod ]  →  prflow://purchase?token=…
+App: card clears, updates resume.
 ```
 
 **Second machine (common case — signed into GitHub)**
@@ -606,7 +618,7 @@ needs live accounts:
 - [x] Endpoint code (`/purchase-webhook`, `/activate`, `/license/:subject`;
       `/restore` still a 501 stub pending `POLAR_API_KEY`)
 - [x] `tauri-plugin-deep-link` — `prflow://purchase` handler
-- [x] Trial + purchase prompt UI (never blocks — see the trial-model decision)
+- [x] Evaluation + purchase card UI (never blocks — see the evaluation-model decision)
 - [x] Updater gating on `updates_until`
 - [x] Checkout success page with **Open Nod** button (zero-click loopback
       push when the app initiated checkout)

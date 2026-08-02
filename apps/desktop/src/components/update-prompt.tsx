@@ -134,7 +134,7 @@ export function UpdatePrompt() {
               onClick={buyLicense}
               type="button"
             >
-              {purchasing ? "Waiting for the browser…" : "Get a license — $29"}
+              {purchasing ? "Waiting for the browser…" : "Get a license — $39"}
             </button>
           )}
           <button

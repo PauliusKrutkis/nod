@@ -89,7 +89,7 @@ test("in trialExpired the update card yields to the purchase card", async ({
   });
 
   await expect(
-    page.getByRole("status").filter({ hasText: "Your trial has ended" })
+    page.getByRole("status").filter({ hasText: "Enjoying Nod?" })
   ).toBeVisible();
   await expect(updateCard(page)).toHaveCount(0);
 });

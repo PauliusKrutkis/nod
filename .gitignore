@@ -34,3 +34,7 @@ evidence/
 # Claude Code local state (worktrees are per-machine; skills are shared)
 .claude/*
 !.claude/skills/
+
+# Stale pre-monorepo leftover at the repo root (contains a local .env and
+# cargo artifacts); never stage it — the real crate lives in apps/desktop.
+/src-tauri/

@@ -7,24 +7,24 @@
  */
 import { expect, test } from "@playwright/test";
 
-test("pricing states the price and the intro terms", async ({ page }) => {
+test("pricing states the price and the evaluation terms", async ({ page }) => {
   await page.goto("/");
 
   const pricing = page.locator("#pricing");
   await expect(pricing).toBeVisible();
-  await expect(pricing).toContainText("$29");
+  await expect(pricing).toContainText("$39");
   await expect(pricing).toContainText("a year of updates");
-  await expect(pricing).toContainText("free for 14 days");
+  await expect(pricing).toContainText("free to evaluate");
 });
 
-test("without a checkout the card leads with the free intro", async ({
+test("without a checkout the card leads with the free evaluation", async ({
   page,
 }) => {
   await page.goto("/");
 
   const pricing = page.locator("#pricing");
   await expect(
-    pricing.getByRole("link", { name: "Start the free intro" })
+    pricing.getByRole("link", { name: "Evaluate for free" })
   ).toHaveAttribute("href", "/downloads");
   await expect(pricing.getByRole("link", { name: "Buy Nod" })).toHaveCount(0);
   await expect(pricing).toContainText("Purchasing opens soon");
