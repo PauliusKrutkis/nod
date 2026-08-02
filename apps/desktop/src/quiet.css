@@ -3674,6 +3674,17 @@ dialog.q-dialog::backdrop {
   color: var(--fg);
 }
 
+.qb-trial {
+  align-self: flex-end;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: var(--faint);
+  background: var(--surface-2);
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  animation: qb-rise 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
 .qb-update {
   display: flex;
   gap: 12px;

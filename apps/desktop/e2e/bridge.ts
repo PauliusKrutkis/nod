@@ -18,6 +18,10 @@ export interface AppOptions {
   hangIssueComment?: boolean;
   hangReviewComment?: boolean;
   hasToken?: boolean;
+  licenseState?:
+    | { status: "licensed"; updatesUntil: string }
+    | { status: "trial"; daysLeft: number }
+    | { status: "trialExpired" };
   releases?:
     | { tag: string; publishedAt: string | null; notes: string | null }[]
     | null;
@@ -41,6 +45,10 @@ export async function setupApp(page: Page, opts: AppOptions = {}) {
     hangIssueComment: opts.hangIssueComment ?? false,
     hangReviewComment: opts.hangReviewComment ?? false,
     hasToken: opts.hasToken ?? true,
+    licenseState: opts.licenseState ?? {
+      status: "licensed",
+      updatesUntil: "2099-01-01",
+    },
     releases: opts.releases ?? [],
     inbox: opts.inbox ?? INBOX,
     inboxByCall: opts.inboxByCall ?? null,
@@ -72,6 +80,7 @@ export async function setupApp(page: Page, opts: AppOptions = {}) {
     const handlers: Record<string, (args: Record<string, unknown>) => unknown> =
       {
         check_for_update: () => null,
+        get_license_state: () => cfg.licenseState,
         create_issue_comment: () =>
           cfg.hangIssueComment
             ? new Promise(() => {

@@ -183,6 +183,11 @@ export interface UpdateInfo {
   version: string;
 }
 
+export type LicenseState =
+  | { status: "licensed"; updatesUntil: string }
+  | { status: "trial"; daysLeft: number }
+  | { status: "trialExpired" };
+
 /** One published version release on the app's GitHub repo. */
 export interface ReleaseInfo {
   notes: string | null;
