@@ -87,15 +87,10 @@ import type {
 } from "../../types.ts";
 import { parsePrKey } from "../../types.ts";
 import { FileSidebar } from "./file-sidebar.tsx";
-import { FindBar } from "./find-bar.tsx";
-import { OverviewRuler } from "./overview-ruler.tsx";
 import { PrSearch } from "./pr-search.tsx";
+import { ReviewDiffPane } from "./review-diff-pane.tsx";
 import { ReviewHeader } from "./review-header.tsx";
-import {
-  type MarkSpec,
-  ReviewList,
-  type ReviewListHandle,
-} from "./review-list.tsx";
+import type { MarkSpec, ReviewListHandle } from "./review-list.tsx";
 import { ReviewScreenPending } from "./review-screen-pending.tsx";
 import { RightPanel, type RightPanelHandle } from "./right-panel.tsx";
 import { SubmitReviewModal } from "./submit-review-modal.tsx";
@@ -1054,79 +1049,47 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
           sidebarOpen={sidebarOpen}
         />
 
-        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-          <FindBar
-            caseSensitive={findCase}
-            current={findMatches.length > 0 ? findSafeIndex + 1 : 0}
-            focusSeq={findFocusSeq}
-            onClose={closeFind}
-            onNext={onFindNext}
-            onPrev={onFindPrev}
-            onQueryChange={changeFindQuery}
-            onToggleCase={toggleFindCase}
-            open={findOpen}
-            query={findQuery}
-            total={findMatches.length}
-          />
-          {fileCount === 0 ? (
-            <div className="qf-empty">No files changed.</div>
-          ) : (
-            <ReviewList
-              activeIndex={clampedIndex}
-              addPending={addReviewComment.isPending}
-              baseSha={pr.baseSha}
-              callbacks={listCallbacks}
-              changedSinceViewed={changedSinceViewed}
-              copiedPathIndex={copiedPathIndex}
-              cursorKey={
-                liveCursor
-                  ? navKey(
-                      liveCursor.fileIndex,
-                      liveCursor.anchor,
-                      liveCursor.kind
-                    )
-                  : null
-              }
-              dragging={dragging}
-              editRequest={editReq}
-              expandedFiles={expandedNames}
-              expandingFiles={expandingNames}
-              files={files}
-              findCurrent={findCurrent}
-              flashKey={flashKey}
-              headSha={pr.headSha}
-              initialFileIndex={initialMem?.fileIndex ?? 0}
-              inputMode={inputMode}
-              marks={marks}
-              model={model}
-              owner={owner}
-              ref={listRef}
-              replyPending={reply.isPending}
-              replyRequest={replyReq}
-              repo={repo}
-              restoreState={initialMem?.listState}
-              selection={
-                liveSelection
-                  ? {
-                      endItem: liveSelection.endItem,
-                      fileIndex: liveSelection.fileIndex,
-                      fromItem: liveSelection.fromItem,
-                      toItem: liveSelection.toItem,
-                    }
-                  : null
-              }
-              toggleRequest={toggleReq}
-              viewedSet={viewedSet}
-            />
-          )}
-          <OverviewRuler
-            currentIndex={
-              findOpen && findMatches.length > 0 ? findSafeIndex : null
-            }
-            fractions={rulerFractions}
-            kind={findOpen ? "find" : "occurrence"}
-          />
-        </div>
+        <ReviewDiffPane
+          addPending={addReviewComment.isPending}
+          changedSinceViewed={changedSinceViewed}
+          changeFindQuery={changeFindQuery}
+          clampedIndex={clampedIndex}
+          closeFind={closeFind}
+          copiedPathIndex={copiedPathIndex}
+          dragging={dragging}
+          editReq={editReq}
+          expandedNames={expandedNames}
+          expandingNames={expandingNames}
+          fileCount={fileCount}
+          files={files}
+          findCase={findCase}
+          findCurrent={findCurrent}
+          findFocusSeq={findFocusSeq}
+          findMatches={findMatches}
+          findOpen={findOpen}
+          findQuery={findQuery}
+          findSafeIndex={findSafeIndex}
+          flashKey={flashKey}
+          initialMem={initialMem}
+          inputMode={inputMode}
+          listCallbacks={listCallbacks}
+          listRef={listRef}
+          liveCursor={liveCursor}
+          liveSelection={liveSelection}
+          marks={marks}
+          model={model}
+          onFindNext={onFindNext}
+          onFindPrev={onFindPrev}
+          owner={owner}
+          pr={pr}
+          replyPending={reply.isPending}
+          replyReq={replyReq}
+          repo={repo}
+          rulerFractions={rulerFractions}
+          toggleFindCase={toggleFindCase}
+          toggleReq={toggleReq}
+          viewedSet={viewedSet}
+        />
       </main>
 
       <RightPanel
