@@ -1007,7 +1007,9 @@ only format the in-app updater touches.
 
 ### Wave 5 — bigger bets
 
-- [ ] 🔴 **P15** — File tree: folders, indentation, collapse.
+- [x] 🔴 **P15** — File tree: folders, indentation, collapse.
+      **done** in #112 on the decided terms: tree as the default mode, flat
+      list one click away, choice persisted (`pr-flow:fileTreeMode`).
       **Decided 2026-07-30 (owner):** the tree is an *added mode*, not a
       replacement — the flat list stays — and the tree is the **default**.
       Keyboard navigation inside the tree is **explicitly out of scope for
