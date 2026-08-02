@@ -102,7 +102,7 @@ pub async fn login_with_github(app: AppHandle) -> Result<GitHubUser, String> {
 
 /// Bring the app back to the front — the user just finished in the browser,
 /// so the handoff should land them straight back in Nod.
-fn focus_main(app: &AppHandle) {
+pub(crate) fn focus_main(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();
         let _ = window.set_focus();
@@ -275,7 +275,7 @@ pub async fn login_with_gitlab(
 /// the opener plugin, which uses each platform's URL handler — notably
 /// `ShellExecute` on Windows, where spawning `explorer <url>` mis-parsed the
 /// `https://` argument and opened the Documents folder instead.
-fn open_in_browser(url: &str) -> Result<(), String> {
+pub(crate) fn open_in_browser(url: &str) -> Result<(), String> {
     tauri_plugin_opener::open_url(url, None::<&str>)
         .map_err(|e| format!("couldn't open the browser: {e}"))
 }
@@ -401,7 +401,7 @@ fn handle_connection(
     }
 }
 
-fn write_response(stream: &mut TcpStream, status: &str, body_html: &str) {
+pub(crate) fn write_response(stream: &mut TcpStream, status: &str, body_html: &str) {
     let body = body_html.as_bytes();
     let _ = write!(
         stream,
@@ -412,14 +412,14 @@ fn write_response(stream: &mut TcpStream, status: &str, body_html: &str) {
     let _ = stream.flush();
 }
 
-fn page(message: &str) -> String {
+pub(crate) fn page(message: &str) -> String {
     page_with_script(message, "")
 }
 
 /// Success page: tries to close the tab (browsers only honor this in some
 /// cases, e.g. Chrome tabs opened by an app); the app window is refocused from
 /// Rust either way, so the fallback copy still reads correctly.
-fn success_page(message: &str) -> String {
+pub(crate) fn success_page(message: &str) -> String {
     page_with_script(
         message,
         "<script>setTimeout(function(){window.open('','_self');window.close();},300)</script>",

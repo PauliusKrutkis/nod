@@ -10,6 +10,7 @@ import type { Page } from "./types.ts";
 
 export interface AppOptions {
   detail?: unknown;
+  activateLicense?: "hang" | "error" | "licensed";
   appVersion?: string;
   detailByCall?: unknown[];
   detailByLoad?: unknown[];
@@ -37,6 +38,7 @@ export interface AppOptions {
 export async function setupApp(page: Page, opts: AppOptions = {}) {
   const config = {
     account: ACCOUNT,
+    activateLicense: opts.activateLicense ?? "licensed",
     appVersion: opts.appVersion ?? "1.0.0",
     detail: (opts.detail ?? DETAIL) as typeof DETAIL,
     detailByCall: opts.detailByCall ?? null,
@@ -80,6 +82,17 @@ export async function setupApp(page: Page, opts: AppOptions = {}) {
 
     const handlers: Record<string, (args: Record<string, unknown>) => unknown> =
       {
+        activate_license: () => {
+          if (cfg.activateLicense === "hang") {
+            return new Promise(() => {
+              /* intentionally pending */
+            });
+          }
+          if (cfg.activateLicense === "error") {
+            throw new Error("Purchasing isn't configured in this build.");
+          }
+          return { status: "licensed", updatesUntil: "2027-08-02" };
+        },
         check_for_update: () => null,
         create_issue_comment: () =>
           cfg.hangIssueComment

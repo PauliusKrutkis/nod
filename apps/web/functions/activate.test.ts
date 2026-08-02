@@ -111,6 +111,20 @@ describe("GET /activate", () => {
     });
   });
 
+  it("pushes the same token at the app's purchase listener", async () => {
+    const { kv } = licensedKv();
+    const response = await activate(
+      kv,
+      "https://x.test/activate?order_id=order_1"
+    );
+
+    const html = await response.text();
+    const token = html.match(DEEP_LINK_PATTERN)?.[1]?.split("token=")[1];
+    expect(html).toContain(
+      `http://127.0.0.1:8766/callback?token=${token ?? ""}`
+    );
+  });
+
   it("starts the activation window instead of consuming the link", async () => {
     const { kv, ttls } = licensedKv();
 

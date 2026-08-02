@@ -23,6 +23,7 @@ import type {
  */
 
 export const api = {
+  activateLicense: () => invoke<LicenseState>("activate_license"),
   addAccount: (args: {
     provider: string;
     host?: string | null;

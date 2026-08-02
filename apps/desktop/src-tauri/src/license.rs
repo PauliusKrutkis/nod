@@ -126,6 +126,22 @@ fn now_secs() -> u64 {
         .unwrap_or(0)
 }
 
+pub fn configured_pubkey() -> Option<&'static str> {
+    LICENSE_PUBKEY_HEX
+}
+
+/// Persists a token the activation listener already verified; the next
+/// `get_license_state` re-verifies it from disk like any other launch.
+pub fn store_license_token(app: &AppHandle, token: &str) -> Result<(), String> {
+    storage::write_json(
+        app,
+        LICENSE_FILE,
+        &LicenseFile {
+            token: token.to_string(),
+        },
+    )
+}
+
 /// Writes the first-launch timestamp if none exists yet. Called from setup so
 /// `get_license_state` stays a pure read.
 pub fn ensure_trial_started(app: &AppHandle) {
