@@ -26,7 +26,7 @@
   >
     <div class="mini__window" aria-hidden="true">
       <div class="inbox">
-        <div class="inbox__head">
+        <div class="inbox__head mini__bar">
           <span>Inbox</span>
           <span class="inbox__count mono">5 open</span>
         </div>
@@ -70,20 +70,14 @@
 
 <style>
   .inbox {
+    --fk-row: 37px;
     display: flex;
     flex-direction: column;
     height: 100%;
   }
 
   .inbox__head {
-    display: flex;
-    align-items: center;
     justify-content: space-between;
-    height: 42px;
-    flex-shrink: 0;
-    padding-inline: 16px;
-    border-bottom: 1px solid var(--line);
-    background: linear-gradient(180deg, var(--surface-2), transparent);
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.12em;
@@ -109,10 +103,10 @@
     left: 0;
     right: 0;
     top: 6px;
-    height: 37px;
+    height: var(--fk-row);
     background: var(--accent-soft);
     border-left: 2px solid var(--accent);
-    transform: translateY(74px);
+    transform: translateY(calc(var(--fk-row) * 2));
   }
 
   .inbox__row {
@@ -120,7 +114,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    height: 37px;
+    height: var(--fk-row);
     padding-inline: 16px;
     font-size: 12.5px;
     color: var(--muted);
@@ -180,11 +174,11 @@
       }
       13%,
       18% {
-        transform: translateY(37px);
+        transform: translateY(var(--fk-row));
       }
       23%,
       92% {
-        transform: translateY(74px);
+        transform: translateY(calc(var(--fk-row) * 2));
       }
       98%,
       100% {

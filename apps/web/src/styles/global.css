@@ -870,13 +870,16 @@ a {
    evolve — and animate — independently; only the shared shell lives here. */
 .feats {
   margin-top: clamp(64px, 14vw, 112px);
-  display: grid;
-  gap: clamp(52px, 9vw, 88px);
 }
 
 .feats__eyebrow {
-  margin: 0 0 -36px;
+  margin: 0 0 clamp(24px, 5vw, 48px);
   text-align: center;
+}
+
+.feats__rows {
+  display: grid;
+  gap: clamp(52px, 9vw, 88px);
 }
 
 .feat {
@@ -926,6 +929,16 @@ a {
     0 1px 0 rgba(255, 255, 255, 0.03) inset,
     0 24px 64px -36px rgba(0, 0, 0, 0.9);
   overflow: hidden;
+}
+
+.mini__bar {
+  display: flex;
+  align-items: center;
+  height: 42px;
+  flex-shrink: 0;
+  padding-inline: 16px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--surface-2), transparent);
 }
 
 .mini__caption {

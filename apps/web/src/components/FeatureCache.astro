@@ -24,7 +24,7 @@
   >
     <div class="mini__window" aria-hidden="true">
       <div class="pane">
-        <div class="pane__bar">
+        <div class="pane__bar mini__bar">
           <span class="pane__pill"><span class="pane__dot"></span>Open</span>
           <span class="pane__title">Quiet background refresh</span>
           <span class="pane__meta mono">#55</span>
@@ -79,14 +79,7 @@
   }
 
   .pane__bar {
-    display: flex;
-    align-items: center;
     gap: 10px;
-    height: 42px;
-    flex-shrink: 0;
-    padding-inline: 14px;
-    border-bottom: 1px solid var(--line);
-    background: linear-gradient(180deg, var(--surface-2), transparent);
   }
 
   .pane__pill {
