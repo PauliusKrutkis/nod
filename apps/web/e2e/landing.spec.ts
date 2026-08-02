@@ -59,6 +59,15 @@ test("sends the call to action to the downloads page", async ({ page }) => {
   );
 });
 
+test("sends the nav download link straight to the downloads page", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.locator(".nav").getByRole("link", { name: "Download" }).click();
+
+  await expect(page).toHaveURL(DOWNLOADS_URL_PATTERN);
+});
+
 test("does not name a platform on the call to action", async ({ page }) => {
   await page.goto("/");
 

@@ -10,9 +10,15 @@ import {
   REPO_URL,
 } from "../lib/site";
 
+const VISIBLE_HISTORY_COUNT = 10;
+
 const [latest, ...older] = await fetchReleases();
 
 const groups = groupByPlatform(latest.downloads);
+
+const history = older.slice(0, VISIBLE_HISTORY_COUNT);
+
+const hasOlderStillOnGitHub = older.length > VISIBLE_HISTORY_COUNT;
 ---
 
 <Base
@@ -124,10 +130,10 @@ const groups = groupByPlatform(latest.downloads);
       }
 
       {
-        older.length > 0 && (
+        history.length > 0 && (
           <div class="vers__older">
             <p class="vers__older-head">Previous releases</p>
-            {older.map((release) => (
+            {history.map((release) => (
               <details class="vers__item">
                 <summary class="vers__summary">
                   <span class="mono vers__tag">{release.tag}</span>
@@ -152,6 +158,11 @@ const groups = groupByPlatform(latest.downloads);
                 </div>
               </details>
             ))}
+            {hasOlderStillOnGitHub && (
+              <a class="vers__all" href={`${REPO_URL}/releases`}>
+                Every release on GitHub →
+              </a>
+            )}
           </div>
         )
       }
