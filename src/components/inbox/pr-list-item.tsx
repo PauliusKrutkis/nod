@@ -1,4 +1,4 @@
-import { MessageSquare } from "lucide-react";
+import { GitBranch, MessageSquare } from "lucide-react";
 
 import { cn } from "../../lib/cn.ts";
 import { formatAbsolute, formatRelativeTime } from "../../lib/time.ts";
@@ -78,6 +78,15 @@ export function PRListItem({
           <span className="text-faint">·</span>
           <Avatar name={pr.author} size={14} url={pr.authorAvatarUrl} />
           <span className="truncate">{pr.author}</span>
+          {pr.headRef ? (
+            <>
+              <span className="text-faint">·</span>
+              <span className="inline-flex min-w-0 items-center gap-1 font-mono">
+                <GitBranch aria-hidden className="shrink-0" size={11} />
+                <span className="truncate">{pr.headRef}</span>
+              </span>
+            </>
+          ) : null}
           {pr.commentsCount > 0 ? (
             <>
               <span className="text-faint">·</span>

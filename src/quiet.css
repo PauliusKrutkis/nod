@@ -3881,6 +3881,9 @@ dialog.q-dialog::backdrop {
   min-height: min(440px, 60vh);
   padding: 0;
 }
+.qsp-panel-code {
+  width: min(920px, calc(100vw - 32px));
+}
 
 .qsp-search {
   display: flex;
@@ -3927,6 +3930,7 @@ dialog.q-dialog::backdrop {
 .qsp-row {
   position: relative;
   display: flex;
+  width: 100%;
   gap: 12px;
   align-items: center;
   padding: 10px 12px 10px 14px;
@@ -4025,6 +4029,8 @@ dialog.q-dialog::backdrop {
   white-space: pre;
 }
 .qsp-snip-line-hit {
+  align-items: flex-start;
+  overflow: visible;
   background: var(--accent-soft);
 }
 .qsp-snip-num {
@@ -4040,6 +4046,20 @@ dialog.q-dialog::backdrop {
 .qsp-snip-code {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.qsp-snip-line-hit .qsp-snip-code {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.qsp-branch {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  min-width: 0;
+  color: var(--faint);
 }
 
 .qsp-empty {
