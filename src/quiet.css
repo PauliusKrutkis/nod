@@ -891,7 +891,7 @@ dialog.q-dialog::backdrop {
   gap: 9px;
   align-items: center;
   width: calc(100% - 12px);
-  padding: 6px 8px 6px 6px;
+  padding: 6px 8px 6px calc(6px + var(--qf-depth, 0) * 12px);
   margin: 1px 6px;
   color: var(--muted);
   text-align: left;
@@ -900,12 +900,6 @@ dialog.q-dialog::backdrop {
   transition:
     background-color 120ms ease,
     color 120ms ease;
-}
-.dir-quiet .qf-file {
-  padding-left: calc(6px + var(--qf-depth, 0) * 12px);
-}
-.dir-quiet .qf-file-dirrow {
-  color: var(--muted);
 }
 .dir-quiet .qf-side-mode {
   display: inline-flex;
