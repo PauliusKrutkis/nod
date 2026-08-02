@@ -3,6 +3,7 @@ import { DETAIL_NO_CI } from "./fixtures.ts";
 import { expect, test } from "./test.ts";
 import type { Page } from "./types.ts";
 
+const ANY_TITLE = /./;
 const SUBMIT_REVIEW = /Submit review/;
 const COPY_FILE_PATH = /Copy file path/;
 const COPY_PR_LINK = /Copy PR link/;
@@ -46,7 +47,7 @@ test("j moves the line cursor; sidebar follows the cursor's file", async ({
 test("f and g fast-move the cursor without scrolling when still in view", async ({
   page,
 }) => {
-  const active = page.locator(".qf-row-active");
+  const active = page.locator(".qf-row-active, .qf-thread-active");
   const scrollHost = page.locator(".qf-scrollhost");
 
   await page.keyboard.press("j");
@@ -59,6 +60,46 @@ test("f and g fast-move the cursor without scrolling when still in view", async 
 
   await page.keyboard.press("g");
   await expect(active).toHaveAttribute("data-anchor", anchor0 ?? "");
+});
+
+test("e carries the line cursor to the file it advances to", async ({
+  page,
+}) => {
+  const active = page.locator(".qf-row-active");
+
+  await page.keyboard.press("j");
+  await expect(active).toHaveAttribute("data-file-index", "0");
+
+  await page.keyboard.press("e");
+  await expect(page.locator(".qf-file-active")).toHaveAttribute(
+    "data-file-index",
+    "1"
+  );
+  await expect(active).toHaveAttribute("data-file-index", "1");
+  await expect(active).toHaveAttribute("data-anchor", "RIGHT:1");
+  await page.screenshot({ path: "evidence/cursorfollow-after-e.png" });
+});
+
+test("after a file jump, f steps inside the file the cursor landed on", async ({
+  page,
+}) => {
+  const active = page.locator(".qf-row-active");
+
+  await page.keyboard.press("j");
+  await page.keyboard.press("r");
+  await expect(active).toHaveAttribute("data-file-index", "1");
+
+  await page.keyboard.press("r");
+  await expect(active).toHaveAttribute("data-file-index", "2");
+  const landed = await active.getAttribute("data-anchor");
+
+  await page.keyboard.press("f");
+  await expect(active).toHaveAttribute("data-file-index", "2");
+  await expect(active).not.toHaveAttribute("data-anchor", landed ?? "");
+  await page.screenshot({ path: "evidence/cursorfollow-f-after-jump.png" });
+
+  await page.keyboard.press("t");
+  await expect(active).toHaveAttribute("data-file-index", "1");
 });
 
 test("c opens the composer; adding batches a pending card", async ({
@@ -75,6 +116,18 @@ test("c opens the composer; adding batches a pending card", async ({
   await expect(page.getByRole("button", { name: SUBMIT_REVIEW })).toContainText(
     "1"
   );
+});
+
+test("opening the composer off-screen scrolls it fully into view", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 420, width: 900 });
+  for (let i = 0; i < 6; i++) {
+    await page.keyboard.press("j");
+  }
+  await page.keyboard.press("c");
+  const box = page.getByRole("textbox", { name: "Add a review comment…" });
+  await expect(box).toBeInViewport();
 });
 
 test("pending drafts survive leaving and reopening the PR", async ({
@@ -95,7 +148,7 @@ test("pending drafts survive leaving and reopening the PR", async ({
 test("text search (mod+r) lands on the line and seeds the comment cursor", async ({
   page,
 }) => {
-  await page.keyboard.press("Control+r");
+  await page.keyboard.press("ControlOrMeta+r");
   const input = page.getByPlaceholder("Search code in this PR…");
   await expect(input).toBeFocused();
   await input.fill("gamma");
@@ -111,7 +164,7 @@ test("text search (mod+r) lands on the line and seeds the comment cursor", async
 test("find bar: mod+f opens it, typing counts, Enter steps and wraps", async ({
   page,
 }) => {
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press("ControlOrMeta+f");
   const input = page.getByPlaceholder("Find in diff");
   await expect(input).toBeFocused();
 
@@ -246,7 +299,7 @@ test("find seeds from the viewport: the current match is the one near you, not t
     page.locator('.qf-row[data-file-index="1"]').first()
   ).toBeVisible();
 
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press("ControlOrMeta+f");
   await page.getByPlaceholder("Find in diff").fill("return");
   const count = page.locator(".qf-findbar-count");
   await expect(count).toHaveText("3/3");
@@ -265,7 +318,7 @@ test("find seeds from the viewport: the current match is the one near you, not t
 test("find bar: Esc closes, clears marks, and j moves the cursor immediately", async ({
   page,
 }) => {
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press("ControlOrMeta+f");
   const input = page.getByPlaceholder("Find in diff");
   await input.fill("gamma");
   await expect(page.locator(".qf-findbar-count")).toHaveText("1/2");
@@ -285,11 +338,11 @@ test("find bar: Esc closes, clears marks, and j moves the cursor immediately", a
 test("find bar: reopening keeps the query selected; typing replaces it", async ({
   page,
 }) => {
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press("ControlOrMeta+f");
   const input = page.getByPlaceholder("Find in diff");
   await input.fill("gamma");
   await page.keyboard.press("Escape");
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press("ControlOrMeta+f");
   await expect(page.getByPlaceholder("Find in diff")).toBeFocused();
   await page.keyboard.type("beta");
   await expect(page.locator(".qf-findbar-count")).toHaveText("1/1");
@@ -360,13 +413,13 @@ test("y and mod+shift+c copy with toast confirmations", async ({ page }) => {
   await expect(toast).toContainText("Copied PR link");
   await expect(toast).toContainText("https://github.com/acme/rocket/pull/1");
 
-  await page.keyboard.press("Control+Shift+C");
+  await page.keyboard.press("ControlOrMeta+Shift+C");
   await expect(toast).toContainText("Copied file path");
   await expect(toast).toContainText("src/lib/fuzzy.ts");
 });
 
 test("the palette lists the copy actions in review scope", async ({ page }) => {
-  await page.keyboard.press("Control+k");
+  await page.keyboard.press("ControlOrMeta+k");
   await page.getByPlaceholder("Run a command…").fill("copy");
   await expect(
     page.getByRole("button", { name: COPY_FILE_PATH })
@@ -418,15 +471,35 @@ test("the i button advertises how much conversation the drawer holds", async ({
   await expect(page.locator(".qf-info-count")).toHaveText("3");
 });
 
-test("esc in the drawer composer closes the drawer and releases the keyboard", async ({
+test("the drawer composer expands from the prompt on click, focused", async ({
   page,
 }) => {
   await page.keyboard.press("i");
   const box = page.getByRole("textbox", {
     name: "Comment on this pull request…",
   });
-  await box.click();
-  await box.fill("half-typed thought");
+  await expect(box).toBeHidden();
+  await page
+    .getByRole("button", { name: "Comment on this pull request…" })
+    .click();
+  await expect(box).toBeFocused();
+});
+
+test("esc in the drawer composer collapses it; a second esc closes the drawer", async ({
+  page,
+}) => {
+  await page.keyboard.press("i");
+  await page
+    .getByRole("button", { name: "Comment on this pull request…" })
+    .click();
+  await expect(
+    page.getByRole("textbox", { name: "Comment on this pull request…" })
+  ).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".qf-drawer")).toHaveAttribute(
+    "aria-hidden",
+    "false"
+  );
   await page.keyboard.press("Escape");
   await expect(page.locator(".qf-drawer")).toHaveAttribute(
     "aria-hidden",
@@ -437,25 +510,30 @@ test("esc in the drawer composer closes the drawer and releases the keyboard", a
   ).toBeVisible();
   await page.keyboard.press("j");
   await expect(page.locator(".qf-row-active")).toHaveCount(1);
-});
-
-test("after esc-closing from the composer, i reopens the drawer", async ({
-  page,
-}) => {
-  await page.keyboard.press("i");
-  await page
-    .getByRole("textbox", { name: "Comment on this pull request…" })
-    .click();
-  await page.keyboard.press("Escape");
-  await expect(page.locator(".qf-drawer")).toHaveAttribute(
-    "aria-hidden",
-    "true"
-  );
   await page.keyboard.press("i");
   await expect(page.locator(".qf-drawer")).toHaveAttribute(
     "aria-hidden",
     "false"
   );
+});
+
+test("a half-typed drawer comment survives esc — collapsed, not lost", async ({
+  page,
+}) => {
+  await page.keyboard.press("i");
+  await page
+    .getByRole("button", { name: "Comment on this pull request…" })
+    .click();
+  const box = page.getByRole("textbox", {
+    name: "Comment on this pull request…",
+  });
+  await box.fill("half-typed thought");
+  await page.keyboard.press("Escape");
+  const prompt = page.getByRole("button", { name: "Continue your draft…" });
+  await expect(prompt).toBeVisible();
+  await prompt.click();
+  await expect(box).toBeFocused();
+  await expect(box).toHaveText("half-typed thought");
 });
 
 test("clicking a sidebar file blurs it so no focus ring lingers after r/t", async ({
@@ -480,16 +558,20 @@ test("comment posting is optimistic even when the network hangs", async ({
   await setupApp(page, { hangIssueComment: true });
   await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
   await page.keyboard.press("i");
+  await page
+    .getByRole("button", { name: "Comment on this pull request…" })
+    .click();
   const box = page.getByRole("textbox", {
     name: "Comment on this pull request…",
   });
-  await box.click();
   await box.fill("Ship it when green");
-  await page.keyboard.press("Control+Enter");
+  await page.keyboard.press("ControlOrMeta+Enter");
   await expect(
     page.locator(".qf-convo").getByText("Ship it when green")
   ).toBeVisible({ timeout: 1000 });
-  await expect(box).toHaveText("");
+  await expect(
+    page.getByRole("button", { name: "Comment on this pull request…" })
+  ).toBeVisible();
 });
 
 test("shift+v expands the active file in place and collapses back", async ({
@@ -519,7 +601,16 @@ test("toggling parks the cursor row at a stable reading line", async ({
   const readReadingLine = async () => {
     await expect(page.locator(".qf-scrollhost")).not.toHaveClass(QF_SWAP_MASK);
     await expect(cursorRow).toBeVisible();
-    return (await cursorRow.boundingBox())?.y ?? Number.NaN;
+    let last = Number.NaN;
+    await expect
+      .poll(async () => {
+        const y = (await cursorRow.boundingBox())?.y ?? Number.NaN;
+        const settled = Math.abs(y - last) < 0.5;
+        last = y;
+        return settled;
+      })
+      .toBe(true);
+    return last;
   };
   await page.keyboard.press("Shift+v");
   await expect(page.locator(".qf-row-xctx").first()).toBeVisible();
@@ -654,7 +745,12 @@ test("the header shows an approvals verdict with the reviewer's face", async ({
 }) => {
   const pill = page.locator(".qf-verdict-approved");
   await expect(pill).toBeVisible();
-  await expect(pill).toHaveAttribute("title", "Approved · dave");
+  await expect(pill).toHaveAttribute("aria-label", "Approved · dave");
+  await expect(pill).not.toHaveAttribute("title", ANY_TITLE);
+  await expect(pill.locator(".q-avatar")).not.toHaveAttribute(
+    "title",
+    ANY_TITLE
+  );
   await expect(pill.locator(".q-avatar")).toHaveCount(1);
   await expect(page.locator(".qf-verdict-changes")).toHaveCount(0);
 });
@@ -676,4 +772,37 @@ test("a repo without CI shows no pill", async ({ page }) => {
   await setupApp(page, { detailByCall: [DETAIL_NO_CI] });
   await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
   await expect(page.locator(".qf-ci")).toHaveCount(0);
+});
+
+test("code search: the matched line is never clipped, and the pane is wider", async ({
+  page,
+}) => {
+  await page.keyboard.press("ControlOrMeta+r");
+  const input = page.getByPlaceholder("Search code in this PR…");
+  await input.fill("gamma");
+  const snippet = page.locator(".qsp-snippet").first();
+  await expect(snippet).toBeVisible();
+
+  const hit = snippet.locator(".qsp-snip-line-hit").first();
+  const wrap = await hit
+    .locator(".qsp-snip-code")
+    .evaluate((el) => getComputedStyle(el).whiteSpace);
+  expect(wrap).toBe("pre-wrap");
+
+  const mark = hit.locator("mark.q-hl").first();
+  await expect(mark).toBeVisible();
+  await expect(mark).toBeInViewport();
+
+  await expect(page.locator(".qsp-panel-code")).toHaveCount(1);
+  const panel = await page.locator(".qsp-panel-code").boundingBox();
+  const row = await page.locator(".qsp-row").first().boundingBox();
+  expect(panel?.width ?? 0).toBeGreaterThan(680);
+  expect(row?.width ?? 0).toBeGreaterThan((panel?.width ?? 0) * 0.9);
+  await expect(snippet.locator(".qsp-snip-line")).toHaveCount(5);
+  await page.screenshot({ path: "evidence/code-search-snippet.png" });
+
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("ControlOrMeta+t");
+  await expect(page.getByPlaceholder("Find a file in this PR…")).toBeFocused();
+  await expect(page.locator(".qsp-panel-code")).toHaveCount(0);
 });

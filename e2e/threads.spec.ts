@@ -144,11 +144,33 @@ test("r on a hovered thread opens its reply composer", async ({ page }) => {
   ).toBeVisible();
 });
 
-test("]c focuses a thread, so r replies to it without hovering", async ({
+test("q lands on a thread, so r replies to it without hovering", async ({
   page,
 }) => {
-  await page.keyboard.press("]");
-  await page.keyboard.press("c");
+  await page.keyboard.press("q");
+  await page.keyboard.press("r");
+  await expect(page.getByRole("textbox", { name: "Reply…" })).toBeFocused();
+});
+
+test("q moves the cursor onto the thread, not just the viewport", async ({
+  page,
+}) => {
+  await page.keyboard.press("q");
+  await expect(page.locator(".qf-comment-wrap.qf-thread-active")).toHaveCount(
+    1
+  );
+});
+
+test("the pointer leaving a thread does not disarm the one the cursor is on", async ({
+  page,
+}) => {
+  await page.locator('[data-comment-root="100"]').hover();
+  await page.keyboard.press("q");
+  await expect(page.locator(".qf-comment-wrap.qf-thread-active")).toHaveCount(
+    1
+  );
+
+  await page.mouse.move(2, 2);
   await page.keyboard.press("r");
   await expect(page.getByRole("textbox", { name: "Reply…" })).toBeFocused();
 });
@@ -180,11 +202,10 @@ test("x resolves the hovered thread; x on the collapsed row unresolves", async (
   await expect(thread.getByText("Is this constant right?")).toBeVisible();
 });
 
-test("]c focuses a thread, so x resolves it without hovering", async ({
+test("q lands on a thread, so x resolves it without hovering", async ({
   page,
 }) => {
-  await page.keyboard.press("]");
-  await page.keyboard.press("c");
+  await page.keyboard.press("q");
   await page.keyboard.press("x");
   await expect(page.locator(".qf-thread-collapsed")).toBeVisible();
 });
@@ -236,6 +257,30 @@ test("insert suggestion prefills the block with the commented line", async ({
   const sugg = box.locator("pre code.language-suggestion");
   await expect(sugg).toHaveText("export function alpha() {");
   await expect(box).toBeFocused();
-  await page.keyboard.type("export function alpha(): number {");
-  await expect(sugg).toHaveText("export function alpha(): number {");
+  await page.keyboard.type(" // note");
+  await expect(sugg).toHaveText("export function alpha() { // note");
+});
+
+test("any comment can be copied, including one you did not write", async ({
+  page,
+}) => {
+  const thread = page.locator(".qf-thread").first();
+  const bobsComment = thread.locator(".qf-comment").first();
+  await expect(bobsComment).toContainText("bob");
+
+  await bobsComment.hover();
+  const copy = bobsComment.getByRole("button", { name: "Copy comment text" });
+  await copy.click();
+  await expect(bobsComment.getByText("Copied")).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    "Is this constant right?"
+  );
+
+  await expect(
+    bobsComment.getByRole("button", { name: "Edit comment" })
+  ).toHaveCount(0);
+  await expect(
+    bobsComment.getByRole("button", { name: "Delete comment" })
+  ).toHaveCount(0);
+  await page.screenshot({ path: "evidence/copy-comment.png" });
 });

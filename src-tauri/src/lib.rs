@@ -4,6 +4,7 @@ mod commands;
 mod http;
 mod model;
 mod platform;
+#[allow(dead_code)]
 mod snapshot;
 mod storage;
 mod update;
@@ -95,6 +96,7 @@ pub fn run() {
             commands::get_pull_request_detail,
             commands::get_cached_pull_request_detail,
             commands::get_file_blob,
+            commands::get_upload_blob,
             commands::create_review_comment,
             commands::reply_to_review_comment,
             commands::update_review_comment,

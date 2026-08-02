@@ -16,6 +16,7 @@ export interface AppOptions {
   fileBlobs?: Record<string, string>;
   fileBlobDelayMs?: number;
   hangIssueComment?: boolean;
+  hangReviewComment?: boolean;
   hasToken?: boolean;
   releases?:
     | { tag: string; publishedAt: string | null; notes: string | null }[]
@@ -38,6 +39,7 @@ export async function setupApp(page: Page, opts: AppOptions = {}) {
     fileBlobs: opts.fileBlobs ?? FULL_FILES,
     fileBlobDelayMs: opts.fileBlobDelayMs ?? 0,
     hangIssueComment: opts.hangIssueComment ?? false,
+    hangReviewComment: opts.hangReviewComment ?? false,
     hasToken: opts.hasToken ?? true,
     releases: opts.releases ?? [],
     inbox: opts.inbox ?? INBOX,
@@ -58,6 +60,12 @@ export async function setupApp(page: Page, opts: AppOptions = {}) {
 
     let detailCalls = 0;
     let inboxCalls = 0;
+    const counts: Record<string, number> = {};
+    const countCall = (name: string) => {
+      counts[name] = (counts[name] ?? 0) + 1;
+      (window as unknown as { __calls: Record<string, number> }).__calls =
+        counts;
+    };
     const seq = (arr: unknown[] | null, n: number, fallback: unknown) =>
       arr ? arr[Math.min(n, arr.length - 1)] : fallback;
 
@@ -70,21 +78,29 @@ export async function setupApp(page: Page, opts: AppOptions = {}) {
                 /* intentionally pending */
               })
             : null,
-        create_review_comment: (args) => ({
-          body: args.body,
-          createdAt: new Date().toISOString(),
-          diffHunk: "",
-          id: 900,
-          inReplyToId: null,
-          line: args.line,
-          originalLine: null,
-          path: args.path,
-          resolved: false,
-          side: args.side,
-          threadId: null,
-          user: "me",
-          userAvatarUrl: "",
-        }),
+        create_review_comment: (args) => {
+          countCall("create_review_comment");
+          if (cfg.hangReviewComment) {
+            return new Promise(() => {
+              /* intentionally pending */
+            });
+          }
+          return {
+            body: args.body,
+            createdAt: new Date().toISOString(),
+            diffHunk: "",
+            id: 900,
+            inReplyToId: null,
+            line: args.line,
+            originalLine: null,
+            path: args.path,
+            resolved: false,
+            side: args.side,
+            threadId: null,
+            user: "me",
+            userAvatarUrl: "",
+          };
+        },
         delete_issue_comment: (args) => {
           cfg.detail.issueComments = (
             cfg.detail.issueComments as Array<{ id: number }>

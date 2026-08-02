@@ -604,7 +604,8 @@ dialog.q-dialog::backdrop {
   border: none;
   border-top: 1px solid var(--line);
 }
-.md img {
+.md img,
+.md video {
   max-width: 100%;
   border-radius: 8px;
 }
@@ -806,18 +807,16 @@ dialog.q-dialog::backdrop {
 
 /* ============ SIDEBAR ============ */
 /* The file-tree column. Two modes, switched from JS at the compact breakpoint:
-   `inline` is a static push column (wide windows); `overlay` slides in over the
-   diff (narrow windows) so the diff never loses width to the tree. */
+   `inline` is a static push column (wide windows); `overlay` sits over the
+   diff (narrow windows) so the diff never loses width to the tree.
+   Toggling is instant in both modes — `b` is a navigation key pressed mid-read,
+   and animating the column made it feel slower than it was while forcing the
+   virtualizer to re-measure through every intermediate width. */
 .dir-quiet .qf-sidebar-col {
   flex-shrink: 0;
   width: 300px;
   overflow: hidden;
   border-right: 1px solid var(--line);
-}
-.dir-quiet .qf-sidebar-inline {
-  transition:
-    width 160ms ease,
-    border-color 160ms ease;
 }
 .dir-quiet .qf-sidebar-inline:not(.qf-sidebar-open) {
   width: 0;
@@ -832,7 +831,6 @@ dialog.q-dialog::backdrop {
   background: var(--bg);
   box-shadow: 24px 0 48px -24px rgba(0, 0, 0, 0.6);
   transform: translateX(-100%);
-  transition: transform 180ms ease;
 }
 .dir-quiet .qf-sidebar-overlay.qf-sidebar-open {
   transform: translateX(0);
@@ -844,7 +842,6 @@ dialog.q-dialog::backdrop {
   pointer-events: none;
   background: rgba(8, 8, 14, 0.5);
   opacity: 0;
-  transition: opacity 150ms ease;
 }
 .dir-quiet .qf-sidebar-scrim-open {
   pointer-events: auto;
@@ -904,6 +901,28 @@ dialog.q-dialog::backdrop {
     background-color 120ms ease,
     color 120ms ease;
 }
+.dir-quiet .qf-file {
+  padding-left: calc(6px + var(--qf-depth, 0) * 12px);
+}
+.dir-quiet .qf-file-dirrow {
+  color: var(--muted);
+}
+.dir-quiet .qf-side-mode {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  color: var(--faint);
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: 5px;
+}
+.dir-quiet .qf-side-mode:hover {
+  color: var(--fg);
+  background: var(--surface-2);
+}
+
 /* Hover only affects rows that aren't already selected, so the iris selection
    is never overwritten by (or double-stacked with) the hover wash. */
 .dir-quiet .qf-file:not(.qf-file-active):hover {
@@ -969,6 +988,9 @@ dialog.q-dialog::backdrop {
   flex-shrink: 0;
   font-weight: 500;
   color: inherit;
+}
+.dir-quiet .qf-file-dirrow .qf-file-base {
+  font-weight: 500;
 }
 .dir-quiet .qf-file-meta {
   display: flex;
@@ -1045,15 +1067,6 @@ dialog.q-dialog::backdrop {
 }
 .dir-quiet .qf-header-actions {
   min-width: 0;
-}
-/* Safety net for very tight headers (small windows, high webview zoom): the
-   viewed-count meta collapses first, keeping identity + info + Review visible.
-   With CI / churn / the Open button now living in the info drawer, this rarely
-   triggers — it's a floor, not the everyday layout. */
-@container qf-header (width < 520px) {
-  .dir-quiet .qf-header .qf-header-meta {
-    display: none;
-  }
 }
 /* Tighter still: drop the review-verdict pills and shrink the action gap. */
 @container qf-header (width < 440px) {
@@ -1413,9 +1426,9 @@ dialog.q-dialog::backdrop {
   display: flex;
   gap: 10px;
   align-items: center;
-  padding: 8px 16px;
-  background: var(--surface-2);
-  border-top: 1px solid var(--line-2);
+  padding: 10px 16px;
+  background: var(--surface-hi);
+  border-top: 2px solid var(--line-2);
   border-bottom: 1px solid var(--line);
   /* the iris edge marks the file the keyboard is talking to */
   box-shadow: inset 2px 0 0 transparent;
@@ -1435,7 +1448,7 @@ dialog.q-dialog::backdrop {
   overflow: hidden;
   text-overflow: ellipsis;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   white-space: nowrap;
 }
@@ -1686,7 +1699,7 @@ dialog.q-dialog::backdrop {
   border-bottom: 1px solid var(--line);
 }
 .dir-quiet .qf-row-hunk:hover {
-  background: var(--surface-hi);
+  background: var(--surface-2);
 }
 .dir-quiet .qf-row-hunk .qf-code {
   font-size: 11px;
@@ -1835,7 +1848,8 @@ dialog.q-dialog::backdrop {
 /* A single "+" affordance, driven by the last input modality: keyboard shows it
    on the cursor row (active file only), mouse shows it on the hovered row —
    never both at once. */
-.dir-quiet .qf-fsec-active
+.dir-quiet
+  .qf-fsec-active
   .qf-diff:not([data-mode="mouse"])
   .qf-row-active
   .qf-add-btn {
@@ -1994,6 +2008,22 @@ dialog.q-dialog::backdrop {
   color: inherit;
   background: color-mix(in srgb, var(--fg) 26%, transparent);
 }
+.dir-quiet .qf-code::highlight(qf-occ-link),
+.dir-quiet .qf-code ::highlight(qf-occ-link) {
+  color: var(--accent);
+  background: var(--accent-soft);
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-underline-offset: 2px;
+}
+.qf-occ-link .dir-quiet .qf-code {
+  cursor: pointer;
+}
+.dir-quiet .qf-code::selection,
+.dir-quiet .qf-code ::selection {
+  color: inherit;
+  background: color-mix(in srgb, var(--accent) 40%, transparent);
+}
 
 .dir-quiet mark.qf-intra-mark {
   padding: 0;
@@ -2120,7 +2150,7 @@ dialog.q-dialog::backdrop {
   transition: opacity 120ms ease;
 }
 .dir-quiet .qf-thread:hover .qf-comment-tools,
-.dir-quiet .qf-thread:focus-within .qf-comment-tools,
+.dir-quiet .qf-comment-tools:focus-within,
 .dir-quiet .qf-convo-item:hover .qf-comment-tools,
 .dir-quiet .qf-convo-item:focus-within .qf-comment-tools {
   opacity: 1;
@@ -2199,6 +2229,20 @@ dialog.q-dialog::backdrop {
 }
 .dir-quiet .qf-thread:hover .qf-key-hint,
 .dir-quiet .qf-thread:focus-within .qf-key-hint {
+  opacity: 1;
+}
+.dir-quiet
+  .qf-diff:not([data-mode="mouse"])
+  .qf-thread-active
+  > .qf-thread:first-child {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.dir-quiet
+  .qf-diff:not([data-mode="mouse"])
+  .qf-thread-active
+  > .qf-thread:first-child
+  :is(.qf-comment-tools, .qf-key-hint) {
   opacity: 1;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -2292,20 +2336,25 @@ dialog.q-dialog::backdrop {
   border-radius: 999px;
 }
 .dir-quiet .qf-pending-remove {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
   padding: 3px 9px;
   margin-left: auto;
   font-size: 11px;
-  color: var(--muted);
+  color: var(--del);
   cursor: pointer;
-  background: transparent;
-  border: 1px solid var(--line-2);
+  background: var(--del-bg);
+  border: 1px solid color-mix(in srgb, var(--del) 40%, transparent);
   border-radius: 6px;
   transition:
     color 120ms ease,
-    border-color 120ms ease;
+    border-color 120ms ease,
+    background-color 120ms ease;
 }
 .dir-quiet .qf-pending-remove:hover {
   color: var(--del);
+  background: color-mix(in srgb, var(--del) 20%, transparent);
   border-color: var(--del);
 }
 
@@ -2346,8 +2395,19 @@ dialog.q-dialog::backdrop {
   font-family: var(--font-ui);
 }
 
-/* Rich composer surface — the q-input look on a ProseMirror contenteditable.
-   WYSIWYG in, markdown out (the hosts' wire format). */
+.qa-editor {
+  overflow: hidden;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+.qa-editor:focus-within {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
 .qa-editor-content {
   box-sizing: border-box;
   min-height: 86px;
@@ -2358,16 +2418,6 @@ dialog.q-dialog::backdrop {
   color: var(--fg);
   overflow-wrap: anywhere;
   outline: none;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  transition:
-    border-color 120ms ease,
-    box-shadow 120ms ease;
-}
-.qa-editor-content:focus {
-  border-color: var(--accent-line);
-  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .qa-editor-content p.is-editor-empty:first-child::before {
   float: left;
@@ -2458,8 +2508,8 @@ dialog.q-dialog::backdrop {
   letter-spacing: 0.04em;
   content: "Suggested change";
 }
-/* the ⌘K inline URL input that borrows the hint bar's row */
 .qa-link-input {
+  flex: 1;
   padding: 5px 9px;
   font-size: 12px;
   background: var(--bg);
@@ -2508,6 +2558,7 @@ dialog.q-dialog::backdrop {
   display: flex;
   gap: 8px;
   align-items: center;
+  margin-left: auto;
 }
 
 .qa-tools {
@@ -2515,13 +2566,18 @@ dialog.q-dialog::backdrop {
   flex-wrap: wrap;
   gap: 3px;
   align-items: center;
-  margin-top: 7px;
+  padding: 4px 6px;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
 }
 .qa-tool {
   display: inline-flex;
   gap: 5px;
   align-items: center;
-  padding: 3px 7px;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 5px;
   font-size: 11px;
   color: var(--faint);
   cursor: pointer;
@@ -2536,14 +2592,8 @@ dialog.q-dialog::backdrop {
   color: var(--fg);
   background: var(--surface-2);
 }
-.qa-tool .q-kbd {
-  min-width: 14px;
-  padding: 2px 4px;
-  font-size: 9px;
-  box-shadow: none;
-}
 .qa-tool-suggest {
-  padding: 3px 9px;
+  padding: 0 9px;
   margin-right: 4px;
   font-size: 11.5px;
   color: var(--muted);
@@ -2554,13 +2604,11 @@ dialog.q-dialog::backdrop {
 }
 .qa-tool-on {
   color: var(--accent);
-}
-.qa-tool-on .q-kbd {
-  color: var(--accent);
-  border-color: var(--accent-line);
+  background: var(--accent-soft);
 }
 .qa-tool-on:hover {
   color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .qa-explain {
@@ -2675,6 +2723,17 @@ dialog.q-dialog::backdrop {
 }
 .dir-quiet .qf-drawer-body .md {
   overflow-wrap: anywhere;
+}
+.dir-quiet .qf-drawer-body > .qf-drawer-section:last-child {
+  margin-bottom: 0;
+}
+.dir-quiet .qf-drawer-foot {
+  padding: 10px 18px 16px;
+  border-top: 1px solid transparent;
+  transition: border-color 120ms ease;
+}
+.dir-quiet .qf-drawer-foot-divided {
+  border-top-color: var(--line);
 }
 .dir-quiet .qf-drawer-section {
   margin-bottom: 24px;
@@ -2807,6 +2866,38 @@ dialog.q-dialog::backdrop {
   font-size: 12.5px;
   color: var(--fg);
   white-space: nowrap;
+}
+
+.dir-quiet .qf-comment-prompt {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 7px 8px 7px 12px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--faint);
+  text-align: left;
+  cursor: text;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  transition:
+    color 120ms ease,
+    border-color 120ms ease;
+}
+.dir-quiet .qf-comment-prompt:hover {
+  color: var(--muted);
+  border-color: var(--line-2);
+}
+.dir-quiet .qf-comment-prompt-key {
+  flex-shrink: 0;
+  opacity: 0.6;
+  transition: opacity 120ms ease;
+}
+.dir-quiet .qf-comment-prompt:hover .qf-comment-prompt-key {
+  opacity: 1;
 }
 
 /* PR-level conversation inside the drawer */
@@ -3813,8 +3904,10 @@ dialog.q-dialog::backdrop {
 .qsp-panel {
   width: min(680px, calc(100vw - 32px));
   min-height: min(440px, 60vh);
-  max-height: 70vh;
   padding: 0;
+}
+.qsp-panel-code {
+  width: min(920px, calc(100vw - 32px));
 }
 
 .qsp-search {
@@ -3862,6 +3955,7 @@ dialog.q-dialog::backdrop {
 .qsp-row {
   position: relative;
   display: flex;
+  width: 100%;
   gap: 12px;
   align-items: center;
   padding: 10px 12px 10px 14px;
@@ -3960,6 +4054,8 @@ dialog.q-dialog::backdrop {
   white-space: pre;
 }
 .qsp-snip-line-hit {
+  align-items: flex-start;
+  overflow: visible;
   background: var(--accent-soft);
 }
 .qsp-snip-num {
@@ -3975,6 +4071,20 @@ dialog.q-dialog::backdrop {
 .qsp-snip-code {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.qsp-snip-line-hit .qsp-snip-code {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.qsp-branch {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  min-width: 0;
+  color: var(--faint);
 }
 
 .qsp-empty {

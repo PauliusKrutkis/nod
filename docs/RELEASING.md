@@ -2,7 +2,7 @@
 
 Everything about shipping desktop builds: cutting a release, testing
 auto-updates, Homebrew, going public, and the [commercial launch](#commercial-launch)
-plan (GitHub-as-license, browser-brokered activation — no license keys).
+plan (forge-account-as-license, browser-brokered activation — no license keys).
 
 ## TL;DR — cut a release
 
@@ -25,7 +25,7 @@ The `v*` tag triggers `.github/workflows/release.yml`, which:
 3. Publishes a GitHub Release with all assets **plus `latest.json`** — the
    manifest the in-app updater polls
    (`https://github.com/PauliusKrutkis/pr-flow/releases/latest/download/latest.json`).
-4. Bumps the Homebrew tap (only when the `TAP_REPO_TOKEN` secret exists —
+4. Bumps the Homebrew tap (only when the `TAP_DEPLOY_KEY` secret exists —
    skipped quietly otherwise).
 
 Installed apps poll that manifest, show the "Update available" prompt, and
@@ -40,8 +40,81 @@ install + relaunch in one click.
 | Repo secrets | ✅ `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (empty) |
 | Homebrew tap repo | ✅ `PauliusKrutkis/homebrew-tap` (public), seeded with the v0.1.0 cask. The release workflow pushes bumps over SSH via the `TAP_DEPLOY_KEY` secret — a deploy key that can write only to that one repo. Cask template: `packaging/homebrew/Casks/nod.rb`. |
 | OAuth in released builds | ✅ Baked in at compile time (`option_env!` in auth.rs): secrets `PRFLOW_GH_CLIENT_ID` / `PRFLOW_GH_CLIENT_SECRET` are set; the repo **variable** `NOD_GITLAB_CLIENT_ID` activates GitLab sign-in once the gitlab.com app is registered (`gh variable set NOD_GITLAB_CLIENT_ID`). Runtime `.env` still overrides in dev. Note: a client secret inside a desktop binary is extractable — a known, accepted trade-off for GitHub OAuth apps (GitHub CLI does the same); GitLab uses PKCE and has no secret at all. |
-| Apple notarization | ⬜ **Required before paid launch (Phase 1)** — Apple Developer cert ($99/yr). Until then macOS users clear quarantine after install (`xattr -dr com.apple.quarantine /Applications/Nod.app`) or right-click → Open. (Homebrew 6 removed `--no-quarantine`.) An app that needs an `xattr` incantation to open is not shippable to paying customers — notarization is a Phase 1 gate, not a nice-to-have. |
+| Apple notarization | ⬜ **Required before paid launch (Phase 1)** — Apple Developer cert ($99/yr). Until then macOS users clear quarantine after install (`xattr -dr com.apple.quarantine /Applications/Nod.app`) or approve the app once under System Settings → Privacy & Security. (Homebrew 6 removed `--no-quarantine`.) An app that needs an `xattr` incantation to open is not shippable to paying customers — notarization is a Phase 1 gate, not a nice-to-have. Setup and env vars: [Apple notarization](#apple-notarization). |
 | Commercial launch (Phase 0 + 1) | ⬜ See [Commercial launch](#commercial-launch) below. |
+
+## Goal: a true one-line `brew install`
+
+The landing page (`apps/web`) shows the install command as a single line —
+`brew install pauliuskrutkis/tap/nod` — matching every other keyboard-first
+dev tool's install story. Three of the four commands this section used to
+list turned out to be avoidable; only one real gap is left:
+
+```bash
+brew install pauliuskrutkis/tap/nod
+xattr -dr com.apple.quarantine /Applications/Nod.app   # ← the only gap
+```
+
+What closed, and why:
+
+1. **`--cask` flag** — never needed. No formula shares the `nod` token, so
+   the bare cask token resolves on its own (`brew info nod` confirms it
+   against the installed tap).
+2. **`brew tap` step** — `brew install <user>/<tap>/<token>` auto-taps an
+   untapped repo, so it folds into the install line. Still worth confirming
+   on a clean machine, since every box here already has the tap.
+3. **`brew trust --tap` step** — not a proxy for "unsigned binary" as
+   previously guessed. `brew trust --help` (Homebrew 6.0.9) states it applies
+   only "when `$HOMEBREW_REQUIRE_TAP_TRUST` is set" — an opt-in that is unset
+   by default. It guards third-party tap *Ruby code*, and is unrelated to
+   code signing, so notarization will not change it either way.
+4. **`xattr` step** — the genuine gap, caused by the missing Gatekeeper
+   signature, and the reason the landing-page CTA is still aspirational.
+   Resolved by notarization only (below).
+
+So the one-liner becomes literally correct the moment notarization ships —
+no Homebrew work is left. Re-verify on a clean machine before removing this
+note. Note that an install script (`curl … | sh`) is **not** the shortcut it
+looks like: curl doesn't apply `com.apple.quarantine`, so such a script would
+merely bypass the signature check rather than pass it, while costing the
+Homebrew upgrade path. Not an option for a paid tool.
+
+### Apple notarization
+
+The one remaining gap, and a hard Phase 1 gate — see the one-time setup table
+above. Requires the Apple Developer Program ($99/yr) for a **Developer ID
+Application** certificate; Tauri's bundler signs and notarizes during
+`tauri build` when the environment below is present, so no workflow step is
+needed beyond adding secrets.
+
+Signing (export the cert from Keychain Access as `.p12`, then
+`openssl base64 -A -in cert.p12 -out cert-base64.txt`):
+
+| Variable | Holds |
+| --- | --- |
+| `APPLE_CERTIFICATE` | base64 of the `.p12` |
+| `APPLE_CERTIFICATE_PASSWORD` | password used on export |
+| `APPLE_SIGNING_IDENTITY` | identity name from `security find-identity -v -p codesigning` |
+| `KEYCHAIN_PASSWORD` | scratch keychain password for CI |
+
+Notarization credentials — pick one pair:
+
+| App Store Connect API (preferred for CI) | Apple ID |
+| --- | --- |
+| `APPLE_API_ISSUER` (Issuer ID) | `APPLE_ID` (account email) |
+| `APPLE_API_KEY` (Key ID) | `APPLE_PASSWORD` (app-specific password) |
+| `APPLE_API_KEY_PATH` (path to `.p8`) | `APPLE_TEAM_ID` |
+
+Prefer the API key: it isn't tied to one person's Apple ID, and app-specific
+passwords break whenever that account's 2FA is reset. Both are set as repo
+secrets alongside the existing `TAURI_SIGNING_*` pair — note these are Apple's
+Gatekeeper chain and entirely separate from the updater's minisign keypair,
+which keeps working exactly as it does today.
+
+After the first notarized release: drop the `xattr` line from
+[README.md](../README.md#install--auto-updates), the cask template header
+(`packaging/homebrew/Casks/nod.rb`), and the landing page's `get__note`, then
+re-test the one-liner on a machine that has never had the tap.
 
 ## Repo visibility vs auto-updates
 
@@ -151,10 +224,132 @@ Gotchas learned the hard way:
 
 ---
 
+## Web (landing page)
+
+The marketing site lives in `apps/web` — an Astro + Tailwind v4 static build
+(package `@nod/web`). It ships ~zero JS and reuses the app's "Quiet" design
+tokens so the site reads as an extension of the product.
+
+```bash
+pnpm --filter @nod/web dev      # local dev server
+pnpm --filter @nod/web build    # static output → apps/web/dist
+pnpm --filter @nod/web check    # astro check (types + templates)
+```
+
+### Deploy — Cloudflare Pages (git integration)
+
+Hosting is **Cloudflare Pages**, connected to this repo through Cloudflare's
+GitHub App (works with the private repo). It's a one-time dashboard step; after
+that every push builds and every PR gets a preview URL. No CI workflow to
+maintain.
+
+| Setting          | Value        |
+| ---------------- | ------------ |
+| Root directory   | `apps/web`   |
+| Build command    | `pnpm build` |
+| Output directory | `dist`       |
+
+The site is served from **`nodreview.com`** (Cloudflare Registrar, same
+account as the Pages project), set as `site` in `apps/web/astro.config.mjs`.
+The project also answers on `pr-flow-73o.pages.dev` — Cloudflare suffixed the
+subdomain because `pr-flow.pages.dev` was already claimed by another account.
+That name is a placeholder, and picking the permanent one is time-sensitive:
+see [Canonical domain](#canonical-domain).
+
+Future `/activated` / `/restore` pages and the license webhook will live
+alongside the site as Pages Functions (see
+[Commercial launch](#commercial-launch)).
+
+### License server (Pages Functions)
+
+The license server is `apps/web/functions` — Cloudflare **Pages Functions**
+(file-based routing, deployed automatically by the same git integration as
+the rest of `apps/web`), not a standalone Worker. This is a skeleton: the
+endpoints and crypto are real and tested, but nothing calls them yet (no
+landing-page buy button, no in-app Rust verification) and no live Cloudflare
+KV namespace or secrets exist.
+
+```
+functions/
+  lib/
+    env.ts             Env type: KV binding + secret bindings
+    kv.ts               get/put license record + single-use order_id index
+    license-token.ts    Ed25519 sign + verify (@noble/ed25519) — a separate
+                         keypair from the updater's minisign chain
+    polar.ts             Standard Webhooks verify (standardwebhooks package)
+  purchase-webhook.ts   POST — verify Polar signature, store license in KV
+  activate.ts           GET  — look up license, sign token, redirect
+  license/[subject].ts   GET — read-only { active, updatesUntil }
+  restore.ts            GET  — stubbed 501 until POLAR_API_KEY exists
+```
+
+```bash
+pnpm --filter @nod/web test               # vitest — real sign+verify round-trips
+pnpm --filter @nod/web run typecheck:functions
+```
+
+**Corrections to the plan below, found while building this:**
+
+- **Redirect target.** The plan below says `/activate` redirects to
+  `prflow://purchase?token=…`. The app doesn't have a custom URL scheme —
+  `tauri-plugin-deep-link` isn't a dependency. The *existing* GitHub sign-in
+  (`src-tauri/src/auth.rs`) uses a loopback HTTP server instead
+  (`127.0.0.1:8765/callback`), which is what `activate.ts` redirects to today
+  (`ACTIVATION_REDIRECT_BASE`, one constant). Swap it for a real `prflow://`
+  deep link when/if that plugin gets added — until then this is the
+  faithful reuse of the mechanism that already works.
+- **Checkout metadata field name** (`metadata.subject` on the Polar
+  order) is still an assumption, not confirmed against a real Polar account
+  — flagged in `functions/lib/polar.ts`'s file header. Verify against
+  Polar's API reference once an account exists.
+- **`/activate` is keyed by `?order_id=`, not `?subject=`.** An earlier
+  version of this took a bare subject, which is public — anyone could
+  have minted themselves a signed license token for any known customer's
+  account with zero proof of purchase. The webhook now also stores a
+  single-use `order_id → subject` index (`putOrderIndex` / `getOrderIndex`
+  / `deleteOrderIndex` in `functions/lib/kv.ts`); `/activate` deletes it once
+  it has signed a token, so an activation link only works once and only if
+  you have the opaque order id, not just a username. Which query param Polar's actual checkout success URL templates
+  in is still to be confirmed once an account exists.
+
+- **Repeat purchases reset the term, they don't extend it.** The webhook
+  writes `updatesUntil = now + 1 year` on every `order.paid`, so a customer
+  who buys a second time before their first year is up loses the remainder
+  rather than stacking it. Fine while there is no renewal flow — worth
+  revisiting the moment one exists, since "buy early, lose time" is a bad
+  surprise. The fix is to read the existing record and take
+  `max(existing.updatesUntil, now) + 1 year`.
+
+**Required secrets** (not in the repo, set via `wrangler pages secret put`
+or the Cloudflare dashboard once an account exists): `POLAR_WEBHOOK_SECRET`,
+`LICENSE_SIGNING_SEED` (32-byte hex Ed25519 seed). The public half of the
+signing keypair is not a Worker secret — it ships embedded in the desktop
+app, which is the only thing that verifies tokens. `POLAR_API_KEY` is only
+needed once `/restore` is implemented for real.
+
 ## Commercial launch
 
 Paid distribution layered on top of the existing updater feed, signing chain,
 and CI releases (most of the hard infrastructure is already done).
+
+### Canonical domain
+
+`nodreview.com` is deliberately a placeholder. Every short form of the name is
+gone — `nod.com` (1998), `.dev`, `.app`, `.io`, `.sh` are all registered, and
+`nod.review` is registry-premium at $500 up front plus $65/yr, which is not
+proportionate to a product still behind the validation gate in
+[BACKLOG.md](BACKLOG.md) §11c.
+
+Because it's a placeholder, keep it out of anywhere durable: the Homebrew
+cask's `homepage` and the README both point at GitHub today, and should stay
+that way until the canonical host is final.
+
+**Settle the permanent host before the Polar account exists**, not at some
+later traction milestone. Once a payment provider holds a webhook URL, and
+shipped binaries have a license-server host compiled in, changing it means
+coordinating a provider migration against installed apps — where a redirect
+would have been enough beforehand. Traction is precisely when this stops
+being cheap.
 
 ### Product decision: no license keys
 
@@ -167,18 +362,44 @@ sign-in today but for purchase. User pays → clicks **Open Nod** → app receiv
 a signed token via deep link → done. No key, no paste, no support tickets about
 lost keys.
 
-**Identity:** GitHub is the license. The app already authenticates with GitHub
-OAuth for its core function; reuse that `github_id` as the license identity.
-No separate accounts, passwords, or restore-by-email flow for the common case.
+**Identity: the forge account is the license, not GitHub specifically.** The
+app signs in against GitHub, gitlab.com and self-hosted GitLab, and
+`accounts::account_id` (src-tauri/src/accounts.rs) already identifies an
+account by `(provider, host, login)`. The license server mirrors that with a
+**subject**: `<provider>:<host>:<id>`, e.g. `github:github.com:583231`. An
+earlier draft keyed on a bare `github_id`, which would have left paying GitLab
+users unrepresentable — and the field name is inside the Ed25519 signature
+(`canonicalBytes` in `functions/lib/license-token.ts`), so it is renameable
+only until the first token is signed. `id` is the provider's stable numeric
+id, never the login, since logins get renamed and this must still resolve at
+restore time.
 
 ```
-Sign in with GitHub  →  app knows github_id
-Purchase (MoR checkout, linked to same GitHub)  →  webhook stores license
-Next launch  →  GET /license/:github_id  →  { active, updates_until }
+Purchase → /activate  →  browser proves identity, server signs a token,
+                          loopback hands it to the app  (no in-app OAuth)
+Every launch after    →  verify signature + updatesUntil offline against the
+                          public key baked into the app  (no network)
+New machine / lost    →  browser again → fresh token
 ```
 
-Multi-device restore: user is already signed into GitHub in the app → license
-lookup just works. No activation step on a second machine.
+**The app verifies the signature and expiry only — it does not compare
+`subject` against the signed-in account.** That is what keeps every provider
+working: a GitLab-only buyer gets a token that verifies, with no GitHub
+account anywhere in the app. `subject` is a restore key, not a runtime gate,
+and `GET /license/:subject` exists to support restore rather than normal
+operation.
+
+Accepted trade-off: a signature-only token is copyable between machines and
+people. Binding it to the account would barely help — anyone willing to share
+a token file will share the account too — and would cost the multi-provider
+property above, which matters more.
+
+Still open: what checkout can actually prove. GitHub OAuth at checkout yields
+a github subject; gitlab.com needs a second OAuth app; **self-hosted GitLab is
+not verifiable by a public license server at all** and will need a fallback
+(`/restore` is already email-first for this reason). That is a web-side
+problem with no app impact — see the `metadata.subject` note in
+`functions/lib/polar.ts`.
 
 Fallback restore (email-only buyers, support): a lightweight web page queries
 the merchant-of-record API by email and redirects back with a signed token —
@@ -190,24 +411,30 @@ same deep-link path, no keys.
 | --- | --- | --- |
 | **Landing page** | Static site — speed video, download links to GitHub release assets, buy button → MoR checkout. No backend. | Cloudflare Pages (preferred — Worker lives next to it) or Vercel. Custom domain (~$15/yr) — `nod.something`, not `*.vercel.app`, before anyone sees it. |
 | **Payments** | Merchant of record (MoR), **not** raw Stripe. MoR hosts checkout, processes cards, handles global VAT/sales tax. ~5% + ~50¢/sale. | Paddle, Lemon Squeezy (Stripe-owned), or **Polar** (dev-focused, GitHub-native — good audience fit). Paddle requires site approval → landing page comes first regardless. |
-| **License server** | One Cloudflare Worker — three endpoints, tiny KV or D1 for `github_id → license` mapping. Not zero-state, but minimal. | Same Cloudflare account as the landing page. |
-| **Auth** | None new. GitHub OAuth (already in the app) **is** the license identity. | Existing `auth.rs` + compile-time OAuth secrets. |
+| **License server** | One Cloudflare Worker — three endpoints, tiny KV or D1 for `subject → license` mapping. Not zero-state, but minimal. | Same Cloudflare account as the landing page. |
+| **Auth** | None new. The forge account already in the app **is** the license identity (subject = `<provider>:<host>:<id>`). | Existing `auth.rs` + compile-time OAuth secrets. |
 | **In-app (Rust)** | Trial, license verify, updater gating, deep-link handler. | `src-tauri/` — see below. |
 
 No traditional backend. No user database you operate — the MoR is the customer
-record; the Worker holds only `github_id → { updates_until, order_id }`.
+record; the Worker holds only `subject → { updates_until, order_id }`.
 
 ### Cloudflare Worker endpoints
 
 ```
-POST /purchase-webhook     MoR order.created → verify signature → store license by github_id
+POST /purchase-webhook     MoR order.created → verify signature → store license by subject
 GET  /activate             Post-checkout success page → sign token → redirect prflow://purchase?token=…
-GET  /license/:github_id   App polls on launch → { active, updates_until }
+GET  /license/:subject     Restore support → { active, updates_until }
 GET  /restore              Email fallback → MoR lookup → same prflow:// redirect
 ```
 
-Webhook flow: checkout collects GitHub username (or user signs in with GitHub
-on the success page) → webhook maps purchase to `github_id` → Worker stores it.
+Built as Cloudflare **Pages Functions** in `apps/web/functions` (see [License
+server](#license-server-pages-functions) above), not a standalone Worker —
+see that section for why, and for a correction to the `prflow://` redirect
+target assumed above.
+
+Webhook flow: checkout proves a forge identity (OAuth on the success page) →
+webhook maps the purchase to that `subject` → Worker stores it. What checkout
+can actually prove differs per provider — see [Identity](#product-decision-no-license-keys).
 
 Activation token payload (Ed25519-signed by the Worker, verified in-app with an
 embedded public key — same mental model as updater signatures, second keypair):
@@ -215,14 +442,14 @@ embedded public key — same mental model as updater signatures, second keypair)
 ```json
 {
   "order_id": "…",
-  "github_id": 12345,
+  "subject": "github:github.com:583231",
   "updates_until": "2028-09-01",
   "signature": "…"
 }
 ```
 
 Renewals: second MoR product ("+1 year of updates") → webhook updates
-`updates_until` for the same `github_id`.
+`updates_until` for the same `subject`.
 
 ### In-app work (Rust)
 
@@ -233,8 +460,9 @@ Renewals: second MoR product ("+1 year of updates") → webhook updates
 - **Deep link:** `prflow://purchase?token=…` via `tauri-plugin-deep-link`
   (also used by §11a extension flow in the backlog). App verifies token,
   stores license locally, dismisses prompt.
-- **Launch check:** `GET /license/:github_id` when signed in (cache locally;
-  refresh periodically). Offline grace with cached `updates_until`.
+- **Launch check:** none needed — the signed token verifies offline against
+  the embedded public key. `GET /license/:subject` is for restore, not the
+  normal path.
 - **Updater gating:** `latest.json` stays fully static; client checks local
   `updates_until` before offering an update. Gating is client-side — fine under
   the no-DRM stance.

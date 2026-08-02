@@ -3,10 +3,12 @@
 # the template the release workflow renders with real version + sha256 values.
 #
 # Install:
-#   brew tap pauliuskrutkis/tap
-#   brew trust --tap pauliuskrutkis/tap   (one-time, newer Homebrew versions)
-#   brew install --cask nod
+#   brew install pauliuskrutkis/tap/nod
 #   xattr -dr com.apple.quarantine /Applications/Nod.app
+#
+# The qualified name auto-taps; --cask is unnecessary because no formula
+# shares the token. (brew trust --tap is only needed under
+# HOMEBREW_REQUIRE_TAP_TRUST, which is off by default.)
 #
 # (the xattr step because releases aren't Apple-notarized yet — Homebrew 6
 # removed --no-quarantine; the in-app updater keeps it current afterwards.)

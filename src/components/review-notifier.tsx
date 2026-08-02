@@ -63,10 +63,9 @@ export function ReviewNotifier() {
   const cardRef = useRef<HTMLDialogElement>(null);
   const prevFocusRef = useRef<HTMLElement | null>(null);
 
+  /* Loaded lazily in the effect so render stays pure: `undefined` = not
+     loaded yet, `null` = first ever run (seed silently, no toast). */
   const stored = useRef<Set<string> | null | undefined>(undefined);
-  if (stored.current === undefined) {
-    stored.current = loadKnown();
-  }
 
   useEffect(() => {
     if (!data) {
@@ -75,19 +74,14 @@ export function ReviewNotifier() {
     const { prs } = data.reviewRequested;
     const current = prs.map(keyOf);
 
-    if (stored.current === null) {
-      stored.current = new Set(current);
-      saveKnown(current);
-      return;
-    }
+    const known = stored.current === undefined ? loadKnown() : stored.current;
+    stored.current = new Set(current);
+    saveKnown(current);
 
-    const known = stored.current;
-    if (known === undefined) {
+    if (known === null) {
       return;
     }
     const fresh = prs.filter((item) => !known.has(keyOf(item)));
-    stored.current = new Set(current);
-    saveKnown(current);
     if (fresh.length === 0) {
       return;
     }

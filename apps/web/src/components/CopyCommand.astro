@@ -1,0 +1,80 @@
+---
+interface Props {
+  commands: string[];
+  label?: string;
+}
+
+const { commands, label = "Copy install commands" } = Astro.props;
+---
+
+<div class="cmd">
+  <span class="cmd__lines">
+    {
+      commands.map((command) => (
+        <span class="cmd__line">
+          <span class="cmd__prompt">$</span> {command}
+        </span>
+      ))
+    }
+  </span>
+  <button
+    type="button"
+    class="cmd__copy"
+    data-copy={commands.join("\n")}
+    aria-label={label}
+  >
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+    </svg>
+  </button>
+  <span class="cmd__status" role="status" aria-live="polite"></span>
+</div>
+
+<script>
+  // Progressive enhancement: the commands are selectable text without JS; this
+  // just adds one-click copy. Both outcomes report through the same call, so
+  // the icon state and the announced text can't drift apart — and the failed
+  // state un-hides the status line, since a blocked clipboard is otherwise
+  // invisible to anyone who can see the button. Astro bundles this once no
+  // matter how many times the component is used on a page.
+  const COPIED_MS = 1400;
+  const FAILED_MS = 5000;
+
+  for (const btn of document.querySelectorAll<HTMLButtonElement>(".cmd__copy")) {
+    const box = btn.closest<HTMLElement>(".cmd");
+    const status = box?.querySelector(".cmd__status");
+    let resetTimer: ReturnType<typeof setTimeout>;
+
+    function report(state: string, message: string, holdMs: number) {
+      if (box) box.dataset.copyState = state;
+      if (status) status.textContent = message;
+      clearTimeout(resetTimer);
+      resetTimer = setTimeout(() => {
+        box?.removeAttribute("data-copy-state");
+        if (status) status.textContent = "";
+      }, holdMs);
+    }
+
+    btn.addEventListener("click", async () => {
+      const text = btn.dataset.copy;
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        report("copied", "Copied", COPIED_MS);
+      } catch {
+        report("failed", "Couldn't copy — select the text instead", FAILED_MS);
+      }
+    });
+  }
+</script>

@@ -54,7 +54,7 @@ Built with **Tauri 2 + React 19 + TypeScript + Tailwind v4**.
 | `n` / `p`  | Next / previous file         |
 | `j` / `k`  | Move the line cursor (`↑`/`↓`) |
 | `Space`    | Page down the diff           |
-| `]c` / `[c`| Next / previous comment      |
+| `q` / `w`  | Next / previous comment      |
 | `c`        | Comment on the cursor line   |
 | `e`        | Mark file viewed and advance |
 | `v`        | Toggle file as viewed        |
@@ -205,18 +205,24 @@ plain JSON — fine for a local MVP; moving it to the OS keychain is on the road
 **macOS (Homebrew):**
 
 ```bash
-brew tap pauliuskrutkis/tap
-brew trust --tap pauliuskrutkis/tap
-brew install --cask nod
+brew install pauliuskrutkis/tap/nod
 xattr -dr com.apple.quarantine /Applications/Nod.app
 ```
 
-(`brew trust` is one-time, and only needed on newer Homebrew versions —
-note the `--tap` flag, plain `brew trust pauliuskrutkis/tap` is rejected.
-The `xattr` step is needed because releases aren't Apple-notarized yet;
-Homebrew 6 removed the old `--no-quarantine` flag. Alternatively,
-download the `.dmg` from [Releases](https://github.com/PauliusKrutkis/pr-flow/releases)
-and right-click → Open on first launch.)
+The fully-qualified name auto-taps, so `brew tap` is not a separate step.
+Once tapped, plain `brew install nod` works too — the cask token resolves
+from the tap, and `--cask` is not needed since no formula shares the name.
+
+The `xattr` step clears Gatekeeper quarantine, needed because releases
+aren't Apple-notarized yet (Homebrew 6 removed the old `--no-quarantine`
+flag). It disappears once notarization lands — see
+[RELEASING.md](docs/RELEASING.md#apple-notarization). Alternatively, download
+the `.dmg` from [Releases](https://github.com/PauliusKrutkis/pr-flow/releases)
+and approve it once under System Settings → Privacy & Security.
+
+`brew trust --tap pauliuskrutkis/tap` is only required if you've opted into
+`HOMEBREW_REQUIRE_TAP_TRUST`, which is off by default — most people never
+need it. Note the `--tap` flag if you do: plain `brew trust <tap>` is rejected.
 
 **Windows / Linux:** grab the installer (`.msi` / `.deb` / `.AppImage`) from
 [Releases](https://github.com/PauliusKrutkis/pr-flow/releases).

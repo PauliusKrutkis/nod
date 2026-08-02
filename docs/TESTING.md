@@ -1,9 +1,18 @@
 # Test strategy
 
-Starting point for unit + integration coverage. This document is the plan —
-no tests are implemented yet. E2E lives in its own effort; this covers the
-layers under it, ordered by how much regression risk each area has actually
-shown during development.
+The plan for unit + integration coverage, ordered by how much regression risk
+each area has actually shown during development. It has partly landed: the
+coverage maps below still describe intent, not a finished state, so treat an
+unticked row as work to do rather than a promise already kept.
+
+What exists today, and what runs it:
+
+| Suite | Where | Command |
+| --- | --- | --- |
+| App unit | `src/**/*.test.ts` | `pnpm test` |
+| App e2e (vite + mocked Tauri bridge) | `e2e/` | `pnpm e2e` |
+| Rust unit | `src-tauri/` | `cargo test --manifest-path src-tauri/Cargo.toml` |
+| Site unit, types, e2e | `apps/web/` | see [Marketing site](#marketing-site-appsweb) |
 
 ## Why now
 
@@ -86,9 +95,28 @@ path-independent logic or inject the config dir.
 `wait_for_code` / `handle_connection` request parsing (state mismatch, error
 params, non-callback paths) against a loopback `TcpStream`.
 
+## Marketing site (`apps/web`)
+
+The site has its own suites, separate from everything above because it shares
+no runtime with the app — no Tauri bridge, no React, no store.
+
+| Layer | Where | Command |
+| --- | --- | --- |
+| Unit (pure logic) | `apps/web/src/lib/*.test.ts` | `pnpm --filter @nod/web test` |
+| Types (incl. `.astro`) | — | `pnpm --filter @nod/web run check` |
+| E2E | `apps/web/e2e/*.spec.ts` | `pnpm e2e:web` |
+
+The e2e suite has its own Playwright config (`apps/web/playwright.config.ts`)
+and runs against a real `astro build` + `astro preview` on port 14207. It is
+kept out of the root config so a desktop run never starts an Astro server, and
+a site run never starts vite.
+
+Because `/downloads` is built from live GitHub Releases data, these specs
+assert structure and behaviour only — never a version, file size, or release
+note. A spec that pins `v0.4.0` breaks on the next release.
+
 ## Explicitly out of scope here
 
-- E2E flows (separate PR/effort).
 - Visual regression on the Quiet design system.
 - Live-network provider tests (fixtures stand in; a manual GitLab smoke
   checklist can live in `docs/RELEASING.md` later).

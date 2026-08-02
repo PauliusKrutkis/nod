@@ -1,4 +1,18 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.3/schema.json",
-  "extends": ["ultracite/core", "ultracite/react"]
+  "extends": ["ultracite/core", "ultracite/react"],
+  // Biome can't resolve .astro template usage and false-flags frontmatter as
+  // dead code, so .astro files are exempt and `astro check` covers them
+  // instead. The exemption stops at the file extension: everything else under
+  // apps/web — functions/, src/lib/, the stylesheet — has no .astro involved
+  // and is linted here, since astro check only type-checks and won't catch
+  // lint rules.
+  "files": {
+    "includes": [
+      "!apps/web/**/*.astro",
+      "!apps/web/dist",
+      "!apps/web/.astro",
+      "!apps/web/public"
+    ]
+  }
 }

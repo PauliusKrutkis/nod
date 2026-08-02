@@ -1,5 +1,8 @@
 import { setupApp } from "./bridge.ts";
-import { DETAIL_WITH_OWN_COMMENT } from "./fixtures.ts";
+import {
+  DETAIL_OWN_REPLY_THEN_OTHERS,
+  DETAIL_WITH_OWN_COMMENT,
+} from "./fixtures.ts";
 import { expect, test } from "./test.ts";
 
 test.beforeEach(async ({ page }) => {
@@ -73,4 +76,64 @@ test("shift+e is inert on a thread with none of your comments", async ({
   await expect(
     page.getByRole("textbox", { name: "Edit your comment…" })
   ).toHaveCount(0);
+});
+
+test("the shift+e hint hides once someone else replies after your comment, but the key still edits it", async ({
+  page,
+}) => {
+  await setupApp(page, { detail: DETAIL_OWN_REPLY_THEN_OTHERS });
+  await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
+
+  const thread = page.locator('[data-comment-root="100"]');
+  await thread.hover();
+
+  await expect(thread.getByText("I'll take a look.")).toBeVisible();
+  await expect(thread.getByText("Any update on this?")).toBeVisible();
+  await expect(
+    thread.getByRole("button", { name: "Edit comment" })
+  ).toBeVisible();
+  await expect(thread.locator(".q-kbd", { hasText: "E" })).toHaveCount(0);
+
+  await page.keyboard.press("Shift+E");
+  const box = page.getByRole("textbox", { name: "Edit your comment…" });
+  await expect(box).toContainText("I'll take a look.");
+});
+
+test("opening the reply composer hides Edit/Delete on the thread's other comments", async ({
+  page,
+}) => {
+  const mine = page.locator('[data-comment-root="150"]');
+  await mine.hover();
+  await expect(
+    mine.getByRole("button", { name: "Edit comment" })
+  ).toBeVisible();
+
+  await page.keyboard.press("r");
+  await expect(page.getByRole("textbox", { name: "Reply…" })).toBeFocused();
+  await expect(mine.getByRole("button", { name: "Edit comment" })).toHaveCount(
+    0
+  );
+  await expect(
+    mine.getByRole("button", { name: "Delete comment" })
+  ).toHaveCount(0);
+
+  await page.keyboard.press("Escape");
+  await expect(
+    mine.getByRole("button", { name: "Edit comment" })
+  ).toBeVisible();
+});
+
+test("the keyboard cursor reveals Edit/Delete the same way hover does", async ({
+  page,
+}) => {
+  const mine = page.locator('[data-comment-root="150"]');
+  const tools = mine.locator(".qf-comment-tools");
+  await expect(tools).toHaveCSS("opacity", "0");
+
+  await page.keyboard.press("q");
+  await page.keyboard.press("q");
+  await expect(page.locator(".qf-comment-wrap.qf-thread-active")).toHaveCount(
+    1
+  );
+  await expect(tools).toHaveCSS("opacity", "1");
 });

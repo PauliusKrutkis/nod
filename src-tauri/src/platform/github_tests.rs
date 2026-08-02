@@ -44,6 +44,7 @@ fn graphql_bucket_maps_states_and_counts() {
                     "url": "https://github.com/o/r/pull/2",
                     "state": "MERGED", "isDraft": false,
                     "createdAt": "c", "updatedAt": "u",
+                    "headRefName": "feat/stacked", "baseRefName": "main",
                     "author": { "login": "a", "avatarUrl": "av" },
                     "repository": { "name": "r", "owner": { "login": "o" } },
                     "comments": { "totalCount": 1 }
@@ -58,6 +59,8 @@ fn graphql_bucket_maps_states_and_counts() {
     assert_eq!(bucket.prs[0].owner, "o");
     assert!(bucket.prs[0].merged);
     assert_eq!(bucket.prs[0].state, "merged");
+    assert_eq!(bucket.prs[0].head_ref, "feat/stacked");
+    assert_eq!(bucket.prs[0].base_ref, "main");
 }
 
 #[test]

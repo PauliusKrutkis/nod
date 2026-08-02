@@ -1,13 +1,24 @@
+/**
+ * `shift+e` always edits your last comment in the thread — even one buried
+ * under someone else's reply — but its `editKbdId` hint chip only shows when
+ * that comment is also the thread's last word, since otherwise the chip
+ * would misleadingly suggest it's still the next thing you'd act on.
+ * `composerOpen` hides Edit/Delete on every comment while a reply or edit
+ * composer is open here: those hotkeys (`r`/`x`/`z`/`shift+e`) are inert
+ * while a text input has focus, so showing them would advertise dead
+ * shortcuts.
+ */
 import { CheckCircle2, MessageSquare } from "lucide-react";
 import { useState } from "react";
 import { cn } from "../../lib/cn.ts";
+import { firstLine } from "../../lib/comment-format.ts";
 import { formatAbsolute, formatRelativeTime } from "../../lib/time.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type { ReviewComment } from "../../types.ts";
-import { Markdown } from "../markdown.tsx";
 import { Avatar } from "../ui/avatar.tsx";
 import { Kbd } from "../ui/kbd.tsx";
 import { AddCommentBox } from "./add-comment-box.tsx";
+import { CommentBody, CommentTools } from "./comment-item.tsx";
 
 export interface ReplyRequest {
   nonce: number;
@@ -32,8 +43,10 @@ interface CommentThreadProps {
   onHoverChange?: (hovering: boolean) => void;
   onReply: (a: { inReplyTo: number; body: string }) => Promise<void>;
   onResolve?: (a: { threadId: string; resolved: boolean }) => void;
+  owner: string;
   replyPending: boolean;
   replyRequest?: ReplyRequest | null;
+  repo: string;
   toggleRequest?: ToggleRequest | null;
 }
 
@@ -62,6 +75,8 @@ export function CommentThread({
   replyRequest,
   toggleRequest,
   editRequest,
+  owner,
+  repo,
 }: CommentThreadProps) {
   const [root] = comments;
   const rootId = root?.id;
@@ -72,17 +87,19 @@ export function CommentThread({
   );
   const ownComments = comments.filter((c) => c.user === ownLogin);
   const lastOwnId = ownComments.at(-1)?.id;
+  const editKbdId =
+    lastOwnId !== undefined && lastOwnId === comments.at(-1)?.id
+      ? lastOwnId
+      : undefined;
 
   const [replying, setReplying] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [confirmingDeleteId, setConfirmingDeleteId] = useState<number | null>(
-    null
-  );
   const [collapsed, setCollapsed] = useState(resolved);
   const [wasResolved, setWasResolved] = useState(resolved);
   const [lastReplyNonce, setLastReplyNonce] = useState(0);
   const [lastToggleNonce, setLastToggleNonce] = useState(0);
   const [lastEditNonce, setLastEditNonce] = useState(0);
+  const composerOpen = replying || editingId !== null;
 
   if (wasResolved !== resolved) {
     setWasResolved(resolved);
@@ -130,34 +147,17 @@ export function CommentThread({
     setEditingId(null);
   };
 
-  const handleStartEdit = (e: React.MouseEvent<HTMLButtonElement>) => {
-    const id = Number(e.currentTarget.dataset.commentId);
-    if (Number.isFinite(id)) {
-      setEditingId(id);
-      setReplying(false);
-      setConfirmingDeleteId(null);
-    }
+  const handleStartEdit = (commentId: number) => {
+    setEditingId(commentId);
+    setReplying(false);
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
   };
 
-  const handleDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
-    const id = Number(e.currentTarget.dataset.commentId);
-    if (!Number.isFinite(id)) {
-      return;
-    }
-    if (confirmingDeleteId === id) {
-      setConfirmingDeleteId(null);
-      onDelete?.({ commentId: id })?.catch(() => undefined);
-    } else {
-      setConfirmingDeleteId(id);
-    }
-  };
-
-  const disarmDelete = () => {
-    setConfirmingDeleteId(null);
+  const handleDelete = (commentId: number) => {
+    onDelete?.({ commentId })?.catch(() => undefined);
   };
 
   const expand = () => {
@@ -283,58 +283,28 @@ export function CommentThread({
             >
               {formatRelativeTime(c.createdAt)}
             </span>
-            {c.user === ownLogin && editingId !== c.id && (
-              <span className="qf-comment-tools">
-                {!!onEdit && (
-                  <button
-                    aria-label="Edit comment"
-                    className="qf-comment-tool qf-focusable"
-                    data-comment-id={c.id}
-                    onClick={handleStartEdit}
-                    type="button"
-                  >
-                    Edit
-                    {c.id === lastOwnId && (
-                      <span aria-hidden className="qf-key-hint">
-                        <Kbd combo="shift+e" />
-                      </span>
-                    )}
-                  </button>
-                )}
-                {!!onDelete && (
-                  <button
-                    aria-label="Delete comment"
-                    className={cn(
-                      "qf-comment-tool qf-focusable",
-                      confirmingDeleteId === c.id && "qf-comment-tool-danger"
-                    )}
-                    data-comment-id={c.id}
-                    onBlur={disarmDelete}
-                    onClick={handleDelete}
-                    onMouseLeave={disarmDelete}
-                    type="button"
-                  >
-                    {confirmingDeleteId === c.id ? "Delete?" : "Delete"}
-                  </button>
-                )}
-              </span>
+            {!composerOpen && (
+              <CommentTools
+                body={c.body}
+                commentId={c.id}
+                editKbd={c.id === editKbdId ? "shift+e" : undefined}
+                onDelete={
+                  c.user === ownLogin && onDelete ? handleDelete : undefined
+                }
+                onStartEdit={
+                  c.user === ownLogin && onEdit ? handleStartEdit : undefined
+                }
+              />
             )}
           </div>
-          {editingId === c.id ? (
-            <AddCommentBox
-              autoFocus
-              initialMarkdown={c.body}
-              onCancel={handleCancelEdit}
-              onSubmit={submitEdit}
-              pending={false}
-              placeholder="Edit your comment…"
-              submitLabel="Save"
-            />
-          ) : (
-            <div className="qf-comment-body">
-              <Markdown>{c.body}</Markdown>
-            </div>
-          )}
+          <CommentBody
+            body={c.body}
+            editing={editingId === c.id}
+            onCancelEdit={handleCancelEdit}
+            onSubmitEdit={submitEdit}
+            owner={owner}
+            repo={repo}
+          />
         </div>
       ))}
       {replying ? (
@@ -376,8 +346,4 @@ export function CommentThread({
       )}
     </div>
   );
-}
-
-function firstLine(body: string): string {
-  return body.trim().split("\n")[0] ?? "";
 }

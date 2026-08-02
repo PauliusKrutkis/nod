@@ -1,0 +1,188 @@
+---
+import CopyCommand from "../components/CopyCommand.astro";
+import SiteFooter from "../components/SiteFooter.astro";
+import SiteNav from "../components/SiteNav.astro";
+import Base from "../layouts/Base.astro";
+import { fetchReleases, formatDate, groupByPlatform } from "../lib/releases";
+import {
+  BREW_INSTALL_COMMANDS,
+  INSTALL_NOTES_URL,
+  REPO_URL,
+} from "../lib/site";
+
+const [latest, ...older] = await fetchReleases();
+
+const groups = groupByPlatform(latest.downloads);
+---
+
+<Base
+  title="Download Nod"
+  description="Download Nod for macOS, Windows, and Linux, or install it with Homebrew. After the first install the app keeps itself up to date."
+>
+  <SiteNav cta={{ href: "#versions", label: "Release notes" }} />
+
+  <main>
+    <section class="wrap dl">
+      <p class="eyebrow">Downloads</p>
+      <h1 class="dl__title">Install Nod</h1>
+      <p class="dl__sub">
+        Latest is <span class="mono dl__version">{latest.tag}</span>, released {
+          formatDate(latest.publishedAt)
+        }. After the first install the app updates itself.
+      </p>
+
+      <div class="dl__pick">
+        {
+          groups.map((group, index) => (
+            <div
+              class="dl__option"
+              data-platform={group.platform}
+              data-active={index === 0 ? "true" : undefined}
+            >
+              <a class="btn btn--primary dl__btn" href={group.primary.url}>
+                <span>Download for {group.platform}</span>
+                <span class="mono dl__btn-meta">
+                  {group.primary.detail} · {group.primary.size}
+                </span>
+              </a>
+              {group.alternates.length > 0 && (
+                <p class="dl__alt">
+                  Other builds:{" "}
+                  {group.alternates.map((alternate, alternateIndex) => (
+                    <>
+                      {alternateIndex > 0 && <span aria-hidden="true"> · </span>}
+                      <a href={alternate.url}>{alternate.detail}</a>
+                    </>
+                  ))}
+                </p>
+              )}
+              {group.platform === "macOS" && (
+                <p class="dl__note">
+                  On first launch, approve Nod under System Settings → Privacy
+                  &amp; Security. It isn't{" "}
+                  <a href={INSTALL_NOTES_URL}>notarized by Apple</a> yet.
+                </p>
+              )}
+            </div>
+          ))
+        }
+      </div>
+
+      <div class="dl__brew" id="homebrew">
+        <p class="dl__brew-head">On macOS, with Homebrew</p>
+        <CopyCommand
+          commands={BREW_INSTALL_COMMANDS}
+          label="Copy Homebrew install commands"
+        />
+        <p class="dl__note">
+          Homebrew picks the right build for your Mac. The second command
+          clears Gatekeeper quarantine, which stands in for notarization.
+        </p>
+      </div>
+
+      <details class="dl__all">
+        <summary class="dl__summary">Downloading for another machine?</summary>
+        <div class="dl__groups">
+          {
+            groups.map((group) => (
+              <section class="dl__group">
+                <h2 class="dl__group-head">{group.platform}</h2>
+                <ul class="dl__list">
+                  {[group.primary, ...group.alternates].map((build) => (
+                    <li>
+                      <a class="dl__item" href={build.url}>
+                        <span class="dl__detail">{build.detail}</span>
+                        <span class="mono dl__size">{build.size}</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))
+          }
+        </div>
+      </details>
+    </section>
+
+    <section class="wrap vers" id="versions">
+      <h2 class="vers__head">
+        What's new in <span class="mono">{latest.tag}</span>
+      </h2>
+      {
+        latest.notes.length > 0 ? (
+          <ul class="vers__notes">
+            {latest.notes.map((note) => (
+              <li>{note}</li>
+            ))}
+          </ul>
+        ) : (
+          <p class="vers__empty">
+            No notes for this release.{" "}
+            <a href={`${REPO_URL}/releases/tag/${latest.tag}`}>See it on GitHub</a>.
+          </p>
+        )
+      }
+
+      {
+        older.length > 0 && (
+          <div class="vers__older">
+            <p class="vers__older-head">Previous releases</p>
+            {older.map((release) => (
+              <details class="vers__item">
+                <summary class="vers__summary">
+                  <span class="mono vers__tag">{release.tag}</span>
+                  <span class="vers__date">
+                    {formatDate(release.publishedAt)}
+                  </span>
+                </summary>
+                <div class="vers__body">
+                  {release.notes.length > 0 && (
+                    <ul class="vers__notes">
+                      {release.notes.map((note) => (
+                        <li>{note}</li>
+                      ))}
+                    </ul>
+                  )}
+                  <a
+                    class="vers__assets"
+                    href={`${REPO_URL}/releases/tag/${release.tag}`}
+                  >
+                    Downloads for {release.tag} →
+                  </a>
+                </div>
+              </details>
+            ))}
+          </div>
+        )
+      }
+    </section>
+  </main>
+
+  <SiteFooter />
+</Base>
+
+<script>
+  import { detectPlatform } from "../lib/platform";
+
+  // Progressive enhancement: every platform's option is in the HTML and the
+  // first one shows without JS, so this only re-points the page at the
+  // visitor's own OS. An unrecognised platform leaves the default alone.
+  const navigatorWithHints = navigator as Navigator & {
+    userAgentData?: { platform?: string };
+  };
+  const platformHint =
+    navigatorWithHints.userAgentData?.platform || navigator.userAgent;
+
+  const platform = detectPlatform(platformHint);
+  const options = document.querySelectorAll<HTMLElement>(".dl__option");
+  const match = [...options].find(
+    (option) => option.dataset.platform === platform
+  );
+
+  if (match) {
+    for (const option of options) {
+      option.removeAttribute("data-active");
+    }
+    match.dataset.active = "true";
+  }
+</script>

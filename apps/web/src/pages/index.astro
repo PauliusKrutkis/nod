@@ -1,0 +1,78 @@
+---
+import Base from "../layouts/Base.astro";
+import DiffReplay from "../components/DiffReplay.astro";
+import SiteFooter from "../components/SiteFooter.astro";
+import SiteNav from "../components/SiteNav.astro";
+
+const features = [
+  {
+    key: "jk",
+    title: "Keyboard-first",
+    body: "Move through PRs, files, hunks, and comment threads without ever reaching for the mouse.",
+  },
+  {
+    key: "⚡",
+    title: "Cache-first",
+    body: "Everything you've seen paints instantly from a local cache. The network refreshes quietly in the background.",
+  },
+  {
+    key: "⏯",
+    title: "Resume instantly",
+    body: "Launch straight back into the last PR — the same file and scroll position you left it on.",
+  },
+];
+---
+
+<Base
+  title="Nod — keyboard-first PR review"
+  description="A keyboard-first, cache-first desktop app for reviewing GitHub pull requests. Closer to triaging an inbox than navigating a website."
+>
+  <SiteNav cta={{ href: "#get", label: "Download" }} />
+
+  <main>
+    <section class="wrap hero">
+      <p class="eyebrow">Keyboard-first PR review</p>
+      <h1 class="hero__title">Review pull requests at the <em>speed of thought</em>.</h1>
+      <p class="hero__sub">
+        A focused desktop app for the thing you do every day: open a review request,
+        read the diff, leave a comment, move on.
+      </p>
+      <p class="hero__thesis">
+        keyboard-first + cache-first — <b>closer to an inbox than a website</b>.
+      </p>
+
+      <DiffReplay />
+
+      <div class="get" id="get">
+        <a class="btn btn--primary" href="/downloads">Download Nod</a>
+        <p class="get__note">
+          macOS, Windows, and Linux — or install with{" "}<a
+            href="/downloads#homebrew">Homebrew</a
+          >. Free while it's an experiment.
+        </p>
+      </div>
+    </section>
+
+    <section class="wrap">
+      <div class="features">
+        {
+          features.map((f) => (
+            <article class="feature">
+              <span class="feature__key mono">{f.key}</span>
+              <h3 class="feature__title">{f.title}</h3>
+              <p class="feature__body">{f.body}</p>
+            </article>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="wrap demo" aria-label="Product demo">
+      <div class="demo__frame">
+        <span class="demo__label">▶ demo — coming soon</span>
+      </div>
+    </section>
+  </main>
+
+  <SiteFooter />
+</Base>
