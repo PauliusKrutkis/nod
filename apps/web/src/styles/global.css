@@ -30,6 +30,8 @@
   --font-mono: "Geist Mono Variable", "Geist Mono", ui-monospace, monospace;
 
   --dr-row: 26px;
+
+  --nav-clearance: 76px;
 }
 
 * {
@@ -1043,7 +1045,7 @@ a {
   margin-top: clamp(38px, 8vw, 60px);
   padding-top: clamp(24px, 5vw, 34px);
   border-top: 1px solid var(--line);
-  scroll-margin-top: 76px;
+  scroll-margin-top: var(--nav-clearance);
 }
 
 .dl__brew-head {
@@ -1183,7 +1185,7 @@ a {
 
 .vers {
   margin-top: clamp(44px, 9vw, 68px);
-  scroll-margin-top: 76px;
+  scroll-margin-top: var(--nav-clearance);
 }
 
 .vers__head {

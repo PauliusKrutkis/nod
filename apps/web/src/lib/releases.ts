@@ -243,7 +243,8 @@ export async function fetchReleases(): Promise<Release[]> {
         "Set GITHUB_TOKEN in the build environment if this is a rate limit."
     );
   }
-  return assertInstallable(toReleases(await response.json()));
+  const payload: ApiRelease[] = await response.json();
+  return assertInstallable(toReleases(payload));
 }
 
 export function assertInstallable(releases: Release[]): Release[] {

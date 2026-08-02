@@ -1,4 +1,11 @@
 ---
+/**
+ * Progressive enhancement in the client script: every platform's option is in
+ * the HTML and the first one shows without JS, so the script only re-points
+ * the page at the visitor's own OS. An unrecognised platform leaves the
+ * default alone.
+ */
+
 import CopyCommand from "../components/CopyCommand.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteNav from "../components/SiteNav.astro";
@@ -178,9 +185,6 @@ const history = limitHistory(older, VISIBLE_HISTORY_COUNT);
 <script>
   import { detectPlatform } from "../lib/platform";
 
-  // Progressive enhancement: every platform's option is in the HTML and the
-  // first one shows without JS, so this only re-points the page at the
-  // visitor's own OS. An unrecognised platform leaves the default alone.
   const navigatorWithHints = navigator as Navigator & {
     userAgentData?: { platform?: string };
   };
