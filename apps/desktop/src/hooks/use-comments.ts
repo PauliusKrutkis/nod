@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { api } from "../lib/api.ts";
 import { queryClient, queryKeys } from "../lib/query-client.ts";
 import { useAppStore } from "../store/app-store.ts";
@@ -325,7 +325,7 @@ export function useCommentMutations(
     },
   });
 
-  const resolveIntentRef = useRef(new Map<string, boolean>());
+  const [resolveIntents] = useState(() => new Map<string, boolean>());
   const resolveInflightRef = useRef<string | null>(null);
 
   const patchThreadResolved = (threadId: string, resolved: boolean) => {
@@ -349,10 +349,14 @@ export function useCommentMutations(
     if (!detail) {
       return;
     }
-    for (const [threadId, intent] of resolveIntentRef.current) {
-      const current = detail.comments.find(
-        (c) => c.threadId === threadId
-      )?.resolved;
+    const resolvedByThread = new Map<string, boolean | undefined>();
+    for (const c of detail.comments) {
+      if (c.threadId !== null && !resolvedByThread.has(c.threadId)) {
+        resolvedByThread.set(c.threadId, c.resolved);
+      }
+    }
+    for (const [threadId, intent] of resolveIntents) {
+      const current = resolvedByThread.get(threadId);
       if (current !== undefined && current !== intent) {
         resolveInflightRef.current = threadId;
         resolveThread.mutate({ resolved: intent, threadId });
@@ -365,7 +369,7 @@ export function useCommentMutations(
     threadId: string;
     resolved: boolean;
   }) => {
-    resolveIntentRef.current.set(args.threadId, args.resolved);
+    resolveIntents.set(args.threadId, args.resolved);
     patchThreadResolved(args.threadId, args.resolved);
     if (resolveInflightRef.current !== null) {
       return;
