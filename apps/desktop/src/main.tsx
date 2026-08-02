@@ -5,7 +5,6 @@ import App from "./app.tsx";
 import { KeyboardProvider } from "./keyboard/keyboard-provider.tsx";
 import { api } from "./lib/api.ts";
 import { queryClient } from "./lib/query-client.ts";
-import { migrateStorageKeys } from "./lib/storage-migrations.ts";
 import { normalizeViewedMap } from "./lib/viewed-fingerprint.ts";
 import { useAppStore } from "./store/app-store.ts";
 
@@ -22,8 +21,6 @@ import "./index.css";
  * React mounts. The Rust side persists opaque JSON, so older installs may hold
  * the legacy `prKey -> string[]` shape — normalizeViewedMap migrates either.
  */
-migrateStorageKeys();
-
 api
   .getViewedMap()
   .then((map) => useAppStore.getState().setViewed(normalizeViewedMap(map)))

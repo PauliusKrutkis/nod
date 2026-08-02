@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { api } from "../lib/api.ts";
 import { usePerfStore } from "../lib/perf.ts";
+import { migrateStorageKeys } from "../lib/storage-migrations.ts";
 import {
   autoUnviewedKey,
   reconcileViewedEntry,
@@ -15,6 +16,8 @@ import type {
   PendingComment,
   ViewedMap,
 } from "../types.ts";
+
+migrateStorageKeys();
 
 export type Route =
   | { name: "loading" }
