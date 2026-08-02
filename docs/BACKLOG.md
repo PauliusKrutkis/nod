@@ -1546,9 +1546,19 @@ link interception · Universal Links.
   ignore — no-giant-component passes clean. The do-not-extract list held:
   selectLine, the model build, and the 20-useState block stay in the
   component.*
-- [ ] **React Doctor full-codebase score not 100/100** — run react-doctor
+- [x] **React Doctor full-codebase score not 100/100** — run react-doctor
   across the whole codebase and address remaining findings beyond the known
   `no-giant-component` ignore above.
+  *Shipped 2026-08-02 (PRs #157–#166): 100/100, no findings (was 46/100 with
+  5 errors + 16 warnings). Real fixes: tooltip open-delay redesigned around
+  an intent effect (rules-of-hooks + compiler bails), expansion-restore
+  timers wired into cancel(), comment resolve-intents in a useState-lazy
+  map + a thread-resolved index, versioned localStorage keys with one-time
+  legacy migration at store init, RightPanel split into section components
+  (395 → 265 lines). Deliberate disagreements scoped in doctor.config.json
+  per react-doctor.yml's policy: exhaustive-deps (biome enforces it with
+  documented per-site ignores) and the unmemoized-context-value rule
+  (covered by the React Compiler).*
 - [x] **E2E hardcodes `Control+…` — macOS-red for every editor shortcut** — the
   Tiptap composer binds `Mod-…` shortcuts (`composer-editor.tsx`), which
   ProseMirror resolves to **Cmd on macOS, Ctrl on Linux/Windows**. The e2e
