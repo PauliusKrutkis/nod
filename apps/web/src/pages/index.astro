@@ -6,6 +6,11 @@ import FeatureKeys from "../components/FeatureKeys.astro";
 import FeatureResume from "../components/FeatureResume.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteNav from "../components/SiteNav.astro";
+
+// The buy button appears only when a checkout exists (build-time env, set
+// once the merchant account is live); until then the pricing card is honest
+// about it and leads with the free intro instead of a dead button.
+const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
 ---
 
 <Base
@@ -30,7 +35,7 @@ import SiteNav from "../components/SiteNav.astro";
         <p class="get__note">
           macOS, Windows, and Linux — or install with{" "}<a
             href="/downloads#homebrew">Homebrew</a
-          >. Free while it's an experiment.
+          >. Free to try for 14 days.
         </p>
       </div>
     </section>
@@ -41,6 +46,37 @@ import SiteNav from "../components/SiteNav.astro";
         <FeatureKeys />
         <FeatureCache />
         <FeatureResume />
+      </div>
+    </section>
+
+    <section class="wrap pricing" aria-label="Pricing" id="pricing">
+      <p class="eyebrow">Pricing</p>
+      <div class="pricing__card">
+        <p class="pricing__price">
+          $29 <span class="pricing__term">one-time · a year of updates</span>
+        </p>
+        <p class="pricing__copy">
+          Every feature is free for 14 days. After that Nod keeps working —
+          forever — and a license keeps the updates coming.
+        </p>
+        {
+          checkoutUrl ? (
+            <a class="btn btn--primary" href={checkoutUrl}>
+              Buy Nod
+            </a>
+          ) : (
+            <a class="btn btn--primary" href="/downloads">
+              Start the free intro
+            </a>
+          )
+        }
+        {
+          !checkoutUrl && (
+            <p class="pricing__note">
+              Purchasing opens soon — the intro is full-featured.
+            </p>
+          )
+        }
       </div>
     </section>
   </main>
