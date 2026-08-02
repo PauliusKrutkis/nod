@@ -7,13 +7,7 @@
  * keyboard row navigation already uses via `nudgeItemIntoView`.
  */
 import { openUrl } from "@tauri-apps/plugin-opener";
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useCommentMutations } from "../../hooks/use-comments.ts";
 import {
   useExpansionScrollRestore,
@@ -35,11 +29,13 @@ import {
   isRealPointer,
   useReviewListCallbacks,
 } from "../../hooks/use-review-list-callbacks.ts";
+import { useReviewPanels } from "../../hooks/use-review-panels.ts";
 import {
   advanceToNextReview,
   useReviewSubmitActions,
 } from "../../hooks/use-review-submit-actions.ts";
 import { useReviewThreadActions } from "../../hooks/use-review-thread-actions.ts";
+import { useReviewUnmountCleanup } from "../../hooks/use-review-unmount-cleanup.ts";
 import { useViewedFileReconcile } from "../../hooks/use-viewed-file-reconcile.ts";
 import { cn } from "../../lib/cn.ts";
 import {
@@ -83,6 +79,7 @@ import { useAppStore } from "../../store/app-store.ts";
 import type {
   ChangedFile,
   PendingComment,
+  PullRequest,
   ReviewComment,
 } from "../../types.ts";
 import { parsePrKey } from "../../types.ts";
@@ -209,49 +206,32 @@ function resolveRulerFractions(
   }
   return EMPTY_FRACTIONS;
 }
-
-/** Below this viewport width the 300px file tree stops being a push column and
- *  becomes an overlay drawer, so the diff keeps its full width on small windows
- *  and under high webview zoom (which shrinks the effective CSS width). */
-const SIDEBAR_COMPACT_QUERY = "(max-width: 1024px)";
-
-function getSidebarCompactSnapshot(): boolean {
-  return window.matchMedia(SIDEBAR_COMPACT_QUERY).matches;
-}
-
-function getSidebarCompactServerSnapshot(): boolean {
-  return false;
-}
-
-function subscribeSidebarCompact(onStoreChange: () => void): () => void {
-  const mq = window.matchMedia(SIDEBAR_COMPACT_QUERY);
-  mq.addEventListener("change", onStoreChange);
-  return () => mq.removeEventListener("change", onStoreChange);
-}
-
-const DRAWER_WIDE_KEY = "pr-flow:drawerWide";
-
-// TODO: extract a useLocalStorage hook when a second persisted UI pref lands (separate PR).
-function readDrawerWide(): boolean {
-  try {
-    return localStorage.getItem(DRAWER_WIDE_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function persistDrawerWide(wide: boolean): void {
-  try {
-    localStorage.setItem(DRAWER_WIDE_KEY, wide ? "1" : "0");
-  } catch {
-    // storage unavailable (private mode) — width just won't persist
-  }
-}
 export function ReviewScreen({ routeKey }: ReviewScreenProps) {
   return <ReviewScreenInner routeKey={routeKey} />;
 }
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: TODO split into smaller components (see BACKLOG.md § Tech debt) and drop test-noise ignore in doctor.config.json
+function sidebarColumnClass(compact: boolean, open: boolean): string {
+  return cn(
+    "qf-sidebar-col",
+    compact ? "qf-sidebar-overlay" : "qf-sidebar-inline",
+    open && "qf-sidebar-open"
+  );
+}
+
+function openPrInBrowser(pr: PullRequest | undefined): void {
+  if (pr?.url) {
+    openUrl(pr.url);
+  }
+}
+
+function openPrFilesInBrowser(pr: PullRequest | undefined): void {
+  if (!pr?.url) {
+    return;
+  }
+  const urlFilesPath = isGitlabPrUrl(pr.url) ? "/diffs" : "/files";
+  openUrl(pr.url + urlFilesPath);
+}
+
 function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const { name: repo, number, owner } = parsePrKey(routeKey);
   const keyValue = routeKey;
@@ -276,25 +256,23 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const [initialMem] = useState(() => getReviewMemory(keyValue));
 
   const [activeIndex, setActiveIndex] = useState(initialMem?.fileIndex ?? 0);
-  const [rightOpen, setRightOpen] = useState(false);
-  const rightOpenRef = useLatest(rightOpen);
+  const {
+    closeSidebarOverlay,
+    drawerWide,
+    onCloseRightPanel,
+    onCloseSidebar,
+    onToggleDrawerWide,
+    onToggleRightPanel,
+    onToggleSidebar,
+    rightOpen,
+    rightOpenRef,
+    setRightOpen,
+    sidebarCompact,
+    sidebarOpen,
+    sidebarOverlayOpen,
+    sidebarOverlayOpenRef,
+  } = useReviewPanels();
   const rightPanelRef = useRef<RightPanelHandle>(null);
-  const sidebarCompact = useSyncExternalStore(
-    subscribeSidebarCompact,
-    getSidebarCompactSnapshot,
-    getSidebarCompactServerSnapshot
-  );
-  const [sidebarOpen, setSidebarOpen] = useState(
-    () => !getSidebarCompactSnapshot()
-  );
-  const [prevSidebarCompact, setPrevSidebarCompact] = useState(sidebarCompact);
-  if (prevSidebarCompact !== sidebarCompact) {
-    setPrevSidebarCompact(sidebarCompact);
-    setSidebarOpen(!sidebarCompact);
-  }
-  const sidebarOverlayOpen = sidebarCompact && sidebarOpen;
-  const sidebarOverlayOpenRef = useLatest(sidebarOverlayOpen);
-  const [drawerWide, setDrawerWide] = useState(readDrawerWide);
   const [submitOpen, setSubmitOpen] = useState(false);
   const [prSearch, setPrSearch] = useState<null | "files" | "text">(null);
   const [reconcileDismissed, setReconcileDismissed] = useState<Set<string>>(
@@ -720,43 +698,14 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     setSelection,
   });
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO mount-only cleanup for timer/raf refs
-  useEffect(
-    () => () => {
-      const flashTimer = flashTimerRef.current;
-      const threadFlash = threadFlashRef.current;
-      const copyTimer = copyTimerRef.current;
-      const saveStateTimer = saveStateTimerRef.current;
-      const fileRaf = fileRafRef.current;
-      const cursorRaf = cursorRafRef.current;
-      if (flashTimer) {
-        clearTimeout(flashTimer);
-      }
-      if (threadFlash) {
-        clearTimeout(threadFlash);
-      }
-      if (copyTimer) {
-        clearTimeout(copyTimer);
-      }
-      if (saveStateTimer) {
-        clearTimeout(saveStateTimer);
-      }
-      if (fileRaf !== null) {
-        cancelAnimationFrame(fileRaf);
-      }
-      if (cursorRaf !== null) {
-        cancelAnimationFrame(cursorRaf);
-      }
-    },
-    [
-      copyTimerRef,
-      cursorRafRef,
-      fileRafRef,
-      flashTimerRef,
-      saveStateTimerRef,
-      threadFlashRef,
-    ]
-  );
+  useReviewUnmountCleanup({
+    copyTimerRef,
+    cursorRafRef,
+    fileRafRef,
+    flashTimerRef,
+    saveStateTimerRef,
+    threadFlashRef,
+  });
 
   const matchesFor = (spec: OccState) =>
     occurrenceMatches(
@@ -877,42 +826,12 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   });
 
   const onOpenPrUrl = () => {
-    if (pr?.url) {
-      openUrl(pr.url);
-    }
-  };
-
-  const onToggleRightPanel = () => {
-    setRightOpen((open) => !open);
-  };
-
-  const onCloseRightPanel = () => {
-    setRightOpen(false);
-  };
-
-  const onToggleSidebar = () => {
-    setSidebarOpen((open) => !open);
-  };
-
-  const onCloseSidebar = () => {
-    setSidebarOpen(false);
+    openPrInBrowser(pr);
   };
 
   const onSelectFile = (i: number) => {
     scrollToFile(i);
-    if (sidebarOverlayOpenRef.current) {
-      setSidebarOpen(false);
-    }
-  };
-
-  const onToggleDrawerWide = () => {
-    if (!rightOpenRef.current) {
-      setRightOpen(true);
-      return;
-    }
-    const next = !drawerWide;
-    setDrawerWide(next);
-    persistDrawerWide(next);
+    closeSidebarOverlay();
   };
 
   const onCloseSubmitModal = () => {
@@ -941,11 +860,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   };
 
   const onOpenPrFiles = () => {
-    if (!pr?.url) {
-      return;
-    }
-    const urlFilesPath = isGitlabPrUrl(pr.url) ? "/diffs" : "/files";
-    openUrl(pr.url + urlFilesPath);
+    openPrFilesInBrowser(pr);
   };
 
   useReviewHotkeys({
@@ -1006,13 +921,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const reviews = detail.reviews ?? [];
   return (
     <div className="dir-quiet relative flex h-full min-h-0 overflow-hidden">
-      <aside
-        className={cn(
-          "qf-sidebar-col",
-          sidebarCompact ? "qf-sidebar-overlay" : "qf-sidebar-inline",
-          sidebarOpen && "qf-sidebar-open"
-        )}
-      >
+      <aside className={sidebarColumnClass(sidebarCompact, sidebarOpen)}>
         <FileSidebar
           changed={changedSinceViewed}
           comments={detail.comments}

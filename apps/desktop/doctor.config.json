@@ -1,6 +1,3 @@
 {
-  "$schema": "https://react.doctor/schema/config.json",
-  "ignore": {
-    "tags": ["test-noise"]
-  }
+  "$schema": "https://react.doctor/schema/config.json"
 }
