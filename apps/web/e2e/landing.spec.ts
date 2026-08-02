@@ -17,6 +17,8 @@ const PLATFORM_NAME_PATTERN = /macOS|Windows|Linux/;
 
 const STABLE_FRAMES = 3;
 
+const HERO_LOOP_PATTERN = /ir-out1/;
+
 /**
  * Resolves once the scroll position has stopped moving. `scroll-behavior` is
  * smooth, so an anchor jump animates; any geometry read mid-flight describes a
@@ -52,6 +54,24 @@ test("leads with the inbox thesis in the hero", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Review PRs like an inbox, not a website."
   );
+});
+
+test("the hero inbox triages itself, and freezes drained under reduced motion", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await expect(page.locator(".ir__row--out1")).toHaveCSS(
+    "animation-name",
+    HERO_LOOP_PATTERN
+  );
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.reload();
+  const archived = page.locator(".ir__row--out1");
+  await expect(archived).toHaveCSS("animation-name", "none");
+  await expect(archived).toHaveCSS("height", "0px");
+  await expect(page.locator(".ir__badge-n--6")).toHaveCSS("opacity", "1");
 });
 
 test("shows each capability as real footage with a poster", async ({
