@@ -166,14 +166,10 @@ EOF
 
 ### 9. Refresh the downloads page
 
-The `/downloads` page reads the release list **at build time**, and
-Cloudflare Pages only rebuilds on a git push — publishing a release does not
-trigger a deploy. Without this step the page keeps serving the previous
-release until some unrelated commit lands.
-
-This has to run *after* step 8, not from `release.yml`: the workflow creates
-the release with the placeholder body, so a rebuild triggered there would
-bake the placeholder into the page instead of the curated notes.
+The `/downloads` page reads the release list at build time, so POST the
+Cloudflare deploy hook after step 8 — never from `release.yml` — or the page
+keeps serving the previous release (full rationale: docs/RELEASING.md →
+[Downloads page](../../../docs/RELEASING.md#downloads-page)).
 
 ```sh
 if [ -n "$CF_PAGES_DEPLOY_HOOK" ]; then
@@ -186,13 +182,9 @@ fi
 
 The guard is the normal path until the hook is created, not an edge case —
 without it an unset variable sends curl an empty URL and fails in a way that
-reads like a broken hook. `-o /dev/null -w` keeps Cloudflare's response body
-out of the transcript while still confirming the status code.
-
-The hook URL is itself the credential — anyone holding it can trigger a
-deploy — so read it from the environment, never paste it into a commit or a
-release note. See docs/RELEASING.md →
-[Downloads page](../../../docs/RELEASING.md#downloads-page).
+reads like a broken hook. The hook URL is itself the credential: read it from
+the environment (it lives in the password manager — see the link above),
+never paste it into a commit or a release note.
 
 ### 10. Verify
 
