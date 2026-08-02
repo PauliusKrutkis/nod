@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { api } from "../lib/api.ts";
 import { queryClient, queryKeys } from "../lib/query-client.ts";
 import { useAppStore } from "../store/app-store.ts";
@@ -53,14 +53,6 @@ function optimisticComment(c: {
     user: account?.login ?? "you",
     userAvatarUrl: account?.avatarUrl ?? "",
   };
-}
-
-function useLazyRef<T>(init: () => T): React.RefObject<T> {
-  const ref = useRef<T | null>(null);
-  if (ref.current === null) {
-    ref.current = init();
-  }
-  return ref as React.RefObject<T>;
 }
 
 export function useCommentMutations(
@@ -333,7 +325,7 @@ export function useCommentMutations(
     },
   });
 
-  const resolveIntentRef = useLazyRef(() => new Map<string, boolean>());
+  const [resolveIntents] = useState(() => new Map<string, boolean>());
   const resolveInflightRef = useRef<string | null>(null);
 
   const patchThreadResolved = (threadId: string, resolved: boolean) => {
@@ -363,7 +355,7 @@ export function useCommentMutations(
         resolvedByThread.set(c.threadId, c.resolved);
       }
     }
-    for (const [threadId, intent] of resolveIntentRef.current) {
+    for (const [threadId, intent] of resolveIntents) {
       const current = resolvedByThread.get(threadId);
       if (current !== undefined && current !== intent) {
         resolveInflightRef.current = threadId;
@@ -377,7 +369,7 @@ export function useCommentMutations(
     threadId: string;
     resolved: boolean;
   }) => {
-    resolveIntentRef.current.set(args.threadId, args.resolved);
+    resolveIntents.set(args.threadId, args.resolved);
     patchThreadResolved(args.threadId, args.resolved);
     if (resolveInflightRef.current !== null) {
       return;
