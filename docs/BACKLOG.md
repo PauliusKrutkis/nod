@@ -1503,7 +1503,7 @@ link interception · Universal Links.
 
 ## Tech debt
 
-- [ ] **Split `ReviewScreenInner`** in `review-screen.tsx` into smaller
+- [x] **Split `ReviewScreenInner`** in `review-screen.tsx` into smaller
   components so React Doctor's `no-giant-component` passes without the
   `test-noise` tag ignore in `doctor.config.json` — remove that ignore once done.
   *Staged plan (2026-07-30).* The file is ~4,100 lines; the component itself
@@ -1534,6 +1534,16 @@ link interception · Universal Links.
   + `modelRef`, the 20-`useState` block (a "state bag" hook adds an object
   identity per render and reduces nothing), or anything below the early
   return at 3454.
+  *Shipped 2026-08-02 (PRs #126–#151, after the apps/desktop move in #124):
+  all 8 stages landed as verbatim-move PRs — code-dom / review-cursor /
+  review-find / review-occurrences libs, 9 review hooks, and the
+  ReviewScreenPending / ReviewHeader / ReviewDiffPane components.
+  review-screen.tsx went 4,153 → ~1,000 lines, the
+  noExcessiveCognitiveComplexity biome-ignore is deleted (complexity now
+  under the threshold), and doctor.config.json dropped the test-noise
+  ignore — no-giant-component passes clean. The do-not-extract list held:
+  selectLine, the model build, and the 20-useState block stay in the
+  component.*
 - [ ] **React Doctor full-codebase score not 100/100** — run react-doctor
   across the whole codebase and address remaining findings beyond the known
   `no-giant-component` ignore above.
