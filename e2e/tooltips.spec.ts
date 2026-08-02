@@ -17,7 +17,7 @@ test("find bar close button shows a tooltip with its keyboard hint", async ({
   await page.keyboard.press("Enter");
   await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
 
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press("ControlOrMeta+f");
   const closeBtn = page.locator(".qf-findbar-btn").last();
   await closeBtn.hover();
   await expect(page.locator(".q-tooltip")).toBeVisible();
@@ -47,4 +47,20 @@ test("inbox watch button shows a tooltip", async ({ page }) => {
   await watchBtn.hover();
   await expect(page.locator(".q-tooltip")).toBeVisible();
   await page.screenshot({ path: "evidence/tooltips-inbox-watch.png" });
+});
+
+test("the approvals verdict pill shows its reviewers in a tooltip", async ({
+  page,
+}) => {
+  await setupApp(page);
+  await expect(page.getByRole("option").first()).toBeVisible();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
+
+  const pill = page.locator(".qf-verdict-approved");
+  await expect(pill).toBeVisible();
+  await pill.hover();
+  await expect(page.locator(".q-tooltip")).toBeVisible();
+  await expect(page.locator(".q-tooltip")).toContainText("Approved · dave");
+  await page.screenshot({ path: "evidence/verdict-tooltip.png" });
 });

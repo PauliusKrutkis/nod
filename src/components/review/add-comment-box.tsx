@@ -35,6 +35,12 @@ interface AddCommentBoxProps {
  * Replies and issue comments (no secondary) fall back to a single button.
  * onEmptyChange mirrors the editor's empty state to the parent — the drawer's
  * collapsed prompt uses it to advertise a surviving draft.
+ *
+ * `pending` alone cannot stop a double submit: it is a prop, so it only
+ * becomes true after a render, and two ⌘↵ dispatched in the same tick both
+ * pass it. `inFlightRef` is the synchronous lock that closes that window.
+ * It never holds the composer open — the actions stay fire-and-forget, per
+ * the optimistic-by-design contract in use-comments.ts.
  */
 export function AddCommentBox({
   ref,
@@ -54,6 +60,7 @@ export function AddCommentBox({
   const [mode, setMode] = useState<"batch" | "now">("batch");
   const [empty, setEmpty] = useState(() => !initialMarkdown?.trim());
   const editorRef = useRef<ComposerEditorHandle>(null);
+  const inFlightRef = useRef(false);
   const canSubmit = !(pending || empty);
 
   useImperativeHandle(
@@ -74,15 +81,23 @@ export function AddCommentBox({
     onSecondary && mode === "now" ? secondaryLabel : submitLabel;
 
   const run = async (action: (body: string) => Promise<void> | void) => {
-    if (pending) {
+    if (pending || inFlightRef.current) {
       return;
     }
     const body = editorRef.current?.getMarkdown().trim() ?? "";
     if (!body) {
       return;
     }
-    await action(body);
-    editorRef.current?.clear();
+    inFlightRef.current = true;
+    try {
+      await action(body);
+      editorRef.current?.clear();
+    } catch {
+      /* the mutation layer rolls back and flashes; keep the text */
+    }
+    /* not a finally: React Compiler can't lower try/catch/finally, and the
+       empty catch already guarantees we reach this line */
+    inFlightRef.current = false;
   };
 
   const handleSubmitRequest = () => {

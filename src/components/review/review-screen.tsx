@@ -51,6 +51,7 @@ import {
   Search,
   Send,
   TextSearch,
+  Trash2,
 } from "lucide-react";
 import {
   useEffect,
@@ -72,6 +73,7 @@ import { useReviewHeadShaSync } from "../../hooks/use-review-head-sha-sync.ts";
 import { useViewedFileReconcile } from "../../hooks/use-viewed-file-reconcile.ts";
 import type { Binding } from "../../keyboard/types.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
+import { copyTextToClipboard } from "../../lib/clipboard.ts";
 import { cn } from "../../lib/cn.ts";
 import { highlightRegistry } from "../../lib/custom-highlight.ts";
 import type { DiffRow } from "../../lib/diff.ts";
@@ -217,10 +219,6 @@ const MAIN_SKELETON_WIDTHS = Array.from(
   { length: 16 },
   (_, index) => ((index * 37) % 52) + 32
 );
-
-function copyTextToClipboard(text: string): void {
-  navigator.clipboard?.writeText(text).catch(() => undefined);
-}
 
 function applyLineSelection(args: {
   anchor: string;
@@ -1667,6 +1665,7 @@ function useReviewHotkeys(config: {
   cursorMoverRefs: Parameters<typeof buildCursorMover>[0];
   cycleFile: (dir: number) => void;
   editActiveThreadComment: () => void;
+  discardPendingAtCursor: () => void;
   extendSelection: (delta: 1 | -1) => void;
   findOpen: boolean;
   findOpenRef: React.RefObject<boolean>;
@@ -1833,6 +1832,18 @@ function useReviewHotkeys(config: {
       icon: Pencil,
       keys: "shift+e",
       run: config.editActiveThreadComment,
+    },
+    {
+      description: "Discard pending comment",
+      group: "Comments",
+      icon: Trash2,
+      keys: "shift+d",
+      run: (e: KeyboardEvent) => {
+        if (e.repeat) {
+          return;
+        }
+        config.discardPendingAtCursor();
+      },
     },
     {
       description: "Expand / collapse comment",
@@ -2047,9 +2058,11 @@ function useReviewThreadActions(args: {
   cursorRef: React.RefObject<CursorPos | null>;
   editNonceRef: React.RefObject<number>;
   filesRef: React.RefObject<ChangedFile[]>;
+  keyValue: string;
   listRef: React.RefObject<ReviewListHandle | null>;
   modelRef: React.RefObject<ReviewListModel>;
   nextFile: () => void;
+  removePendingStore: (key: string, id: string) => void;
   replyNonceRef: React.RefObject<number>;
   requestResolveThread: ReturnType<
     typeof useCommentMutations
@@ -2141,6 +2154,34 @@ function useReviewThreadActions(args: {
     );
   };
 
+  const discardPendingAtCursor = () => {
+    const m = args.modelRef.current;
+    const cur = args.cursorRef.current;
+    if (!cur) {
+      return;
+    }
+    const navIdx = m.navIndexOf.get(
+      navKey(cur.fileIndex, cur.anchor, "comments")
+    );
+    if (navIdx === undefined) {
+      return;
+    }
+    const item = m.items[m.nav[navIdx].itemIndex];
+    if (item?.kind !== "comments") {
+      return;
+    }
+    const newest = item.pending.at(-1);
+    if (!newest) {
+      return;
+    }
+    args.removePendingStore(args.keyValue, newest.id);
+    const blockSurvives =
+      item.pending.length > 1 || item.threads.length > 0 || item.boxOpen;
+    if (cur.kind === "comments" && !blockSurvives) {
+      args.setCursor({ ...cur, kind: "row" });
+    }
+  };
+
   const replyToActiveThreadOrNextFile = () => {
     const t = args.activeThreadRef.current;
     if (t && args.commentsRef.current.some((c) => c.id === t.rootId)) {
@@ -2185,6 +2226,7 @@ function useReviewThreadActions(args: {
   };
 
   return {
+    discardPendingAtCursor,
     editActiveThreadComment,
     goToComment,
     jumpToThread,
@@ -3235,6 +3277,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     advanceToNextReview(owner, repo, number, goInbox);
 
   const {
+    discardPendingAtCursor,
     editActiveThreadComment,
     goToComment,
     jumpToThread,
@@ -3248,9 +3291,11 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     cursorRef,
     editNonceRef,
     filesRef,
+    keyValue,
     listRef,
     modelRef,
     nextFile,
+    removePendingStore,
     replyNonceRef,
     requestResolveThread,
     setActiveIndex,
@@ -3373,6 +3418,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     copyLink,
     cursorMoverRefs,
     cycleFile,
+    discardPendingAtCursor,
     editActiveThreadComment,
     extendSelection,
     findOpen,
@@ -3566,7 +3612,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
           ) : (
             <ReviewList
               activeIndex={clampedIndex}
-              addPending={false}
+              addPending={addReviewComment.isPending}
               baseSha={pr.baseSha}
               callbacks={listCallbacks}
               changedSinceViewed={changedSinceViewed}
@@ -3594,6 +3640,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
               model={model}
               owner={owner}
               ref={listRef}
+              replyPending={reply.isPending}
               replyRequest={replyReq}
               repo={repo}
               restoreState={initialMem?.listState}
@@ -3622,6 +3669,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
       </main>
 
       <RightPanel
+        addIssueCommentPending={addIssueComment.isPending}
         ci={detail.ciStatus}
         conversation={detail.issueComments ?? []}
         fileCount={fileCount}
@@ -3641,7 +3689,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
       />
 
       <SubmitReviewModal
-        busy={false}
+        busy={submitReview.isPending}
         error={null}
         onClose={onCloseSubmitModal}
         onSubmit={handleSubmitReview}

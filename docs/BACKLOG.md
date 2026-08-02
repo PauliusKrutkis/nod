@@ -354,6 +354,7 @@ hotkey collapses.
 | **`q`** / **`w`** | Next / prev comment thread |
 | **`c`** / **`shift+c`** | Comment on the cursor line / on the PR |
 | **`x`** / **`shift+e`** / **`z`** | Resolve · edit your comment · expand/collapse thread |
+| **`shift+d`** | Discard the pending comment at the cursor |
 | **`i`** / **`shift+i`** | Toggle info panel / widen it |
 | **`o`** / **`y`** / **`mod+shift+c`** | Open on host · copy PR link · copy file path |
 | **`s`** | Submit review |
@@ -381,8 +382,15 @@ Primary navigation. Inbox optional.
 
 - [x] 🔴 **`mod+k` PR search** — v0.1 blocker.
 - [x] 🟡 PR-context actions — after search works.
-- [ ] 🟢 **Branch name not visible in index/search** — PR branch name doesn't
-      show in the inbox list or `mod+k` search results.
+- [x] 🟢 **Branch name not visible in index/search** — **done**; the head
+      branch now shows in the inbox row meta line and in the `/` search
+      results, and the search **matches on it** so you can find a PR by
+      branch. The real blocker was backend: `pr_from_graphql` hardcoded
+      `head_ref`/`base_ref` to empty strings and `FRAGMENT_P` never requested
+      them, so GitHub list PRs carried no refs at all (GitLab already filled
+      both). Adding `headRefName baseRefName` to the fragment costs no extra
+      request and also unblocks the
+      [stacked-PR indicator](#stacked-prs-2026-07-30).
 
 ---
 
@@ -454,17 +462,37 @@ while keeping optimistic UI). Same class of bug elsewhere: composers and submit
 already accept `pending` / `busy`, but review screen hardcodes them to `false`,
 and several paths call `mutate` with no in-flight guard.
 
-- [ ] 🟡 **Submit review** — wire `submitReview.isPending` to `SubmitReviewModal`
-      `busy`; block duplicate submit while in flight (modal closes early today;
-      `openSubmit` can reset and re-fire).
-- [ ] 🟡 **Reply to thread** — wire `reply.isPending` to `ReviewList`
-      `addPending` (currently hardcoded `false`); optional intent coalescing if
-      spam remains possible before `isPending` flips.
-- [ ] 🟡 **Inline "Comment now"** — wire `addReviewComment.isPending` to
-      `addPending`; `handleSecondary` must `await onAddComment` (fire-and-forget
-      today lets ⌘↵ double-submit through instantly).
-- [ ] 🟢 **Issue comment (Info drawer)** — wire `addIssueComment.isPending` to
-      `AddCommentBox` `pending` in `right-panel.tsx` (hardcoded `false`).
+- [x] 🟡 **Submit review** — `submitReview.isPending` is now wired to
+      `SubmitReviewModal` `busy`. The modal still closes before the mutation
+      resolves — that is a **deliberate optimistic flow** (it also calls
+      `advanceAfterSubmit()` and surfaces failures as a flash), so `busy` is a
+      guard for the reopened-modal case rather than a visible state. Whether
+      submit should become awaited is a separate design decision, untouched.
+- [x] 🟡 **Reply to thread** — **done**; `addPending` was a single prop
+      feeding *both* the reply box and the inline add box, so wiring one
+      would have spuriously disabled the other. Split into `replyPending`
+      (fed by `reply.isPending`) and `addPending`
+      (`addReviewComment.isPending`). The anticipated "intent coalescing"
+      turned out to be **required, not optional** — see below.
+- [x] 🟡 **Inline "Comment now"** — **done**, but *not* by awaiting: the
+      review pass caught that `use-comments.ts` documents these mutations as
+      **optimistic by design ("no loading states")**, and awaiting held the
+      composer open next to the comment that had already appeared
+      optimistically. The actions stay fire-and-forget.
+      **`isPending` alone did not fix it either.** A spec that presses ⌘↵ twice
+      against a hanging mutation still produced **2** `create_review_comment`
+      calls: `pending` is a prop, so it only becomes true after a render, and
+      both presses in the same tick pass the guard. `AddCommentBox` now also
+      holds a synchronous `inFlightRef`, which is what actually closes the
+      window. Guarded by `e2e/double-submit.spec.ts` plus a new
+      `hangReviewComment` bridge option and a call counter.
+- [x] 🟢 **Issue comment (Info drawer)** — **done**; `addIssueComment.isPending`
+      is wired through a new `addIssueCommentPending` prop. The drawer's
+      fire-and-forget collapse was deliberately **left alone**: awaiting it
+      broke the existing "comment posting is optimistic even when the network
+      hangs" spec, which proves the optimism is intended. The `pending` prop
+      plus the composer's in-flight lock cover the double-submit risk without
+      fighting that design.
 
 ### 5d. Comment-management follow-ups (post-comment-feature)
 
@@ -494,8 +522,15 @@ inline by design). These are cleanups, not new scope.
 
 - [x] 🟢 Remove manual refresh.
 - [x] 🟡 Banner when open PR changes externally.
-- [ ] 🟢 **Remove "pull request updated" toast** — redundant with the existing
-      change banner; drop the toast fired from `use-review-head-sha-sync.ts`.
+- [x] 🟢 **Remove "pull request updated" toast** — **done**; the generic
+      "Showing the latest changes." toast is gone from
+      `use-review-head-sha-sync.ts`, which is now silent and keeps only its
+      perf mark + review-memory write. The update still announces itself
+      through the two signals that say something useful: the reconcile toast
+      (`unviewedReconcileToast`, names the files that changed) and the
+      per-file `updated` chip. Also removes a race — both toasts share the
+      store's single slot, so the generic one only won or lost by effect
+      ordering.
 - [ ] 🟡 **GitHub cheap-polling via the Notifications API (P16 PR2)** — the
       ETag/304 conditional-request cache (PR #49) lets GitLab + every REST GET
       re-poll for free and drops the inbox interval to 15s, but GitHub's inbox
@@ -649,6 +684,47 @@ an open item: production-build perf e2e). Landing page (§0) and MoR account
 - [ ] 🟡 **Phase 1** — Updater gating on local `updates_until` (static `latest.json`).
 - [ ] ⏸ `nod-keygen` CLI for manual/support grants.
 
+#### 11c status — what actually exists (audited 2026-07-30)
+
+Short version: **the server skeleton is real, the purchase flow is not.** Nothing
+can be bought today, and the desktop app contains no licensing code at all.
+
+*Built and merged* (`apps/web/functions/`): `purchase-webhook.ts` (Standard
+Webhooks verify → `putLicense`/`putOrderIndex`, 1-year term), `activate.ts`,
+`license/[subject].ts`, and `lib/license-token.ts` — real Ed25519 sign/verify
+with unit tests. `wrangler.jsonc` carries real KV namespace ids.
+
+*Skeleton or stub:* `restore.ts` returns a hardcoded `501 not yet configured`.
+`lib/polar.ts` verifies the HMAC correctly but its `metadata.subject` shape is
+an **unverified assumption** against a live Polar payload — its own file header
+says so.
+
+*Missing entirely — these are the links that make it a purchase flow:*
+
+- [ ] 🔴 **No MoR account, product, or checkout URL.** Nothing initiates a
+      purchase; Polar is a signature format here, not an integration.
+- [ ] 🔴 **No forge identity at checkout** — nothing puts `metadata.subject` on
+      the order, so the webhook has nothing to key a license to. Needs a
+      success page doing GitHub OAuth. GitLab (and self-hosted) unsolved.
+- [ ] 🔴 **Cloudflare secrets never set** (`POLAR_WEBHOOK_SECRET`,
+      `LICENSE_SIGNING_SEED`) — the endpoints cannot run in production even
+      though the KV namespaces exist.
+- [ ] 🔴 **No `prflow://` scheme / no `tauri-plugin-deep-link`.** `activate.ts`
+      today redirects to `http://127.0.0.1:8765/callback`, a loopback port only
+      the OAuth flow listens on — the app would never receive the token. Same
+      dependency as [11a](#11a-opening-prs-from-githubgitlab-links--staged).
+- [ ] 🔴 **Desktop app has zero licensing code.** No `ed25519-dalek`, no token
+      verify, no local license storage, no trial timestamp, no purchase prompt,
+      no updater gating on `updates_until`.
+- [ ] 🟡 **Repeat purchases reset instead of extend `updatesUntil`** — known
+      defect, already described in RELEASING.md; fix is
+      `max(existing, now) + 1 year`.
+- [ ] 🟢 **`/restore` is a stub** — needs `POLAR_API_KEY`.
+
+The landing page (`apps/web/src/pages/index.astro`) is downloads-only and says
+"Free while it's an experiment." No pricing, no buy button, no `/pricing` route
+— which is consistent with Phase 0, so this is a gap in fact, not in plan.
+
 **Rejected:** deterministic license keys (stateless, simple engineering, ugly UX —
 conflicts with zero-friction product goal).
 
@@ -781,11 +857,41 @@ only format the in-app updater touches.
       step to a visible match leaves the viewport alone. Guarded by
       `occurrences.spec.ts` "stepping to an already-visible occurrence does not
       scroll".
-- [ ] 🟢 **Search pane height** — inbox search panel lost height; match the
-      `mod+k` command palette sizing.
+- [x] 🟢 **Search pane height** — **done**; `.qsp-panel` carried its own
+      `max-height: 70vh`, which overrode the `min(78vh, 640px)` cap every
+      other `.q-dialog` inherits — 560px vs 624px at an 800px window, so the
+      `/` pane showed one fewer row than `mod+k` for no reason. Dropping the
+      one override restores parity. Not a regression, despite the wording:
+      both rules date from the initial commit, so the pane never had the
+      height. Width stays at 680px (deliberately wider than the palette's
+      620px — it carries PR titles plus repo/author meta). Note the trade
+      cuts both ways by design: above a ~914px-tall window the old `70vh`
+      was the *larger* value, so tall windows now cap lower (640px vs 840px
+      at 1200px tall). That is the point — parity with the palette — but it
+      is a reduction there, not a pure gain.
 - [ ] 🟢 **GitHub org OAuth restrictions** — `[pr-flow] API error 403` when an org
       (e.g. Decodo) enables OAuth App access restrictions; surface a clear
       in-app message with the GitHub docs link and what the admin must allow.
+      *Diagnosis (2026-07-30).* The message is built in `http.rs` as
+      `API error ({status}): {msg}` where `msg` is GitHub's own `message`
+      field — so the restriction sentence **already survives** on REST paths;
+      what is missing is classification and guidance, not data. Two gaps:
+      the REST path discards `documentation_url`, and the **inbox does not
+      use that path at all** — GraphQL errors are built separately in
+      `graphql_vars` (`platform/github.rs`) as `GitHub GraphQL error
+      ({status}): {text}`, so any fix must be mirrored there or the inbox
+      keeps showing the raw string.
+      *Recommendation:* classify 403 in one place — restriction (body
+      contains `has enabled OAuth App access restrictions`) vs rate limit
+      (`x-ratelimit-remaining: 0`) vs everything else — and return curated
+      copy naming the org, what an admin must approve, and the docs link.
+      Render in the existing inbox error block
+      (`inbox.tsx`, "Couldn't load pull requests"), which already has a
+      Retry button.
+      *Blocker for the e2e:* `e2e/bridge.ts` has **no way to make a command
+      reject** — `AppOptions` needs an `inboxError?: string` knob (~10 lines)
+      before the error branch can be covered at all. Worth adding regardless;
+      the inbox error state is currently untested.
 
 ### Wave 2 — quick wins
 
@@ -801,8 +907,15 @@ only format the in-app updater touches.
       unviewed file, wraps past the end to pick up files skipped earlier, and
       stays put once every file is viewed instead of parking on a viewed file
       where the next `e` would unmark it (`review-screen.tsx`).
-- [ ] 🟢 **Pending comment discard hotkey** — keyboard shortcut for discard;
-      improve discard button visibility (border/contrast is too subtle today).
+- [x] 🟢 **Pending comment discard hotkey** — **done**; `shift+d` discards
+      the pending comment at the cursor, and the button is no longer a
+      transparent outline in `--muted` on `--line-2`: it now carries the
+      `--del` wash, a 40%-`--del` border and a `⇧D` keycap hint, matching
+      how sibling controls (`Reply` `R`, `Resolve` `X`) advertise theirs.
+      The lookup resolves the `comments` block that shares the cursor row's
+      anchor, so it works whether the cursor sits on the line or on the
+      comment block itself — the common case being "I just added this, undo
+      it". Discards the newest pending comment on that anchor.
 - [x] 🟢 **Go to next/previous comment** — **done**; `q` / `w` bound in the
       Comments group (`review-screen.tsx`).
 
@@ -826,15 +939,31 @@ only format the in-app updater touches.
       was tried and dropped 2026-07-15.
 - [ ] 🟡 **P12** — "What's new" card on first launch after
       an update (release notes via Rust command).
-- [ ] 🟢 **Distinct file header** — hard to tell when starting a new file; make
-      the file header row more visually distinct in the diff list.
-- [ ] 🟢 **Astro syntax highlighting** — `.astro` files don't get diff syntax
-      highlighting; extend the language map in `highlight.ts`.
+- [x] 🟢 **Distinct file header** — **done**. Root cause was a collision:
+      the file header sat on `--surface-2`, one token away from the hunk
+      header's `--surface`, so two near-identical bands competed to mean
+      "something starts here". Worse, `.qf-fsec-name` was **12px — smaller
+      than the 13px code it introduces**, while 13px is already the
+      dominant step in the scale. Fixed structurally rather than with a
+      louder colour: header moves up to `--surface-hi` (two steps off the
+      hunk header), top rule doubles to 2px `--line-2` since that edge *is*
+      the file break, padding 8px → 10px so it reads as a band, and the
+      name joins the 13px step — giving a real hierarchy of file 13 >
+      code 13 > hunk 11.
+- [x] 🟢 **Astro syntax highlighting** — **done**; `.astro` now maps to the
+      `xml` grammar in `LANG_BY_EXT` (`highlight.ts`), the same fallback
+      `.vue` and `.svelte` already use, because highlight.js v11 ships no
+      astro grammar. The template body tokenizes; the `---` frontmatter
+      fence stays plain, matching how `.vue`'s `<script>` block behaves.
 - [ ] 🟡 **Render SVG previews** — SVG files in diffs show raw markup instead
       of a rendered image preview.
-- [ ] 🟢 **Approvals indicator tooltip** — the P08 verdict pills carry a
-      native `title` listing reviewers (`review-verdicts.tsx`); convert it to
-      the app-wide `<Tooltip>` component like the rest of the header did.
+- [x] 🟢 **Approvals indicator tooltip** — **done**; the P08 verdict pills
+      now use the app-wide `<Tooltip>` instead of a native `title`, matching
+      the rest of the header. The pill stays a non-focusable `<span>`
+      deliberately — it reports state and has nothing to activate, so a tab
+      stop would buy nothing in a keyboard-first app — and the reviewer list
+      it used to expose via `title` is preserved for assistive tech with an
+      `aria-label`.
 - [ ] 🟡 **Per-check list in the drawer** — P09 follow-up: `CiPill` links out
       to the host's checks page; list the individual checks inline instead.
 - [ ] 🟢 **File tooltip positioning** — the file-path tooltip is centered on
@@ -842,9 +971,25 @@ only format the in-app updater touches.
       the large click target).
 - [x] 🟢 **Info drawer author avatars** — **done**; discussion rows render
       `<Avatar>` per comment author (`right-panel.tsx`).
-- [ ] 🟢 **Copy comment text** — copy action for comment bodies in Code threads
-      and Info drawer; fix text selection where comment markdown blocks
-      selection unintentionally.
+- [x] 🟢 **Copy comment text** — **done**; `CommentTools` grew a Copy
+      button with the same "Copied" feedback the suggestion card uses, so
+      both surfaces (inline threads and the Info drawer) get it from one
+      change. Copy is offered on **every** comment, not just your own: the
+      ownership gate moved off the two call sites onto the Edit/Delete
+      handlers, which is also what the shared component's contract already
+      implied (Edit and Delete self-hide when their handler is `undefined`).
+      Extracted `copyTextToClipboard` to `src/lib/clipboard.ts`, replacing
+      the private copy in `review-screen.tsx`.
+- [ ] 🟢 **Comment text selection is cancelled by the occurrence handler** —
+      the other half of the old "Copy comment text" item, and a separate
+      root cause: `handleOccPointerClick` (`review-screen.tsx`) calls
+      `window.getSelection()?.removeAllRanges()`, and its bail-outs cover
+      editable surfaces and non-collapsed selections but **not**
+      `.qf-comment-body` — so clicking into a comment kills the caret and
+      makes dragging out a selection fight the handler. Fix: add the comment
+      body to the handler's early-return target check. (Collapsed-thread
+      previews are a second, smaller cause: the text sits inside a
+      `<button>`, which the UA stylesheet makes unselectable.)
 
 ### Wave 4 — desktop shell
 
@@ -855,8 +1000,41 @@ only format the in-app updater touches.
 
 ### Wave 5 — bigger bets
 
-- [ ] 🔴 **P15** — File tree: folders, indentation,
-      collapse (needs decision: replace flat list vs toggle).
+- [ ] 🔴 **P15** — File tree: folders, indentation, collapse.
+      **Decided 2026-07-30 (owner):** the tree is an *added mode*, not a
+      replacement — the flat list stays — and the tree is the **default**.
+      Keyboard navigation inside the tree is **explicitly out of scope for
+      the first pass and accepted as a known limitation**; `r`/`t`/`Tab`/`e`
+      keep walking the flat file order, which is why the tree can ship
+      without answering the hard question below.
+      *Scoping notes (verified against the code):*
+      - `data-file-index` is read via `e.currentTarget.dataset` inside
+        `file-sidebar.tsx` only — nesting rows inside folder containers is
+        safe. Folder rows must **not** carry `data-file-index`.
+      - `revealInList` (`file-sidebar.tsx:92`) is a ref-callback, so a row
+        inside a *collapsed* folder never fires it. Collapse state must
+        auto-expand the folder containing `selectedIndex`.
+      - Needs `src/lib/file-tree.ts` (+ colocated test): `buildFileTree` and
+        a `flattenTree(tree, collapsed)` returning rows with a `depth`, with
+        the original `files` index preserved so `onSelect(index)` is
+        unchanged.
+      - Indentation must come from a depth custom property
+        (`padding-left: calc(6px + var(--qf-depth) * 12px)`), because
+        `.qf-file` has a fixed `width: calc(100% - 12px)` a naive
+        `padding-left` would misalign.
+      - **Folder collapse must be instant** — no height/`grid-template-rows`
+        transition. See the sidebar note in `quiet.css`; that motion was
+        removed deliberately.
+      - `pr-flow:fileTreeMode` + collapsed-folder state follow the existing
+        `pr-flow:drawerWide` localStorage pattern, whose `TODO: extract a
+        useLocalStorage hook when a second persisted UI pref lands` this
+        finally makes actionable.
+      *Open question, deferred not dropped:* once keyboard nav arrives, does
+      a file inside a **collapsed** folder stay in the `r`/`t`/`e` cycle? If
+      yes, `e` can advance into a file you cannot see; if no, "next file"
+      silently skips changed files. The second is worse. Recommendation when
+      the time comes: **keep collapsed files in the cycle and auto-expand
+      the folder on arrival** — the cycle is about the diff, not the tree.
 - [ ] 🟡 **P16** — Faster inbox via conditional polling
       (ETag/304 → ~15 s interval); optional activity-aware detail refresh (see
       also §7 GitHub notifications gate).
@@ -1147,11 +1325,102 @@ AI · GitLab · Slack integration · streaks · celebration · Conversation mode
 webhooks · icon · Ultracite · vim jumps · persist pending comments · Stage 3
 link interception · Universal Links.
 
-- [ ] ❓ **AI introduction (BYOK)** — bring-your-own-key model (e.g. a Nexos
-      API key) so AI features "just work" with the user's own key; open
-      question whether OpenRouter compatibility is needed too or Nexos
-      coverage is enough on its own. Conflicts with the current "no AI"
-      go-to-market direction — needs a product decision before scoping.
+- [ ] ❓ **AI introduction (BYOK)** — bring-your-own-key model so AI features
+      "just work" with the user's own key. **Nexos AI is the first key format
+      to support**; others (OpenRouter, direct Anthropic/OpenAI) may follow,
+      so the seam should be a provider list from day one rather than a Nexos
+      special case. **The user picks the model**, not us — a key alone isn't
+      enough, since the same key reaches several models at very different
+      cost/latency. Conflicts with the current "no AI" go-to-market
+      direction — needs a product decision before scoping.
+      - **Key storage is a backend concern.** Per the layering rule the
+        webview never holds credentials, so the AI key belongs beside the
+        host tokens in `accounts`/keychain, with calls made from Rust —
+        *not* `fetch` from React. Model choice is plain UI state.
+- [ ] 🔴 **Ask-about-this-code — implementation plan** (2026-07-30).
+      Concrete plan for the feature above, now that the provider contract is
+      known. **Nexos AI is OpenAI-compatible**, which changes the shape of
+      this work: it is a generic integration, not a vendor one.
+      *Verified from the Nexos OpenAPI spec (docs.nexos.ai, append `.md` to
+      any page for raw markdown):*
+      - Base `https://api.nexos.ai`, `POST /v1/chat/completions`,
+        `Authorization: Bearer nexos-…`.
+      - Standard body (`model`, `messages[{role,content}]`, `temperature`,
+        `max_completion_tokens`, `stream`); answer at
+        `choices[0].message.content`.
+      - `GET /v1/models` returns `data[]` with `id`, `context_length`,
+        `pricing`, and an `endpoints[]` — **filter on `chat_completion`** to
+        populate the model picker rather than hardcoding names.
+      - SSE streaming terminates with `data: [DONE]`. **The chunk shape is
+        not documented** — assume standard `delta` only after probing a real
+        key; do not ship streaming on an inferred contract.
+      - Errors: only `400`/`402` (out of credits)/`500` are documented. 401,
+        403 and 429 are **not** — parse `error.message` best-effort, don't
+        hardcode statuses.
+      *What exists to build on (verified):* nothing AI-related at all — zero
+      LLM deps in `package.json` and `Cargo.toml`. And **no settings surface
+      exists**; the closest pattern is `issue-tracker-dialog.tsx`, which is a
+      `q-dialog` opened from a keyless command-palette binding in `app.tsx`.
+      *Recommended shape:*
+      1. **Key storage mirrors accounts exactly.** Tokens live in plain JSON
+         in the app config dir (`storage.rs`) — there is no keychain today —
+         and the webview only ever receives a token-free info struct. Add
+         `ai.json` + `has_ai_key`/`set_ai_key`/`clear_ai_key` shaped like
+         `commands.rs`'s token trio. **The key must never reach the webview**,
+         so the request is made from Rust; a new `ai_complete` command is
+         required because every existing `reqwest` client is built with a
+         provider auth header baked in.
+      2. **Surface: the info drawer as a new mode.** It already exists, is
+         already toggled by `i`/`shift+i`, and already renders markdown. A
+         popover anchored to a row is the wrong bet — there is no floating
+         primitive and the virtualized list makes row anchoring expensive. A
+         modal dialog fights the keyboard flow. A toast is the wrong shape
+         for a multi-paragraph answer.
+      3. **Hotkey: `a` ("ask")** — free in both the review and global scopes,
+         adjacent to nothing destructive.
+      4. **Selection → prompt.** `LineSelection` carries anchors, not text;
+         reuse the `contentByAnchor` walk in `review-items.ts`
+         (`appendCommentBlock`) to reconstruct the selected lines, and send
+         file path + line numbers + the code.
+      5. **Prompt template in settings**, per the owner's ask — which means
+         the settings surface is a prerequisite, not a follow-up.
+      *Sequencing recommendation:* settings surface + key storage first
+      (shippable and useful on its own, proves the Rust seam), then
+      non-streaming ask/answer in the drawer, then streaming **only after**
+      the chunk shape is confirmed against a live key.
+      *Privacy — decided 2026-08-01 (owner):* the standard vendor pattern is
+      enough; per-repo opt-in is not a launch blocker. AI features are off
+      until the user enables them in settings and pastes their own key, with
+      one clear disclosure sentence at that moment ("selected code, file
+      paths and line numbers are sent to Nexos AI"). Nothing is ever sent
+      silently or by default — pasting the key is the consent act. A
+      per-repo allowlist stays as a later hardening step for people
+      reviewing client or org code.
+
+- [ ] ❓ **"Ask questions about the code" — the first AI feature** (2026-07-30).
+      The opening surface for [BYOK](#post-mvp-backlog) above: ask a question
+      about the PR you're reading and get an answer grounded in the actual
+      code, rather than review-writing or auto-summary. Chosen first because
+      it is *pull*, not push — it never fires unless asked, so it can't
+      degrade the quiet review flow, and it degrades to "no key configured"
+      cleanly.
+      - **Depends on repo sync.** A question about a diff is unanswerable
+        from the diff alone — that is the same tunnel-vision problem
+        [§9](#9-repo-snapshot--sync-layers-decided-2026-07-12) and full-file
+        expansion already exist to solve. **Layer 1 (snapshot service) is a
+        hard prerequisite**; layer 2 (ripgrep search over the extracted tree)
+        is what turns "here is one file" into real retrieval. Note this
+        finally gives layer 3 (tree-sitter symbol index) a second consumer —
+        but do **not** treat that as permission to build it early; the §9
+        gate ("only if beta users live in `shift+v` / repo search") still
+        stands.
+      - **Open questions:** scope of the context sent (open PR only vs whole
+        snapshot) and how it's assembled; whether answers cite file/line so
+        they land on real code instead of prose; where it lives (⌘K action,
+        info drawer tab, or its own surface); and the privacy line — sending
+        a private repo's source to a third-party endpoint needs to be
+        explicit and opt-in per repo, which is a stronger promise than "no
+        git operations" and should be written down before any code.
 
 ---
 
@@ -1207,10 +1476,38 @@ link interception · Universal Links.
 - [ ] **Split `ReviewScreenInner`** in `review-screen.tsx` into smaller
   components so React Doctor's `no-giant-component` passes without the
   `test-noise` tag ignore in `doctor.config.json` — remove that ignore once done.
+  *Staged plan (2026-07-30).* The file is ~4,100 lines; the component itself
+  is ~995 (2714–3709), and **only the component split moves the metric** —
+  stages 1–6 shrink the file, stage 7 shrinks the rule's target. Each stage
+  is a pure refactor verifiable by the existing e2e suite:
+  1. `src/lib/code-dom.ts` — DOM/word hit-testing + selection-offset family
+     (366–578, 3932–4072). No React. Over budget (~350) but a verbatim cut.
+  2. `src/lib/review-cursor.ts` (pure half) + fold `buildCommentsByFile` /
+     `buildPendingByFile` into `review-items.ts`.
+  3. Find → `review-find.ts` + `use-review-find.ts`.
+  4. `use-review-hotkeys.ts` — one contiguous ~340-line binding literal;
+     over budget and unsplittable without changing the array.
+  5. Occurrences — 5a pure module, 5b the two hooks.
+  6. Four hook moves, one PR each: list callbacks, thread actions, submit,
+     file navigation + resume scroll.
+  7. **The one that moves the metric:** 7a `review-skeleton.tsx`,
+     7b `ReviewHeader`, 7c `ReviewDiffPane`.
+  8. State clusters, then delete the `biome-ignore` and the doctor ignore.
+  *Hazards — do not "clean up" while extracting:* `selectLineRef` is
+  deliberately created empty and filled in a layout effect (a genuine init
+  cycle — see candidate 4 in the useEffect audit, marked won't-do);
+  `cursorMoverRefs`/`occNavRefs` are intentionally fresh literals per event;
+  the mount-only cleanup effect owns rAF handles from several hooks and must
+  move whole or not at all; and the `pendingBoxNudge` layout effect must stay
+  after `model` is built in the same render.
+  *Do not extract:* `selectLine`/`selectLineRef`, the `buildReviewItems` call
+  + `modelRef`, the 20-`useState` block (a "state bag" hook adds an object
+  identity per render and reduces nothing), or anything below the early
+  return at 3454.
 - [ ] **React Doctor full-codebase score not 100/100** — run react-doctor
   across the whole codebase and address remaining findings beyond the known
   `no-giant-component` ignore above.
-- [ ] **E2E hardcodes `Control+…` — macOS-red for every editor shortcut** — the
+- [x] **E2E hardcodes `Control+…` — macOS-red for every editor shortcut** — the
   Tiptap composer binds `Mod-…` shortcuts (`composer-editor.tsx`), which
   ProseMirror resolves to **Cmd on macOS, Ctrl on Linux/Windows**. The e2e
   specs hardcode `page.keyboard.press("Control+…")`, so they pass on Linux
@@ -1228,6 +1525,12 @@ link interception · Universal Links.
   typed character). Route selection through PM's own keymap (`Mod+a`, typed
   edits at the landed caret) instead; `Home`/`End` also don't move the caret
   on macOS at all, so avoiding them serves both goals.
+  *Shipped: all 33 `press("Control+…")` calls across 9 specs are now
+  `ControlOrMeta+…`, taking the macOS suite from 10 failed / 161 passed to
+  171 passed. The sweep was safe beyond the composer because the app's own
+  hotkey layer already treats `metaKey || ctrlKey` as `mod`
+  (`keyboard-provider.tsx:98`). The caret-key half needed no work — no spec
+  uses `Home`/`End`.*
 
 ## Inbox (2026-07-15)
 
@@ -1253,8 +1556,29 @@ link interception · Universal Links.
 ## Inbox (2026-07-18)
 
 - [ ] **Private repos don't show up** — on certain setups (org restrictions,
-      token scopes, etc.) private repos may be missing from the list; needs
-      manual debugging to find the root cause.
+      token scopes, etc.) private repos may be missing from the list.
+      *Investigation (2026-07-30) — ruled OUT:* the OAuth scope is already
+      `repo read:org` (`auth.rs`), the GraphQL searches carry **no**
+      visibility qualifier or owner filter, and there is no client-side
+      visibility filtering anywhere in `src/`. So nothing in our code
+      excludes private repos.
+      *Ranked causes:*
+      1. **Same root as the 403 above — org OAuth App restrictions.** With
+         `repo` granted but the app unapproved by the org, GitHub *silently
+         omits* that org's private repos from search results, with **no
+         error at all**. This is the most likely cause and explains "it works
+         for some setups". Confirm: `GET /user/repos?visibility=private`
+         lists the repo while the GraphQL search omits it.
+      2. **A pasted PAT lacking `repo`.** The token-gate path bypasses OAuth
+         scopes entirely and only *labels* the expected scope — nothing
+         validates it. A fine-grained PAT without org resource access behaves
+         identically.
+      3. `first: 50` truncation on a busy account (`issueCount` would exceed
+         the rendered list length).
+      *Cheapest next step, and it serves both causes:* read the
+      `x-oauth-scopes` response header (never read anywhere today) and
+      surface "this token is missing `repo`" in the gate — ~15 lines, and it
+      turns a silent empty list into a diagnosis.
 - [ ] **Unfocused-window hotkeys/sidebar stale** — when the app window isn't
       focused, scrolling still works but hotkeys that only surface on
       focus/hover don't appear, and the sidebar's active-file highlight stops
@@ -1342,6 +1666,57 @@ link interception · Universal Links.
       original fix shipped — needs `markBlockCommentRows` (or equivalent)
       wired into the full-file row synthesis path too.
 
+## Stacked PRs (2026-07-30)
+
+- [ ] 🟡 **Stacked-PR indicator** — show that a PR is one link in a chain
+      (its base branch is another open PR's head branch) rather than based on
+      the default branch. PR-chain workflows are exactly where this app's
+      "already-merged code in the diff" problem bites, so it pairs with
+      **stale-base diff pollution** below.
+      *What exists:* `PullRequest` already carries `baseRef`/`headRef`, and
+      the review header already renders them as two `BranchChip`s either side
+      of a `←`. That header is the natural home — the stack fact is *about*
+      the base branch, so it belongs next to the base chip.
+      *The blocker is data, not UI.* `pr_from_graphql` hardcodes
+      `head_ref`/`base_ref` to empty strings and `FRAGMENT_P` never requests
+      them, so **GitHub inbox PRs carry no refs at all** and the
+      "A.baseRef === B.headRef" join is impossible there. GitLab's
+      `mr_to_pr` already fills both. Fix is ~3 lines: add
+      `headRefName baseRefName` to the fragment and stop blanking them. Do
+      this first — it is cheap, needs no extra request, and also unblocks
+      **Branch name not visible in index/search** (§6).
+      *Also missing:* the repository default branch is never fetched
+      (`grep defaultBranch` → zero hits), so "based on main" vs "based on a
+      PR" can only be inferred from the inbox join until
+      `repository { defaultBranchRef { name } }` joins the fragment.
+      **Decided 2026-08-01 (owner):** follow GitLab's own stacked-MR
+      presentation — a stack control in the review header next to the branch
+      chips, reading `2 of 3`, whose dropdown lists every PR in the chain
+      (top of the stack down) and navigates between them. GitLab detects
+      stacks with exactly the join this item proposes (an MR is stacked when
+      it targets another open MR's source branch), so the model transfers
+      directly; it renders nothing when no stack is detected. The base-chip
+      relabel below stays as a *complement*, not the mechanism — the chip
+      answers "what is this diff against?", the stack control answers "where
+      am I in the chain?":
+
+      ```
+      not stacked:   main ← feat/thing
+      stacked:       #431 ← feat/thing   [2 of 3 ▾]   (tooltip: "Based on #431 · Add fuzzy matching")
+      ```
+
+      Both degrade to today's rendering when nothing is detected.
+      *Inbox row:* a quiet `q-pill q-pill-muted` reading `stacked` in the
+      meta line is enough; the row is already dense.
+      *Work split:* ~3 lines Rust + a fixture test · `src/lib/stack.ts`
+      (+ colocated test) building a `headRef → PR` map across inbox buckets
+      and returning the ordered chain plus the current PR's position ·
+      three small call sites.
+      *Open question:* stacks whose links are **not in your inbox** (a
+      teammate's PR you aren't on) can't be detected client-side at all.
+      Accept that limitation for v1 rather than adding a `list_open_prs`
+      command — the common case is your own chain, which is in `created`.
+
 ## Inbox (2026-07-22)
 
 - [ ] 🟡 **Stale-base diff pollution — flag already-merged code in PR
@@ -1368,3 +1743,167 @@ link interception · Universal Links.
       Caveat: compare API caps the file list at 300 — fall back to
       banner-only on monster diffs. Orthogonal to §9 repo snapshot (file
       trees at one SHA; no diffs/merge-bases) — no dependency either way.
+
+## Inbox (2026-07-30)
+
+- [ ] 🟢 **Viewing the last file should jump to the first unviewed one** —
+      marking the final file in order as viewed leaves you parked at the end
+      of the PR; it should wrap to the first still-unviewed file so the
+      review keeps flowing. The `e` entry in Wave 2 claims this wrap already
+      ships — reproduce first and decide whether this is a regression in `e`
+      or the same gap on `v` (toggle viewed), which never wrapped.
+- [x] 🟢 **Inbox `1`/`2`/`3` should address the visible tabs** — **done**;
+      the digits are now positional over the *visible* tabs, so `1` is the
+      leftmost tab on the bar and a digit can never summon an empty tab out
+      of hiding. The digit hints on the bar follow the same slots, so they
+      read 1, 2, 3 with no gaps. Hidden tabs keep a **keyless** binding so
+      the command palette still reaches them — typing "watching" is an
+      explicit request where a digit is positional, and without that the
+      Watching tab became unreachable by keyboard exactly when it is empty,
+      which is when you would go there to add a repo.
+- [x] 🟢 **Disable file-tree animation** — **done**; dropped all three
+      toggle transitions: `width`/`border-color` 160ms on
+      `.qf-sidebar-inline` (the wide-window push column), `transform` 180ms
+      on `.qf-sidebar-overlay` (the narrow-window slide-in) and `opacity`
+      150ms on `.qf-sidebar-scrim`. `b` now lands the tree at its final size
+      in the same frame, which also stops Virtuoso re-measuring through
+      ~160ms of intermediate widths. The hidden states themselves
+      (`width: 0`, `translateX(-100%)`, `opacity: 0`) are load-bearing and
+      stayed. The 120ms `.qf-file` row hover cross-fade is deliberately
+      kept — that is hover feedback on a row, not the tree animating.
+- [ ] 🔴 **README rework** — the README has grown by accretion and no longer
+      reads as an introduction to the product. Rewrite it. Folds in the
+      per-distro install guidance already queued in
+      [11d Tier 0](#11d-linux-install--update-path-2026-07-25) (`README.md:221`)
+      — do that pass as part of this rather than twice.
+- [ ] 🟡 **`mod+r` code search — the glance is too cramped** (2026-07-30) —
+      snippets aren't full width, some content never fits, and the code
+      preview needs more room and more lines. Audit of
+      `pr-search.tsx` + `.qsp-*` in `quiet.css`:
+      - **Worst symptom first: a match can be invisible.**
+        `.qsp-snip-line` is `white-space: pre; overflow: hidden` and
+        `.qsp-snip-code` adds `text-overflow: ellipsis`, so a hit far along
+        a long line is clipped away — you get a result row whose match you
+        cannot see, and no way to scroll to it. Fix that before cosmetics:
+        scroll each snippet so the match is in frame, or wrap the hit line.
+      - **Only 5 lines of context.** `SNIPPET_RADIUS = 2` (`pr-search.tsx:44`)
+        → ±2 around the hit. Raising it to 3–4 is a one-line change and is
+        what "increase the lines visible" asks for.
+      - **The pane is sized for the wrong content.** `.qsp-panel` is shared
+        by *two* surfaces — the inbox `/` PR search and this in-review code
+        search (`pr-search.tsx:281`) — at one `width: min(680px, …)`. That
+        width was chosen for PR titles + repo/author meta; code wants more.
+        Giving the code-search pane its own wider rule is the single
+        biggest win. (Noted during PR #97, which changed the shared height:
+        this shared class is easy to retune for one surface and regress the
+        other — split it deliberately.)
+      - **Chrome eats the code column.** Inside each `.qsp-row`: 14px/12px
+        padding, a `.qsp-rail`, a 34px min-width line-number gutter and a
+        10px gap, before any code. At 11.5px mono that is a lot of the
+        line gone to furniture.
+      - **Bigger option if the above isn't enough:** a two-pane layout —
+        narrow result list on the left, a real preview pane on the right —
+        which is what "not enough space for the code glance" points at.
+        Costs more than the four fixes above; try them first.
+      - Also worth checking while here: `MAX_LINES = 60` silently truncates
+        results with no "showing first 60" affordance.
+      *Shipped 2026-07-30 (the no-decision half):* rows are `<button>`s, which
+      shrink-wrap instead of filling the list — that, not the pane width, is
+      why snippets stopped short (measured: 381px inside a 913px pane). Fixed
+      with `width: 100%`, the same explicit width `.qf-file` already needed.
+      The matched line now wraps (`pre-wrap` on `.qsp-snip-line-hit` only) so
+      a hit far along a long line can never be ellipsised out of sight;
+      context lines stay one line each. `SNIPPET_RADIUS` 2 → 4 (5 → 9 lines),
+      and the in-review pane took its own `.qsp-panel-code` width (920px) so
+      it no longer inherits a width chosen for PR titles.
+      **Still open (needs a decision):** the two-pane layout, and the
+      `MAX_LINES` truncation affordance.
+- [ ] 🟡 **Info tab: one comment feed, one comment design** (2026-07-30) —
+      code discussions in the Info drawer show no avatar, author or
+      timestamp, and sit in a separate list from PR-level comments. Make
+      them look like comments, and consider merging the two lists into one
+      chronological feed.
+      - **Not a data gap — a rendering choice.** Both `ReviewComment`
+        (`types.ts:73`) and `IssueComment` (`types.ts:89`) already carry
+        `user`, `userAvatarUrl` and `createdAt`, and `review-screen.tsx`
+        already passes the full `inlineComments` array into the drawer. The
+        drawer's **"Code discussion"** section
+        (`right-panel.tsx:383-425`) just renders each thread as a
+        `qf-thread-row` *jump button* — path, `:line`, reply count, first
+        line of the body — so it is a file index, not a comment view. The
+        adjacent "Conversation" section right above it
+        (`right-panel.tsx:333-381`) renders the full treatment.
+      - **The inline thread is fine** — `comment-thread.tsx:272-303`
+        already renders avatar + author + time per comment. So this is
+        scoped to the drawer only, despite the report's wording.
+      - **Design unification is the durable half.** The head row (avatar ·
+        author · time · tools) is written twice, against two CSS families
+        (`.qf-convo-*` vs `.qf-comment-*`/`.qf-thread-*`), while
+        `comment-item.tsx` shares only `CommentTools` + `CommentBody` — its
+        header says the split is intentional. Extracting one `CommentRow`
+        is the fix and pays off regardless of the feed decision. Do this
+        part first; it is safe and independently shippable.
+      - **⚠️ The merged feed is a product decision, not a cleanup.**
+        [DESIGN.md](./DESIGN.md) states the split deliberately — Info tab is
+        "description + PR-level comments", inline stays in the code view —
+        and a single blended stream is close to **Conversation mode**, which
+        §layout defers as a post-MVP third tab and the
+        [build order](#explicitly-do-not-build-before-user-feedback) says
+        not to build before user feedback. Options: (a) unify the design
+        only, keep two sections; (b) one feed with threads as a distinct
+        entry kind. Prefer (a) first — it removes the complaint's real sting
+        (code discussions looking like second-class rows) without spending
+        the Conversation-mode decision early.
+      - Pairs with **Reply in Info tab** (§keyboard/composer) — a code
+        discussion that renders as a real comment is also the surface that
+        would carry a reply box.
+- [ ] 🔴 **Theme selection** (2026-07-30) — let users pick a colour theme:
+      the current **Quiet** default plus **Monokai**, proposed as a
+      licensed feature. Blocked on the theming-mechanism decision in
+      [Inbox (2026-07-15)](#inbox-2026-07-15) — do that first, it is the
+      whole cost of this item.
+      - **A theme here is three coordinated layers, not a palette.** (1) the
+        ~14 chrome tokens in `src/index.css` `@theme`; (2) the diff add/del
+        row tints, which must stay legible *under* find marks, occurrence
+        marks, intraline emphasis and the comment iris — the constraint an
+        editor theme doesn't have; (3) the syntax palette, currently
+        highlight.js `github-dark`, which is a separate stylesheet. Porting
+        Monokai means authoring all three, not swapping hexes.
+      - **The real blocker: `quiet.css` has ~59 hardcoded colour literals**
+        (`rgba(95, 208, 138, 0.08)`, `rgba(255, 112, 136, 0.3)`, …) that
+        bypass the token layer entirely. Every one is a place a second theme
+        would leak the first theme's colours. Tokenising those is the bulk of
+        the work and is worth doing regardless of whether themes ship.
+      - **Recommended set — cover distinct axes, not a long list.** Each
+        theme is real maintenance (3 layers × every diff state), so:
+        **Quiet** (default) · **Quiet Light** · **High contrast** ·
+        **Monokai** (high-saturation retro, requested) · **Solarized**
+        dark+light (the low-eye-strain pair, and the most on-brief for a
+        long-reading review tool) · **Gruvbox** (warm/low-blue — the
+        counterweight to Monokai's cool neon). Hold Catppuccin, Tokyo Night,
+        Nord and One Dark until asked; they are popular but occupy axes the
+        set above already covers.
+      - **Recommendation on the paywall: don't gate legibility.** Light and
+        high-contrast should be **free** — for some users dark-on-light isn't
+        a preference, and a review tool that can't be read in a bright room
+        or shared on a projector is broken, not unlicensed. Gate the
+        *character* themes (Monokai, Solarized, Gruvbox). "You never pay to
+        read, you pay for personality" is both defensible and better
+        positioning than a paywalled light mode.
+      - **⚠️ Conflicts with the licensing model as designed.** Per
+        [RELEASING.md](./RELEASING.md#commercial-launch), a license buys
+        **updates** (`updates_until`) with client-side *updater* gating — the
+        app itself keeps working, and there is deliberately no DRM. Themes
+        would be the first **feature** gate, which needs runtime entitlement
+        checks that don't exist and cuts against the "no license keys, the
+        app just works" stance. Decide the model before building: either
+        accept a second gate, or make themes a free delighter and keep the
+        license purely about updates. Note the app has **no** licensing code
+        at all today — see [11c status](#11c-status--what-actually-exists-audited-2026-07-30).
+- [ ] ❓ **Code-similarity check between the diff and the repo** — flag hunks
+      that closely match code already in the repository (duplicated logic,
+      copy-paste, a helper that already exists). Open question on shape and
+      whether it earns its keep: needs §9 repo snapshot (layer 1) to have
+      local files to compare against, and it is a *review-assist* feature,
+      which is adjacent to the "no AI" go-to-market direction even if
+      implemented as plain similarity matching rather than a model.

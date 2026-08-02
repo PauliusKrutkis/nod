@@ -1,13 +1,23 @@
 /**
  * Default fixture: only Review requests (3) and Created (1) hold PRs, so
  * Assigned, Involved and Watching start out empty and hidden from the tab
- * bar. Digit hotkeys still reach a hidden tab directly, landing on its
- * zero-state. Watching repos is a separate action from the tab bar's
- * content tabs (the docked Watch button opens the same dialog as "w"), so
- * it stays reachable even while the Watching tab itself is hidden.
+ * bar. Digit hotkeys are positional over the VISIBLE tabs, so they cannot
+ * summon a hidden one; a hidden tab stays reachable through the command
+ * palette instead (covered in palette.spec.ts). Watching repos is a
+ * separate action from the tab bar's content tabs (the docked Watch button
+ * opens the same dialog as "w"), so it stays reachable even while the
+ * Watching tab itself is hidden.
  */
 import { setupApp } from "./bridge.ts";
+import type { InboxFixture } from "./fixtures.ts";
 import { expect, test } from "./test.ts";
+
+const EMPTY_INBOX: InboxFixture = {
+  assigned: { count: 0, prs: [] },
+  created: { count: 0, prs: [] },
+  involved: { count: 0, prs: [] },
+  reviewRequested: { count: 0, prs: [] },
+};
 
 const REVIEW_REQUESTS = /Review requests/;
 const ASSIGNED = /Assigned/;
@@ -45,7 +55,9 @@ test("j/k move the selection; the reading pane follows", async ({ page }) => {
   await expect(options.nth(0)).toHaveAttribute("aria-selected", "true");
 });
 
-test("empty tabs are hidden; digits still reach them", async ({ page }) => {
+test("digits address the visible tabs, and cannot summon a hidden one", async ({
+  page,
+}) => {
   await expect(
     page.getByRole("button", { name: REVIEW_REQUESTS })
   ).toBeVisible();
@@ -54,15 +66,45 @@ test("empty tabs are hidden; digits still reach them", async ({ page }) => {
   await expect(page.getByRole("button", { name: INVOLVED })).toHaveCount(0);
   await expect(page.getByRole("button", { name: WATCHING })).toHaveCount(0);
 
-  if (process.env.CAPTURE_EVIDENCE) {
-    await page.screenshot({ path: "evidence/inbox-hide-empty-tabs.png" });
-  }
-
   await page.keyboard.press("2");
-  await expect(page.getByRole("button", { name: ASSIGNED })).toHaveAttribute(
+  await expect(page.getByRole("button", { name: CREATED })).toHaveAttribute(
     "data-state",
     "active"
   );
+  await expect(page.getByRole("button", { name: ASSIGNED })).toHaveCount(0);
+
+  await page.keyboard.press("3");
+  await expect(page.getByRole("button", { name: CREATED })).toHaveAttribute(
+    "data-state",
+    "active"
+  );
+  await expect(page.getByRole("button", { name: ASSIGNED })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: INVOLVED })).toHaveCount(0);
+
+  await page.keyboard.press("1");
+  await expect(
+    page.getByRole("button", { name: REVIEW_REQUESTS })
+  ).toHaveAttribute("data-state", "active");
+
+  if (process.env.CAPTURE_EVIDENCE) {
+    await page.screenshot({ path: "evidence/inbox-hide-empty-tabs.png" });
+  }
+});
+
+test("the Watching zero-state offers the watch-a-repository action", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("pr-flow:lastInboxTab", "subscribed");
+  });
+  await setupApp(page, { inbox: EMPTY_INBOX });
+
+  await expect(page.locator('.qi-tab[data-state="active"]')).toContainText(
+    "Watching"
+  );
+  await expect(
+    page.getByRole("button", { name: WATCH_A_REPOSITORY })
+  ).toBeVisible();
 });
 
 test("the docked Watch button opens the dialog regardless of tab state", async ({
@@ -73,21 +115,22 @@ test("the docked Watch button opens the dialog regardless of tab state", async (
   await expect(page.getByPlaceholder(SEARCH_REPOSITORIES)).toBeFocused();
 });
 
-test("tab cycles only visible tabs; digits jump directly", async ({ page }) => {
+test("tab and the digits agree on the same visible list", async ({ page }) => {
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: CREATED })).toHaveAttribute(
     "data-state",
     "active"
   );
-  await page.keyboard.press("5");
-  await expect(page.getByRole("button", { name: WATCHING })).toHaveAttribute(
+  await page.keyboard.press("Tab");
+  await expect(
+    page.getByRole("button", { name: REVIEW_REQUESTS })
+  ).toHaveAttribute("data-state", "active");
+
+  await page.keyboard.press("2");
+  await expect(page.getByRole("button", { name: CREATED })).toHaveAttribute(
     "data-state",
     "active"
   );
-  await expect(
-    page.getByRole("button", { name: WATCH_A_REPOSITORY })
-  ).toBeVisible();
-  await page.keyboard.press("1");
 });
 
 test("e archives with an undo toast; z restores", async ({ page }) => {
@@ -155,4 +198,18 @@ test("global search ranks and opens", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Add fuzzy matching to search" })
   ).toBeVisible();
+});
+
+test("the inbox row and the search pane both show the PR branch", async ({
+  page,
+}) => {
+  await expect(page.getByRole("option").first()).toContainText("feat/thing");
+
+  await page.keyboard.press("/");
+  const input = page.getByPlaceholder("Search all pull requests…");
+  await input.fill("feat/thing");
+  const rows = page.locator(".qsp-row");
+  await expect(rows.first()).toBeVisible();
+  await expect(rows.first().locator(".qsp-branch")).toContainText("feat/thing");
+  await page.screenshot({ path: "evidence/branch-in-search.png" });
 });

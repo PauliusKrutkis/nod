@@ -807,18 +807,16 @@ dialog.q-dialog::backdrop {
 
 /* ============ SIDEBAR ============ */
 /* The file-tree column. Two modes, switched from JS at the compact breakpoint:
-   `inline` is a static push column (wide windows); `overlay` slides in over the
-   diff (narrow windows) so the diff never loses width to the tree. */
+   `inline` is a static push column (wide windows); `overlay` sits over the
+   diff (narrow windows) so the diff never loses width to the tree.
+   Toggling is instant in both modes — `b` is a navigation key pressed mid-read,
+   and animating the column made it feel slower than it was while forcing the
+   virtualizer to re-measure through every intermediate width. */
 .dir-quiet .qf-sidebar-col {
   flex-shrink: 0;
   width: 300px;
   overflow: hidden;
   border-right: 1px solid var(--line);
-}
-.dir-quiet .qf-sidebar-inline {
-  transition:
-    width 160ms ease,
-    border-color 160ms ease;
 }
 .dir-quiet .qf-sidebar-inline:not(.qf-sidebar-open) {
   width: 0;
@@ -833,7 +831,6 @@ dialog.q-dialog::backdrop {
   background: var(--bg);
   box-shadow: 24px 0 48px -24px rgba(0, 0, 0, 0.6);
   transform: translateX(-100%);
-  transition: transform 180ms ease;
 }
 .dir-quiet .qf-sidebar-overlay.qf-sidebar-open {
   transform: translateX(0);
@@ -845,7 +842,6 @@ dialog.q-dialog::backdrop {
   pointer-events: none;
   background: rgba(8, 8, 14, 0.5);
   opacity: 0;
-  transition: opacity 150ms ease;
 }
 .dir-quiet .qf-sidebar-scrim-open {
   pointer-events: auto;
@@ -1405,9 +1401,9 @@ dialog.q-dialog::backdrop {
   display: flex;
   gap: 10px;
   align-items: center;
-  padding: 8px 16px;
-  background: var(--surface-2);
-  border-top: 1px solid var(--line-2);
+  padding: 10px 16px;
+  background: var(--surface-hi);
+  border-top: 2px solid var(--line-2);
   border-bottom: 1px solid var(--line);
   /* the iris edge marks the file the keyboard is talking to */
   box-shadow: inset 2px 0 0 transparent;
@@ -1427,7 +1423,7 @@ dialog.q-dialog::backdrop {
   overflow: hidden;
   text-overflow: ellipsis;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   white-space: nowrap;
 }
@@ -1678,7 +1674,7 @@ dialog.q-dialog::backdrop {
   border-bottom: 1px solid var(--line);
 }
 .dir-quiet .qf-row-hunk:hover {
-  background: var(--surface-hi);
+  background: var(--surface-2);
 }
 .dir-quiet .qf-row-hunk .qf-code {
   font-size: 11px;
@@ -2315,20 +2311,25 @@ dialog.q-dialog::backdrop {
   border-radius: 999px;
 }
 .dir-quiet .qf-pending-remove {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
   padding: 3px 9px;
   margin-left: auto;
   font-size: 11px;
-  color: var(--muted);
+  color: var(--del);
   cursor: pointer;
-  background: transparent;
-  border: 1px solid var(--line-2);
+  background: var(--del-bg);
+  border: 1px solid color-mix(in srgb, var(--del) 40%, transparent);
   border-radius: 6px;
   transition:
     color 120ms ease,
-    border-color 120ms ease;
+    border-color 120ms ease,
+    background-color 120ms ease;
 }
 .dir-quiet .qf-pending-remove:hover {
   color: var(--del);
+  background: color-mix(in srgb, var(--del) 20%, transparent);
   border-color: var(--del);
 }
 
@@ -3878,8 +3879,10 @@ dialog.q-dialog::backdrop {
 .qsp-panel {
   width: min(680px, calc(100vw - 32px));
   min-height: min(440px, 60vh);
-  max-height: 70vh;
   padding: 0;
+}
+.qsp-panel-code {
+  width: min(920px, calc(100vw - 32px));
 }
 
 .qsp-search {
@@ -3927,6 +3930,7 @@ dialog.q-dialog::backdrop {
 .qsp-row {
   position: relative;
   display: flex;
+  width: 100%;
   gap: 12px;
   align-items: center;
   padding: 10px 12px 10px 14px;
@@ -4025,6 +4029,8 @@ dialog.q-dialog::backdrop {
   white-space: pre;
 }
 .qsp-snip-line-hit {
+  align-items: flex-start;
+  overflow: visible;
   background: var(--accent-soft);
 }
 .qsp-snip-num {
@@ -4040,6 +4046,20 @@ dialog.q-dialog::backdrop {
 .qsp-snip-code {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.qsp-snip-line-hit .qsp-snip-code {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.qsp-branch {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  min-width: 0;
+  color: var(--faint);
 }
 
 .qsp-empty {

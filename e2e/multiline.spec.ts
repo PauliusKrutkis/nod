@@ -42,7 +42,7 @@ test("shift+j grows the range; c comments on it with a multi-line suggestion", a
   await expect(sugg).toContainText("return 2;");
   await expect(sugg).toContainText("}");
 
-  await page.keyboard.press("Control+Enter");
+  await page.keyboard.press("ControlOrMeta+Enter");
   await expect(page.locator(".qf-range-tag")).toHaveText("Lines 2–4");
   await expect(page.locator(".qf-pending .md-suggestion-line")).toHaveCount(3);
 });
@@ -56,11 +56,11 @@ test("the submitted review payload carries the range start", async ({
   const ed = page.getByRole("textbox", { name: "Add a review comment…" });
   await expect(ed).toBeFocused();
   await page.keyboard.type("tighten this pair");
-  await page.keyboard.press("Control+Enter"); // add to review
+  await page.keyboard.press("ControlOrMeta+Enter"); // add to review
   await expect(page.getByText("Pending")).toBeVisible();
 
   await page.keyboard.press("s");
-  await page.keyboard.press("Control+Enter"); // submit (COMMENT verdict)
+  await page.keyboard.press("ControlOrMeta+Enter"); // submit (COMMENT verdict)
   await expect
     .poll(async () =>
       page.evaluate(() =>
@@ -170,7 +170,7 @@ test("a pending range survives leaving and reopening the PR", async ({
     page.getByRole("textbox", { name: "Add a review comment…" })
   ).toBeFocused();
   await page.keyboard.type("keep this range");
-  await page.keyboard.press("Control+Enter");
+  await page.keyboard.press("ControlOrMeta+Enter");
   await expect(page.locator(".qf-range-tag")).toHaveText("Lines 2–3");
 
   await page.keyboard.press("Escape"); // back to inbox

@@ -54,6 +54,7 @@ interface RightPanelProps {
   conversation: IssueComment[];
   fileCount: number;
   inlineComments: ReviewComment[];
+  addIssueCommentPending: boolean;
   onAddIssueComment: (body: string) => Promise<void>;
   onClose: () => void;
   onDeleteIssueComment: (a: { commentId: number }) => Promise<void>;
@@ -99,6 +100,7 @@ export function RightPanel({
   wide,
   onClose,
   onToggleWide,
+  addIssueCommentPending,
   onAddIssueComment,
   onDeleteIssueComment,
   onEditIssueComment,
@@ -437,7 +439,7 @@ export function RightPanel({
               onCancel={collapseComposer}
               onEmptyChange={setDraftEmpty}
               onSubmit={handleAddIssueComment}
-              pending={false}
+              pending={addIssueCommentPending}
               placeholder="Comment on this pull request…"
               ref={composerRef}
               submitLabel="Comment"
@@ -525,11 +527,12 @@ function ConversationItem({
           <span className="qf-comment-time" title={formatAbsolute(at)}>
             {formatRelativeTime(at)}
           </span>
-          {own && !editing && commentId !== undefined && (
+          {!editing && commentId !== undefined && (
             <CommentTools
+              body={body}
               commentId={commentId}
-              onDelete={onDelete ? handleDelete : undefined}
-              onStartEdit={onStartEdit}
+              onDelete={own && onDelete ? handleDelete : undefined}
+              onStartEdit={own ? onStartEdit : undefined}
             />
           )}
         </div>
