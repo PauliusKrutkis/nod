@@ -635,3 +635,27 @@ export function fileRenderMeta(
   byFilename.set(filename, meta);
   return meta;
 }
+
+export function buildCommentsByFile(
+  comments: readonly ReviewComment[]
+): Map<string, ReviewComment[]> {
+  const m = new Map<string, ReviewComment[]>();
+  for (const c of comments) {
+    const arr = m.get(c.path) ?? [];
+    arr.push(c);
+    m.set(c.path, arr);
+  }
+  return m;
+}
+
+export function buildPendingByFile(
+  pending: readonly PendingComment[]
+): Map<string, PendingComment[]> {
+  const m = new Map<string, PendingComment[]>();
+  for (const p of pending) {
+    const arr = m.get(p.path) ?? [];
+    arr.push(p);
+    m.set(p.path, arr);
+  }
+  return m;
+}
