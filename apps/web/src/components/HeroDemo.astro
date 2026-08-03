@@ -76,9 +76,19 @@
   frame?.addEventListener("click", launch);
 
   // The start button promises "press j" — honor it page-wide. Once the demo
-  // is live the iframe owns the keyboard, so this only ever starts it.
+  // is live the iframe owns the keyboard, so this only ever starts it. The
+  // hotkey exists only where the embed does: on new-tab viewports the button
+  // never promises a keycap, and an unguarded window.open would otherwise
+  // spawn a tab per auto-repeated keydown while j is held.
   window.addEventListener("keydown", (event) => {
-    if (event.key !== "j" || event.metaKey || event.ctrlKey || event.altKey) {
+    if (
+      event.key !== "j" ||
+      event.repeat ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.altKey ||
+      !embeddable()
+    ) {
       return;
     }
     const target = event.target as HTMLElement | null;
