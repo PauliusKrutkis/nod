@@ -9,7 +9,14 @@
 // Coarse pointers and narrow viewports open /demo/ in its own tab instead
 // of embedding a keyboard app where there is no keyboard. Nothing from the
 // 780KB demo bundle loads until the visitor asks for it — idle visitors pay
-// only for the poster.
+// only for the poster. Launch guards: the start button's click stops
+// propagation because the frame's click-to-start would otherwise relaunch
+// on bubble, and the page-wide j hotkey ignores modifier chords, editable
+// targets, and auto-repeat — an unguarded window.open would spawn a tab per
+// repeated keydown while j is held. The hotkey exists only where the embed
+// does, and the hd__when-* media queries mirror the embeddable() check, so
+// the button and caption never promise a keycap (or a click-outside) where
+// the demo actually opens in a new tab.
 ---
 
 <figure
@@ -69,17 +76,11 @@
   };
 
   start?.addEventListener("click", (event) => {
-    // The frame's click-to-start would otherwise relaunch on bubble.
     event.stopPropagation();
     launch();
   });
   frame?.addEventListener("click", launch);
 
-  // The start button promises "press j" — honor it page-wide. Once the demo
-  // is live the iframe owns the keyboard, so this only ever starts it. The
-  // hotkey exists only where the embed does: on new-tab viewports the button
-  // never promises a keycap, and an unguarded window.open would otherwise
-  // spawn a tab per auto-repeated keydown while j is held.
   window.addEventListener("keydown", (event) => {
     if (
       event.key !== "j" ||
@@ -191,9 +192,6 @@
     color: var(--faint);
   }
 
-  /* Copy tracks behavior: these media queries mirror the embeddable() check
-     in the script, so the button and caption never promise an embed (or a
-     keyboard) where the demo actually opens in a new tab. */
   .hd__when-embedded {
     display: inline-flex;
     align-items: center;
