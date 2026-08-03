@@ -116,6 +116,8 @@ pub fn run() {
             commands::submit_review,
             commands::ensure_repo_snapshot,
             commands::snapshot_status,
+            commands::list_repo_files,
+            commands::search_repo_content,
             commands::get_viewed_map,
             commands::set_viewed_map,
             update::check_for_update,

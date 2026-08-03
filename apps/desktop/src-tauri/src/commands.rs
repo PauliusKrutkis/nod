@@ -11,6 +11,7 @@ use crate::model::{
     FileBlob, GitHubUser, InboxBucket, InboxData, PullRequestDetail, RepoHit, ReviewComment,
     ReviewCommentInput, MAX_BLOB_BYTES,
 };
+use crate::snapshot::search as snapshot_search;
 use crate::snapshot::service as snapshot_service;
 use crate::snapshot::store::{self as snapshot_store, SnapshotKey};
 use crate::storage;
@@ -410,6 +411,35 @@ pub async fn snapshot_status(
     let key = snapshot_key(&app, owner, repo, sha).await?;
     let root = storage::cache_dir(&app)?;
     Ok(snapshot_service::status(&root, &key))
+}
+
+#[tauri::command]
+pub async fn list_repo_files(
+    app: AppHandle,
+    owner: String,
+    repo: String,
+    sha: String,
+    path_contains: Option<String>,
+) -> Result<snapshot_search::FileListing, String> {
+    let key = snapshot_key(&app, owner, repo, sha).await?;
+    let root = storage::cache_dir(&app)?;
+    snapshot_search::list_files(&root, &key, path_contains.as_deref())
+        .ok_or_else(|| "snapshot not ready".to_string())
+}
+
+#[tauri::command]
+pub async fn search_repo_content(
+    app: AppHandle,
+    owner: String,
+    repo: String,
+    sha: String,
+    pattern: String,
+    path_contains: Option<String>,
+) -> Result<snapshot_search::GrepResult, String> {
+    let key = snapshot_key(&app, owner, repo, sha).await?;
+    let root = storage::cache_dir(&app)?;
+    snapshot_search::grep(&root, &key, &pattern, path_contains.as_deref())
+        .ok_or_else(|| "snapshot not ready".to_string())
 }
 
 #[tauri::command]
