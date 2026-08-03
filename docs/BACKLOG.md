@@ -565,7 +565,9 @@ README promise holds. Converts every future context feature from a project
 
 Three layers, three separate decision points — only layer 3 is a real bet:
 
-- [ ] 🔴 **Layer 1 — snapshot service** (after PR #47 merges; buildable during
+- [x] 🔴 **Layer 1 — snapshot service** — *shipped (PRs #75 store, #113
+      fetch/extract; `get_file_blob` reads local-first with host fallback).*
+      Original spec: (after PR #47 merges; buildable during
       beta, changes no user-visible surface). Rust background threads: check
       repo size via API first (over ~100 MB → skip, stay on-demand — degrade,
       never block), download tarball on PR open, extract to cache, evict old
@@ -1356,6 +1358,11 @@ shared `useAutoFocus(ref)` hook, or the native `autoFocus` attribute where no
 AI · GitLab · Slack integration · streaks · celebration · Conversation mode ·
 webhooks · icon · Ultracite · vim jumps · persist pending comments · Stage 3
 link interception · Universal Links.
+
+> **2026-08-03 (owner):** decision made — build it. Full end-to-end plan,
+> decisions (generic OpenAI-compatible seam, selection-or-PR ask scope,
+> snapshot-backed tool loop) and PR sequence live in [docs/AI.md](./AI.md);
+> the three sketches below are superseded by it and kept for history.
 
 - [ ] ❓ **AI introduction (BYOK)** — bring-your-own-key model so AI features
       "just work" with the user's own key. **Nexos AI is the first key format
