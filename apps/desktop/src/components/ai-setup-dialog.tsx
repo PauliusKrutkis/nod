@@ -64,7 +64,7 @@ function AiSetupDialogContent({
   const baseUrlRef = useRef<HTMLInputElement>(null);
   const keyRef = useRef<HTMLInputElement>(null);
   const initialBaseUrl = info.baseUrl ?? PRESETS[0].url;
-  const [preset, setPreset] = useState(presetFor(initialBaseUrl));
+  const [preset, setPreset] = useState(() => presetFor(initialBaseUrl));
   const [models, setModels] = useState<AiModel[] | null>(null);
   const [model, setModel] = useState(info.model);
   const { dialogRef, onDialogCancel, onDialogClose } = useModalDialog(
