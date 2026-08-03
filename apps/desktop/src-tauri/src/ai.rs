@@ -77,7 +77,7 @@ pub async fn set_ai_config(
     model: Option<String>,
 ) -> Result<AiInfo, String> {
     let base_url = normalize_base_url(&base_url);
-    if !base_url.starts_with("http") {
+    if !(base_url.starts_with("http://") || base_url.starts_with("https://")) {
         return Err("the base URL must start with http(s)://".to_string());
     }
     let api_key = api_key.trim().to_string();
@@ -135,16 +135,20 @@ async fn read_ai_body(resp: reqwest::Response) -> Result<Value, String> {
     serde_json::from_str::<Value>(&text).map_err(|e| format!("could not parse AI response: {e}"))
 }
 
-/// Nexos annotates each model with an `endpoints` list; when present, models
-/// that can't serve `chat_completion` are dropped. Generic providers without
-/// the field keep everything.
+/// Nexos annotates each model with an `endpoints` list; when it is a list of
+/// strings, models that can't serve `chat_completion` are dropped. A missing
+/// field or an unrecognized shape keeps the model — the entry shape is not
+/// formally documented, so degrading means "show everything", never an
+/// inexplicably empty picker.
 fn supports_chat(model: &Value) -> bool {
     let Some(endpoints) = model.get("endpoints").and_then(Value::as_array) else {
         return true;
     };
-    endpoints
-        .iter()
-        .any(|e| e.as_str() == Some("chat_completion"))
+    let names: Vec<&str> = endpoints.iter().filter_map(Value::as_str).collect();
+    if names.is_empty() {
+        return true;
+    }
+    names.contains(&"chat_completion")
 }
 
 fn parse_models(body: &Value) -> Vec<AiModel> {

@@ -40,6 +40,7 @@ them. Use this table as the mental model:
 | `commands.rs` | Handlers | PR/inbox/review/file commands; cache key helpers. |
 | `auth.rs` | Handlers + infra | OAuth loopback server (GitHub + GitLab), token exchange. |
 | `accounts.rs` | Domain + handlers | `Account` types, `accounts.json`, migration, account commands, `active_platform`. |
+| `ai.rs` | Handlers + infra | BYOK AI provider config (`ai.json`), key-free `AiInfo`, model listing against an OpenAI-compatible base URL. |
 | `model.rs` | DTOs | **Shared** serde types consumed by the frontend (`PullRequest`, `InboxData`, …). |
 | `http.rs` | Infrastructure | Shared reqwest helpers (pagination, body parsing, ETag cache). |
 | `platform.rs` | Seam | `AnyPlatform` enum; forwards calls to the active provider; declares the `platform::github` / `platform::gitlab` submodules. |
@@ -162,6 +163,7 @@ All caches are pretty-printed JSON under the Tauri app config directory
 | File pattern | Written by | Contents |
 | ------------ | ---------- | -------- |
 | `accounts.json` | `accounts.rs` | Account list + active id |
+| `ai.json` | `ai.rs` | AI provider base URL, key and model (never sent to the webview) |
 | `inbox_{accountId}.json` | `list_inbox` | Full inbox tabs |
 | `subscribed_{accountId}.json` | `list_subscribed` | Watching-tab PR bucket |
 | `watched_{accountId}.json` | `set_watched_repos` | Repo full names to watch |

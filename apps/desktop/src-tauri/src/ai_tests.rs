@@ -58,6 +58,23 @@ fn parse_models_filters_on_chat_endpoint_when_annotated() {
 }
 
 #[test]
+fn parse_models_keeps_models_when_endpoints_shape_is_unrecognized() {
+    let object_entries = json!({
+        "data": [
+            { "id": "gpt-4o", "endpoints": [{ "type": "chat_completion" }] },
+            { "id": "claude", "endpoints": [] },
+        ]
+    });
+
+    let ids: Vec<String> = parse_models(&object_entries)
+        .into_iter()
+        .map(|m| m.id)
+        .collect();
+
+    assert_eq!(ids, ["gpt-4o", "claude"]);
+}
+
+#[test]
 fn parse_models_tolerates_missing_or_malformed_data() {
     assert!(parse_models(&json!({})).is_empty());
     assert!(parse_models(&json!({ "data": "nope" })).is_empty());
