@@ -82,7 +82,9 @@ test("configured state shows the saved-key hint and remove action", async ({
   });
   await openReview(page);
 
-  await page.keyboard.press("a");
+  await page.keyboard.press("ControlOrMeta+k");
+  await page.getByPlaceholder("Run a command…").fill("ai settings");
+  await page.keyboard.press("Enter");
   const dialog = page.getByRole("dialog", { name: ASK_ABOUT_CODE });
   await expect(dialog.getByLabel("API key")).toHaveAttribute(
     "placeholder",

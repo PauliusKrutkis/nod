@@ -1,5 +1,6 @@
 use super::{
-    extract_error_message, info_of, normalize_base_url, parse_models, resolve_api_key, AiConfig,
+    answer_text, build_ask_prompt, extract_error_message, info_of, normalize_base_url,
+    parse_models, resolve_api_key, AiConfig, AskContext,
 };
 use serde_json::json;
 
@@ -83,6 +84,51 @@ fn parse_models_tolerates_missing_or_malformed_data() {
 
     let missing_id = json!({ "data": [{ "context_length": 1 }] });
     assert!(parse_models(&missing_id).is_empty());
+}
+
+#[test]
+fn ask_prompt_carries_selection_context_when_present() {
+    let context = AskContext {
+        code: Some("let x = 1;\nlet y = 2;".to_string()),
+        file_path: Some("src/lib/math.ts".to_string()),
+        line_range: Some("12–13".to_string()),
+        pr_body: "Adds numbers.".to_string(),
+        pr_title: "Add math".to_string(),
+        ..AskContext::default()
+    };
+
+    let prompt = build_ask_prompt("Why two lets?", &context);
+
+    assert!(prompt.starts_with("Pull request: Add math"));
+    assert!(prompt.contains("PR description:\nAdds numbers."));
+    assert!(prompt.contains("Selected code from src/lib/math.ts (lines 12–13):"));
+    assert!(prompt.contains("let y = 2;"));
+    assert!(prompt.ends_with("Question: Why two lets?"));
+}
+
+#[test]
+fn ask_prompt_falls_back_to_the_diff_summary() {
+    let context = AskContext {
+        diff_summary: Some("src/a.ts (+3 -1)\nsrc/b.ts (+7 -0)".to_string()),
+        pr_title: "Refactor".to_string(),
+        ..AskContext::default()
+    };
+
+    let prompt = build_ask_prompt("What changed?", &context);
+
+    assert!(prompt.contains("Changed files:\nsrc/a.ts (+3 -1)"));
+    assert!(!prompt.contains("Selected code"));
+    assert!(!prompt.contains("PR description"));
+}
+
+#[test]
+fn answer_text_reads_the_first_choice_and_rejects_empty() {
+    let ok = json!({ "choices": [{ "message": { "content": "  It adds two. " } }] });
+    assert_eq!(answer_text(&ok), Some("It adds two.".to_string()));
+
+    let empty = json!({ "choices": [{ "message": { "content": "   " } }] });
+    assert_eq!(answer_text(&empty), None);
+    assert_eq!(answer_text(&json!({ "choices": [] })), None);
 }
 
 #[test]

@@ -8,6 +8,7 @@
  */
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useAskPanel } from "../../hooks/use-ask-panel.ts";
 import { useCommentMutations } from "../../hooks/use-comments.ts";
 import {
   useExpansionScrollRestore,
@@ -37,6 +38,7 @@ import {
 import { useReviewThreadActions } from "../../hooks/use-review-thread-actions.ts";
 import { useReviewUnmountCleanup } from "../../hooks/use-review-unmount-cleanup.ts";
 import { useViewedFileReconcile } from "../../hooks/use-viewed-file-reconcile.ts";
+import { buildAskContext } from "../../lib/ask-context.ts";
 import { cn } from "../../lib/cn.ts";
 import {
   type CapturedSelection,
@@ -83,6 +85,7 @@ import type {
   ReviewComment,
 } from "../../types.ts";
 import { parsePrKey } from "../../types.ts";
+import { AskPanel } from "./ask-panel.tsx";
 import { FileSidebar } from "./file-sidebar.tsx";
 import { PrSearch } from "./pr-search.tsx";
 import { ReviewDiffPane } from "./review-diff-pane.tsx";
@@ -274,6 +277,10 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     sidebarOverlayOpenRef,
   } = useReviewPanels();
   const rightPanelRef = useRef<RightPanelHandle>(null);
+  const { askAi, panelMode, setInfoOpenFromKey } = useAskPanel({
+    rightOpenRef,
+    setRightOpen,
+  });
   const [submitOpen, setSubmitOpen] = useState(false);
   const [prSearch, setPrSearch] = useState<null | "files" | "text">(null);
   const [reconcileDismissed, setReconcileDismissed] = useState<Set<string>>(
@@ -865,7 +872,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   };
 
   useReviewHotkeys({
-    askAi: () => useAppStore.getState().openAiSetup(),
+    askAi,
     closeFind,
     commentAtCursor,
     commentOnPr: onCommentOnPr,
@@ -895,7 +902,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     rightOpenRef,
     selectionRef,
     setPrSearch,
-    setRightOpen,
+    setRightOpen: setInfoOpenFromKey,
     setSelection,
     sidebarOverlayOpenRef,
     toggleActiveThread,
@@ -921,6 +928,15 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
 
   const isOwnPr = !!activeLogin && pr.author === activeLogin;
   const reviews = detail.reviews ?? [];
+  const openPanel = rightOpen ? panelMode : null;
+  const buildAskPanelContext = () =>
+    buildAskContext({
+      cursor: liveCursor,
+      files,
+      model,
+      pr,
+      selection: liveSelection,
+    });
   return (
     <div className="dir-quiet relative flex h-full min-h-0 overflow-hidden">
       <aside className={sidebarColumnClass(sidebarCompact, sidebarOpen)}>
@@ -1016,10 +1032,17 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
         onJumpToThread={jumpToThread}
         onOpenPr={onOpenPrUrl}
         onToggleWide={onToggleDrawerWide}
-        open={rightOpen}
+        open={openPanel === "info"}
         pr={pr}
         ref={rightPanelRef}
         reviews={reviews}
+        wide={drawerWide}
+      />
+
+      <AskPanel
+        buildContext={buildAskPanelContext}
+        onClose={onCloseRightPanel}
+        open={openPanel === "ask"}
         wide={drawerWide}
       />
 

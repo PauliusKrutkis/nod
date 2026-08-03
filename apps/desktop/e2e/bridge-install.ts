@@ -22,6 +22,7 @@ export interface AppOptions {
     baseUrl: string | null;
     model: string | null;
   };
+  aiAnswer?: string | "error";
   aiModels?: { id: string; contextLength: number | null }[];
   detailByCall?: unknown[];
   detailByLoad?: unknown[];
@@ -60,6 +61,8 @@ export interface AppOptions {
 
 function aiDefaults(opts: AppOptions) {
   return {
+    aiAnswer:
+      opts.aiAnswer ?? "It renames the retry knob — see `src/retry.ts:2`.",
     aiInfo: opts.aiInfo ?? { baseUrl: null, configured: false, model: null },
     aiModels: opts.aiModels ?? [
       { contextLength: 128_000, id: "gpt-4o" },
@@ -122,6 +125,14 @@ export function installBridge(cfg: BridgeConfig) {
   let aiInfo = cfg.aiInfo;
 
   const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
+    ai_ask: (args) => {
+      countCall("ai_ask");
+      localStorage.setItem("e2e:aiAsk", JSON.stringify(args));
+      if (cfg.aiAnswer === "error") {
+        throw new Error("AI provider error (402): out of credits");
+      }
+      return cfg.aiAnswer;
+    },
     ai_list_models: () => {
       countCall("ai_list_models");
       return cfg.aiModels;

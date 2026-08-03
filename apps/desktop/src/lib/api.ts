@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   AccountInfo,
   AccountsInfo,
+  AiAskContext,
   AiInfo,
   AiModel,
   FileBlob,
@@ -32,6 +33,8 @@ export const api = {
     token: string;
   }) => invoke<AccountInfo>("add_account", args),
 
+  aiAsk: (args: { question: string; context: AiAskContext }) =>
+    invoke<string>("ai_ask", args),
   aiListModels: () => invoke<AiModel[]>("ai_list_models"),
 
   checkForUpdate: () => invoke<UpdateInfo | null>("check_for_update"),
