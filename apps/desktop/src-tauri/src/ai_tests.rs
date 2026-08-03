@@ -1,4 +1,6 @@
-use super::{extract_error_message, info_of, normalize_base_url, parse_models, AiConfig};
+use super::{
+    extract_error_message, info_of, normalize_base_url, parse_models, resolve_api_key, AiConfig,
+};
 use serde_json::json;
 
 #[test]
@@ -81,6 +83,25 @@ fn parse_models_tolerates_missing_or_malformed_data() {
 
     let missing_id = json!({ "data": [{ "context_length": 1 }] });
     assert!(parse_models(&missing_id).is_empty());
+}
+
+#[test]
+fn resolve_api_key_keeps_the_stored_key_when_paste_is_empty() {
+    let existing = AiConfig {
+        base_url: "https://api.nexos.ai".to_string(),
+        api_key: "nexos-stored".to_string(),
+        model: None,
+    };
+
+    assert_eq!(
+        resolve_api_key("  ", Some(existing.clone())),
+        Ok("nexos-stored".to_string())
+    );
+    assert_eq!(
+        resolve_api_key("nexos-new", Some(existing)),
+        Ok("nexos-new".to_string())
+    );
+    assert!(resolve_api_key("", None).is_err());
 }
 
 #[test]

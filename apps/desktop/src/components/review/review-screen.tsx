@@ -865,6 +865,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   };
 
   useReviewHotkeys({
+    askAi: () => useAppStore.getState().openAiSetup(),
     closeFind,
     commentAtCursor,
     commentOnPr: onCommentOnPr,

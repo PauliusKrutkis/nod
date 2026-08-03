@@ -17,6 +17,12 @@ export interface AppOptions {
   detail?: unknown;
   activateLicense?: "hang" | "error" | "licensed";
   appVersion?: string;
+  aiInfo?: {
+    configured: boolean;
+    baseUrl: string | null;
+    model: string | null;
+  };
+  aiModels?: { id: string; contextLength: number | null }[];
   detailByCall?: unknown[];
   detailByLoad?: unknown[];
   fileBlobs?: Record<string, string>;
@@ -52,8 +58,19 @@ export interface AppOptions {
   watchedRepos?: string[];
 }
 
+function aiDefaults(opts: AppOptions) {
+  return {
+    aiInfo: opts.aiInfo ?? { baseUrl: null, configured: false, model: null },
+    aiModels: opts.aiModels ?? [
+      { contextLength: 128_000, id: "gpt-4o" },
+      { contextLength: 200_000, id: "claude-sonnet" },
+    ],
+  };
+}
+
 export function buildBridgeConfig(opts: AppOptions = {}) {
   return {
+    ...aiDefaults(opts),
     account: ACCOUNT,
     activateLicense: opts.activateLicense ?? "licensed",
     appVersion: opts.appVersion ?? "1.0.0",
@@ -102,7 +119,28 @@ export function installBridge(cfg: BridgeConfig) {
   const seq = (arr: unknown[] | null, n: number, fallback: unknown) =>
     arr ? arr[Math.min(n, arr.length - 1)] : fallback;
 
+  let aiInfo = cfg.aiInfo;
+
   const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
+    ai_list_models: () => {
+      countCall("ai_list_models");
+      return cfg.aiModels;
+    },
+    clear_ai_config: () => {
+      aiInfo = { baseUrl: null, configured: false, model: null };
+      return null;
+    },
+    get_ai_config: () => aiInfo,
+    set_ai_config: (args) => {
+      countCall("set_ai_config");
+      aiInfo = {
+        baseUrl: args.baseUrl as string,
+        configured: true,
+        model: (args.model as string | null) ?? null,
+      };
+      localStorage.setItem("e2e:aiConfig", JSON.stringify(args));
+      return aiInfo;
+    },
     activate_license: () => {
       countCall("activate_license");
       if (cfg.activateLicense === "hang") {

@@ -30,6 +30,7 @@ import {
   Pencil,
   Search,
   Send,
+  Sparkles,
   TextSearch,
   Trash2,
 } from "lucide-react";
@@ -41,6 +42,7 @@ import { buildCursorMover, type LineSelection } from "../lib/review-cursor.ts";
 import { buildOccNav } from "../lib/review-occurrences.ts";
 
 export function useReviewHotkeys(config: {
+  askAi: () => void;
   closeFind: () => void;
   commentAtCursor: () => void;
   commentOnPr: () => void;
@@ -270,6 +272,13 @@ export function useReviewHotkeys(config: {
       icon: Send,
       keys: "s",
       run: config.openSubmit,
+    },
+    {
+      description: "Ask about code (AI)",
+      group: "General",
+      icon: Sparkles,
+      keys: "a",
+      run: config.askAi,
     },
     {
       description: "Open files in the browser",

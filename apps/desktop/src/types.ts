@@ -179,6 +179,17 @@ export interface AccountsInfo {
   activeId: string | null;
 }
 
+export interface AiInfo {
+  configured: boolean;
+  baseUrl: string | null;
+  model: string | null;
+}
+
+export interface AiModel {
+  id: string;
+  contextLength: number | null;
+}
+
 export interface UpdateInfo {
   currentVersion: string;
   eligible: boolean;
