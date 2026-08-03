@@ -27,6 +27,8 @@ const HEADERS = {
   "Content-Type": "application/json",
 };
 
+const PREFERRED_MODEL = /gpt-4o|sonnet|4\.1|mini/i;
+
 async function pickModel() {
   if (process.argv[2]) {
     return process.argv[2];
@@ -44,11 +46,11 @@ async function pickModel() {
       JSON.stringify(sample.endpoints)
     );
   }
-  const preferred = models.find((id) => /gpt-4o|sonnet|4\.1|mini/i.test(id));
+  const preferred = models.find((id) => PREFERRED_MODEL.test(id));
   return preferred ?? models[0];
 }
 
-const WEATHER_TOOL = {
+const READ_FILE_TOOL = {
   type: "function",
   function: {
     name: "read_file",
@@ -74,7 +76,7 @@ async function probeTools(model) {
         },
       ],
       model,
-      tools: [WEATHER_TOOL],
+      tools: [READ_FILE_TOOL],
     }),
     headers: HEADERS,
     method: "POST",
@@ -85,7 +87,10 @@ async function probeTools(model) {
     const body = JSON.parse(text);
     const message = body.choices?.[0]?.message;
     console.log("finish_reason:", body.choices?.[0]?.finish_reason);
-    console.log("message keys:", message ? Object.keys(message).join(", ") : "none");
+    console.log(
+      "message keys:",
+      message ? Object.keys(message).join(", ") : "none"
+    );
     console.log("tool_calls:", JSON.stringify(message?.tool_calls, null, 2));
   } catch {
     console.log("non-JSON body:", text.slice(0, 500));
