@@ -56,14 +56,13 @@ export function AskPanel({
     }
   }, [open]);
 
-  const pendingDeltasRef = useRef<Map<string, string>>(new Map());
-  const flushFrameRef = useRef(0);
-
   useEffect(() => {
+    const pending = new Map<string, string>();
+    let flushFrame = 0;
     const flushDeltas = () => {
-      flushFrameRef.current = 0;
-      const batch = new Map(pendingDeltasRef.current);
-      pendingDeltasRef.current.clear();
+      flushFrame = 0;
+      const batch = new Map(pending);
+      pending.clear();
       setExchanges((list) =>
         list.map((exchange) => {
           const text = batch.get(exchange.askId);
@@ -76,19 +75,18 @@ export function AskPanel({
     const unlisten = listen<{ askId: string; text: string }>(
       "ai-ask-delta",
       (event) => {
-        const pending = pendingDeltasRef.current;
         pending.set(
           event.payload.askId,
           (pending.get(event.payload.askId) ?? "") + event.payload.text
         );
-        if (!flushFrameRef.current) {
-          flushFrameRef.current = requestAnimationFrame(flushDeltas);
+        if (!flushFrame) {
+          flushFrame = requestAnimationFrame(flushDeltas);
         }
       }
     );
     return () => {
-      if (flushFrameRef.current) {
-        cancelAnimationFrame(flushFrameRef.current);
+      if (flushFrame) {
+        cancelAnimationFrame(flushFrame);
       }
       unlisten.then((stop) => stop());
     };
