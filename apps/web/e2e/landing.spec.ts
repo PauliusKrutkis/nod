@@ -68,14 +68,17 @@ test("the hero starts as a poster, with no demo bundle loaded", async ({
   await expect(page.locator(".hd__iframe")).toHaveCount(0);
 });
 
+/**
+ * The embedded app selects the row under the mouse (its hover behavior), and
+ * after the click the pointer rests over the queue where the start button
+ * was. The test parks the pointer off the frame and asserts relative
+ * selection movement instead of a fixed starting row.
+ */
 test("starting the hero embeds the real app and hands it the keyboard", async ({
   page,
 }) => {
   await page.goto("/");
   await page.getByRole("button", { name: START_DEMO_PATTERN }).click();
-  // The app selects the row under the mouse (its hover behavior), and the
-  // pointer rests over the queue where the start button was. Park it off the
-  // frame and assert relative movement instead of a fixed starting row.
   await page.mouse.move(0, 0);
 
   const demo = page.frameLocator(".hd__iframe");

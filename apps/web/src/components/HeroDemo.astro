@@ -9,7 +9,11 @@
 // Coarse pointers and narrow viewports open /demo/ in its own tab instead
 // of embedding a keyboard app where there is no keyboard. Nothing from the
 // 780KB demo bundle loads until the visitor asks for it — idle visitors pay
-// only for the poster.
+// only for the poster. The frame is 16:9 capped at 76svh (a plain vh line
+// first, so browsers without svh still get a cap), and the start affordance
+// sits a third of the way down rather than centered: the frame's lower half
+// sits below the fold on 900px-tall laptops, and the start affordance must
+// never scroll to be seen.
 ---
 
 <figure
@@ -114,7 +118,6 @@
   .hd__frame {
     position: relative;
     aspect-ratio: 16 / 9;
-    /* vh first: browsers without svh drop that line and still get a cap. */
     max-height: 76vh;
     max-height: 76svh;
     background: var(--surface);
@@ -141,9 +144,6 @@
   .hd__start {
     position: absolute;
     left: 50%;
-    /* A third of the way down, not centered: the frame's lower half sits
-       below the fold on 900px-tall laptops, and the start affordance must
-       never scroll to be seen. */
     top: 33%;
     transform: translate(-50%, -50%);
     display: inline-flex;

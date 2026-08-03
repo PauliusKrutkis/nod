@@ -37,8 +37,9 @@ Key directories:
 
 ## Comments
 
-These rules apply to production code (`apps/desktop/src/`, Rust
-backend).
+These rules apply to production code (`apps/desktop/src/`, `apps/web/src/`,
+Rust backend). Web files written before this scope was stated migrate
+incrementally, like `quiet.css` below.
 
 Do **not** use inline `//` line comments in production source files. Comments
 belong in one of three places:
