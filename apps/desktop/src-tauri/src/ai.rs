@@ -465,6 +465,9 @@ pub async fn ai_ask(
         });
         if tools_enabled {
             body["tools"] = ask_tools();
+            if rounds >= MAX_TOOL_ROUNDS {
+                body["tool_choice"] = serde_json::json!("none");
+            }
         }
         let resp = client
             .post(&url)
@@ -475,7 +478,9 @@ pub async fn ai_ask(
             .map_err(net_err)?;
         let value = match read_ai_body(resp).await {
             Ok(value) => value,
-            Err(error) if tools_enabled && rounds == 0 && error.contains("(4") => {
+            Err(error)
+                if tools_enabled && rounds == 0 && error.starts_with("AI provider error (4") =>
+            {
                 tools_enabled = false;
                 continue;
             }
@@ -490,15 +495,13 @@ pub async fn ai_ask(
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        let (root, key) = match &snapshot {
-            Some((root, key)) if !calls.is_empty() && rounds < MAX_TOOL_ROUNDS => {
-                (root.clone(), key.clone())
-            }
-            _ => {
-                return answer_text(&value)
-                    .ok_or_else(|| "The provider returned an empty answer.".to_string());
-            }
+        let Some((root, key)) = snapshot.clone().filter(|_| !calls.is_empty()) else {
+            return answer_text(&value)
+                .ok_or_else(|| "The provider returned an empty answer.".to_string());
         };
+        if rounds > MAX_TOOL_ROUNDS {
+            return Err("The model kept requesting tools past the limit.".to_string());
+        }
         messages.push(message);
         let results =
             tauri::async_runtime::spawn_blocking(move || tool_result_messages(root, key, calls))
