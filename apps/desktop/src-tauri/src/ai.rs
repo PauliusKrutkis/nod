@@ -375,6 +375,9 @@ async fn stream_chat(
             }
         }
     }
+    if let Some(piece) = apply_stream_line(&mut acc, buffer.trim_end_matches('\r')) {
+        on_delta(&piece);
+    }
     Ok(acc.into_message())
 }
 

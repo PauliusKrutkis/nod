@@ -3,7 +3,8 @@
  * selection, cursor row, or whole PR, answered by the user's own AI provider
  * via the Rust `ai_ask` command. Answers stream in: Rust emits `ai-ask-delta`
  * events keyed by a per-question askId, the pending exchange accumulates them
- * as `partial`, and the mutation's resolved value replaces the partial as the
+ * as `partial` (batched per animation frame so token-rate events don't force
+ * token-rate markdown re-parses), and the mutation's resolved value replaces the
  * final text (in a mocked environment with no events, the spinner simply
  * holds until the promise resolves). Exchanges live in component state only —
  * they are review-session scratch, not data worth persisting. The context
@@ -55,22 +56,40 @@ export function AskPanel({
     }
   }, [open]);
 
+  const pendingDeltasRef = useRef<Map<string, string>>(new Map());
+  const flushFrameRef = useRef(0);
+
   useEffect(() => {
+    const flushDeltas = () => {
+      flushFrameRef.current = 0;
+      const batch = new Map(pendingDeltasRef.current);
+      pendingDeltasRef.current.clear();
+      setExchanges((list) =>
+        list.map((exchange) => {
+          const text = batch.get(exchange.askId);
+          return text && exchange.answer === null && exchange.error === null
+            ? { ...exchange, partial: exchange.partial + text }
+            : exchange;
+        })
+      );
+    };
     const unlisten = listen<{ askId: string; text: string }>(
       "ai-ask-delta",
       (event) => {
-        setExchanges((list) =>
-          list.map((exchange) =>
-            exchange.askId === event.payload.askId &&
-            exchange.answer === null &&
-            exchange.error === null
-              ? { ...exchange, partial: exchange.partial + event.payload.text }
-              : exchange
-          )
+        const pending = pendingDeltasRef.current;
+        pending.set(
+          event.payload.askId,
+          (pending.get(event.payload.askId) ?? "") + event.payload.text
         );
+        if (!flushFrameRef.current) {
+          flushFrameRef.current = requestAnimationFrame(flushDeltas);
+        }
       }
     );
     return () => {
+      if (flushFrameRef.current) {
+        cancelAnimationFrame(flushFrameRef.current);
+      }
       unlisten.then((stop) => stop());
     };
   }, []);
