@@ -1,6 +1,7 @@
 use super::{
-    answer_text, build_ask_prompt, execute_tool, extract_error_message, info_of,
-    normalize_base_url, parse_models, resolve_api_key, AiConfig, AskContext,
+    apply_stream_line, build_ask_prompt, execute_tool, extract_error_message, info_of,
+    message_answer, normalize_base_url, parse_models, resolve_api_key, AiConfig, AskContext,
+    StreamedMessage,
 };
 use crate::snapshot::store::{partial_dir, promote, SnapshotKey};
 use serde_json::json;
@@ -179,13 +180,55 @@ fn ask_prompt_falls_back_to_the_diff_summary() {
 }
 
 #[test]
-fn answer_text_reads_the_first_choice_and_rejects_empty() {
-    let ok = json!({ "choices": [{ "message": { "content": "  It adds two. " } }] });
-    assert_eq!(answer_text(&ok), Some("It adds two.".to_string()));
+fn message_answer_trims_and_rejects_empty() {
+    let ok = json!({ "role": "assistant", "content": "  It adds two. " });
+    assert_eq!(message_answer(&ok), Some("It adds two.".to_string()));
+    assert_eq!(message_answer(&json!({ "content": "   " })), None);
+    assert_eq!(message_answer(&json!({})), None);
+}
 
-    let empty = json!({ "choices": [{ "message": { "content": "   " } }] });
-    assert_eq!(answer_text(&empty), None);
-    assert_eq!(answer_text(&json!({ "choices": [] })), None);
+#[test]
+fn stream_lines_accumulate_content_and_report_deltas() {
+    let mut acc = StreamedMessage::default();
+    let lines = [
+        r#"data: {"choices":[{"delta":{"content":""},"index":0,"finish_reason":null}],"usage":{"nexos_credits_cost":0.0000528}}"#,
+        r#"data: {"choices":[{"delta":{"content":"hello"},"index":0,"finish_reason":null}]}"#,
+        r#"data: {"choices":[{"delta":{"content":" world"},"index":0,"finish_reason":null}]}"#,
+        r#"data: {"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}"#,
+        "data: [DONE]",
+    ];
+    let deltas: Vec<Option<String>> = lines
+        .iter()
+        .map(|l| apply_stream_line(&mut acc, l))
+        .collect();
+
+    assert_eq!(deltas[1].as_deref(), Some("hello"));
+    assert_eq!(deltas[2].as_deref(), Some(" world"));
+    assert!(deltas[0].is_none() && deltas[3].is_none() && deltas[4].is_none());
+
+    let message = acc.into_message();
+    assert_eq!(message["content"], "hello world");
+    assert!(message.get("tool_calls").is_none());
+}
+
+#[test]
+fn stream_lines_reassemble_fragmented_tool_calls() {
+    let mut acc = StreamedMessage::default();
+    let lines = [
+        r#"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"toolu_1","type":"function","function":{"name":"read_file","arguments":""}}]},"index":0}]}"#,
+        r#"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"path\": \""}}]},"index":0}]}"#,
+        r#"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"src/main.rs\"}"}}]},"index":0}]}"#,
+        r#"data: {"choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}"#,
+    ];
+    for line in lines {
+        assert!(apply_stream_line(&mut acc, line).is_none());
+    }
+
+    let message = acc.into_message();
+    let call = &message["tool_calls"][0];
+    assert_eq!(call["id"], "toolu_1");
+    assert_eq!(call["function"]["name"], "read_file");
+    assert_eq!(call["function"]["arguments"], "{\"path\": \"src/main.rs\"}");
 }
 
 #[test]

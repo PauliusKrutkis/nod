@@ -22,7 +22,10 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+# SSE answer streaming for ask-about-code (ai.rs): reqwest's bytes_stream is a
+# futures Stream, and this is the standard adapter for consuming it.
+futures-util = { version = "0.3", default-features = false }
 url = "2"
 tokio = { version = "1", features = ["rt"] }
 # Image diffs: file blobs are shipped to the webview as base64 data URLs.

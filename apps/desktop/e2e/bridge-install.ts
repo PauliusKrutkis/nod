@@ -320,6 +320,15 @@ export function installBridge(cfg: BridgeConfig) {
     },
   };
 
+  Object.defineProperty(window, "__TAURI_EVENT_PLUGIN_INTERNALS__", {
+    configurable: true,
+    value: {
+      unregisterListener: () => {
+        return;
+      },
+    },
+  });
+
   Object.defineProperty(window, "__TAURI_INTERNALS__", {
     configurable: true,
     value: {

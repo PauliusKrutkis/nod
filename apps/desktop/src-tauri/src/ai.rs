@@ -7,7 +7,7 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 
 use crate::accounts;
 use crate::http::{fopt_u64, net_err};
@@ -134,16 +134,20 @@ fn extract_error_message(v: &Value) -> Option<String> {
         .map(str::to_string)
 }
 
+fn provider_error(status: u16, text: &str) -> String {
+    let parsed = serde_json::from_str::<Value>(text).ok();
+    let msg = parsed
+        .as_ref()
+        .and_then(extract_error_message)
+        .unwrap_or_else(|| text.to_string());
+    format!("AI provider error ({status}): {msg}")
+}
+
 async fn read_ai_body(resp: reqwest::Response) -> Result<Value, String> {
     let status = resp.status();
     let text = resp.text().await.map_err(net_err)?;
     if !status.is_success() {
-        let parsed = serde_json::from_str::<Value>(&text).ok();
-        let msg = parsed
-            .as_ref()
-            .and_then(extract_error_message)
-            .unwrap_or_else(|| text.clone());
-        return Err(format!("AI provider error ({}): {}", status.as_u16(), msg));
+        return Err(provider_error(status.as_u16(), &text));
     }
     serde_json::from_str::<Value>(&text).map_err(|e| format!("could not parse AI response: {e}"))
 }
@@ -252,21 +256,127 @@ fn build_ask_prompt(question: &str, context: &AskContext) -> String {
     sections.join("\n\n")
 }
 
-fn answer_text(v: &Value) -> Option<String> {
-    let content = v
-        .get("choices")?
-        .get(0)?
-        .get("message")?
-        .get("content")?
-        .as_str()?
-        .trim();
-    if content.is_empty() {
-        return None;
-    }
-    Some(content.to_string())
+const MAX_TOOL_ROUNDS: usize = 8;
+
+/// One assistant message assembled from SSE chunks. The wire shape was
+/// verified against a live key (docs/AI.md § Probe findings): content arrives
+/// as `delta.content` string pieces; tool calls arrive fragmented by `index`,
+/// the first fragment carrying `id`/`name` and later ones appending
+/// `arguments` pieces.
+#[derive(Default)]
+struct StreamedMessage {
+    content: String,
+    tool_calls: Vec<Value>,
 }
 
-const MAX_TOOL_ROUNDS: usize = 8;
+impl StreamedMessage {
+    fn into_message(self) -> Value {
+        let mut message = serde_json::json!({
+            "role": "assistant",
+            "content": self.content,
+        });
+        if !self.tool_calls.is_empty() {
+            message["tool_calls"] = Value::Array(self.tool_calls);
+        }
+        message
+    }
+}
+
+fn empty_tool_call() -> Value {
+    serde_json::json!({
+        "id": "",
+        "type": "function",
+        "function": { "name": "", "arguments": "" }
+    })
+}
+
+fn merge_tool_call_fragment(acc: &mut StreamedMessage, fragment: &Value) {
+    let index = fragment
+        .get("index")
+        .and_then(Value::as_u64)
+        .unwrap_or(acc.tool_calls.len().saturating_sub(1) as u64) as usize;
+    while acc.tool_calls.len() <= index {
+        acc.tool_calls.push(empty_tool_call());
+    }
+    let call = &mut acc.tool_calls[index];
+    if let Some(id) = fragment.get("id").and_then(Value::as_str) {
+        call["id"] = Value::String(id.to_string());
+    }
+    if let Some(name) = fragment.pointer("/function/name").and_then(Value::as_str) {
+        call["function"]["name"] = Value::String(name.to_string());
+    }
+    if let Some(piece) = fragment
+        .pointer("/function/arguments")
+        .and_then(Value::as_str)
+    {
+        let joined = format!(
+            "{}{piece}",
+            call["function"]["arguments"].as_str().unwrap_or_default()
+        );
+        call["function"]["arguments"] = Value::String(joined);
+    }
+}
+
+/// Applies one SSE line to the accumulator; returns the content piece the
+/// line carried, if any. Non-data lines, `[DONE]`, and unknown fields are
+/// ignored — chunks may carry extra keys (`provider`, usage costs).
+fn apply_stream_line(acc: &mut StreamedMessage, line: &str) -> Option<String> {
+    let payload = line.strip_prefix("data:")?.trim();
+    if payload.is_empty() || payload == "[DONE]" {
+        return None;
+    }
+    let chunk: Value = serde_json::from_str(payload).ok()?;
+    let delta = chunk.pointer("/choices/0/delta")?;
+    if let Some(fragments) = delta.get("tool_calls").and_then(Value::as_array) {
+        for fragment in fragments {
+            merge_tool_call_fragment(acc, fragment);
+        }
+    }
+    let piece = delta.get("content").and_then(Value::as_str)?;
+    if piece.is_empty() {
+        return None;
+    }
+    acc.content.push_str(piece);
+    Some(piece.to_string())
+}
+
+async fn stream_chat(
+    client: &reqwest::Client,
+    url: &str,
+    api_key: &str,
+    body: &Value,
+    mut on_delta: impl FnMut(&str),
+) -> Result<Value, String> {
+    use futures_util::StreamExt;
+
+    let resp = client
+        .post(url)
+        .bearer_auth(api_key)
+        .json(body)
+        .send()
+        .await
+        .map_err(net_err)?;
+    let status = resp.status();
+    if !status.is_success() {
+        let text = resp.text().await.map_err(net_err)?;
+        return Err(provider_error(status.as_u16(), &text));
+    }
+    let mut acc = StreamedMessage::default();
+    let mut buffer = String::new();
+    let mut chunks = resp.bytes_stream();
+    while let Some(chunk) = chunks.next().await {
+        let bytes = chunk.map_err(net_err)?;
+        buffer.push_str(&String::from_utf8_lossy(&bytes));
+        while let Some(newline) = buffer.find('\n') {
+            let line = buffer[..newline].trim_end_matches('\r').to_string();
+            buffer.drain(..=newline);
+            if let Some(piece) = apply_stream_line(&mut acc, &line) {
+                on_delta(&piece);
+            }
+        }
+    }
+    Ok(acc.into_message())
+}
 
 fn ask_tools() -> Value {
     serde_json::json!([
@@ -433,11 +543,27 @@ fn tool_result_messages(
         .collect()
 }
 
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct AskDelta {
+    ask_id: String,
+    text: String,
+}
+
+fn message_answer(message: &Value) -> Option<String> {
+    let content = message.get("content").and_then(Value::as_str)?.trim();
+    if content.is_empty() {
+        return None;
+    }
+    Some(content.to_string())
+}
+
 #[tauri::command]
 pub async fn ai_ask(
     app: AppHandle,
     question: String,
     context: AskContext,
+    ask_id: Option<String>,
 ) -> Result<String, String> {
     let config = load(&app)?.ok_or_else(|| "AI is not configured".to_string())?;
     let model = config
@@ -462,6 +588,7 @@ pub async fn ai_ask(
             "model": model,
             "messages": messages,
             "max_completion_tokens": 2000,
+            "stream": true,
         });
         if tools_enabled {
             body["tools"] = ask_tools();
@@ -469,15 +596,19 @@ pub async fn ai_ask(
                 body["tool_choice"] = serde_json::json!("none");
             }
         }
-        let resp = client
-            .post(&url)
-            .bearer_auth(&config.api_key)
-            .json(&body)
-            .send()
-            .await
-            .map_err(net_err)?;
-        let value = match read_ai_body(resp).await {
-            Ok(value) => value,
+        let emit_delta = |piece: &str| {
+            if let Some(id) = &ask_id {
+                let _ = app.emit(
+                    "ai-ask-delta",
+                    AskDelta {
+                        ask_id: id.clone(),
+                        text: piece.to_string(),
+                    },
+                );
+            }
+        };
+        let message = match stream_chat(&client, &url, &config.api_key, &body, emit_delta).await {
+            Ok(message) => message,
             Err(error)
                 if tools_enabled && rounds == 0 && error.starts_with("AI provider error (4") =>
             {
@@ -486,17 +617,13 @@ pub async fn ai_ask(
             }
             Err(error) => return Err(error),
         };
-        let message = value
-            .pointer("/choices/0/message")
-            .cloned()
-            .unwrap_or(Value::Null);
         let calls: Vec<Value> = message
             .get("tool_calls")
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
         let Some((root, key)) = snapshot.clone().filter(|_| !calls.is_empty()) else {
-            return answer_text(&value)
+            return message_answer(&message)
                 .ok_or_else(|| "The provider returned an empty answer.".to_string());
         };
         if rounds > MAX_TOOL_ROUNDS {

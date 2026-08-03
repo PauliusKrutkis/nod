@@ -1,13 +1,18 @@
 /**
  * The drawer's Ask mode (docs/AI.md): a question box over the current
  * selection, cursor row, or whole PR, answered by the user's own AI provider
- * via the Rust `ai_ask` command. Exchanges live in component state only — they
- * are review-session scratch, not data worth persisting. The context chip
- * names exactly what will be sent before the user asks; nothing is sent until
- * they do. Mirrors the info drawer's scrim + aside markup so `a` and `i` feel
- * like two faces of the same surface.
+ * via the Rust `ai_ask` command. Answers stream in: Rust emits `ai-ask-delta`
+ * events keyed by a per-question askId, the pending exchange accumulates them
+ * as `partial`, and the mutation's resolved value replaces the partial as the
+ * final text (in a mocked environment with no events, the spinner simply
+ * holds until the promise resolves). Exchanges live in component state only —
+ * they are review-session scratch, not data worth persisting. The context
+ * chip names exactly what will be sent before the user asks; nothing is sent
+ * until they do. Mirrors the info drawer's scrim + aside markup so `a` and
+ * `i` feel like two faces of the same surface.
  */
 import { useMutation } from "@tanstack/react-query";
+import { listen } from "@tauri-apps/api/event";
 import { CornerDownLeft, Sparkles, X } from "lucide-react";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api.ts";
@@ -18,8 +23,10 @@ import { Spinner } from "../ui/spinner.tsx";
 
 interface AskExchange {
   answer: string | null;
+  askId: string;
   error: string | null;
   id: number;
+  partial: string;
   question: string;
 }
 
@@ -48,6 +55,26 @@ export function AskPanel({
     }
   }, [open]);
 
+  useEffect(() => {
+    const unlisten = listen<{ askId: string; text: string }>(
+      "ai-ask-delta",
+      (event) => {
+        setExchanges((list) =>
+          list.map((exchange) =>
+            exchange.askId === event.payload.askId &&
+            exchange.answer === null &&
+            exchange.error === null
+              ? { ...exchange, partial: exchange.partial + event.payload.text }
+              : exchange
+          )
+        );
+      }
+    );
+    return () => {
+      unlisten.then((stop) => stop());
+    };
+  }, []);
+
   const settleLastExchange = (patch: Partial<AskExchange>) => {
     setExchanges((list) => {
       const last = list.at(-1);
@@ -61,8 +88,11 @@ export function AskPanel({
 
   // react-doctor-disable-next-line query-mutation-missing-invalidation -- an ask is a one-shot completion, not cached server state; there is no query to invalidate
   const ask = useMutation({
-    mutationFn: (args: { question: string; context: AiAskContext }) =>
-      api.aiAsk(args),
+    mutationFn: (args: {
+      question: string;
+      context: AiAskContext;
+      askId: string;
+    }) => api.aiAsk(args),
     onError: (error) => settleLastExchange({ error: String(error) }),
     onSuccess: (answer) => {
       settleLastExchange({ answer });
@@ -81,11 +111,19 @@ export function AskPanel({
       inputRef.current.value = "";
     }
     nextExchangeId += 1;
+    const askId = crypto.randomUUID();
     setExchanges((list) => [
       ...list,
-      { answer: null, error: null, id: nextExchangeId, question },
+      {
+        answer: null,
+        askId,
+        error: null,
+        id: nextExchangeId,
+        partial: "",
+        question,
+      },
     ]);
-    ask.mutate({ context: buildContext(), question });
+    ask.mutate({ askId, context: buildContext(), question });
   };
 
   const onInputKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -153,9 +191,13 @@ export function AskPanel({
                   {exchange.error}
                 </p>
               )}
-              {exchange.answer === null && exchange.error === null && (
-                <Spinner />
-              )}
+              {exchange.answer === null &&
+                exchange.error === null &&
+                (exchange.partial ? (
+                  <Markdown className="text-sm">{exchange.partial}</Markdown>
+                ) : (
+                  <Spinner />
+                ))}
             </div>
           ))}
         </div>
