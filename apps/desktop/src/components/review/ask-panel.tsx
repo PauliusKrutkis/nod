@@ -59,6 +59,7 @@ export function AskPanel({
     requestAnimationFrame(() => inputRef.current?.focus());
   };
 
+  // react-doctor-disable-next-line query-mutation-missing-invalidation -- an ask is a one-shot completion, not cached server state; there is no query to invalidate
   const ask = useMutation({
     mutationFn: (args: { question: string; context: AiAskContext }) =>
       api.aiAsk(args),
