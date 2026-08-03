@@ -96,3 +96,43 @@ time the whole chain runs against reality.
 - `nod-keygen` CLI for support grants and refunds.
 - Delete the stale pre-monorepo `src-tauri/` dir at the repo root (owner —
   it holds a local `.env` with OAuth dev credentials; now gitignored).
+
+## Live checklist (Aug 2026)
+
+The concrete remaining actions, distilled from the steps above. Tick as
+they land.
+
+Owner — now (all free):
+
+- [ ] Polar **sandbox** org (`sandbox.polar.sh`, slug `nod`), product
+      **Nod license, $39, one-time**.
+- [ ] Webhook endpoint `https://nodreview.com/purchase-webhook`, format
+      **Raw**, event `order.paid`; secret →
+      `wrangler pages secret put POLAR_WEBHOOK_SECRET`.
+- [ ] Organization access token →
+      `wrangler pages secret put POLAR_API_KEY` (checkout creation now,
+      `/restore` later).
+- [ ] New **web** GitHub OAuth app — homepage `https://nodreview.com`,
+      callback `https://nodreview.com/auth/github/callback` (distinct from
+      the desktop app's loopback OAuth). Client secret → Pages secret;
+      client id is public.
+- [ ] `node scripts/generate-license-keypair.mjs` (from `apps/web`):
+      seed → `LICENSE_SIGNING_SEED` Pages secret **+ offline backup**;
+      pubkey → `NOD_LICENSE_PUBKEY` repo variable.
+
+Code — unblocked once the OAuth app exists:
+
+- [ ] Buy-flow page: GitHub sign-in → create Polar checkout with
+      `metadata.subject = github:github.com:<id>` and the success URL
+      above.
+- [ ] Re-key the license index from `order_id` to `checkout_id`
+      (`functions/lib/kv.ts`, `activate.ts`, the purchase webhook + tests).
+- [ ] Sandbox/production Polar API base switch (env var, defaults sandbox).
+
+Deferred until the [release gate](BACKLOG.md#release-gate) passes:
+
+- [ ] Apple Developer Program + `APPLE_*` secrets (step 2).
+- [ ] Register individuali veikla at VMI (income from Polar payouts).
+- [ ] Production Polar org; re-do webhook/token secrets against it.
+- [ ] Flip-on: `NOD_CHECKOUT_URL`, `PUBLIC_CHECKOUT_URL`, cut a release
+      (step 7).
