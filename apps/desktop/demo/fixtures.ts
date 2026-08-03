@@ -22,7 +22,7 @@ export const DEMO_INBOX: InboxFixture = {
   },
   involved: { count: 0, prs: [] },
   reviewRequested: {
-    count: 6,
+    count: 14,
     prs: [
       makePr(
         1,
@@ -49,6 +49,39 @@ export const DEMO_INBOX: InboxFixture = {
         "Snapshot store for offline diffs",
         "frank",
         "2026-06-30T16:00:00Z"
+      ),
+      makePr(
+        52,
+        "Batch pending comments into one review",
+        "grace",
+        "2026-06-30T11:00:00Z"
+      ),
+      makePr(51, "Keyboard map for triage", "hank", "2026-06-30T09:00:00Z"),
+      makePr(49, "Debounce the inbox refresh", "iris", "2026-06-29T17:00:00Z"),
+      makePr(
+        48,
+        "Intraline emphasis for renames",
+        "jude",
+        "2026-06-29T13:00:00Z"
+      ),
+      makePr(46, "Virtualize the file tree", "kira", "2026-06-28T15:00:00Z"),
+      makePr(
+        45,
+        "Mark viewed files across sessions",
+        "liam",
+        "2026-06-28T10:00:00Z"
+      ),
+      makePr(
+        43,
+        "Collapse generated files by default",
+        "mona",
+        "2026-06-27T16:00:00Z"
+      ),
+      makePr(
+        42,
+        "Toast on new review requests",
+        "nate",
+        "2026-06-27T09:00:00Z"
       ),
     ],
   },

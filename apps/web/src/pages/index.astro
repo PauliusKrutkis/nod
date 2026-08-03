@@ -19,27 +19,29 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
   <SiteNav cta={{ href: "/downloads", label: "Download" }} />
 
   <main>
-    <section class="wrap hero">
-      <p class="eyebrow">A desktop app for GitHub pull requests</p>
-      <h1 class="hero__title">Review PRs like an <em>inbox</em>, not a website.</h1>
-      <p class="hero__sub">
-        Keyboard-first and cache-first, for the thing you do every day: open a
-        review request, read the diff, leave a comment, move on.
-      </p>
-
-      <div class="get">
-        <a class="btn btn--primary" href="/downloads">Download Nod</a>
-        <p class="get__note">
-          macOS, Windows, and Linux — or install with{" "}<a
-            href="/downloads#homebrew">Homebrew</a
-          >. Free to evaluate — no time limit.
+    <section class="hero">
+      <div class="wrap">
+        <p class="eyebrow">A desktop app for GitHub pull requests</p>
+        <h1 class="hero__title">Review PRs like an <em>inbox</em>, not a website.</h1>
+        <p class="hero__sub">
+          Keyboard-first and cache-first, for the thing you do every day: open a
+          review request, read the diff, leave a comment, move on.
         </p>
+
+        <div class="get">
+          <a class="btn btn--primary" href="/downloads">Download Nod</a>
+          <p class="get__note">
+            macOS, Windows, and Linux — or install with{" "}<a
+              href="/downloads#homebrew">Homebrew</a
+            >. Free to evaluate — no time limit.
+          </p>
+        </div>
       </div>
 
       <HeroDemo />
     </section>
 
-    <section class="wrap feats" aria-label="Features in action">
+    <section class="wide feats" aria-label="Features in action">
       <p class="eyebrow feats__eyebrow">In action</p>
       <div class="feats__rows">
         <FeatureShowcase

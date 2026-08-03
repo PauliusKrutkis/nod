@@ -21,6 +21,7 @@ const { title, body, scene, label } = Astro.props;
   <div class="show__copy">
     <h2 class="show__title">{title}</h2>
     <p class="show__body">{body}</p>
+    <p class="show__keys mono"><slot /></p>
   </div>
   <figure class="show__fig" aria-label={label}>
     <video
@@ -31,7 +32,6 @@ const { title, body, scene, label } = Astro.props;
       preload="metadata"
       poster={`/landing/${scene}.png`}
       src={`/landing/${scene}.webm`}></video>
-    <figcaption class="show__caption"><slot /></figcaption>
   </figure>
 </article>
 

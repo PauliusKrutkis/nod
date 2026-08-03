@@ -3,11 +3,13 @@
    the site reads as a calm extension of the product (dark, iris accent, mono
    keyboard cues). Palette + type are copied verbatim from the app's tokens.
 
-   The hero's signature element — an inbox that triages itself as a pure-CSS
-   loop — lives in InboxReplay.astro with scoped styles, like the feature
-   components. House rules for every animated shell on this page: the window's
-   height is fixed so no motion ever shifts the page, and the loop freezes on
-   its composed frame under `prefers-reduced-motion`.
+   Two container widths, on purpose: prose lives in .wrap (a readable 940px
+   column) while app surfaces — the hero demo, feature footage, the locals
+   strip, page chrome — live in .wide (up to --wide) because they are
+   evidence, and evidence should be legible. House rule for every app shell
+   on this page: its height is reserved up front so nothing that loads or
+   plays ever shifts the page, and footage freezes on its composed frame
+   under `prefers-reduced-motion`.
    =========================================================================== */
 
 :root {
@@ -32,6 +34,8 @@
   --dr-row: 26px;
 
   --nav-clearance: 76px;
+
+  --wide: 1400px;
 }
 
 * {
@@ -72,6 +76,13 @@ a {
 .wrap {
   width: 100%;
   max-width: 940px;
+  margin-inline: auto;
+  padding-inline: 24px;
+}
+
+.wide {
+  width: 100%;
+  max-width: calc(var(--wide) + 48px);
   margin-inline: auto;
   padding-inline: 24px;
 }
@@ -135,8 +146,11 @@ a {
   color: var(--fg);
 }
 
+/* The hero commits to the first viewport: a compressed headline block, then
+   the demo frame fills the rest of the screen with its start affordance
+   centered — visible without scrolling on common laptop heights. */
 .hero {
-  padding-top: clamp(56px, 12vh, 128px);
+  padding-top: clamp(44px, 7vh, 88px);
   padding-bottom: 40px;
   text-align: center;
 }
@@ -169,7 +183,7 @@ a {
   align-items: center;
   justify-content: center;
   gap: 14px;
-  margin-top: 34px;
+  margin-top: 28px;
 }
 
 .cmd {
@@ -292,11 +306,12 @@ a {
   text-underline-offset: 3px;
 }
 
-/* Feature showcases: real app footage in the same app-shell frame the hero's
-   .dr window uses, at full content width so the app's own text stays
-   readable. The frame reserves the capture's exact 1152x720 aspect ratio, so
-   a video that is still loading (or never plays, under reduced motion)
-   occupies identical space and the page cannot shift. */
+/* Feature showcases: real app footage near its captured 1152px width so the
+   app's own text stays readable. On wide screens each feature is a
+   copy-beside-footage row, sides alternating; below 1100px they stack. The
+   frame reserves the capture's exact 1152x720 aspect ratio, so a video that
+   is still loading (or never plays, under reduced motion) occupies identical
+   space and the page cannot shift. */
 .feats {
   margin-top: clamp(64px, 14vw, 112px);
 }
@@ -361,8 +376,31 @@ a {
   gap: clamp(52px, 9vw, 88px);
 }
 
+.show {
+  display: grid;
+  gap: 22px;
+}
+
 .show__copy {
   max-width: 60ch;
+}
+
+@media (min-width: 1100px) {
+  .show {
+    grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+    align-items: center;
+    gap: clamp(36px, 4vw, 64px);
+  }
+
+  /* nth-of-type, not nth-child: Astro can emit its component script as a
+     sibling between articles, which would shift child indices. */
+  .show:nth-of-type(even) {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+  }
+
+  .show:nth-of-type(even) .show__copy {
+    order: 2;
+  }
 }
 
 .show__title {
@@ -379,7 +417,8 @@ a {
 }
 
 .show__fig {
-  margin: 22px 0 0;
+  margin: 0;
+  min-width: 0;
 }
 
 .show__video {
@@ -394,10 +433,8 @@ a {
     0 24px 64px -36px rgba(0, 0, 0, 0.9);
 }
 
-.show__caption {
-  padding-top: 12px;
-  text-align: center;
-  font-family: var(--font-mono);
+.show__keys {
+  margin: 14px 0 0;
   font-size: 12px;
   color: var(--faint);
 }
@@ -442,6 +479,13 @@ a {
 @media (min-width: 720px) {
   .locals__grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Four qualities, one literal strip. */
+@media (min-width: 1100px) {
+  .locals__grid {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 

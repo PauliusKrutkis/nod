@@ -241,7 +241,7 @@ test("scan: occurrence marks, find bar, ruler ticks", async ({ page }) => {
 });
 
 test.describe("hero poster", () => {
-  test.use({ viewport: { height: 588, width: 940 } });
+  test.use({ viewport: { height: 900, width: 1600 } });
 
   test("hero: the demo queue at the embed's size", async ({ page }) => {
     const rec = new SceneRecorder("hero");

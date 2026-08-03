@@ -21,9 +21,9 @@
       alt=""
       class="hd__poster"
       decoding="async"
-      height="588"
+      height="900"
       src="/landing/hero.png"
-      width="940"
+      width="1600"
     />
     <button class="hd__start" type="button">
       <span class="hd__when-embedded"
@@ -106,14 +106,15 @@
 
 <style>
   .hd {
-    margin: 44px auto 0;
-    max-width: 940px;
+    margin: clamp(28px, 4vh, 44px) auto 0;
+    width: min(var(--wide), 100% - 48px);
     text-align: left;
   }
 
   .hd__frame {
     position: relative;
-    aspect-ratio: 940 / 588;
+    aspect-ratio: 16 / 9;
+    max-height: 76svh;
     background: var(--surface);
     border: 1px solid var(--line-2);
     border-radius: 14px;
@@ -132,24 +133,29 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+    object-position: top;
   }
 
   .hd__start {
     position: absolute;
     left: 50%;
-    bottom: 22px;
-    transform: translateX(-50%);
+    /* A third of the way down, not centered: the frame's lower half sits
+       below the fold on 900px-tall laptops, and the start affordance must
+       never scroll to be seen. */
+    top: 33%;
+    transform: translate(-50%, -50%);
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 18px;
+    padding: 12px 20px;
     border: 1px solid transparent;
     border-radius: 10px;
     background: var(--accent);
     color: #14111f;
-    font-size: 14px;
+    font-size: 14.5px;
     font-weight: 550;
     cursor: pointer;
+    box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.8);
     transition:
       background 0.15s ease,
       box-shadow 0.15s ease;
@@ -157,7 +163,9 @@
 
   .hd__start:hover {
     background: #9a90ff;
-    box-shadow: 0 0 0 3px var(--accent-soft);
+    box-shadow:
+      0 12px 40px -12px rgba(0, 0, 0, 0.8),
+      0 0 0 3px var(--accent-soft);
   }
 
   .hd__frame--live .hd__poster,
