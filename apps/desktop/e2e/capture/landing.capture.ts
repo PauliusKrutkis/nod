@@ -10,9 +10,9 @@
  * "comments" (inline composer -> add to review -> existing thread), "scan"
  * (occurrence marks -> find bar -> ruler ticks). The poster frame each scene
  * marks is the one the landing page shows under prefers-reduced-motion.
- * The "hero" scene is poster-only: one frame of the demo fixture queue at
- * the hero iframe's exact size, shown until the visitor starts the live
- * demo. Token double-clicks resolve the token's own box via a DOM Range,
+ * The "hero" scene is poster-only: one 1600x900 frame of the demo fixture
+ * queue, which the landing page's fluid hero frame crop-fits (cover,
+ * top-anchored) until the visitor starts the live demo. Token double-clicks resolve the token's own box via a DOM Range,
  * because clicking the center of a code line lands on trailing blank space,
  * which deliberately clears marks instead of setting them.
  */

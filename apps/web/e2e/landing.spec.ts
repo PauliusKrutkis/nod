@@ -83,12 +83,15 @@ test("starting the hero embeds the real app and hands it the keyboard", async ({
   await expect(options.first()).toBeVisible();
   const selected = demo.locator('[role="option"][aria-selected="true"]');
   await expect(selected).toHaveCount(1);
-  const start = await options.evaluateAll((rows) =>
+  const startRow = await options.evaluateAll((rows) =>
     rows.findIndex((row) => row.getAttribute("aria-selected") === "true")
   );
 
   await page.keyboard.press("j");
-  await expect(options.nth(start + 1)).toHaveAttribute("aria-selected", "true");
+  await expect(options.nth(startRow + 1)).toHaveAttribute(
+    "aria-selected",
+    "true"
+  );
 });
 
 test("pressing j anywhere starts the demo, as the button promises", async ({
