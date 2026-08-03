@@ -38,7 +38,7 @@ import {
 import { useReviewThreadActions } from "../../hooks/use-review-thread-actions.ts";
 import { useReviewUnmountCleanup } from "../../hooks/use-review-unmount-cleanup.ts";
 import { useViewedFileReconcile } from "../../hooks/use-viewed-file-reconcile.ts";
-import { buildAskContext } from "../../lib/ask-context.ts";
+import { askTargetLabel, buildAskContext } from "../../lib/ask-context.ts";
 import { cn } from "../../lib/cn.ts";
 import {
   type CapturedSelection,
@@ -1043,6 +1043,12 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
         buildContext={buildAskPanelContext}
         onClose={onCloseRightPanel}
         open={openPanel === "ask"}
+        targetLabel={askTargetLabel({
+          cursor: liveCursor,
+          files,
+          model,
+          selection: liveSelection,
+        })}
         wide={drawerWide}
       />
 

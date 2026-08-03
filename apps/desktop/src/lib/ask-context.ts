@@ -75,6 +75,34 @@ function cursorContext(
   };
 }
 
+function focusedContext(args: {
+  cursor: CursorPos | null;
+  files: readonly ChangedFile[];
+  model: ReviewListModel;
+  selection: SelectionRange | null;
+}): CodeContext | null {
+  return (
+    (args.selection &&
+      selectionContext(args.model, args.files, args.selection)) ||
+    (args.cursor && cursorContext(args.model, args.files, args.cursor)) ||
+    null
+  );
+}
+
+/** The context chip's text — names the ask target without building the
+ *  whole-PR summary string the full context would carry. */
+export function askTargetLabel(args: {
+  cursor: CursorPos | null;
+  files: readonly ChangedFile[];
+  model: ReviewListModel;
+  selection: SelectionRange | null;
+}): string {
+  const focused = focusedContext(args);
+  return focused
+    ? `${focused.filePath}:${focused.lineRange}`
+    : "Whole pull request";
+}
+
 export function buildAskContext(args: {
   cursor: CursorPos | null;
   files: readonly ChangedFile[];
@@ -90,10 +118,7 @@ export function buildAskContext(args: {
     prBody: args.pr.body,
     prTitle: args.pr.title,
   };
-  const focused =
-    (args.selection &&
-      selectionContext(args.model, args.files, args.selection)) ||
-    (args.cursor && cursorContext(args.model, args.files, args.cursor));
+  const focused = focusedContext(args);
   if (focused) {
     return { ...base, ...focused };
   }

@@ -25,22 +25,17 @@ interface AskExchange {
 
 let nextExchangeId = 0;
 
-function contextChipLabel(context: AiAskContext): string {
-  if (context.filePath && context.lineRange) {
-    return `${context.filePath}:${context.lineRange}`;
-  }
-  return "Whole pull request";
-}
-
 export function AskPanel({
   buildContext,
   onClose,
   open,
+  targetLabel,
   wide,
 }: {
   buildContext: () => AiAskContext;
   onClose: () => void;
   open: boolean;
+  targetLabel: string;
   wide: boolean;
 }) {
   const [exchanges, setExchanges] = useState<AskExchange[]>([]);
@@ -53,26 +48,23 @@ export function AskPanel({
     }
   }, [open]);
 
+  const settleLastExchange = (patch: Partial<AskExchange>) => {
+    setExchanges((list) => {
+      const last = list.at(-1);
+      if (!last || last.answer !== null || last.error !== null) {
+        return list;
+      }
+      return [...list.slice(0, -1), { ...last, ...patch }];
+    });
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
   const ask = useMutation({
     mutationFn: (args: { question: string; context: AiAskContext }) =>
       api.aiAsk(args),
-    onError: (error) => {
-      setExchanges((list) => {
-        const last = list.at(-1);
-        if (!last || last.answer !== null || last.error !== null) {
-          return list;
-        }
-        return [...list.slice(0, -1), { ...last, error: String(error) }];
-      });
-    },
+    onError: (error) => settleLastExchange({ error: String(error) }),
     onSuccess: (answer) => {
-      setExchanges((list) => {
-        const last = list.at(-1);
-        if (!last || last.answer !== null || last.error !== null) {
-          return list;
-        }
-        return [...list.slice(0, -1), { ...last, answer }];
-      });
+      settleLastExchange({ answer });
       requestAnimationFrame(() => {
         bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight });
       });
@@ -108,8 +100,6 @@ export function AskPanel({
   if (!open) {
     return null;
   }
-
-  const contextLabel = contextChipLabel(buildContext());
 
   return (
     <>
@@ -172,7 +162,7 @@ export function AskPanel({
         <div className="border-line border-t px-4 py-3">
           <div className="mb-2 flex items-center gap-2">
             <span className="rounded border border-line px-1.5 py-0.5 font-mono text-[11px] text-muted">
-              {contextLabel}
+              {targetLabel}
             </span>
           </div>
           <div className="relative">

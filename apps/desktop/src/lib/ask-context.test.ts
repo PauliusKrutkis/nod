@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ChangedFile, PullRequest } from "../types.ts";
-import { buildAskContext } from "./ask-context.ts";
+import { askTargetLabel, buildAskContext } from "./ask-context.ts";
 import { buildReviewItems, fileAnchorKey } from "./review-items.ts";
 
 const PATCH = `@@ -1,4 +1,4 @@
@@ -92,6 +92,21 @@ describe("buildAskContext", () => {
     expect(context.code).toBeNull();
     expect(context.filePath).toBeNull();
     expect(context.diffSummary).toBe("src/retry.ts (+1 -1)");
+  });
+
+  it("labels the target without building the summary", () => {
+    const m = model();
+    expect(
+      askTargetLabel({
+        cursor: { anchor: "RIGHT:2", fileIndex: 0, kind: "row" },
+        files: [FILE],
+        model: m,
+        selection: null,
+      })
+    ).toBe("src/retry.ts:2");
+    expect(
+      askTargetLabel({ cursor: null, files: [FILE], model: m, selection: null })
+    ).toBe("Whole pull request");
   });
 
   it("falls through to the summary when the cursor anchor is stale", () => {
