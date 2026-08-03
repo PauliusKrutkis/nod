@@ -21,6 +21,7 @@
       alt=""
       class="hd__poster"
       decoding="async"
+      fetchpriority="high"
       height="900"
       src="/landing/hero.png"
       width="1600"
@@ -114,6 +115,8 @@
   .hd__frame {
     position: relative;
     aspect-ratio: 16 / 9;
+    /* vh first: browsers without svh drop that line and still get a cap. */
+    max-height: 76vh;
     max-height: 76svh;
     background: var(--surface);
     border: 1px solid var(--line-2);
