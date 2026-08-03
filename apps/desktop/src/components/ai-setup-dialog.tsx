@@ -1,13 +1,3 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Sparkles } from "lucide-react";
-import { type KeyboardEvent, useEffect, useRef, useState } from "react";
-import { useModalDialog } from "../hooks/use-modal-dialog.ts";
-import { useHotkeys } from "../keyboard/use-hotkeys.ts";
-import { api } from "../lib/api.ts";
-import { cn } from "../lib/cn.ts";
-import { queryKeys } from "../lib/query-client.ts";
-import type { AiInfo, AiModel } from "../types.ts";
-
 /**
  * BYOK setup for the ask-about-code feature (docs/AI.md): provider preset →
  * base URL, API key, then a model picker fetched from the provider. Opened by
@@ -17,6 +7,16 @@ import type { AiInfo, AiModel } from "../types.ts";
  * the consent act; the disclosure line under the key input is the one place
  * that promise is made, per the 2026-08-01 privacy decision.
  */
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Sparkles } from "lucide-react";
+import { type KeyboardEvent, useRef, useState } from "react";
+import { useModalDialog } from "../hooks/use-modal-dialog.ts";
+import { useHotkeys } from "../keyboard/use-hotkeys.ts";
+import { api } from "../lib/api.ts";
+import { cn } from "../lib/cn.ts";
+import { queryKeys } from "../lib/query-client.ts";
+import type { AiInfo, AiModel } from "../types.ts";
+
 const PRESETS = [
   { id: "nexos", label: "Nexos AI", url: "https://api.nexos.ai" },
   { id: "openrouter", label: "OpenRouter", url: "https://openrouter.ai/api" },
@@ -71,10 +71,6 @@ function AiSetupDialogContent({
     onClose,
     keyRef
   );
-
-  useEffect(() => {
-    requestAnimationFrame(() => keyRef.current?.focus());
-  }, []);
 
   useHotkeys(
     "ai-setup",
@@ -132,7 +128,9 @@ function AiSetupDialogContent({
   const onKeyInputKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      saveAndLoadModels.mutate();
+      if (!saveAndLoadModels.isPending) {
+        saveAndLoadModels.mutate();
+      }
     }
   };
 
