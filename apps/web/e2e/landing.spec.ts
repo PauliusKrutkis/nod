@@ -83,6 +83,28 @@ test("starting the hero embeds the real app and hands it the keyboard", async ({
   await expect(options.nth(1)).toHaveAttribute("aria-selected", "true");
 });
 
+test("pressing j anywhere starts the demo, as the button promises", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.locator(".hd__iframe")).toHaveCount(0);
+
+  await page.keyboard.press("j");
+
+  const demo = page.frameLocator(".hd__iframe");
+  await expect(demo.getByRole("option").first()).toBeVisible();
+});
+
+test("a modified j does not hijack browser shortcuts into the demo", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page.keyboard.press("ControlOrMeta+j");
+
+  await expect(page.locator(".hd__iframe")).toHaveCount(0);
+});
+
 test("shows each capability as real footage with a poster", async ({
   page,
 }) => {

@@ -1,13 +1,15 @@
 ---
 // The hero IS the app: a poster of the demo queue (regenerate with
 // `pnpm capture:landing`) that swaps for the real frontend — the /demo/
-// bundle built from apps/desktop — when the visitor starts it. The iframe
-// keeps the app's keyboard fully contained: keys only reach it while it has
-// focus, so the page never hijacks typing or scrolling, and clicking
-// outside hands focus back. Coarse pointers and narrow viewports open
-// /demo/ in its own tab instead of embedding a keyboard app where there is
-// no keyboard. Nothing from the 780KB demo bundle loads until the visitor
-// asks for it — idle visitors pay only for the poster.
+// bundle built from apps/desktop — when the visitor starts it. Starting is
+// keyboard-first like everything else: `j` anywhere on the page, a click on
+// the poster, or the start button. The iframe keeps the app's keyboard
+// fully contained: keys only reach it while it has focus, so the page never
+// hijacks typing or scrolling, and clicking outside hands focus back.
+// Coarse pointers and narrow viewports open /demo/ in its own tab instead
+// of embedding a keyboard app where there is no keyboard. Nothing from the
+// 780KB demo bundle loads until the visitor asks for it — idle visitors pay
+// only for the poster.
 ---
 
 <figure
@@ -24,11 +26,19 @@
       width="940"
     />
     <button class="hd__start" type="button">
-      Try the real app — press <kbd class="hd__kbd mono">j</kbd>
+      <span class="hd__when-embedded"
+        >Try the real app — press <kbd class="hd__kbd mono">j</kbd></span
+      >
+      <span class="hd__when-tab">Try the real app</span>
     </button>
   </div>
   <figcaption class="hd__caption mono">
-    the actual Nod frontend on fixture PRs — click outside to leave
+    <span class="hd__when-embedded"
+      >the actual Nod frontend on fixture PRs — click outside to leave</span
+    >
+    <span class="hd__when-tab"
+      >the actual Nod frontend on fixture PRs — opens in a new tab</span
+    >
   </figcaption>
 </figure>
 
@@ -39,8 +49,8 @@
   const embeddable = () =>
     !matchMedia("(pointer: coarse)").matches && window.innerWidth >= 720;
 
-  start?.addEventListener("click", () => {
-    if (!frame) {
+  const launch = () => {
+    if (!frame || frame.classList.contains("hd__frame--live")) {
       return;
     }
     if (!embeddable()) {
@@ -56,6 +66,31 @@
     });
     frame.append(demo);
     frame.classList.add("hd__frame--live");
+  };
+
+  start?.addEventListener("click", (event) => {
+    // The frame's click-to-start would otherwise relaunch on bubble.
+    event.stopPropagation();
+    launch();
+  });
+  frame?.addEventListener("click", launch);
+
+  // The start button promises "press j" — honor it page-wide. Once the demo
+  // is live the iframe owns the keyboard, so this only ever starts it.
+  window.addEventListener("keydown", (event) => {
+    if (event.key !== "j" || event.metaKey || event.ctrlKey || event.altKey) {
+      return;
+    }
+    const target = event.target as HTMLElement | null;
+    if (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target?.isContentEditable
+    ) {
+      return;
+    }
+    frame?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    launch();
   });
 </script>
 
@@ -76,6 +111,10 @@
       0 1px 0 rgba(255, 255, 255, 0.03) inset,
       0 30px 80px -40px rgba(0, 0, 0, 0.9);
     overflow: hidden;
+  }
+
+  .hd__frame:not(.hd__frame--live) {
+    cursor: pointer;
   }
 
   .hd__poster {
@@ -140,5 +179,28 @@
     text-align: center;
     font-size: 12px;
     color: var(--faint);
+  }
+
+  /* Copy tracks behavior: these media queries mirror the embeddable() check
+     in the script, so the button and caption never promise an embed (or a
+     keyboard) where the demo actually opens in a new tab. */
+  .hd__when-embedded {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .hd__when-tab {
+    display: none;
+  }
+
+  @media (max-width: 719.9px), (pointer: coarse) {
+    .hd__when-embedded {
+      display: none;
+    }
+
+    .hd__when-tab {
+      display: inline;
+    }
   }
 </style>
