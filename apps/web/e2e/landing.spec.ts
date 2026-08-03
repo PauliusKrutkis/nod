@@ -119,6 +119,29 @@ test("a modified j does not hijack browser shortcuts into the demo", async ({
   await expect(page.locator(".hd__iframe")).toHaveCount(0);
 });
 
+test.describe("on viewports where the demo opens in a new tab", () => {
+  test.use({ viewport: { height: 844, width: 390 } });
+
+  test("the copy drops the keycap promise, and so does the hotkey", async ({
+    page,
+  }) => {
+    await page.goto("/");
+
+    const startButton = page.getByRole("button", { name: START_DEMO_PATTERN });
+    await expect(startButton).toHaveText("Try the real app", {
+      useInnerText: true,
+    });
+    await expect(page.locator(".hd__caption")).toContainText(
+      "opens in a new tab",
+      { useInnerText: true }
+    );
+
+    await page.keyboard.press("j");
+    await expect(page.locator(".hd__iframe")).toHaveCount(0);
+    expect(page.context().pages()).toHaveLength(1);
+  });
+});
+
 test("shows each capability as real footage with a poster", async ({
   page,
 }) => {
