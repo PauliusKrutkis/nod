@@ -114,28 +114,23 @@ fn clipped(line: &str) -> String {
     format!("{cut}…")
 }
 
-fn grep_file(base: &Path, relative: &str, pattern: &str, out: &mut Vec<GrepHit>) -> bool {
+fn grep_file(base: &Path, relative: &str, pattern: &str, out: &mut Vec<GrepHit>) {
     let full = base.join(relative);
     let small_enough = fs::metadata(&full)
         .map(|m| m.len() <= MAX_SEARCH_FILE_BYTES)
         .unwrap_or(false);
     if !small_enough {
-        return false;
+        return;
     }
     let Ok(contents) = fs::read(&full) else {
-        return false;
+        return;
     };
     if looks_binary(&contents) {
-        return false;
+        return;
     }
     let text = String::from_utf8_lossy(&contents);
-    let mut hit_cap = false;
     for (index, line) in text.lines().enumerate() {
         if line.contains(pattern) {
-            if out.len() >= MAX_GREP_HITS {
-                hit_cap = true;
-                break;
-            }
             out.push(GrepHit {
                 line: (index + 1) as u32,
                 path: relative.to_string(),
@@ -143,7 +138,6 @@ fn grep_file(base: &Path, relative: &str, pattern: &str, out: &mut Vec<GrepHit>)
             });
         }
     }
-    hit_cap
 }
 
 pub fn grep(
@@ -165,7 +159,9 @@ pub fn grep(
         if !passes_filter(relative, path_contains) {
             continue;
         }
-        if grep_file(&base, relative, pattern, &mut hits) {
+        grep_file(&base, relative, pattern, &mut hits);
+        if hits.len() > MAX_GREP_HITS {
+            hits.truncate(MAX_GREP_HITS);
             truncated = true;
             break;
         }

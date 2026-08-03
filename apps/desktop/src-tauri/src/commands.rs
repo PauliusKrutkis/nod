@@ -413,6 +413,9 @@ pub async fn snapshot_status(
     Ok(snapshot_service::status(&root, &key))
 }
 
+/// Both snapshot-search commands hop to a blocking thread: a whole-repo walk
+/// over a large snapshot is hundreds of milliseconds of filesystem work, and
+/// the review screen's hot-path invokes share this async runtime.
 #[tauri::command]
 pub async fn list_repo_files(
     app: AppHandle,
@@ -423,8 +426,12 @@ pub async fn list_repo_files(
 ) -> Result<snapshot_search::FileListing, String> {
     let key = snapshot_key(&app, owner, repo, sha).await?;
     let root = storage::cache_dir(&app)?;
-    snapshot_search::list_files(&root, &key, path_contains.as_deref())
-        .ok_or_else(|| "snapshot not ready".to_string())
+    tauri::async_runtime::spawn_blocking(move || {
+        snapshot_search::list_files(&root, &key, path_contains.as_deref())
+    })
+    .await
+    .map_err(|e| format!("file listing failed: {e}"))?
+    .ok_or_else(|| "snapshot not ready".to_string())
 }
 
 #[tauri::command]
@@ -438,8 +445,12 @@ pub async fn search_repo_content(
 ) -> Result<snapshot_search::GrepResult, String> {
     let key = snapshot_key(&app, owner, repo, sha).await?;
     let root = storage::cache_dir(&app)?;
-    snapshot_search::grep(&root, &key, &pattern, path_contains.as_deref())
-        .ok_or_else(|| "snapshot not ready".to_string())
+    tauri::async_runtime::spawn_blocking(move || {
+        snapshot_search::grep(&root, &key, &pattern, path_contains.as_deref())
+    })
+    .await
+    .map_err(|e| format!("search failed: {e}"))?
+    .ok_or_else(|| "snapshot not ready".to_string())
 }
 
 #[tauri::command]
