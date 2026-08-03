@@ -114,9 +114,12 @@ export function buildAskContext(args: {
     code: null,
     diffSummary: null,
     filePath: null,
+    headSha: args.pr.headSha,
     lineRange: null,
+    owner: args.pr.owner,
     prBody: args.pr.body,
     prTitle: args.pr.title,
+    repo: args.pr.repo,
   };
   const focused = focusedContext(args);
   if (focused) {

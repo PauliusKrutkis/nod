@@ -22,6 +22,9 @@ const FILE: ChangedFile = {
 
 const PR = {
   body: "Renames the retry knob.",
+  headSha: "abc123",
+  owner: "acme",
+  repo: "widget-app",
   title: "Rename retryCount",
 } as PullRequest;
 
@@ -92,6 +95,9 @@ describe("buildAskContext", () => {
     expect(context.code).toBeNull();
     expect(context.filePath).toBeNull();
     expect(context.diffSummary).toBe("src/retry.ts (+1 -1)");
+    expect(context.owner).toBe("acme");
+    expect(context.repo).toBe("widget-app");
+    expect(context.headSha).toBe("abc123");
   });
 
   it("labels the target without building the summary", () => {
