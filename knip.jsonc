@@ -19,7 +19,8 @@
       ]
     },
     "apps/web": {
-      "entry": ["functions/**/*.ts!"]
+      // scripts/: operator-run one-offs (docs/LAUNCH.md), not imported.
+      "entry": ["functions/**/*.ts!", "scripts/*.mjs"]
     }
   }
 }

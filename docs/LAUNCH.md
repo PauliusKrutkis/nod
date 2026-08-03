@@ -16,8 +16,8 @@ dependency order below. Work top to bottom; each step says who acts.
 Settle the permanent host **before** the production Polar account exists:
 once a payment provider holds webhook URLs and shipped binaries carry a
 license-server host, moving is a provider migration instead of a redirect
-([why](RELEASING.md#canonical-domain)). `nodreview.com` is the current
-placeholder. Decide: keep it as final, or buy the real one now.
+([why](RELEASING.md#canonical-domain)). **Decided: `nodreview.com` is
+final** (live since Aug 2026).
 
 ## 2. Apple notarization — owner account + repo secrets
 
@@ -30,8 +30,8 @@ template, and landing page, and re-test `brew install` on a clean machine.
 
 ## 3. Ed25519 license keypair — owner, one-time
 
-Generate a 32-byte seed and derive the public key (any Ed25519 tool; the
-web repo's `@noble/ed25519` in a scratch script works). Then:
+Run `node scripts/generate-license-keypair.mjs` from `apps/web` — it
+prints both halves in the exact format the signer expects. Then:
 
 - `LICENSE_SIGNING_SEED` (64 hex chars) → Cloudflare Pages secret
   (`wrangler pages secret put`), never in the repo.
@@ -44,12 +44,22 @@ web repo's `@noble/ed25519` in a scratch script works). Then:
 Create the account (sandbox first), one product: **Nod license, $39,
 one-time** (renewal SKU can wait). Configure:
 
-- Webhook → `https://<domain>/purchase-webhook`, secret →
+- Webhook → `https://nodreview.com/purchase-webhook`, secret →
   `POLAR_WEBHOOK_SECRET` Pages secret.
-- Checkout success URL → `https://<domain>/activate?order_id=…` — and
-  **verify the two assumptions** flagged in `functions/lib/polar.ts`:
-  the exact success-URL template variable, and whether checkout metadata
-  arrives as `metadata.subject` on the `order.paid` payload.
+- Checkout success URL →
+  `https://nodreview.com/activate?checkout_id={CHECKOUT_ID}`.
+
+The two assumptions flagged in `functions/lib/polar.ts` are **verified**
+against Polar's OpenAPI spec (Aug 2026):
+
+- Checkout metadata **is** copied to the resulting order ("Metadata set on
+  the checkout will be copied to the resulting order and/or subscription"),
+  so `metadata.subject` on `order.paid` works as designed.
+- The only success-URL template variable is `{CHECKOUT_ID}` — there is no
+  order-id variable. The `order.paid` payload carries `checkout_id`
+  alongside the order id, so the webhook must index the license by
+  `checkout_id` and `/activate` must read `?checkout_id=` (small re-key in
+  `functions/lib/kv.ts` / `activate.ts` / the webhook; folded into step 5).
 
 ## 5. Forge identity at checkout — the one real code task left
 
