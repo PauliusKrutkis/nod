@@ -105,6 +105,23 @@ class SceneRecorder {
   }
 }
 
+/**
+ * Screenshots race CSS transitions: pressing a key and capturing immediately
+ * catches animated surfaces (the submit-review dialog) mid-fade, and that
+ * ghost frame then holds on screen for its full declared duration. Waiting
+ * on every running animation's `finished` promise pins the frame to the
+ * settled state.
+ */
+async function settleAnimations(page: Page) {
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .map((animation) => animation.finished.catch(() => {}))
+    )
+  );
+}
+
 async function typeInto(page: Page, rec: SceneRecorder, text: string) {
   for (const ch of text) {
     await page.keyboard.type(ch);
@@ -179,8 +196,13 @@ test("loop: triage the inbox, review, mark viewed, submit", async ({
   await rec.hold(page, 1.0);
 
   await page.keyboard.press("s");
+  const submitReview = page.getByRole("dialog");
+  await submitReview.waitFor();
+  await settleAnimations(page);
   await rec.hold(page, 2.2);
   await page.keyboard.press("Escape");
+  await submitReview.waitFor({ state: "hidden" });
+  await settleAnimations(page);
   await rec.hold(page, 0.5);
   await page.keyboard.press("Escape");
   await page.getByRole("option").first().waitFor();
