@@ -19,6 +19,8 @@ const STABLE_FRAMES = 3;
 
 const START_DEMO_PATTERN = /try the real app/i;
 
+const FULLSCREEN_TOGGLE_PATTERN = /full screen/i;
+
 /**
  * Resolves once the scroll position has stopped moving. `scroll-behavior` is
  * smooth, so an anchor jump animates; any geometry read mid-flight describes a
@@ -124,7 +126,9 @@ test("offers full screen only once the demo is live, and toggles it", async ({
   page,
 }) => {
   await page.goto("/");
-  const fullscreen = page.getByRole("button", { name: /full screen/i });
+  const fullscreen = page.getByRole("button", {
+    name: FULLSCREEN_TOGGLE_PATTERN,
+  });
   await expect(fullscreen).toBeHidden();
 
   await page.getByRole("button", { name: START_DEMO_PATTERN }).click();
