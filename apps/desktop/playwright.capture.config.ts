@@ -17,6 +17,10 @@ export default defineConfig({
   timeout: 120_000,
   use: {
     baseURL: `http://localhost:${port}`,
+    // 2x frames: the site shows this footage at up to ~1200 CSS px, so
+    // 1x captures blur on every retina display. Same CSS layout, denser
+    // pixels.
+    deviceScaleFactor: 2,
     viewport: { height: 720, width: 1152 },
   },
   webServer: {

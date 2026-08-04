@@ -152,7 +152,7 @@ test("shows each capability as real footage with a poster", async ({
   await expect(shows).toHaveCount(3);
   for (const [i, scene] of ["loop", "comments", "scan"].entries()) {
     const video = shows.nth(i).locator("video");
-    await expect(video).toHaveAttribute("poster", `/landing/${scene}.png`);
+    await expect(video).toHaveAttribute("poster", `/landing/${scene}.webp`);
     await expect(video).toHaveAttribute("src", `/landing/${scene}.webm`);
   }
 });
