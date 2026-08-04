@@ -33,11 +33,17 @@ template, and landing page, and re-test `brew install` on a clean machine.
 Run `node scripts/generate-license-keypair.mjs` from `apps/web` — it
 prints both halves in the exact format the signer expects. Then:
 
-- `LICENSE_SIGNING_SEED` (64 hex chars) → Cloudflare Pages secret
-  (`wrangler pages secret put LICENSE_SIGNING_SEED --project-name pr-flow`),
-  never in the repo. Generate it in your own terminal, not through an agent
-  session — the seed should exist in exactly two places, the Pages secret
-  store and your offline backup.
+- `LICENSE_SIGNING_SEED` (64 hex chars) → Cloudflare Pages secret, never in
+  the repo:
+
+  ```sh
+  pnpm --filter @nod/web exec wrangler pages secret put \
+    LICENSE_SIGNING_SEED --project-name pr-flow
+  ```
+
+  Generate it in your own terminal, not through an agent session — the seed
+  should exist in exactly two places, the Pages secret store and your offline
+  backup.
 - `NOD_LICENSE_PUBKEY` (public half, hex) → GitHub repo **variable**; the
   release workflow already forwards it into the build. **Back the seed up**
   like the updater minisign key — lose it and every sold license dies.
@@ -112,6 +118,14 @@ The Pages project is **`pr-flow`** (it predates the rename to Nod); every
 `wrangler pages` command below needs `--project-name pr-flow`. Production and
 preview hold separate secret sets — add `--env preview` for anything a
 preview deployment has to exercise.
+
+wrangler is a devDependency of `apps/web`, so run it through the workspace
+rather than a global install (there isn't one) or bare `npx` (which refetches
+an unpinned version each time):
+
+```sh
+pnpm --filter @nod/web exec wrangler pages secret list --project-name pr-flow
+```
 
 Owner — now (all free):
 

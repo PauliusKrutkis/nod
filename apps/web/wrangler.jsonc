@@ -30,10 +30,10 @@
   // Secrets are deliberately absent and must stay that way:
   // POLAR_WEBHOOK_SECRET, LICENSE_SIGNING_SEED (32-byte hex Ed25519 seed),
   // POLAR_API_KEY (for /restore, unused so far). Set them with
-  // `wrangler pages secret put <NAME> --project-name pr-flow`, and again with
-  // `--env preview` for anything a preview deployment has to exercise — the
-  // two environments hold entirely separate secret sets. The keypair's public
-  // half is not a
+  // `pnpm --filter @nod/web exec wrangler pages secret put <NAME>
+  // --project-name pr-flow`, and again with `--env preview` for anything a
+  // preview deployment has to exercise — the two environments hold entirely
+  // separate secret sets. The keypair's public half is not a
   // binding at all — it ships embedded in the desktop app, which is the only
   // thing that verifies tokens.
 }
