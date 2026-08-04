@@ -139,6 +139,32 @@ test("shift+f takes the live demo full screen and esc exits", async ({
     .toBe(true);
 });
 
+test("esc in fullscreen only exits fullscreen, never the app's screen", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: START_DEMO_PATTERN }).click();
+  const demo = page.frameLocator(".hd__iframe");
+  await expect(demo.getByRole("option").first()).toBeVisible();
+
+  await page.keyboard.press("Enter");
+  await expect(demo.locator(".qf-row").first()).toBeVisible();
+
+  await page.keyboard.press("Shift+F");
+  await expect
+    .poll(() => page.evaluate(() => document.fullscreenElement !== null))
+    .toBe(true);
+
+  await page.keyboard.press("Escape");
+  await expect
+    .poll(() => page.evaluate(() => document.fullscreenElement === null))
+    .toBe(true);
+  await expect(demo.locator(".qf-row").first()).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(demo.getByRole("option").first()).toBeVisible();
+});
+
 test("shows each capability as real footage with a poster", async ({
   page,
 }) => {

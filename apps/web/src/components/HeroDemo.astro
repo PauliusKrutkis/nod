@@ -37,8 +37,10 @@
   </div>
   <figcaption class="hd__caption mono">
     <span class="hd__when-embedded"
-      >the actual Nod frontend on fixture PRs — ⇧F full screen · esc exits ·
-      click outside to leave</span
+      >the actual Nod frontend on fixture PRs —
+      <kbd class="hd__key">⇧F</kbd> full screen ·
+      <kbd class="hd__key">esc</kbd> exits it · click outside releases the
+      keyboard</span
     >
     <span class="hd__when-tab"
       >the actual Nod frontend on fixture PRs — opens in a new tab</span
@@ -61,12 +63,15 @@
 
   // Fullscreen is keyboard-only, like everything else: once the demo owns
   // the keyboard the page can't hear keys, so the listener lives inside the
-  // same-origin iframe. Shift+F because the app already binds every likely
-  // letter (plain f is its fast-scroll); esc mirrors the browser's native
-  // exit so the caption's promise holds even where the native handling is
-  // lazy. Editable targets are guarded by tag name — instanceof would fail
-  // across realms. The transition promises reject when the browser denies
-  // the switch; fullscreenchange is the source of truth either way.
+  // same-origin iframe (capture phase, so it runs before the app's own
+  // handlers). Shift+F because the app already binds every likely letter
+  // (plain f is its fast-scroll). Esc layers like a native app: while
+  // fullscreen it only exits fullscreen — swallowed here so the app doesn't
+  // also navigate back — and the browser's reserved Esc-exit fires either
+  // way; windowed, it reaches the app untouched. Editable targets are
+  // guarded by tag name — instanceof would fail across realms. The
+  // transition promises reject when the browser denies the switch;
+  // fullscreenchange is the source of truth either way.
   const onDemoKeydown = (event: KeyboardEvent) => {
     const target = event.target as HTMLElement | null;
     const tag = target?.tagName;
@@ -90,11 +95,23 @@
       return;
     }
     if (event.key === "Escape" && document.fullscreenElement) {
+      event.stopImmediatePropagation();
       document.exitFullscreen().catch(() => {
         /* ignore */
       });
     }
   };
+
+  // The frame shows who owns the keyboard: an accent edge while the demo
+  // has focus, quiet when a click outside releases it. Focus crossing an
+  // iframe boundary fires window blur/focus on the parent; activeElement
+  // settles a tick later.
+  const syncEngagement = () => {
+    const engaged = document.activeElement?.classList.contains("hd__iframe");
+    frame?.classList.toggle("hd__frame--engaged", engaged === true);
+  };
+  window.addEventListener("blur", () => setTimeout(syncEngagement, 0));
+  window.addEventListener("focus", () => setTimeout(syncEngagement, 0));
 
   const launch = () => {
     if (!frame || frame.classList.contains("hd__frame--live")) {
@@ -110,7 +127,8 @@
     demo.title = "Nod live demo";
     demo.addEventListener("load", () => {
       demo.contentWindow?.focus();
-      demo.contentWindow?.addEventListener("keydown", onDemoKeydown);
+      demo.contentWindow?.addEventListener("keydown", onDemoKeydown, true);
+      syncEngagement();
     });
     frame.append(demo);
     frame.classList.add("hd__frame--live");
@@ -127,11 +145,12 @@
   // it; the demo should keep the keyboard either way.
   document.addEventListener("fullscreenchange", focusDemo);
 
-  // The start button promises "press j" — honor it page-wide. Once the demo
-  // is live the iframe owns the keyboard, so this only ever starts it. The
-  // hotkey exists only where the embed does: on new-tab viewports the button
-  // never promises a keycap, and an unguarded window.open would otherwise
-  // spawn a tab per auto-repeated keydown while j is held.
+  // The start button promises "press j" — honor it page-wide. Before the
+  // demo starts, j launches it; once live, j hands the keyboard back after
+  // a click outside released it. The hotkey exists only where the embed
+  // does: on new-tab viewports the button never promises a keycap, and an
+  // unguarded window.open would otherwise spawn a tab per auto-repeated
+  // keydown while j is held.
   window.addEventListener("keydown", (event) => {
     if (
       event.key !== "j" ||
@@ -152,6 +171,10 @@
       return;
     }
     frame?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    if (frame?.classList.contains("hd__frame--live")) {
+      focusDemo();
+      return;
+    }
     launch();
   });
 </script>
@@ -227,6 +250,14 @@
     display: none;
   }
 
+  .hd__frame--engaged {
+    border-color: var(--accent-line);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.03) inset,
+      0 30px 80px -40px rgba(0, 0, 0, 0.9),
+      0 0 0 3px var(--accent-soft);
+  }
+
   .hd__frame:fullscreen {
     aspect-ratio: auto;
     max-height: none;
@@ -257,7 +288,22 @@
     padding-top: 12px;
     text-align: center;
     font-size: 0.75rem;
-    color: var(--faint);
+    color: var(--muted);
+  }
+
+  .hd__key {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.7em;
+    height: 1.7em;
+    padding-inline: 0.4em;
+    font-family: var(--font-mono);
+    font-size: 1em;
+    color: var(--fg);
+    background: var(--surface-hi);
+    border: 1px solid var(--line-2);
+    border-radius: 5px;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
   }
 
   /* Copy tracks behavior: these media queries mirror the embeddable() check
