@@ -115,13 +115,11 @@ class SceneRecorder {
 async function settleAnimations(page: Page) {
   await page.evaluate(() =>
     Promise.all(
-      document
-        .getAnimations()
-        .map((animation) =>
-          animation.finished.catch(() => {
-            /* ignore */
-          })
-        )
+      document.getAnimations().map((animation) =>
+        animation.finished.catch(() => {
+          /* ignore */
+        })
+      )
     )
   );
 }
