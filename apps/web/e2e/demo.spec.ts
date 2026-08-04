@@ -34,6 +34,18 @@ test("each pull request opens its own review", async ({ page }) => {
   await expect(page.getByText("scroll-anchor.ts").first()).toBeVisible();
 });
 
+test("full-file expansion reveals lines beyond the patch", async ({ page }) => {
+  await page.goto("/demo/");
+  await expect(page.getByRole("option").first()).toBeVisible();
+
+  await page.keyboard.press("Enter");
+  // FUZZY_VERSION exists only in the blob's tail, past the hunk — visible
+  // only if the expansion served the full file, not a diff re-render.
+  await expect(page.getByText("FUZZY_VERSION")).toHaveCount(0);
+  await page.getByText("Full file").first().click();
+  await expect(page.getByText("FUZZY_VERSION")).toBeVisible();
+});
+
 test("answers the keyboard", async ({ page }) => {
   await page.goto("/demo/");
   const options = page.getByRole("option");
