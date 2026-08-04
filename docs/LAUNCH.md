@@ -150,9 +150,12 @@ Owner — now (all free):
 - [x] Organization access token → `POLAR_API_KEY` (checkout creation now,
       `/restore` later). Stored but not yet read by any code path.
 - [ ] New **web** GitHub OAuth app — homepage `https://nodreview.com`,
-      callback `https://nodreview.com/auth/github/callback`, scope
-      `read:user`. Must be a second app, not the desktop one (step 5 says
-      why). Client secret → Pages secret; client id is public.
+      callback `https://nodreview.com/auth/github/callback`. That is the
+      whole registration; an OAuth App has no scope field, `read:user` is
+      requested in the authorize URL by the buy-flow code. Must be a second
+      app, not the desktop one (step 5 says why). Client secret → Pages
+      secret `GH_WEB_CLIENT_SECRET`; client id → repo variable
+      `NOD_GH_WEB_CLIENT_ID` (it is public).
       **The only thing blocking the buy flow.**
 - [x] `node scripts/generate-license-keypair.mjs` (from `apps/web`):
       seed → `LICENSE_SIGNING_SEED` Pages secret **+ offline backup**;
