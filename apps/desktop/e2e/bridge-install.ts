@@ -19,6 +19,7 @@ export interface AppOptions {
   appVersion?: string;
   detailByCall?: unknown[];
   detailByLoad?: unknown[];
+  detailByNumber?: Record<number, unknown>;
   fileBlobs?: Record<string, string>;
   fileBlobDelayMs?: number;
   hangIssueComment?: boolean;
@@ -52,14 +53,21 @@ export interface AppOptions {
   watchedRepos?: string[];
 }
 
-export function buildBridgeConfig(opts: AppOptions = {}) {
+function detailDefaults(opts: AppOptions) {
   return {
-    account: ACCOUNT,
-    activateLicense: opts.activateLicense ?? "licensed",
-    appVersion: opts.appVersion ?? "1.0.0",
     detail: (opts.detail ?? DETAIL) as typeof DETAIL,
     detailByCall: opts.detailByCall ?? null,
     detailByLoad: opts.detailByLoad ?? null,
+    detailByNumber: opts.detailByNumber ?? null,
+  };
+}
+
+export function buildBridgeConfig(opts: AppOptions = {}) {
+  return {
+    ...detailDefaults(opts),
+    account: ACCOUNT,
+    activateLicense: opts.activateLicense ?? "licensed",
+    appVersion: opts.appVersion ?? "1.0.0",
     fileBlobs: opts.fileBlobs ?? FULL_FILES,
     fileBlobDelayMs: opts.fileBlobDelayMs ?? 0,
     hangIssueComment: opts.hangIssueComment ?? false,
@@ -194,7 +202,12 @@ export function installBridge(cfg: BridgeConfig) {
       }
       return cfg.licenseState;
     },
-    get_pull_request_detail: () => {
+    get_pull_request_detail: (args) => {
+      const byNumber = cfg.detailByNumber as Record<string, unknown> | null;
+      const forNumber = byNumber?.[String(args.number)];
+      if (forNumber) {
+        return forNumber;
+      }
       const result = seq(cfg.detailByCall, detailCalls, detail);
       detailCalls += 1;
       return result;
