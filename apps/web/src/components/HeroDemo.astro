@@ -23,7 +23,9 @@
       decoding="async"
       fetchpriority="high"
       height="900"
+      sizes="(max-width: 719.9px) 100vw, min(1400px, 100vw - 48px)"
       src="/landing/hero.webp"
+      srcset="/landing/hero-1600.webp 1600w, /landing/hero.webp 3200w"
       width="1600"
     />
     <button class="hd__start" type="button">
@@ -32,7 +34,9 @@
       >
       <span class="hd__when-tab">Try the real app</span>
     </button>
-    <button class="hd__fs mono" type="button" hidden>⛶ full screen</button>
+    <button class="hd__fullscreen mono" type="button" hidden
+      >⛶ full screen</button
+    >
   </div>
   <figcaption class="hd__caption mono">
     <span class="hd__when-embedded"
@@ -47,7 +51,8 @@
 <script>
   const frame = document.querySelector<HTMLElement>(".hd__frame");
   const start = document.querySelector<HTMLButtonElement>(".hd__start");
-  const fullscreenToggle = document.querySelector<HTMLButtonElement>(".hd__fs");
+  const fullscreenToggle =
+    document.querySelector<HTMLButtonElement>(".hd__fullscreen");
 
   const embeddable = () =>
     !matchMedia("(pointer: coarse)").matches && window.innerWidth >= 720;
@@ -87,11 +92,13 @@
   });
   frame?.addEventListener("click", launch);
 
+  // The transition promises reject when the browser denies the switch; the
+  // fullscreenchange listener below is the source of truth either way.
   fullscreenToggle?.addEventListener("click", () => {
     if (document.fullscreenElement) {
-      document.exitFullscreen();
+      document.exitFullscreen().catch(() => {});
     } else {
-      frame?.requestFullscreen();
+      frame?.requestFullscreen().catch(() => {});
     }
   });
 
@@ -206,7 +213,7 @@
     display: none;
   }
 
-  .hd__fs {
+  .hd__fullscreen {
     position: absolute;
     top: 12px;
     right: 12px;
@@ -223,12 +230,12 @@
       border-color 0.15s ease;
   }
 
-  .hd__fs:hover {
+  .hd__fullscreen:hover {
     color: var(--fg);
     border-color: var(--accent-line);
   }
 
-  .hd__fs[hidden] {
+  .hd__fullscreen[hidden] {
     display: none;
   }
 

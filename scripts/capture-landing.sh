@@ -25,5 +25,8 @@ for scene in loop comments scan; do
   echo "$scene: $(du -h "$out/$scene.webm" | cut -f1) webm, $(du -h "$out/$scene.webp" | cut -f1) poster"
 done
 
+# The hero poster is the LCP asset; the 1600w variant spares phones the
+# full 3200px download.
 cwebp -quiet -q 88 capture-out/hero/poster.png -o "$out/hero.webp"
-echo "hero: $(du -h "$out/hero.webp" | cut -f1) poster"
+cwebp -quiet -q 88 -resize 1600 0 capture-out/hero/poster.png -o "$out/hero-1600.webp"
+echo "hero: $(du -h "$out/hero.webp" | cut -f1) + $(du -h "$out/hero-1600.webp" | cut -f1) posters"
