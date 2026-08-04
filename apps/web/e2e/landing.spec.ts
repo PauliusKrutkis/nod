@@ -140,7 +140,7 @@ test("shift+f toggles the demo to viewport size and back", async ({ page }) => {
   await expect(frame).not.toHaveClass(MAXIMIZED_PATTERN);
 });
 
-test("esc while maximized only restores the frame, never the app's screen", async ({
+test("esc walks back through the app before it leaves full screen", async ({
   page,
 }) => {
   await page.goto("/");
@@ -156,10 +156,11 @@ test("esc while maximized only restores the frame, never the app's screen", asyn
   await expect(frame).toHaveClass(MAXIMIZED_PATTERN);
 
   await page.keyboard.press("Escape");
-  await expect(frame).not.toHaveClass(MAXIMIZED_PATTERN);
-  await expect(demo.locator(".qf-row").first()).toBeVisible();
+  await expect(demo.getByRole("option").first()).toBeVisible();
+  await expect(frame).toHaveClass(MAXIMIZED_PATTERN);
 
   await page.keyboard.press("Escape");
+  await expect(frame).not.toHaveClass(MAXIMIZED_PATTERN);
   await expect(demo.getByRole("option").first()).toBeVisible();
 });
 

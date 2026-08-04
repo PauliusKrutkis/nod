@@ -39,8 +39,8 @@
     <span class="hd__when-embedded"
       >the actual Nod frontend on fixture PRs —
       <kbd class="hd__key">⇧F</kbd> full screen ·
-      <kbd class="hd__key">esc</kbd> exits it · click outside releases the
-      keyboard</span
+      <kbd class="hd__key">esc</kbd> exits from the inbox · click outside
+      releases the keyboard</span
     >
     <span class="hd__when-tab"
       >the actual Nod frontend on fixture PRs — opens in a new tab</span
@@ -63,13 +63,14 @@
 
   // Full screen is ours, not the browser's: a fixed overlay class instead
   // of the Fullscreen API, so there is no reserved-Esc behavior underneath,
-  // no permission quirks, and the same layering everywhere — shift+F
-  // toggles, one esc peels the overlay off (swallowed in the capture phase
-  // so the app never also navigates), the next esc reaches the app. The
-  // listener lives inside the same-origin iframe because the demo owns the
-  // keyboard; shift+F because the app already binds every likely letter
-  // (plain f is its fast-scroll). Editable targets are guarded by tag
-  // name — instanceof would fail across realms.
+  // no permission quirks, and the same layering everywhere. shift+F
+  // toggles; esc belongs to the app — it walks back through the app's own
+  // screens as normal, and only when the app is already at its inbox root
+  // (options visible, no dialog open) does esc close the overlay instead.
+  // The listener lives inside the same-origin iframe because the demo owns
+  // the keyboard; shift+F because the app already binds every likely
+  // letter (plain f is its fast-scroll). Editable targets are guarded by
+  // tag name — instanceof would fail across realms.
   const isMaximized = () =>
     frame?.classList.contains("hd__frame--max") === true;
 
@@ -94,8 +95,15 @@
       return;
     }
     if (event.key === "Escape" && isMaximized()) {
-      event.stopImmediatePropagation();
-      setMaximized(false);
+      const app = frame?.querySelector<HTMLIFrameElement>(".hd__iframe")
+        ?.contentDocument;
+      const atInboxRoot =
+        app?.querySelector('[role="option"]') &&
+        !app.querySelector('[role="dialog"]');
+      if (atInboxRoot) {
+        event.stopImmediatePropagation();
+        setMaximized(false);
+      }
     }
   };
 
