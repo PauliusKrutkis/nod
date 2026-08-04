@@ -10,10 +10,12 @@
  * Same library and seed format as functions/lib/license-token.ts, so what
  * this prints is exactly what signLicenseToken expects.
  */
-import { getPublicKeyAsync, utils, etc } from "@noble/ed25519";
+import { etc, getPublicKeyAsync, utils } from "@noble/ed25519";
 
 const seed = utils.randomSecretKey();
 const publicKey = await getPublicKeyAsync(seed);
 
-console.log(`LICENSE_SIGNING_SEED (secret — back this up):\n${etc.bytesToHex(seed)}\n`);
+console.log(
+  `LICENSE_SIGNING_SEED (secret — back this up):\n${etc.bytesToHex(seed)}\n`
+);
 console.log(`NOD_LICENSE_PUBKEY (public):\n${etc.bytesToHex(publicKey)}`);

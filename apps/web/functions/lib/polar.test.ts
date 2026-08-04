@@ -1,6 +1,11 @@
 import { Webhook } from "standardwebhooks";
 import { describe, expect, it } from "vitest";
-import { extractSubject, isOrderPaidEvent, verifyPolarWebhook } from "./polar";
+import {
+  extractCheckoutId,
+  extractSubject,
+  isOrderPaidEvent,
+  verifyPolarWebhook,
+} from "./polar";
 
 const secret = `whsec_${btoa("test-webhook-secret")}`;
 
@@ -35,6 +40,27 @@ describe("polar webhook verification", () => {
         expect(extractSubject(result.event)).toBe("github:github.com:583231");
       }
     }
+  });
+
+  it("reads the checkout id an order.paid event was created from", () => {
+    const event = {
+      type: "order.paid",
+      data: { id: "order_1", checkout_id: "checkout_1" },
+    } as const;
+
+    expect(extractCheckoutId(event)).toBe("checkout_1");
+  });
+
+  it("reports no checkout id for an order created outside a checkout", () => {
+    expect(
+      extractCheckoutId({ type: "order.paid", data: { id: "order_1" } })
+    ).toBeNull();
+    expect(
+      extractCheckoutId({
+        type: "order.paid",
+        data: { id: "order_1", checkout_id: null },
+      })
+    ).toBeNull();
   });
 
   it("rejects a payload signed with a different secret", () => {

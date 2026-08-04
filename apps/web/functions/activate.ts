@@ -1,17 +1,17 @@
 /**
- * GET /activate — post-checkout success page: look up the order_id index the
- * webhook stored, sign an activation token, render an "Open Nod" page whose
- * button carries the token as a prflow://purchase deep link.
+ * GET /activate — post-checkout success page: look up the checkout_id index
+ * the webhook stored, sign an activation token, render an "Open Nod" page
+ * whose button carries the token as a prflow://purchase deep link.
  *
- * Keyed by `?order_id=` (Polar's opaque order/checkout identifier), not
+ * Keyed by `?checkout_id=` (Polar's opaque checkout identifier), not
  * `?subject=` — a subject is public, so trusting it alone here would let
  * anyone mint a signed token for a known customer's account with no proof of
- * purchase. order_id is unguessable, and once a token has been signed the
- * index is re-put with a 48-hour TTL: the link keeps working while the buyer
- * installs the app (strict delete-on-first-render stranded anyone who closed
- * the tab, with /restore still a stub), then expires. The exact query param
- * Polar's checkout success URL templates in is still an assumption pending a
- * real account — see docs/RELEASING.md.
+ * purchase. checkout_id is unguessable, and it is what Polar templates into
+ * the success URL as `{CHECKOUT_ID}` — the only variable it offers, which is
+ * why the index is keyed by it rather than by the order id. Once a token has
+ * been signed the index is re-put with a 48-hour TTL: the link keeps working
+ * while the buyer installs the app (strict delete-on-first-render stranded
+ * anyone who closed the tab, with /restore still a stub), then expires.
  *
  * An inline script also pushes the token to the app's dedicated purchase
  * listener (127.0.0.1:8766, src-tauri/src/activation.rs — deliberately not
@@ -26,7 +26,7 @@
  * token is baked into the markup.
  */
 import type { Env } from "./lib/env";
-import { getLicense, getOrderIndex, putOrderIndex } from "./lib/kv";
+import { getCheckoutIndex, getLicense, putCheckoutIndex } from "./lib/kv";
 import { signLicenseToken } from "./lib/license-token";
 
 const DEEP_LINK_BASE = "prflow://purchase";
@@ -73,12 +73,14 @@ function activationPage(token: string): string {
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const orderId = new URL(context.request.url).searchParams.get("order_id");
-  if (!orderId) {
-    return new Response("missing order_id", { status: 400 });
+  const checkoutId = new URL(context.request.url).searchParams.get(
+    "checkout_id"
+  );
+  if (!checkoutId) {
+    return new Response("missing checkout_id", { status: 400 });
   }
 
-  const subject = await getOrderIndex(context.env.LICENSES, orderId);
+  const subject = await getCheckoutIndex(context.env.LICENSES, checkoutId);
   if (subject === null) {
     return new Response("activation link is invalid or already used", {
       status: 404,
@@ -94,9 +96,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     { orderId: record.orderId, subject, updatesUntil: record.updatesUntil },
     context.env.LICENSE_SIGNING_SEED
   );
-  await putOrderIndex(
+  await putCheckoutIndex(
     context.env.LICENSES,
-    orderId,
+    checkoutId,
     subject,
     ACTIVATION_WINDOW_SECONDS
   );

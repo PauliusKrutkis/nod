@@ -1,7 +1,7 @@
 /**
  * Handler-level tests for /activate. The KV helpers are covered in
  * lib/kv.test.ts; what matters here is the lifecycle this endpoint imposes on
- * the order index — it must survive every failure path untouched, and only a
+ * the checkout index — it must survive every failure path untouched, and only a
  * successful token signing may start the 48-hour activation window. Swapping
  * the sign and re-put calls leaves every unit test green.
  */
@@ -48,7 +48,7 @@ function fakeKv(seed: Record<string, string> = {}): FakeKv {
 
 function licensedKv(): FakeKv {
   return fakeKv({
-    "order:order_1": SUBJECT,
+    "checkout:checkout_1": SUBJECT,
     [`license:${SUBJECT}`]: JSON.stringify({
       orderId: "order_1",
       updatesUntil: "2027-07-18",
@@ -74,7 +74,7 @@ async function tokenFromPage(response: Response): Promise<string | null> {
 }
 
 describe("GET /activate", () => {
-  it("rejects a request with no order id", async () => {
+  it("rejects a request with no checkout id", async () => {
     const response = await activate(licensedKv().kv, "https://x.test/activate");
     expect(response.status).toBe(400);
   });
@@ -83,7 +83,7 @@ describe("GET /activate", () => {
     const { kv } = licensedKv();
     const response = await activate(
       kv,
-      "https://x.test/activate?order_id=order_1"
+      "https://x.test/activate?checkout_id=checkout_1"
     );
 
     expect(response.status).toBe(200);
@@ -115,7 +115,7 @@ describe("GET /activate", () => {
     const { kv } = licensedKv();
     const response = await activate(
       kv,
-      "https://x.test/activate?order_id=order_1"
+      "https://x.test/activate?checkout_id=checkout_1"
     );
 
     const html = await response.text();
@@ -131,36 +131,36 @@ describe("GET /activate", () => {
 
     const first = await activate(
       kv,
-      "https://x.test/activate?order_id=order_1"
+      "https://x.test/activate?checkout_id=checkout_1"
     );
     expect(first.status).toBe(200);
-    expect(ttls.get("order:order_1")).toBe(48 * 60 * 60);
+    expect(ttls.get("checkout:checkout_1")).toBe(48 * 60 * 60);
 
     const reload = await activate(
       kv,
-      "https://x.test/activate?order_id=order_1"
+      "https://x.test/activate?checkout_id=checkout_1"
     );
     expect(reload.status).toBe(200);
     expect(await tokenFromPage(reload)).toEqual(await tokenFromPage(first));
   });
 
-  it("keeps the link intact when no license backs the order id", async () => {
-    const { kv, ttls } = fakeKv({ "order:order_1": SUBJECT });
+  it("keeps the link intact when no license backs the checkout id", async () => {
+    const { kv, ttls } = fakeKv({ "checkout:checkout_1": SUBJECT });
 
     const response = await activate(
       kv,
-      "https://x.test/activate?order_id=order_1"
+      "https://x.test/activate?checkout_id=checkout_1"
     );
     expect(response.status).toBe(404);
 
-    expect(await kv.get("order:order_1")).toBe(SUBJECT);
-    expect(ttls.has("order:order_1")).toBe(false);
+    expect(await kv.get("checkout:checkout_1")).toBe(SUBJECT);
+    expect(ttls.has("checkout:checkout_1")).toBe(false);
   });
 
   it("keeps the link intact when signing fails", async () => {
     const { kv, ttls } = licensedKv();
     const context = {
-      request: new Request("https://x.test/activate?order_id=order_1"),
+      request: new Request("https://x.test/activate?checkout_id=checkout_1"),
       env: { LICENSES: kv, LICENSE_SIGNING_SEED: "not-a-valid-seed" } as Env,
     };
 
@@ -168,14 +168,14 @@ describe("GET /activate", () => {
       (onRequestGet as (c: typeof context) => Promise<Response>)(context)
     ).rejects.toThrow();
 
-    expect(await kv.get("order:order_1")).toBe(SUBJECT);
-    expect(ttls.has("order:order_1")).toBe(false);
+    expect(await kv.get("checkout:checkout_1")).toBe(SUBJECT);
+    expect(ttls.has("checkout:checkout_1")).toBe(false);
   });
 
-  it("404s an order id that was never issued", async () => {
+  it("404s a checkout id that was never issued", async () => {
     const response = await activate(
       licensedKv().kv,
-      "https://x.test/activate?order_id=order_nope"
+      "https://x.test/activate?checkout_id=checkout_nope"
     );
     expect(response.status).toBe(404);
   });

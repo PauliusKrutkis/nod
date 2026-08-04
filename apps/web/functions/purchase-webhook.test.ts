@@ -8,7 +8,7 @@
 import { Webhook } from "standardwebhooks";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Env } from "./lib/env";
-import { getLicense, getOrderIndex } from "./lib/kv";
+import { getCheckoutIndex, getLicense } from "./lib/kv";
 import { onRequestPost } from "./purchase-webhook";
 
 const SECRET = `whsec_${btoa("test-webhook-secret")}`;
@@ -36,10 +36,18 @@ function fakeKv(seed: Record<string, string> = {}): KVNamespace {
   } as KVNamespace;
 }
 
-function orderPaid(kv: KVNamespace, orderId: string): Promise<Response> {
+function orderPaid(
+  kv: KVNamespace,
+  orderId: string,
+  checkoutId: string | null = `checkout_${orderId}`
+): Promise<Response> {
   const payload = JSON.stringify({
     type: "order.paid",
-    data: { id: orderId, metadata: { subject: SUBJECT } },
+    data: {
+      id: orderId,
+      checkout_id: checkoutId,
+      metadata: { subject: SUBJECT },
+    },
   });
   const timestamp = new Date();
   const headers = {
@@ -81,7 +89,19 @@ describe("POST /purchase-webhook", () => {
       orderId: "order_1",
       updatesUntil: new Date(NOW + YEAR_MS).toISOString(),
     });
-    expect(await getOrderIndex(kv, "order_1")).toBe(SUBJECT);
+    expect(await getCheckoutIndex(kv, "checkout_order_1")).toBe(SUBJECT);
+  });
+
+  it("stores the license but no index when the order had no checkout", async () => {
+    const kv = fakeKv();
+    const response = await orderPaid(kv, "order_1", null);
+
+    expect(response.status).toBe(200);
+    expect(await getLicense(kv, SUBJECT)).toEqual({
+      orderId: "order_1",
+      updatesUntil: new Date(NOW + YEAR_MS).toISOString(),
+    });
+    expect(await getCheckoutIndex(kv, "checkout_order_1")).toBeNull();
   });
 
   it("extends a running term instead of resetting it", async () => {

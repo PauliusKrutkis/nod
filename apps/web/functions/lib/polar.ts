@@ -1,10 +1,11 @@
 /**
  * Verifies Polar webhook requests (Standard Webhooks spec: webhook-id /
- * webhook-timestamp / webhook-signature headers, HMAC-SHA256). The
- * order.paid payload shape below — especially `metadata.subject` — is an
- * assumption pending a real Polar account; confirm against Polar's API
- * reference before wiring live secrets. Checkout is responsible for putting
- * an already-namespaced subject there (`<provider>:<host>:<id>`, see
+ * webhook-timestamp / webhook-signature headers, HMAC-SHA256). The order.paid
+ * payload shape below is confirmed against Polar's OpenAPI spec (Aug 2026):
+ * metadata set on a checkout is copied to the resulting order, so
+ * `metadata.subject` arrives here, and the order carries `checkout_id`
+ * alongside its own id. Checkout is responsible for putting an
+ * already-namespaced subject there (`<provider>:<host>:<id>`, see
  * functions/lib/kv.ts); this only reads whatever it is given.
  *
  * verifyPolarWebhook returns a discriminated result rather than the event or
@@ -18,6 +19,7 @@ export interface PolarOrderPaidEvent {
   type: "order.paid";
   data: {
     id: string;
+    checkout_id?: string | null;
     metadata?: Record<string, unknown>;
   };
 }
@@ -58,5 +60,17 @@ export function extractSubject(event: PolarOrderPaidEvent): string | null {
   const subject = event.data.metadata?.subject;
   return typeof subject === "string" || typeof subject === "number"
     ? String(subject)
+    : null;
+}
+
+/**
+ * Null for an order with no originating checkout — Polar can raise order.paid
+ * for one created outside a checkout session (a manual or imported order), and
+ * those have no activation link to key.
+ */
+export function extractCheckoutId(event: PolarOrderPaidEvent): string | null {
+  const checkoutId = event.data.checkout_id;
+  return typeof checkoutId === "string" && checkoutId !== ""
+    ? checkoutId
     : null;
 }

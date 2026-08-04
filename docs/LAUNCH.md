@@ -34,7 +34,10 @@ Run `node scripts/generate-license-keypair.mjs` from `apps/web` — it
 prints both halves in the exact format the signer expects. Then:
 
 - `LICENSE_SIGNING_SEED` (64 hex chars) → Cloudflare Pages secret
-  (`wrangler pages secret put`), never in the repo.
+  (`wrangler pages secret put LICENSE_SIGNING_SEED --project-name pr-flow`),
+  never in the repo. Generate it in your own terminal, not through an agent
+  session — the seed should exist in exactly two places, the Pages secret
+  store and your offline backup.
 - `NOD_LICENSE_PUBKEY` (public half, hex) → GitHub repo **variable**; the
   release workflow already forwards it into the build. **Back the seed up**
   like the updater minisign key — lose it and every sold license dies.
@@ -57,9 +60,12 @@ against Polar's OpenAPI spec (Aug 2026):
   so `metadata.subject` on `order.paid` works as designed.
 - The only success-URL template variable is `{CHECKOUT_ID}` — there is no
   order-id variable. The `order.paid` payload carries `checkout_id`
-  alongside the order id, so the webhook must index the license by
-  `checkout_id` and `/activate` must read `?checkout_id=` (small re-key in
-  `functions/lib/kv.ts` / `activate.ts` / the webhook; folded into step 5).
+  alongside the order id, so the webhook indexes the license by
+  `checkout_id` and `/activate` reads `?checkout_id=`. **Done** — the KV
+  index is `checkout:<checkout_id>` and the query param matches. The signed
+  token still carries the real `orderId`, which is what support traces a
+  refund by and what the desktop verifier's canonical JSON expects, so no
+  desktop-side change was needed.
 
 ## 5. Forge identity at checkout — the one real code task left
 
@@ -102,32 +108,42 @@ time the whole chain runs against reality.
 The concrete remaining actions, distilled from the steps above. Tick as
 they land.
 
+The Pages project is **`pr-flow`** (it predates the rename to Nod); every
+`wrangler pages` command below needs `--project-name pr-flow`. Production and
+preview hold separate secret sets — add `--env preview` for anything a
+preview deployment has to exercise.
+
 Owner — now (all free):
 
-- [ ] Polar **sandbox** org (`sandbox.polar.sh`, slug `nod`), product
+- [x] Polar **sandbox** org (`sandbox.polar.sh`, slug `nod`), product
       **Nod license, $39, one-time**.
-- [ ] Webhook endpoint `https://nodreview.com/purchase-webhook`, format
-      **Raw**, event `order.paid`; secret →
-      `wrangler pages secret put POLAR_WEBHOOK_SECRET`.
-- [ ] Organization access token →
-      `wrangler pages secret put POLAR_API_KEY` (checkout creation now,
-      `/restore` later).
+- [x] Webhook endpoint `https://nodreview.com/purchase-webhook`, format
+      **Raw**, event `order.paid`; secret → `POLAR_WEBHOOK_SECRET`.
+      Verified live: an unsigned POST gets 401, so the binding is real.
+- [x] Organization access token → `POLAR_API_KEY` (checkout creation now,
+      `/restore` later). Stored but not yet read by any code path.
 - [ ] New **web** GitHub OAuth app — homepage `https://nodreview.com`,
       callback `https://nodreview.com/auth/github/callback` (distinct from
       the desktop app's loopback OAuth). Client secret → Pages secret;
-      client id is public.
+      client id is public. **The only thing blocking the buy flow.**
 - [ ] `node scripts/generate-license-keypair.mjs` (from `apps/web`):
       seed → `LICENSE_SIGNING_SEED` Pages secret **+ offline backup**;
-      pubkey → `NOD_LICENSE_PUBKEY` repo variable.
+      pubkey → `NOD_LICENSE_PUBKEY` repo variable. Neither exists yet, and
+      without the seed `/activate` cannot sign anything — this is the
+      hard blocker on the whole chain.
 
 Code — unblocked once the OAuth app exists:
 
 - [ ] Buy-flow page: GitHub sign-in → create Polar checkout with
       `metadata.subject = github:github.com:<id>` and the success URL
       above.
-- [ ] Re-key the license index from `order_id` to `checkout_id`
+- [x] Re-key the license index from `order_id` to `checkout_id`
       (`functions/lib/kv.ts`, `activate.ts`, the purchase webhook + tests).
 - [ ] Sandbox/production Polar API base switch (env var, defaults sandbox).
+      Nothing calls the Polar API yet, so this lands with the buy flow.
+- [ ] Polar secrets for the `preview` environment, if step 6 is to run
+      against a preview URL rather than production — preview currently has
+      only `GITHUB_TOKEN`.
 
 Deferred until the [release gate](BACKLOG.md#release-gate) passes:
 

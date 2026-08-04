@@ -4,7 +4,12 @@
   // it during every CI build, and once it exists it is authoritative — runtime
   // bindings and vars set in the dashboard are ignored and become read-only
   // there. Add bindings here, not in the UI.
-  "name": "nod-web",
+  // Must match the real Cloudflare Pages project, which is `pr-flow` — it
+  // predates the rename to Nod. Git-integration builds resolve the project
+  // from the dashboard and ignore this field, so a wrong value breaks nothing
+  // at deploy time; it breaks every `wrangler pages ...` command run from this
+  // directory, which is how the secrets below get set.
+  "name": "pr-flow",
   "compatibility_date": "2026-07-18",
   "pages_build_output_dir": "dist",
   // Production store. Preview deployments get their own namespace below so PR
@@ -25,7 +30,10 @@
   // Secrets are deliberately absent and must stay that way:
   // POLAR_WEBHOOK_SECRET, LICENSE_SIGNING_SEED (32-byte hex Ed25519 seed),
   // POLAR_API_KEY (for /restore, unused so far). Set them with
-  // `wrangler pages secret put`. The signing keypair's public half is not a
+  // `wrangler pages secret put <NAME> --project-name pr-flow`, and again with
+  // `--env preview` for anything a preview deployment has to exercise — the
+  // two environments hold entirely separate secret sets. The keypair's public
+  // half is not a
   // binding at all — it ships embedded in the desktop app, which is the only
   // thing that verifies tokens.
 }
