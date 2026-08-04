@@ -51,9 +51,16 @@ async function waitForScrollToSettle(page: Page) {
 test("leads with the inbox thesis in the hero", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Review PRs like an inbox, not a website."
-  );
+  // The visual headline is a diff (del/ins); the accessible name carries the
+  // full thesis sentence.
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Review PRs like an inbox, not a website.",
+    })
+  ).toBeVisible();
+  await expect(page.locator(".hero__del")).toHaveText("a website");
+  await expect(page.locator(".hero__ins")).toHaveText("an inbox");
 });
 
 test("the hero starts as a poster, with no demo bundle loaded", async ({

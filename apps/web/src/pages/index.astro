@@ -22,7 +22,13 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
     <section class="hero">
       <div class="wrap">
         <p class="eyebrow">A desktop app for GitHub pull requests</p>
-        <h1 class="hero__title">Review PRs like an <em>inbox</em>, not a website.</h1>
+        <h1 class="hero__title" aria-label="Review PRs like an inbox, not a website.">
+          <span aria-hidden="true"
+            >Review PRs like <del class="hero__del">a website</del>{" "}<ins
+              class="hero__ins">an inbox</ins
+            >.</span
+          >
+        </h1>
         <p class="hero__sub">
           Keyboard-first and cache-first, for the thing you do every day: open a
           review request, read the diff, leave a comment, move on.
@@ -41,10 +47,10 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
       <HeroDemo />
     </section>
 
-    <section class="wide feats" aria-label="Features in action">
-      <p class="eyebrow feats__eyebrow">In action</p>
+    <section class="feats" aria-label="Features in action">
       <div class="feats__rows">
         <FeatureShowcase
+          keys={["j", "k"]}
           title="The whole loop, no mouse"
           body="Triage the queue with j and k, open with Enter, step the diff, mark files viewed, submit — one unbroken keyboard motion."
           scene="loop"
@@ -55,6 +61,7 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
           viewed · <kbd class="show__key">s</kbd> submit
         </FeatureShowcase>
         <FeatureShowcase
+          keys={["c"]}
           title="Comment without breaking stride"
           body="c opens a composer on the cursor line. Batch comments into a pending review or send one now — either way it lands instantly."
           scene="comments"
@@ -64,6 +71,7 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
           <kbd class="show__key">⌘↵</kbd> add to review
         </FeatureShowcase>
         <FeatureShowcase
+          keys={["⌘", "F"]}
           title="Built for reading diffs"
           body="Click a token and every occurrence lights up. Find-in-diff ticks its matches on an overview ruler, and intraline emphasis shows exactly what a rename changed."
           scene="scan"
@@ -76,9 +84,9 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
 
     <LocalStrip />
 
-    <section class="wrap pricing" aria-label="Pricing" id="pricing">
-      <p class="eyebrow">Pricing</p>
-      <div class="pricing__card">
+    <section class="pricing" aria-label="Pricing" id="pricing">
+      <div class="wrap pricing__inner">
+        <p class="eyebrow">Pricing</p>
         <p class="pricing__price">
           $39 <span class="pricing__term">one-time · a year of updates</span>
         </p>

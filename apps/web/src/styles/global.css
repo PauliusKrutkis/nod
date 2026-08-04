@@ -165,9 +165,60 @@ a {
   text-wrap: balance;
 }
 
-.hero__title em {
+/* The thesis set as the app would render it: an intraline diff. The del's
+   strike is a pseudo-element so it can sweep on load; both animations are
+   one-shot, start after paint, and vanish under reduced motion. */
+.hero__del {
+  position: relative;
+  color: var(--del);
+  text-decoration: none;
+  opacity: 0.9;
+  white-space: nowrap;
+}
+
+.hero__del::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 55%;
+  height: 0.06em;
+  width: 100%;
+  border-radius: 1px;
+  background: var(--del);
+}
+
+.hero__ins {
+  display: inline-block;
+  text-decoration: none;
   font-style: normal;
-  color: var(--accent);
+  color: var(--add);
+  background: rgba(95, 208, 138, 0.13);
+  border-radius: 0.14em;
+  padding-inline: 0.1em;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero__del::after {
+    animation: hero-strike 0.3s ease-out 0.15s backwards;
+  }
+
+  .hero__ins {
+    animation: hero-ins 0.3s ease-out 0.35s backwards;
+  }
+}
+
+@keyframes hero-strike {
+  from {
+    width: 0;
+  }
+}
+
+@keyframes hero-ins {
+  from {
+    opacity: 0;
+    transform: translateY(0.18em);
+  }
 }
 
 .hero__sub {
@@ -316,39 +367,37 @@ a {
   margin-top: clamp(64px, 14vw, 112px);
 }
 
+/* The close is a full-width band at display scale — the page ends on a
+   note, not a whisper. Same tokens, only scale changes. */
 .pricing {
   margin-top: clamp(64px, 14vw, 112px);
+  padding-block: clamp(48px, 7vw, 84px);
+  background: var(--surface);
+  border-block: 1px solid var(--line);
   text-align: center;
 }
 
-.pricing .eyebrow {
-  margin: 0 0 clamp(24px, 5vw, 48px);
-}
-
-.pricing__card {
+.pricing__inner {
   display: grid;
-  gap: 14px;
+  gap: 16px;
   justify-items: center;
-  max-width: 420px;
-  margin: 0 auto;
-  padding: 30px 28px;
-  background: var(--surface);
-  border: 1px solid var(--line-2);
-  border-radius: 14px;
 }
 
 .pricing__price {
   margin: 0;
-  font-size: 30px;
-  font-weight: 600;
+  font-size: clamp(40px, 4.6vw, 60px);
+  font-weight: 640;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
   color: var(--fg);
 }
 
 .pricing__term {
   display: block;
-  margin-top: 4px;
-  font-size: 13px;
+  margin-top: 6px;
+  font-size: 14px;
   font-weight: 400;
+  letter-spacing: 0;
   color: var(--muted);
 }
 
@@ -366,11 +415,6 @@ a {
   color: var(--faint);
 }
 
-.feats__eyebrow {
-  margin: 0 0 clamp(24px, 5vw, 48px);
-  text-align: center;
-}
-
 .feats__rows {
   display: grid;
   gap: clamp(52px, 9vw, 88px);
@@ -379,27 +423,74 @@ a {
 .show {
   display: grid;
   gap: 22px;
+  padding-inline: 24px;
 }
 
 .show__copy {
   max-width: 60ch;
 }
 
+/* Edge-bleed rows: four tracks — gutter, copy, media, gutter — and the
+   figure spans media plus its near gutter, so footage runs to the viewport
+   edge while copy stays in the reading column. The far gutter takes the
+   larger share (1fr vs 0.35fr) to keep the composition weighted toward the
+   bleed. nth-of-type, not nth-child: Astro can emit its component script as
+   a sibling between articles, which would shift child indices. */
 @media (min-width: 1100px) {
   .show {
-    grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+    grid-template-columns:
+      minmax(24px, 1fr)
+      minmax(300px, 380px)
+      minmax(0, 1200px)
+      minmax(0, 0.35fr);
     align-items: center;
-    gap: clamp(36px, 4vw, 64px);
+    column-gap: clamp(36px, 4vw, 64px);
+    padding-inline: 0;
   }
 
-  /* nth-of-type, not nth-child: Astro can emit its component script as a
-     sibling between articles, which would shift child indices. */
+  .show__copy {
+    grid-column: 2;
+  }
+
+  .show__fig {
+    grid-column: 3 / -1;
+    justify-self: end;
+    width: 100%;
+    max-width: 1440px;
+  }
+
   .show:nth-of-type(even) {
-    grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+    grid-template-columns:
+      minmax(0, 0.35fr)
+      minmax(0, 1200px)
+      minmax(300px, 380px)
+      minmax(24px, 1fr);
   }
 
   .show:nth-of-type(even) .show__copy {
-    order: 2;
+    grid-column: 3;
+  }
+
+  .show:nth-of-type(even) .show__fig {
+    grid-column: 1 / 3;
+    justify-self: start;
+  }
+
+  .show__video {
+    border-radius: 14px 0 0 14px;
+  }
+
+  .show:nth-of-type(even) .show__video {
+    border-radius: 0 14px 14px 0;
+  }
+}
+
+/* Past ~2000px the figure hits its cap before the viewport edge; floating
+   flat corners would look unfinished, so the full radius returns. */
+@media (min-width: 2000px) {
+  .show__video,
+  .show:nth-of-type(even) .show__video {
+    border-radius: 14px;
   }
 }
 
@@ -437,6 +528,30 @@ a {
   margin: 14px 0 0;
   font-size: 12px;
   color: var(--faint);
+}
+
+/* The section marker is the keystroke itself, at keycap scale. */
+.show__cap {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.show__bigkey {
+  display: inline-grid;
+  place-items: center;
+  min-width: 42px;
+  height: 42px;
+  padding-inline: 11px;
+  font-family: var(--font-mono);
+  font-size: 19px;
+  color: var(--fg);
+  background: var(--surface-hi);
+  border: 1px solid var(--line-2);
+  border-radius: 9px;
+  box-shadow:
+    0 3px 0 rgba(0, 0, 0, 0.5),
+    0 1px 0 rgba(255, 255, 255, 0.04) inset;
 }
 
 .show__key {

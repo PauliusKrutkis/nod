@@ -8,17 +8,21 @@
 // dedupes module scripts across component occurrences.
 
 interface Props {
+  keys: string[];
   title: string;
   body: string;
   scene: string;
   label: string;
 }
 
-const { title, body, scene, label } = Astro.props;
+const { keys, title, body, scene, label } = Astro.props;
 ---
 
 <article class="show">
   <div class="show__copy">
+    <p class="show__cap">
+      {keys.map((key) => <kbd class="show__bigkey mono">{key}</kbd>)}
+    </p>
     <h2 class="show__title">{title}</h2>
     <p class="show__body">{body}</p>
     <p class="show__keys mono"><slot /></p>
