@@ -19,6 +19,8 @@ const STABLE_FRAMES = 3;
 
 const START_DEMO_PATTERN = /try the real app/i;
 
+const MAXIMIZED_PATTERN = /hd__frame--max/;
+
 /**
  * Resolves once the scroll position has stopped moving. `scroll-behavior` is
  * smooth, so an anchor jump animates; any geometry read mid-flight describes a
@@ -120,45 +122,41 @@ test("a modified j does not hijack browser shortcuts into the demo", async ({
   await expect(page.locator(".hd__iframe")).toHaveCount(0);
 });
 
-test("shift+f takes the live demo full screen and esc exits", async ({
-  page,
-}) => {
+test("shift+f toggles the demo to viewport size and back", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: START_DEMO_PATTERN }).click();
   const demo = page.frameLocator(".hd__iframe");
   await expect(demo.getByRole("option").first()).toBeVisible();
+  const frame = page.locator(".hd__frame");
 
   await page.keyboard.press("Shift+F");
-  await expect
-    .poll(() => page.evaluate(() => document.fullscreenElement !== null))
-    .toBe(true);
+  await expect(frame).toHaveClass(MAXIMIZED_PATTERN);
+  const viewport = page.viewportSize();
+  const box = await frame.boundingBox();
+  expect(box?.width).toBe(viewport?.width);
+  expect(box?.height).toBe(viewport?.height);
 
-  await page.keyboard.press("Escape");
-  await expect
-    .poll(() => page.evaluate(() => document.fullscreenElement === null))
-    .toBe(true);
+  await page.keyboard.press("Shift+F");
+  await expect(frame).not.toHaveClass(MAXIMIZED_PATTERN);
 });
 
-test("esc in fullscreen only exits fullscreen, never the app's screen", async ({
+test("esc while maximized only restores the frame, never the app's screen", async ({
   page,
 }) => {
   await page.goto("/");
   await page.getByRole("button", { name: START_DEMO_PATTERN }).click();
   const demo = page.frameLocator(".hd__iframe");
   await expect(demo.getByRole("option").first()).toBeVisible();
+  const frame = page.locator(".hd__frame");
 
   await page.keyboard.press("Enter");
   await expect(demo.locator(".qf-row").first()).toBeVisible();
 
   await page.keyboard.press("Shift+F");
-  await expect
-    .poll(() => page.evaluate(() => document.fullscreenElement !== null))
-    .toBe(true);
+  await expect(frame).toHaveClass(MAXIMIZED_PATTERN);
 
   await page.keyboard.press("Escape");
-  await expect
-    .poll(() => page.evaluate(() => document.fullscreenElement === null))
-    .toBe(true);
+  await expect(frame).not.toHaveClass(MAXIMIZED_PATTERN);
   await expect(demo.locator(".qf-row").first()).toBeVisible();
 
   await page.keyboard.press("Escape");

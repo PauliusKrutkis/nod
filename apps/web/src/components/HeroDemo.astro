@@ -61,17 +61,24 @@
       ?.contentWindow?.focus();
   };
 
-  // Fullscreen is keyboard-only, like everything else: once the demo owns
-  // the keyboard the page can't hear keys, so the listener lives inside the
-  // same-origin iframe (capture phase, so it runs before the app's own
-  // handlers). Shift+F because the app already binds every likely letter
-  // (plain f is its fast-scroll). Esc layers like a native app: while
-  // fullscreen it only exits fullscreen — swallowed here so the app doesn't
-  // also navigate back — and the browser's reserved Esc-exit fires either
-  // way; windowed, it reaches the app untouched. Editable targets are
-  // guarded by tag name — instanceof would fail across realms. The
-  // transition promises reject when the browser denies the switch;
-  // fullscreenchange is the source of truth either way.
+  // Full screen is ours, not the browser's: a fixed overlay class instead
+  // of the Fullscreen API, so there is no reserved-Esc behavior underneath,
+  // no permission quirks, and the same layering everywhere — shift+F
+  // toggles, one esc peels the overlay off (swallowed in the capture phase
+  // so the app never also navigates), the next esc reaches the app. The
+  // listener lives inside the same-origin iframe because the demo owns the
+  // keyboard; shift+F because the app already binds every likely letter
+  // (plain f is its fast-scroll). Editable targets are guarded by tag
+  // name — instanceof would fail across realms.
+  const isMaximized = () =>
+    frame?.classList.contains("hd__frame--max") === true;
+
+  const setMaximized = (on: boolean) => {
+    frame?.classList.toggle("hd__frame--max", on);
+    document.documentElement.classList.toggle("hd-scroll-lock", on);
+    focusDemo();
+  };
+
   const onDemoKeydown = (event: KeyboardEvent) => {
     const target = event.target as HTMLElement | null;
     const tag = target?.tagName;
@@ -83,22 +90,12 @@
       event.shiftKey &&
       !(event.metaKey || event.ctrlKey || event.altKey || event.repeat)
     ) {
-      if (document.fullscreenElement) {
-        document.exitFullscreen().catch(() => {
-          /* ignore */
-        });
-      } else {
-        frame?.requestFullscreen().catch(() => {
-          /* ignore */
-        });
-      }
+      setMaximized(!isMaximized());
       return;
     }
-    if (event.key === "Escape" && document.fullscreenElement) {
+    if (event.key === "Escape" && isMaximized()) {
       event.stopImmediatePropagation();
-      document.exitFullscreen().catch(() => {
-        /* ignore */
-      });
+      setMaximized(false);
     }
   };
 
@@ -112,6 +109,12 @@
   };
   window.addEventListener("blur", () => setTimeout(syncEngagement, 0));
   window.addEventListener("focus", () => setTimeout(syncEngagement, 0));
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && isMaximized()) {
+      setMaximized(false);
+    }
+  });
 
   const launch = () => {
     if (!frame || frame.classList.contains("hd__frame--live")) {
@@ -141,9 +144,6 @@
   });
   frame?.addEventListener("click", launch);
 
-  // Entering or leaving fullscreen lands focus wherever the browser puts
-  // it; the demo should keep the keyboard either way.
-  document.addEventListener("fullscreenchange", focusDemo);
 
   // The start button promises "press j" — honor it page-wide. Before the
   // demo starts, j launches it; once live, j hands the keyboard back after
@@ -258,11 +258,23 @@
       0 0 0 3px var(--accent-soft);
   }
 
-  .hd__frame:fullscreen {
+  .hd__frame--max {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
     aspect-ratio: auto;
     max-height: none;
     border: 0;
     border-radius: 0;
+    box-shadow: none;
+  }
+
+  .hd__frame--max.hd__frame--engaged {
+    box-shadow: none;
+  }
+
+  :global(.hd-scroll-lock) {
+    overflow: hidden;
   }
 
   .hd__kbd {
