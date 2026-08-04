@@ -38,8 +38,8 @@
   <figcaption class="hd__caption mono">
     <span class="hd__when-embedded"
       >the actual Nod frontend on fixture PRs —
-      <kbd class="hd__key">⇧F</kbd> full screen ·
-      <kbd class="hd__key">esc</kbd> exits from the inbox · click outside
+      <kbd class="keycap">⇧F</kbd> full screen ·
+      <kbd class="keycap">esc</kbd> exits from the inbox · click outside
       releases the keyboard</span
     >
     <span class="hd__when-tab"
@@ -76,6 +76,15 @@
 
   const setMaximized = (on: boolean) => {
     frame?.classList.toggle("hd__frame--max", on);
+    if (on) {
+      frame?.setAttribute("role", "dialog");
+      frame?.setAttribute("aria-modal", "true");
+      frame?.setAttribute("aria-label", "Nod live demo, full screen");
+    } else {
+      frame?.removeAttribute("role");
+      frame?.removeAttribute("aria-modal");
+      frame?.removeAttribute("aria-label");
+    }
     document.documentElement.classList.toggle("hd-scroll-lock", on);
     focusDemo();
   };
@@ -311,20 +320,6 @@
     color: var(--muted);
   }
 
-  .hd__key {
-    display: inline-grid;
-    place-items: center;
-    min-width: 1.7em;
-    height: 1.7em;
-    padding-inline: 0.4em;
-    font-family: var(--font-mono);
-    font-size: 1em;
-    color: var(--fg);
-    background: var(--surface-hi);
-    border: 1px solid var(--line-2);
-    border-radius: 5px;
-    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
-  }
 
   /* Copy tracks behavior: these media queries mirror the embeddable() check
      in the script, so the button and caption never promise an embed (or a

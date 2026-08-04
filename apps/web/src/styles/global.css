@@ -581,7 +581,7 @@ a {
   vertical-align: bottom;
 }
 
-.show__key {
+.keycap {
   display: inline-grid;
   place-items: center;
   min-width: 1.7em;
@@ -589,7 +589,7 @@ a {
   padding-inline: 0.4em;
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  color: var(--muted);
+  color: var(--fg);
   background: var(--surface-hi);
   border: 1px solid var(--line-2);
   border-radius: 5px;

@@ -34,6 +34,18 @@ test("each pull request opens its own review", async ({ page }) => {
   await expect(page.getByText("scroll-anchor.ts").first()).toBeVisible();
 });
 
+test("every visit starts at the inbox, never resumed state", async ({
+  page,
+}) => {
+  await page.goto("/demo/");
+  await expect(page.getByRole("option").first()).toBeVisible();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".qf-row").first()).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole("option").first()).toBeVisible();
+});
+
 test("full-file expansion reveals lines beyond the patch", async ({ page }) => {
   await page.goto("/demo/");
   await expect(page.getByRole("option").first()).toBeVisible();
