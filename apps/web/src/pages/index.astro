@@ -67,8 +67,10 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
           scene="comments"
           label="Real footage of Nod: opening an inline composer on the cursor line, typing a comment, and adding it to a pending review."
         >
-          <kbd class="show__key">c</kbd> comment ·
-          <kbd class="show__key">⌘↵</kbd> add to review
+          <kbd class="show__key">c</kbd> comment ·{" "}<span
+            class="show__chord"
+            ><kbd class="show__key">⌘</kbd><kbd class="show__key">↵</kbd></span
+          >{" "}add to review
         </FeatureShowcase>
         <FeatureShowcase
           keys={["⌘", "F"]}
@@ -77,7 +79,9 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
           scene="scan"
           label="Real footage of Nod: occurrence marks lighting up on a clicked token, then find-in-diff stepping through matches marked on the overview ruler."
         >
-          double-click marks · <kbd class="show__key">⌘F</kbd> find in the diff
+          double-click marks ·{" "}<span class="show__chord"
+            ><kbd class="show__key">⌘</kbd><kbd class="show__key">F</kbd></span
+          >{" "}find in the diff
         </FeatureShowcase>
       </div>
     </section>
