@@ -96,9 +96,13 @@
   // fullscreenchange listener below is the source of truth either way.
   fullscreenToggle?.addEventListener("click", () => {
     if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {});
+      document.exitFullscreen().catch(() => {
+        /* ignore */
+      });
     } else {
-      frame?.requestFullscreen().catch(() => {});
+      frame?.requestFullscreen().catch(() => {
+        /* ignore */
+      });
     }
   });
 

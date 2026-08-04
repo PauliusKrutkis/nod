@@ -117,7 +117,11 @@ async function settleAnimations(page: Page) {
     Promise.all(
       document
         .getAnimations()
-        .map((animation) => animation.finished.catch(() => {}))
+        .map((animation) =>
+          animation.finished.catch(() => {
+            /* ignore */
+          })
+        )
     )
   );
 }
