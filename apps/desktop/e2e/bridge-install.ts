@@ -197,10 +197,7 @@ export function installBridge(cfg: BridgeConfig) {
       return cfg.licenseState;
     },
     get_pull_request_detail: (args) => {
-      const byNumber = cfg.detailByNumber as Record<
-        string,
-        unknown
-      > | null;
+      const byNumber = cfg.detailByNumber as Record<string, unknown> | null;
       const forNumber = byNumber?.[String(args.number)];
       if (forNumber) {
         return forNumber;

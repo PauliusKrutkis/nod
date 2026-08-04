@@ -178,7 +178,7 @@ const SEARCH_SET: DemoFileSpec[] = [
       "+        onChange={(e) => setQuery(e.target.value)}",
       "+      />",
       "+      {hits.map((pr) => (",
-      "+        <button key={pr.id} onClick={() => onOpen(pr)} type=\"button\">",
+      '+        <button key={pr.id} onClick={() => onOpen(pr)} type="button">',
       "+          {pr.title}",
       "+        </button>",
       "+      ))}",
@@ -225,7 +225,7 @@ const VIEWER_SET: DemoFileSpec[] = [
       '       className={cn("diff-row", cursor && "diff-row--cursor")}',
       "-      data-line={anchor}",
       "+      data-anchor={anchor}",
-      "+      data-side={row.lineAfter === null ? \"before\" : \"after\"}",
+      '+      data-side={row.lineAfter === null ? "before" : "after"}',
       "     >",
       "       <span>{row.text}</span>",
       "     </div>",
@@ -244,7 +244,7 @@ const VIEWER_SET: DemoFileSpec[] = [
       "+}",
       "+",
       "+export function captureAnchor(container: HTMLElement): Anchor | null {",
-      "+  const rows = container.querySelectorAll<HTMLElement>(\"[data-anchor]\");",
+      '+  const rows = container.querySelectorAll<HTMLElement>("[data-anchor]");',
       "+  for (const row of rows) {",
       "+    const top = row.getBoundingClientRect().top;",
       "+    if (top >= 0) {",
@@ -259,7 +259,7 @@ const VIEWER_SET: DemoFileSpec[] = [
       "+",
       "+export function restoreAnchor(container: HTMLElement, anchor: Anchor) {",
       "+  const row = container.querySelector<HTMLElement>(",
-      "+    `[data-anchor=\"${anchor.line}\"]`",
+      '+    `[data-anchor="${anchor.line}"]`',
       "+  );",
       "+  if (row) {",
       "+    container.scrollTop += row.getBoundingClientRect().top - anchor.offset;",
@@ -650,9 +650,7 @@ export const DEMO_DETAILS: Record<number, unknown> = Object.fromEntries(
 );
 
 export const DEMO_FILE_BLOBS: Record<string, string> = Object.fromEntries(
-  ALL_SPECS.flatMap((spec) =>
-    spec.set.map((f) => [f.path, demoFile(f).blob])
-  )
+  ALL_SPECS.flatMap((spec) => spec.set.map((f) => [f.path, demoFile(f).blob]))
 );
 
 export const DEMO_INBOX: InboxFixture = {
