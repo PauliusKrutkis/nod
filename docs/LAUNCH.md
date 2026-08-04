@@ -77,12 +77,25 @@ against Polar's OpenAPI spec (Aug 2026):
 
 Nothing currently puts `metadata.subject` on a Polar order, so the webhook
 has nothing to key a license to. Needs, in order: a **web** GitHub OAuth
-app (owner registers; callback on the site, distinct from the desktop app's
-loopback OAuth), then a small buy-flow page — sign in with GitHub →
+app (owner registers; callback on the site), then a small buy-flow page —
+sign in with GitHub →
 redirect into Polar checkout carrying `subject = github:github.com:<id>`
 (mechanism per step 4's verification). gitlab.com wants a second OAuth app
 later; self-hosted GitLab stays email-restore-only by design. Buildable the
 day the OAuth app exists.
+
+**It must be a second app, not the desktop one.** Partly because it cannot
+be: an OAuth App holds one callback URL, and GitHub matches `redirect_uri`
+on host and port, which `127.0.0.1:8765` (`auth.rs`) and `nodreview.com` do
+not share. Mostly because the desktop client secret is compiled into every
+shipped binary (`option_env!("PRFLOW_GH_CLIENT_SECRET")`) and is therefore
+public — fine for a loopback flow, where the redirect is the real boundary,
+but this flow is what binds a GitHub identity to a paid license. Trusting a
+client whose secret ships in every download would let anyone forge the
+`subject` a license is keyed by. Ask for `read:user` only: the numeric id is
+all checkout needs, and the desktop app's `repo read:org` on a payment
+consent screen is both alarming and a wider blast radius than the flow
+warrants.
 
 ## 6. Sandbox end-to-end — owner + app build
 
@@ -137,14 +150,17 @@ Owner — now (all free):
 - [x] Organization access token → `POLAR_API_KEY` (checkout creation now,
       `/restore` later). Stored but not yet read by any code path.
 - [ ] New **web** GitHub OAuth app — homepage `https://nodreview.com`,
-      callback `https://nodreview.com/auth/github/callback` (distinct from
-      the desktop app's loopback OAuth). Client secret → Pages secret;
-      client id is public. **The only thing blocking the buy flow.**
-- [ ] `node scripts/generate-license-keypair.mjs` (from `apps/web`):
+      callback `https://nodreview.com/auth/github/callback`, scope
+      `read:user`. Must be a second app, not the desktop one (step 5 says
+      why). Client secret → Pages secret; client id is public.
+      **The only thing blocking the buy flow.**
+- [x] `node scripts/generate-license-keypair.mjs` (from `apps/web`):
       seed → `LICENSE_SIGNING_SEED` Pages secret **+ offline backup**;
-      pubkey → `NOD_LICENSE_PUBKEY` repo variable. Neither exists yet, and
-      without the seed `/activate` cannot sign anything — this is the
-      hard blocker on the whole chain.
+      pubkey → `NOD_LICENSE_PUBKEY` repo variable. Both set 2026-08-04.
+      Still unproven that the two halves are the same keypair — CF secret
+      values are write-only, so only a signing round-trip through
+      `/activate` can confirm it. A mismatch would surface as activation
+      failures in already-shipped binaries; prove it before the first sale.
 
 Code — unblocked once the OAuth app exists:
 
