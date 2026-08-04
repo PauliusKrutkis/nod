@@ -32,6 +32,7 @@
       >
       <span class="hd__when-tab">Try the real app</span>
     </button>
+    <button class="hd__fs mono" type="button" hidden>⛶ full screen</button>
   </div>
   <figcaption class="hd__caption mono">
     <span class="hd__when-embedded"
@@ -46,9 +47,16 @@
 <script>
   const frame = document.querySelector<HTMLElement>(".hd__frame");
   const start = document.querySelector<HTMLButtonElement>(".hd__start");
+  const fullscreenToggle = document.querySelector<HTMLButtonElement>(".hd__fs");
 
   const embeddable = () =>
     !matchMedia("(pointer: coarse)").matches && window.innerWidth >= 720;
+
+  const focusDemo = () => {
+    frame
+      ?.querySelector<HTMLIFrameElement>(".hd__iframe")
+      ?.contentWindow?.focus();
+  };
 
   const launch = () => {
     if (!frame || frame.classList.contains("hd__frame--live")) {
@@ -67,6 +75,9 @@
     });
     frame.append(demo);
     frame.classList.add("hd__frame--live");
+    if (document.fullscreenEnabled && fullscreenToggle) {
+      fullscreenToggle.hidden = false;
+    }
   };
 
   start?.addEventListener("click", (event) => {
@@ -75,6 +86,25 @@
     launch();
   });
   frame?.addEventListener("click", launch);
+
+  fullscreenToggle?.addEventListener("click", () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      frame?.requestFullscreen();
+    }
+  });
+
+  // Entering or leaving fullscreen lands focus on the toggle; the demo
+  // should keep the keyboard either way.
+  document.addEventListener("fullscreenchange", () => {
+    if (fullscreenToggle) {
+      fullscreenToggle.textContent = document.fullscreenElement
+        ? "✕ exit full screen"
+        : "⛶ full screen";
+    }
+    focusDemo();
+  });
 
   // The start button promises "press j" — honor it page-wide. Once the demo
   // is live the iframe owns the keyboard, so this only ever starts it. The
@@ -174,6 +204,39 @@
   .hd__frame--live .hd__poster,
   .hd__frame--live .hd__start {
     display: none;
+  }
+
+  .hd__fs {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 2;
+    padding: 6px 10px;
+    border: 1px solid var(--line-2);
+    border-radius: 8px;
+    background: rgba(15, 15, 23, 0.78);
+    color: var(--muted);
+    font-size: 12px;
+    cursor: pointer;
+    transition:
+      color 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .hd__fs:hover {
+    color: var(--fg);
+    border-color: var(--accent-line);
+  }
+
+  .hd__fs[hidden] {
+    display: none;
+  }
+
+  .hd__frame:fullscreen {
+    aspect-ratio: auto;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
   }
 
   .hd__kbd {

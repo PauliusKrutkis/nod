@@ -120,6 +120,29 @@ test("a modified j does not hijack browser shortcuts into the demo", async ({
   await expect(page.locator(".hd__iframe")).toHaveCount(0);
 });
 
+test("offers full screen only once the demo is live, and toggles it", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const fullscreen = page.getByRole("button", { name: /full screen/i });
+  await expect(fullscreen).toBeHidden();
+
+  await page.getByRole("button", { name: START_DEMO_PATTERN }).click();
+  await expect(fullscreen).toBeVisible();
+
+  await fullscreen.click();
+  await expect
+    .poll(() => page.evaluate(() => document.fullscreenElement !== null))
+    .toBe(true);
+  await expect(fullscreen).toHaveText("✕ exit full screen");
+
+  await fullscreen.click();
+  await expect
+    .poll(() => page.evaluate(() => document.fullscreenElement === null))
+    .toBe(true);
+  await expect(fullscreen).toHaveText("⛶ full screen");
+});
+
 test("shows each capability as real footage with a poster", async ({
   page,
 }) => {
