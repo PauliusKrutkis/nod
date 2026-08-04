@@ -448,12 +448,17 @@ a {
     padding-inline: 0;
   }
 
+  /* Both cells pin to row 1: in flipped rows the copy is placed first at
+     column 3, and sparse auto-flow would push the figure into an implicit
+     second row instead of backtracking to columns 1-2. */
   .show__copy {
     grid-column: 2;
+    grid-row: 1;
   }
 
   .show__fig {
     grid-column: 3 / -1;
+    grid-row: 1;
     justify-self: end;
     width: 100%;
     max-width: 1440px;
