@@ -17,6 +17,23 @@ test("boots the real app from the static bundle", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("each pull request opens its own review", async ({ page }) => {
+  await page.goto("/demo/");
+  const options = page.getByRole("option");
+  await expect(options.first()).toBeVisible();
+
+  await page.keyboard.press("Enter");
+  await expect(page.getByText("fuzzy.ts").first()).toBeVisible();
+  await expect(page.getByText("search.md").first()).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(options.first()).toBeVisible();
+  await page.keyboard.press("j");
+  await page.keyboard.press("Enter");
+  await expect(page.getByText("diff-row.tsx").first()).toBeVisible();
+  await expect(page.getByText("scroll-anchor.ts").first()).toBeVisible();
+});
+
 test("answers the keyboard", async ({ page }) => {
   await page.goto("/demo/");
   const options = page.getByRole("option");

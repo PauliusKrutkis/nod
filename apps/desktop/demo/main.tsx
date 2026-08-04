@@ -8,8 +8,14 @@
  */
 
 import { buildBridgeConfig, installBridge } from "../e2e/bridge-install.ts";
-import { DEMO_INBOX } from "./fixtures.ts";
+import { DEMO_DETAILS, DEMO_FILE_BLOBS, DEMO_INBOX } from "./fixtures.ts";
 
-installBridge(buildBridgeConfig({ inbox: DEMO_INBOX }));
+installBridge(
+  buildBridgeConfig({
+    detailByNumber: DEMO_DETAILS,
+    fileBlobs: DEMO_FILE_BLOBS,
+    inbox: DEMO_INBOX,
+  })
+);
 
 await import("../src/main.tsx");

@@ -19,8 +19,6 @@ const STABLE_FRAMES = 3;
 
 const START_DEMO_PATTERN = /try the real app/i;
 
-const FULLSCREEN_TOGGLE_PATTERN = /full screen/i;
-
 /**
  * Resolves once the scroll position has stopped moving. `scroll-behavior` is
  * smooth, so an anchor jump animates; any geometry read mid-flight describes a
@@ -122,29 +120,23 @@ test("a modified j does not hijack browser shortcuts into the demo", async ({
   await expect(page.locator(".hd__iframe")).toHaveCount(0);
 });
 
-test("offers full screen only once the demo is live, and toggles it", async ({
+test("shift+f takes the live demo full screen and esc exits", async ({
   page,
 }) => {
   await page.goto("/");
-  const fullscreen = page.getByRole("button", {
-    name: FULLSCREEN_TOGGLE_PATTERN,
-  });
-  await expect(fullscreen).toBeHidden();
-
   await page.getByRole("button", { name: START_DEMO_PATTERN }).click();
-  await expect(fullscreen).toBeVisible();
+  const demo = page.frameLocator(".hd__iframe");
+  await expect(demo.getByRole("option").first()).toBeVisible();
 
-  await fullscreen.click();
+  await page.keyboard.press("Shift+F");
   await expect
     .poll(() => page.evaluate(() => document.fullscreenElement !== null))
     .toBe(true);
-  await expect(fullscreen).toHaveText("✕ exit full screen");
 
-  await fullscreen.click();
+  await page.keyboard.press("Escape");
   await expect
     .poll(() => page.evaluate(() => document.fullscreenElement === null))
     .toBe(true);
-  await expect(fullscreen).toHaveText("⛶ full screen");
 });
 
 test("shows each capability as real footage with a poster", async ({

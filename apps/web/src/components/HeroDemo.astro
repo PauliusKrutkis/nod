@@ -34,13 +34,11 @@
       >
       <span class="hd__when-tab">Try the real app</span>
     </button>
-    <button class="hd__fullscreen mono" type="button" hidden
-      >⛶ full screen</button
-    >
   </div>
   <figcaption class="hd__caption mono">
     <span class="hd__when-embedded"
-      >the actual Nod frontend on fixture PRs — click outside to leave</span
+      >the actual Nod frontend on fixture PRs — ⇧F full screen · esc exits ·
+      click outside to leave</span
     >
     <span class="hd__when-tab"
       >the actual Nod frontend on fixture PRs — opens in a new tab</span
@@ -51,8 +49,6 @@
 <script>
   const frame = document.querySelector<HTMLElement>(".hd__frame");
   const start = document.querySelector<HTMLButtonElement>(".hd__start");
-  const fullscreenToggle =
-    document.querySelector<HTMLButtonElement>(".hd__fullscreen");
 
   const embeddable = () =>
     !matchMedia("(pointer: coarse)").matches && window.innerWidth >= 720;
@@ -61,6 +57,43 @@
     frame
       ?.querySelector<HTMLIFrameElement>(".hd__iframe")
       ?.contentWindow?.focus();
+  };
+
+  // Fullscreen is keyboard-only, like everything else: once the demo owns
+  // the keyboard the page can't hear keys, so the listener lives inside the
+  // same-origin iframe. Shift+F because the app already binds every likely
+  // letter (plain f is its fast-scroll); esc mirrors the browser's native
+  // exit so the caption's promise holds even where the native handling is
+  // lazy. Editable targets are guarded by tag name — instanceof would fail
+  // across realms. The transition promises reject when the browser denies
+  // the switch; fullscreenchange is the source of truth either way.
+  const onDemoKeydown = (event: KeyboardEvent) => {
+    const target = event.target as HTMLElement | null;
+    const tag = target?.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) {
+      return;
+    }
+    if (
+      event.key === "F" &&
+      event.shiftKey &&
+      !(event.metaKey || event.ctrlKey || event.altKey || event.repeat)
+    ) {
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {
+          /* ignore */
+        });
+      } else {
+        frame?.requestFullscreen().catch(() => {
+          /* ignore */
+        });
+      }
+      return;
+    }
+    if (event.key === "Escape" && document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {
+        /* ignore */
+      });
+    }
   };
 
   const launch = () => {
@@ -77,12 +110,10 @@
     demo.title = "Nod live demo";
     demo.addEventListener("load", () => {
       demo.contentWindow?.focus();
+      demo.contentWindow?.addEventListener("keydown", onDemoKeydown);
     });
     frame.append(demo);
     frame.classList.add("hd__frame--live");
-    if (document.fullscreenEnabled && fullscreenToggle) {
-      fullscreenToggle.hidden = false;
-    }
   };
 
   start?.addEventListener("click", (event) => {
@@ -92,30 +123,9 @@
   });
   frame?.addEventListener("click", launch);
 
-  // The transition promises reject when the browser denies the switch; the
-  // fullscreenchange listener below is the source of truth either way.
-  fullscreenToggle?.addEventListener("click", () => {
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {
-        /* ignore */
-      });
-    } else {
-      frame?.requestFullscreen().catch(() => {
-        /* ignore */
-      });
-    }
-  });
-
-  // Entering or leaving fullscreen lands focus on the toggle; the demo
-  // should keep the keyboard either way.
-  document.addEventListener("fullscreenchange", () => {
-    if (fullscreenToggle) {
-      fullscreenToggle.textContent = document.fullscreenElement
-        ? "✕ exit full screen"
-        : "⛶ full screen";
-    }
-    focusDemo();
-  });
+  // Entering or leaving fullscreen lands focus wherever the browser puts
+  // it; the demo should keep the keyboard either way.
+  document.addEventListener("fullscreenchange", focusDemo);
 
   // The start button promises "press j" — honor it page-wide. Once the demo
   // is live the iframe owns the keyboard, so this only ever starts it. The
@@ -214,32 +224,6 @@
 
   .hd__frame--live .hd__poster,
   .hd__frame--live .hd__start {
-    display: none;
-  }
-
-  .hd__fullscreen {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    z-index: 2;
-    padding: 6px 10px;
-    border: 1px solid var(--line-2);
-    border-radius: 8px;
-    background: rgba(15, 15, 23, 0.78);
-    color: var(--muted);
-    font-size: 0.75rem;
-    cursor: pointer;
-    transition:
-      color 0.15s ease,
-      border-color 0.15s ease;
-  }
-
-  .hd__fullscreen:hover {
-    color: var(--fg);
-    border-color: var(--accent-line);
-  }
-
-  .hd__fullscreen[hidden] {
     display: none;
   }
 
