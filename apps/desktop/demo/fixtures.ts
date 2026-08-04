@@ -259,7 +259,7 @@ const VIEWER_SET: DemoFileSpec[] = [
       "+",
       "+export function restoreAnchor(container: HTMLElement, anchor: Anchor) {",
       "+  const row = container.querySelector<HTMLElement>(",
-      '+    `[data-anchor="${anchor.line}"]`',
+      "+    '[data-anchor=\"' + anchor.line + '\"]'",
       "+  );",
       "+  if (row) {",
       "+    container.scrollTop += row.getBoundingClientRect().top - anchor.offset;",
@@ -565,61 +565,65 @@ function demoPr(spec: DemoPrSpec): PrFixture {
   };
 }
 
+function demoComments(number: number) {
+  if (number === 1) {
+    return [
+      {
+        body: "Do we want the boundary bonus this strong? It dominates short queries.",
+        createdAt: "2026-07-02T09:30:00Z",
+        diffHunk: "",
+        id: 100,
+        inReplyToId: null,
+        line: 9,
+        originalLine: null,
+        path: "src/lib/fuzzy.ts",
+        resolved: false,
+        side: "RIGHT",
+        threadId: "T100",
+        user: "bob",
+        userAvatarUrl: "",
+      },
+      {
+        body: "How about:\n```suggestion\nconst BOUNDARY_BONUS = 1.4;\n```",
+        createdAt: "2026-07-02T09:45:00Z",
+        diffHunk: "",
+        id: 101,
+        inReplyToId: 100,
+        line: null,
+        originalLine: null,
+        path: "src/lib/fuzzy.ts",
+        resolved: false,
+        side: "RIGHT",
+        threadId: "T100",
+        user: "carol",
+        userAvatarUrl: "",
+      },
+    ];
+  }
+  if (number === 62) {
+    return [
+      {
+        body: "Anchoring to whichever side exists — nice. Does the ruler need the same fix?",
+        createdAt: "2026-07-02T08:40:00Z",
+        diffHunk: "",
+        id: 110,
+        inReplyToId: null,
+        line: 11,
+        originalLine: null,
+        path: "src/components/viewer/diff-row.tsx",
+        resolved: false,
+        side: "RIGHT",
+        threadId: "T110",
+        user: "erin",
+        userAvatarUrl: "",
+      },
+    ];
+  }
+  return [];
+}
+
 function demoDetail(spec: DemoPrSpec) {
   const pr = demoPr(spec);
-  const comments =
-    spec.number === 1
-      ? [
-          {
-            body: "Do we want the boundary bonus this strong? It dominates short queries.",
-            createdAt: "2026-07-02T09:30:00Z",
-            diffHunk: "",
-            id: 100,
-            inReplyToId: null,
-            line: 9,
-            originalLine: null,
-            path: "src/lib/fuzzy.ts",
-            resolved: false,
-            side: "RIGHT",
-            threadId: "T100",
-            user: "bob",
-            userAvatarUrl: "",
-          },
-          {
-            body: "How about:\n```suggestion\nconst BOUNDARY_BONUS = 1.4;\n```",
-            createdAt: "2026-07-02T09:45:00Z",
-            diffHunk: "",
-            id: 101,
-            inReplyToId: 100,
-            line: null,
-            originalLine: null,
-            path: "src/lib/fuzzy.ts",
-            resolved: false,
-            side: "RIGHT",
-            threadId: "T100",
-            user: "carol",
-            userAvatarUrl: "",
-          },
-        ]
-      : spec.number === 62
-        ? [
-            {
-              body: "Anchoring to whichever side exists — nice. Does the ruler need the same fix?",
-              createdAt: "2026-07-02T08:40:00Z",
-              diffHunk: "",
-              id: 110,
-              inReplyToId: null,
-              line: 11,
-              originalLine: null,
-              path: "src/components/viewer/diff-row.tsx",
-              resolved: false,
-              side: "RIGHT",
-              threadId: "T110",
-              user: "erin",
-              userAvatarUrl: "",
-            },
-          ]
-        : [];
   return {
     ...DETAIL,
     ciStatus: spec.ciFailed
@@ -635,7 +639,7 @@ function demoDetail(spec: DemoPrSpec) {
           total: 4,
           url: `https://github.com/acme/rocket/pull/${spec.number}/checks`,
         },
-    comments,
+    comments: demoComments(spec.number),
     files: spec.set.map((f) => demoFile(f).file),
     issueComments: [],
     pr,
