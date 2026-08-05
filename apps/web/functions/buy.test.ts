@@ -8,6 +8,8 @@ import { describe, expect, it } from "vitest";
 import { onRequestGet } from "./buy";
 import type { Env } from "./lib/env";
 
+const STATE_COOKIE = /nod_oauth_state=([^;]+)/;
+
 const CONFIGURED = {
   GH_WEB_CLIENT_ID: "Ov23liTEST",
   GH_WEB_CLIENT_SECRET: "shhh",
@@ -44,7 +46,7 @@ describe("GET /buy", () => {
     );
 
     const cookie = response.headers.get("set-cookie") ?? "";
-    const cookieState = cookie.match(/nod_oauth_state=([^;]+)/)?.[1];
+    const cookieState = cookie.match(STATE_COOKIE)?.[1];
     expect(cookieState).toBeTruthy();
     expect(location.searchParams.get("state")).toBe(cookieState);
     expect(response.headers.get("cache-control")).toBe("no-store");

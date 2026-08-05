@@ -18,7 +18,7 @@ import { isCheckoutConfigured } from "./lib/polar";
 import { withErrorReporting } from "./lib/report";
 
 export const onRequestGet: PagesFunction<Env> = withErrorReporting(
-  async (context) => {
+  (context) => {
     const { env } = context;
     const clientId = env.GH_WEB_CLIENT_ID;
     if (!(clientId && env.GH_WEB_CLIENT_SECRET && isCheckoutConfigured(env))) {

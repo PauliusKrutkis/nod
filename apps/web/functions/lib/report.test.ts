@@ -15,8 +15,8 @@ function contextFor(env: { SENTRY_DSN?: string }) {
   return {
     request: new Request("https://x.test/activate?order_id=order_1"),
     env,
-    waitUntil: (promise: Promise<unknown>) => {
-      void promise;
+    waitUntil: (_promise: Promise<unknown>) => {
+      /* the tests assert on fetch calls, not on completion */
     },
   };
 }
