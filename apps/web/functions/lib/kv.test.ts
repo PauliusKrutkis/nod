@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { getLicense, getOrderIndex, putLicense, putOrderIndex } from "./kv";
+import {
+  getCheckoutIndex,
+  getLicense,
+  putCheckoutIndex,
+  putLicense,
+} from "./kv";
 
 function fakeKv(): KVNamespace {
   const store = new Map<string, string>();
@@ -21,7 +26,7 @@ function fakeKv(): KVNamespace {
   } as KVNamespace;
 }
 
-describe("license + order index KV helpers", () => {
+describe("license + checkout index KV helpers", () => {
   it("round-trips a license record", async () => {
     const kv = fakeKv();
     await putLicense(kv, "github:github.com:583231", {
@@ -35,16 +40,20 @@ describe("license + order index KV helpers", () => {
     expect(await getLicense(kv, "missing")).toBeNull();
   });
 
-  it("resolves the order index on repeated reads", async () => {
+  it("resolves the checkout index on repeated reads", async () => {
     const kv = fakeKv();
-    await putOrderIndex(kv, "order_1", "github:github.com:583231");
+    await putCheckoutIndex(kv, "checkout_1", "github:github.com:583231");
 
-    expect(await getOrderIndex(kv, "order_1")).toBe("github:github.com:583231");
-    expect(await getOrderIndex(kv, "order_1")).toBe("github:github.com:583231");
+    expect(await getCheckoutIndex(kv, "checkout_1")).toBe(
+      "github:github.com:583231"
+    );
+    expect(await getCheckoutIndex(kv, "checkout_1")).toBe(
+      "github:github.com:583231"
+    );
   });
 
-  it("returns null for an order id that was never issued", async () => {
+  it("returns null for a checkout id that was never issued", async () => {
     const kv = fakeKv();
-    expect(await getOrderIndex(kv, "never-happened")).toBeNull();
+    expect(await getCheckoutIndex(kv, "never-happened")).toBeNull();
   });
 });

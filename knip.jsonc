@@ -6,7 +6,9 @@
   // probe is a standalone dev script run directly with node (docs/AI.md),
   // never imported.
   "ignoreFiles": ["**/src-tauri/target/**", "scripts/probe-nexos.mjs"],
-  "ignoreDependencies": ["@biomejs/biome"],
+  // Both are CLI-only: nothing imports them, they are invoked as commands
+  // (wrangler for the Pages secrets and bindings in docs/LAUNCH.md).
+  "ignoreDependencies": ["@biomejs/biome", "wrangler"],
   // Cloudflare Pages Functions: each file is a route handler invoked by the
   // platform, not imported from anywhere in the JS graph — the Astro plugin
   // only knows about src/pages entries.
@@ -18,7 +20,8 @@
       "entry": ["playwright.capture.config.ts", "e2e/capture/*.capture.ts"]
     },
     "apps/web": {
-      "entry": ["functions/**/*.ts!"]
+      // scripts/: operator-run one-offs (docs/LAUNCH.md), not imported.
+      "entry": ["functions/**/*.ts!", "scripts/*.mjs"]
     }
   }
 }
