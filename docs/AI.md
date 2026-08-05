@@ -140,10 +140,26 @@ for UI changes). Run pr-validity after each. frontend-design guides PRs 2–3.
 | **5** | Tool loop inside `ai_ask` + degradation ladder | After the tools probe (below) |
 | **6** | SSE streaming + polish (history, citations styling) | Only after the chunk-shape probe |
 
-**Probe (before PR 5/6, owner's live Nexos key):** a throwaway script hitting
-`/v1/chat/completions` with `tools` and with `stream: true` — record whether
-tool_calls round-trip and the exact delta chunk shape. Findings land in this
-doc.
+**Probe (before PR 5/6, owner's live Nexos key):** `scripts/probe-nexos.mjs`
+hits `/v1/chat/completions` with `tools` and with `stream: true`.
+
+**Probe findings (run 2026-08-03, live key, 56 models):**
+
+- **Tool calling works** — standard OpenAI shape end to end:
+  `finish_reason: "tool_calls"`, `message.tool_calls[]` entries of
+  `{ id, type: "function", function: { name, arguments } }` with `arguments`
+  a JSON **string**. Verified through `anthropic.claude-sonnet-4-5` on
+  Vertex, i.e. the translation layer holds even for non-OpenAI upstreams.
+- **Streaming is standard OpenAI SSE** — `data: {chunk}` lines with
+  `choices[0].delta.content` string pieces, a final chunk with empty `delta`
+  and `finish_reason: "stop"`, then `data: [DONE]`. Chunks may carry extra
+  fields (`provider`, `usage.nexos_credits_cost`) — ignore unknown keys.
+- **`endpoints[]` is an array of bare strings** (`["batches","embeddings"]`
+  observed), confirming PR 1's `chat_completion` filter contract. Model ids
+  can contain spaces and parentheses
+  (`…@20250929 (aoxy-analytics europe-west1)`) — treat ids as opaque.
+- Models also advertise `timeout_ms` / `stream_timeout_ms` — available if
+  the fixed 120 s ask timeout ever needs to be per-model.
 
 ## Guardrails
 

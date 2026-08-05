@@ -1,8 +1,65 @@
 use super::{
-    answer_text, build_ask_prompt, extract_error_message, info_of, normalize_base_url,
-    parse_models, resolve_api_key, AiConfig, AskContext,
+    answer_text, build_ask_prompt, execute_tool, extract_error_message, info_of,
+    normalize_base_url, parse_models, resolve_api_key, AiConfig, AskContext,
 };
+use crate::snapshot::store::{partial_dir, promote, SnapshotKey};
 use serde_json::json;
+use std::path::PathBuf;
+
+fn tool_snapshot(label: &str) -> (PathBuf, SnapshotKey) {
+    let root = std::env::temp_dir().join(format!("prflow-ai-{label}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).expect("temp root");
+    let key = SnapshotKey {
+        host: "https://github.com".to_string(),
+        owner: "acme".to_string(),
+        repo: "widget-app".to_string(),
+        sha: "a1b2c3".to_string(),
+    };
+    for (path, contents) in [
+        ("src/auth.rs", "fn login() {}\nfn logout() {}\n"),
+        ("README.md", "hello\n"),
+    ] {
+        let target = partial_dir(&root, &key).join(path);
+        std::fs::create_dir_all(target.parent().expect("parent")).expect("staging");
+        std::fs::write(&target, contents).expect("write");
+    }
+    promote(&root, &key).expect("promote");
+    (root, key)
+}
+
+#[test]
+fn execute_tool_runs_each_tool_against_the_snapshot() {
+    let (root, key) = tool_snapshot("tools");
+
+    let listing = execute_tool(&root, &key, "list_files", r#"{"path_contains":"src/"}"#);
+    assert_eq!(listing, "src/auth.rs");
+
+    let matches = execute_tool(&root, &key, "grep_repo", r#"{"pattern":"login"}"#);
+    assert_eq!(matches, "src/auth.rs:1: fn login() {}");
+
+    let slice = execute_tool(
+        &root,
+        &key,
+        "read_file",
+        r#"{"path":"src/auth.rs","start_line":2,"end_line":2}"#,
+    );
+    assert_eq!(slice, "2: fn logout() {}");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn execute_tool_turns_mistakes_into_readable_errors() {
+    let (root, key) = tool_snapshot("mistakes");
+
+    assert!(execute_tool(&root, &key, "grep_repo", "{}").starts_with("error:"));
+    assert!(execute_tool(&root, &key, "read_file", r#"{"path":"nope.rs"}"#).starts_with("error:"));
+    assert!(execute_tool(&root, &key, "launch_missiles", "{}").starts_with("error:"));
+    assert!(execute_tool(&root, &key, "read_file", "not json").starts_with("error:"));
+
+    let _ = std::fs::remove_dir_all(&root);
+}
 
 #[test]
 fn normalize_base_url_trims_whitespace_and_trailing_slashes() {

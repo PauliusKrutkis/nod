@@ -197,6 +197,9 @@ export interface AiAskContext {
   lineRange: string | null;
   code: string | null;
   diffSummary: string | null;
+  owner: string;
+  repo: string;
+  headSha: string;
 }
 
 export interface UpdateInfo {

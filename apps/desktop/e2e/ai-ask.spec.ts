@@ -52,6 +52,8 @@ test("a with no cursor opens the whole-PR note; question round-trips", async ({
   expect(sent.question).toBe("What does this PR do?");
   expect(sent.context.diffSummary).toContain("fuzzy.ts");
   expect(sent.context.code).toBeNull();
+  expect(sent.context.headSha).toBeTruthy();
+  expect(sent.context.owner).toBeTruthy();
 });
 
 test("cursor line: the note anchors under the row and code rides along", async ({

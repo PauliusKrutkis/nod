@@ -9,7 +9,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::AppHandle;
 
+use crate::accounts;
 use crate::http::{fopt_u64, net_err};
+use crate::snapshot::search as snapshot_search;
+use crate::snapshot::store::{self as snapshot_store, SnapshotKey};
 use crate::storage;
 
 const AI_FILE: &str = "ai.json";
@@ -206,6 +209,12 @@ pub struct AskContext {
     pub code: Option<String>,
     #[serde(default)]
     pub diff_summary: Option<String>,
+    #[serde(default)]
+    pub owner: Option<String>,
+    #[serde(default)]
+    pub repo: Option<String>,
+    #[serde(default)]
+    pub head_sha: Option<String>,
 }
 
 const ASK_SYSTEM_PROMPT: &str =
@@ -213,6 +222,14 @@ const ASK_SYSTEM_PROMPT: &str =
 Answer questions about the code under review. Ground every claim in the provided code; \
 when you reference code, cite it as path:line. Be concise. \
 If the provided context is not enough to answer, say exactly what is missing.";
+
+const ASK_TOOLS_SYSTEM_PROMPT: &str =
+    "You are the code assistant inside Nod, a pull-request review app. \
+You have tools over a local snapshot of the repository at the PR's head commit: \
+list_files, read_file (numbered lines), and grep_repo (literal, case-sensitive). \
+Use them to ground answers in real code instead of guessing — look up definitions, \
+callers, and context beyond the diff. Cite code as path:line. Be concise. \
+If something is unknowable from the repository, say exactly what is missing.";
 
 fn build_ask_prompt(question: &str, context: &AskContext) -> String {
     let mut sections = vec![format!("Pull request: {}", context.pr_title)];
@@ -249,6 +266,173 @@ fn answer_text(v: &Value) -> Option<String> {
     Some(content.to_string())
 }
 
+const MAX_TOOL_ROUNDS: usize = 8;
+
+fn ask_tools() -> Value {
+    serde_json::json!([
+        {
+            "type": "function",
+            "function": {
+                "name": "list_files",
+                "description": "List the repository's file paths. Optionally filter to paths containing a substring.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "path_contains": { "type": "string", "description": "Only paths containing this substring." }
+                    }
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "read_file",
+                "description": "Read a slice of one file, returned as 'lineNumber: text' lines (max 400 lines per call).",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "path": { "type": "string" },
+                        "start_line": { "type": "integer", "description": "1-based first line (default 1)." },
+                        "end_line": { "type": "integer", "description": "1-based last line (default start + 399)." }
+                    },
+                    "required": ["path"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "grep_repo",
+                "description": "Search every file for a literal, case-sensitive string. Returns 'path:line: text' matches (max 200).",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "pattern": { "type": "string" },
+                        "path_contains": { "type": "string", "description": "Only search paths containing this substring." }
+                    },
+                    "required": ["pattern"]
+                }
+            }
+        }
+    ])
+}
+
+fn format_listing(listing: snapshot_search::FileListing) -> String {
+    let mut out = listing.files.join("\n");
+    if listing.truncated {
+        out.push_str("\n[truncated — more files exist; narrow with path_contains]");
+    }
+    if out.is_empty() {
+        "(no matching files)".to_string()
+    } else {
+        out
+    }
+}
+
+fn format_grep(result: snapshot_search::GrepResult) -> String {
+    if result.hits.is_empty() {
+        return "(no matches)".to_string();
+    }
+    let mut out: Vec<String> = result
+        .hits
+        .into_iter()
+        .map(|h| format!("{}:{}: {}", h.path, h.line, h.text))
+        .collect();
+    if result.truncated {
+        out.push("[truncated — more matches exist; narrow the pattern]".to_string());
+    }
+    out.join("\n")
+}
+
+/// Runs one tool call against the local snapshot. Always returns text — an
+/// unknown tool or bad arguments become an error string the model can read
+/// and correct, never a failed request.
+fn execute_tool(root: &std::path::Path, key: &SnapshotKey, name: &str, arguments: &str) -> String {
+    let args: Value = serde_json::from_str(arguments).unwrap_or(Value::Null);
+    let path_contains = args.get("path_contains").and_then(Value::as_str);
+    match name {
+        "list_files" => snapshot_search::list_files(root, key, path_contains)
+            .map(format_listing)
+            .unwrap_or_else(|| "error: repository snapshot is not available".to_string()),
+        "grep_repo" => match args.get("pattern").and_then(Value::as_str) {
+            Some(pattern) => snapshot_search::grep(root, key, pattern, path_contains)
+                .map(format_grep)
+                .unwrap_or_else(|| "error: repository snapshot is not available".to_string()),
+            None => "error: grep_repo requires a string 'pattern'".to_string(),
+        },
+        "read_file" => match args.get("path").and_then(Value::as_str) {
+            Some(path) => {
+                let start = args
+                    .get("start_line")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(1)
+                    .max(1) as usize;
+                let end = args
+                    .get("end_line")
+                    .and_then(Value::as_u64)
+                    .map(|e| e as usize)
+                    .unwrap_or(start + snapshot_search::MAX_READ_LINES - 1);
+                snapshot_search::read_file_slice(root, key, path, start, end).unwrap_or_else(|| {
+                    "error: file not found, binary, or too large — check the path with list_files"
+                        .to_string()
+                })
+            }
+            None => "error: read_file requires a string 'path'".to_string(),
+        },
+        _ => format!("error: unknown tool '{name}'"),
+    }
+}
+
+/// The snapshot the ask can ground itself in — present only when the context
+/// names a commit and layer 1 has finished extracting it.
+async fn ready_snapshot(
+    app: &AppHandle,
+    context: &AskContext,
+) -> Option<(std::path::PathBuf, SnapshotKey)> {
+    let (owner, repo, sha) = match (&context.owner, &context.repo, &context.head_sha) {
+        (Some(o), Some(r), Some(s)) => (o.clone(), r.clone(), s.clone()),
+        _ => return None,
+    };
+    let account = accounts::active_account(app).await.ok()?;
+    let key = SnapshotKey {
+        host: account.host,
+        owner,
+        repo,
+        sha,
+    };
+    let root = storage::cache_dir(app).ok()?;
+    if !snapshot_store::is_ready(&root, &key) {
+        return None;
+    }
+    Some((root, key))
+}
+
+fn tool_result_messages(
+    root: std::path::PathBuf,
+    key: SnapshotKey,
+    calls: Vec<Value>,
+) -> Vec<Value> {
+    calls
+        .iter()
+        .map(|call| {
+            let id = call.get("id").and_then(Value::as_str).unwrap_or_default();
+            let name = call
+                .pointer("/function/name")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            let arguments = call
+                .pointer("/function/arguments")
+                .and_then(Value::as_str)
+                .unwrap_or("{}");
+            serde_json::json!({
+                "role": "tool",
+                "tool_call_id": id,
+                "content": execute_tool(&root, &key, name, arguments),
+            })
+        })
+        .collect()
+}
+
 #[tauri::command]
 pub async fn ai_ask(
     app: AppHandle,
@@ -259,23 +443,73 @@ pub async fn ai_ask(
     let model = config
         .model
         .ok_or_else(|| "Choose a model in AI settings first".to_string())?;
-    let body = serde_json::json!({
-        "model": model,
-        "messages": [
-            { "role": "system", "content": ASK_SYSTEM_PROMPT },
-            { "role": "user", "content": build_ask_prompt(&question, &context) },
-        ],
-        "max_completion_tokens": 2000,
-    });
-    let resp = ask_client()?
-        .post(format!("{}/v1/chat/completions", config.base_url))
-        .bearer_auth(&config.api_key)
-        .json(&body)
-        .send()
-        .await
-        .map_err(net_err)?;
-    let value = read_ai_body(resp).await?;
-    answer_text(&value).ok_or_else(|| "The provider returned an empty answer.".to_string())
+    let snapshot = ready_snapshot(&app, &context).await;
+    let system = if snapshot.is_some() {
+        ASK_TOOLS_SYSTEM_PROMPT
+    } else {
+        ASK_SYSTEM_PROMPT
+    };
+    let mut messages = vec![
+        serde_json::json!({ "role": "system", "content": system }),
+        serde_json::json!({ "role": "user", "content": build_ask_prompt(&question, &context) }),
+    ];
+    let client = ask_client()?;
+    let url = format!("{}/v1/chat/completions", config.base_url);
+    let mut tools_enabled = snapshot.is_some();
+    let mut rounds = 0;
+    loop {
+        let mut body = serde_json::json!({
+            "model": model,
+            "messages": messages,
+            "max_completion_tokens": 2000,
+        });
+        if tools_enabled {
+            body["tools"] = ask_tools();
+            if rounds >= MAX_TOOL_ROUNDS {
+                body["tool_choice"] = serde_json::json!("none");
+            }
+        }
+        let resp = client
+            .post(&url)
+            .bearer_auth(&config.api_key)
+            .json(&body)
+            .send()
+            .await
+            .map_err(net_err)?;
+        let value = match read_ai_body(resp).await {
+            Ok(value) => value,
+            Err(error)
+                if tools_enabled && rounds == 0 && error.starts_with("AI provider error (4") =>
+            {
+                tools_enabled = false;
+                continue;
+            }
+            Err(error) => return Err(error),
+        };
+        let message = value
+            .pointer("/choices/0/message")
+            .cloned()
+            .unwrap_or(Value::Null);
+        let calls: Vec<Value> = message
+            .get("tool_calls")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let Some((root, key)) = snapshot.clone().filter(|_| !calls.is_empty()) else {
+            return answer_text(&value)
+                .ok_or_else(|| "The provider returned an empty answer.".to_string());
+        };
+        if rounds > MAX_TOOL_ROUNDS {
+            return Err("The model kept requesting tools past the limit.".to_string());
+        }
+        messages.push(message);
+        let results =
+            tauri::async_runtime::spawn_blocking(move || tool_result_messages(root, key, calls))
+                .await
+                .map_err(|e| format!("tool execution failed: {e}"))?;
+        messages.extend(results);
+        rounds += 1;
+    }
 }
 
 /// Completions get a longer timeout than the metadata calls: a big-model

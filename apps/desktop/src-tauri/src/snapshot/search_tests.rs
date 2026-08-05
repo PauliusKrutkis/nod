@@ -1,4 +1,4 @@
-use super::{grep, list_files, MAX_GREP_HITS, MAX_LISTED_FILES};
+use super::{grep, list_files, read_file_slice, MAX_GREP_HITS, MAX_LISTED_FILES};
 use crate::snapshot::store::{partial_dir, promote, SnapshotKey};
 use std::path::{Path, PathBuf};
 
@@ -136,6 +136,32 @@ fn list_files_caps_and_flags_truncation() {
     let result = list_files(&root, &k, None).expect("ready");
     assert_eq!(result.files.len(), MAX_LISTED_FILES);
     assert!(result.truncated);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn read_file_slice_numbers_clamps_and_marks_truncation() {
+    let root = temp_root("slice");
+    let k = key();
+    let body = (1..=10)
+        .map(|i| format!("line {i}"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    stage(&root, &k, &[("src/a.txt", body.as_bytes())]);
+
+    let middle = read_file_slice(&root, &k, "src/a.txt", 3, 5).expect("ready");
+    assert_eq!(
+        middle,
+        "3: line 3\n4: line 4\n5: line 5\n[truncated — file continues to line 10]"
+    );
+
+    let tail = read_file_slice(&root, &k, "src/a.txt", 8, 99).expect("ready");
+    assert!(tail.ends_with("10: line 10"));
+
+    let past_end = read_file_slice(&root, &k, "src/a.txt", 50, 60).expect("ready");
+    assert_eq!(past_end, "(file has only 10 lines)");
+
+    assert!(read_file_slice(&root, &k, "src/missing.txt", 1, 5).is_none());
     let _ = std::fs::remove_dir_all(&root);
 }
 

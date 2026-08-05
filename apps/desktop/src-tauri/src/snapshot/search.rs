@@ -140,6 +140,49 @@ fn grep_file(base: &Path, relative: &str, pattern: &str, out: &mut Vec<GrepHit>)
     }
 }
 
+pub const MAX_READ_LINES: usize = 400;
+
+/// A numbered slice of one snapshot file, shaped for the tool loop: `N: text`
+/// lines so the model can cite path:line without arithmetic. `start`/`end`
+/// are 1-based and inclusive; out-of-range ends clamp. `None` mirrors the
+/// other entry points — snapshot not ready, path missing, binary, or over
+/// the per-file cap.
+pub fn read_file_slice(
+    root: &Path,
+    key: &SnapshotKey,
+    path: &str,
+    start: usize,
+    end: usize,
+) -> Option<String> {
+    if !store::is_ready(root, key) {
+        return None;
+    }
+    let contents = store::read_file(root, key, path)?;
+    if contents.len() as u64 > MAX_SEARCH_FILE_BYTES || looks_binary(&contents) {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&contents);
+    let first = start.max(1);
+    let last = end.max(first).min(first + MAX_READ_LINES - 1);
+    let mut out: Vec<String> = Vec::new();
+    let mut total_lines = 0;
+    for (index, line) in text.lines().enumerate() {
+        total_lines = index + 1;
+        if total_lines >= first && total_lines <= last {
+            out.push(format!("{total_lines}: {}", clipped(line)));
+        }
+    }
+    if out.is_empty() {
+        return Some(format!("(file has only {total_lines} lines)"));
+    }
+    if last < total_lines && out.len() == last - first + 1 {
+        out.push(format!(
+            "[truncated — file continues to line {total_lines}]"
+        ));
+    }
+    Some(out.join("\n"))
+}
+
 pub fn grep(
     root: &Path,
     key: &SnapshotKey,
