@@ -7,6 +7,10 @@
  * statically. Reports are fire-and-forget through waitUntil and the error
  * always rethrows, so a handler behaves identically with and without a
  * DSN; no DSN configured means no fetch at all.
+ *
+ * The reported URL is origin + pathname only: /activate carries the
+ * order_id purchase credential in its query string, and a signed token can
+ * be minted from it, so it must never reach a third party.
  */
 
 interface ReportEnv {
@@ -32,6 +36,7 @@ export function errorEnvelope(
   error: unknown,
   request: Request
 ): string {
+  const requestUrl = new URL(request.url);
   const event = {
     event_id: crypto.randomUUID().replaceAll("-", ""),
     timestamp: Date.now() / 1000,
@@ -47,7 +52,7 @@ export function errorEnvelope(
     },
     request: {
       method: request.method,
-      url: request.url,
+      url: `${requestUrl.origin}${requestUrl.pathname}`,
     },
   };
   return [

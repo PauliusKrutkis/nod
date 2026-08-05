@@ -70,6 +70,8 @@ describe("withErrorReporting", () => {
     const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
     expect(url).toBe(ENVELOPE_URL);
     expect(init.body).toContain("seed is not 64 hex chars");
+    expect(init.body).toContain("https://x.test/activate");
+    expect(init.body).not.toContain("order_id");
   });
 
   it("stays silent without a DSN but still rethrows", async () => {
