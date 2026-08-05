@@ -1,9 +1,12 @@
 import { Webhook } from "standardwebhooks";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  createCheckout,
   extractCheckoutId,
   extractSubject,
+  isCheckoutConfigured,
   isOrderPaidEvent,
+  polarApiBase,
   verifyPolarWebhook,
 } from "./polar";
 
@@ -106,5 +109,88 @@ describe("polar webhook verification", () => {
     expect(isOrderPaidEvent({ type: "checkout.updated", data: {} })).toBe(
       false
     );
+  });
+});
+
+const CHECKOUT_ENV = {
+  POLAR_API_KEY: "polar_oat_test",
+  POLAR_PRODUCT_ID: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+};
+
+describe("polarApiBase", () => {
+  it("defaults to the sandbox so a bare deploy can never charge", () => {
+    expect(polarApiBase({})).toBe("https://sandbox-api.polar.sh");
+  });
+
+  it("uses the configured base when one is set", () => {
+    expect(polarApiBase({ POLAR_API_BASE: "https://api.polar.sh" })).toBe(
+      "https://api.polar.sh"
+    );
+  });
+});
+
+describe("createCheckout", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("posts the product, subject metadata, and templated success url", async () => {
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValue(
+        Response.json({ id: "co_1", url: "https://sandbox.polar.sh/c/co_1" })
+      );
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const url = await createCheckout(
+      CHECKOUT_ENV,
+      "github:github.com:583231",
+      "https://nodreview.com"
+    );
+
+    expect(url).toBe("https://sandbox.polar.sh/c/co_1");
+    const [endpoint, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(endpoint).toBe("https://sandbox-api.polar.sh/v1/checkouts/");
+    expect(init.headers).toMatchObject({
+      authorization: "Bearer polar_oat_test",
+    });
+    expect(JSON.parse(init.body as string)).toEqual({
+      products: ["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+      success_url: "https://nodreview.com/activate?checkout_id={CHECKOUT_ID}",
+      metadata: { subject: "github:github.com:583231" },
+    });
+  });
+
+  it("throws on missing configuration without fetching", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+
+    expect(isCheckoutConfigured({})).toBe(false);
+    await expect(
+      createCheckout({}, "github:github.com:1", "https://nodreview.com")
+    ).rejects.toThrow("not configured");
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("throws on a Polar error response", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response("nope", { status: 401 }))
+    );
+
+    await expect(
+      createCheckout(CHECKOUT_ENV, "github:github.com:1", "https://x.test")
+    ).rejects.toThrow("401");
+  });
+
+  it("throws when the response carries no checkout url", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(Response.json({ id: "co_1" }))
+    );
+
+    await expect(
+      createCheckout(CHECKOUT_ENV, "github:github.com:1", "https://x.test")
+    ).rejects.toThrow("no url");
   });
 });
