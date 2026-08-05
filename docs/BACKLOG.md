@@ -335,9 +335,15 @@ hotkey collapses.
       deltas — never the virtualizer's estimated scrollToIndex — then held a
       few frames against re-measure; the anchored row flashes as the "you are
       here" cue.
-- [ ] ❓ Open: does expanding lock j/k / scroll into the file, or stay part of
-      the continuous scroll? Shipped continuous (fewer modes; matches "review
-      pane is one scroll"); revisit after using it.
+- [x] ❓ ~~Open: does expanding lock j/k / scroll into the file, or stay part
+      of the continuous scroll?~~ **Closed 2026-08-05: continuous confirmed.**
+      Shipped continuous on 2026-07-15 (fewer modes; matches "the review pane
+      is one scroll") and the revisit is now due — three weeks of daily use
+      produced no complaint about scrolling out of an expanded file, while the
+      same period produced plenty of *other* scroll feedback (`f`/`g` offset,
+      clipped landings, occurrence scroll). Silence next to that noise is
+      evidence. Locking would also have to answer what `r`/`t`/`e` mean inside
+      a locked file, which is cost with no demand behind it.
 - [x] 🟡 **Full file view broken on GitLab** — `shift+v` full-file expansion
       failed on every GitLab PR. First pass (PR #70) stripped a
       `--- a/path`/`+++ b/path` header pair GitLab was assumed to always
@@ -443,8 +449,25 @@ but ticks do not follow you to github.com or another machine.
 
 Inline → Code view. PR-level → Info tab + badge. ⏸ Conversation mode.
 
-- [ ] 🟡 **Hide comments feature** — ability to hide/collapse comment threads
-      from the diff view.
+- [ ] 🟡 **Hide comment threads entirely — including the stub row** — scoped
+      2026-08-05 (owner). `z` already collapses a thread, and resolved threads
+      already collapse, **but a collapsed or resolved thread still leaves a
+      line in the diff** — a trail of stubs between the code. The ask is an
+      option to hide those rows outright, so a file reads as pure code.
+      *The one real constraint, and it is a genuine tension:* collapsed threads
+      were made cursor stops **on purpose** — see "Comment threads as cursor
+      stops" in § keyboard, whose whole argument was that *"a collapsed thread
+      is one quiet line you would otherwise never learn about."* Hiding the row
+      deletes exactly that affordance, so this must be an **explicit, opt-in,
+      clearly-reversible toggle** — never a default, never sticky in a way you
+      can forget — and while it is on, the app owes you a standing signal that
+      something is hidden (a count in the file header or the PR header is
+      enough). Hidden must mean "I chose to hide 4 threads", never "this file
+      has no discussion".
+      *Also decide when building:* whether the toggle hides **all** threads or
+      **resolved only**. Resolved-only is the safer default reading of the
+      complaint (resolved threads are noise by definition), but the request as
+      given is about the stub line itself, which both kinds leave.
 
 - [x] 🟢 Thread hotkeys — `r` reply / `x` resolve on the hovered or
       `q`-focused thread; hints fade in on the thread's own action buttons.
@@ -610,6 +633,13 @@ Three layers, three separate decision points — only layer 3 is a real bet:
       ms over the extracted tree) · hunk-context expansion (P11 PR 2) reading
       local files. Each small, each shippable independently. New pushes
       re-download the full tarball (no deltas) — fine at PR cadence.
+      *Status 2026-08-05 — the engine exists, the surface does not.* The AI
+      tool loop (#176) implements `list_files`, `read_file` and `grep_repo`
+      over the snapshot, so the search AI.md promised would "fall out for free"
+      is written and working. But it is reachable **only from inside
+      `ai_ask`** — `grep_repo` is *not* in the `invoke_handler` list, so no
+      user-facing repo search exists and the free lunch is unclaimed. What is
+      left is registering the commands and building the UI, not the search.
 - [ ] ⏸ **Layer 3 — symbol index** (tree-sitter): go-to-definition from the
       diff (peek popover → full-file modal at line), find references for a
       changed symbol. ~50–100k lines/sec/core to parse, index cached per SHA,
@@ -645,8 +675,12 @@ of Stage 3 effort.
 **Stage 3 UX (best for raw links):** click → brief browser flash → app. Only
 worth it after validation.
 
-- [ ] 🟡 **`prflow://` scheme** — register via `tauri-plugin-deep-link`; used by
-      Stage 2 extension button.
+- [x] 🟡 **`prflow://` scheme** — **registration done**, via
+      `tauri-plugin-deep-link` in `activation.rs` (`watch_deep_links`), shipped
+      for purchase activation. *Remaining for this section, tracked by the
+      Stage 2 extension item:* only `prflow://pr/owner/repo/123` **routing** —
+      the scheme understands `purchase` today and nothing else. The
+      infrastructure blocker this item represented is gone.
 - [ ] 🟡 **Link-open hydration** — when app opens from any source: cache-first
       paint, restore file/scroll/viewed.
 - [ ] ⏸ Stage 2 extension (content script + toolbar + context menu).
@@ -753,27 +787,38 @@ with unit tests. `wrangler.jsonc` carries real KV namespace ids.
 an **unverified assumption** against a live Polar payload — its own file header
 says so.
 
-*Missing entirely — these are the links that make it a purchase flow:*
+*Missing entirely — these are the links that make it a purchase flow.*
+**Four of the seven closed on 2026-08-02; the boxes are ticked in place so the
+audit still reads as a snapshot. What remains is exactly the "blocked on live
+accounts" list in the 2026-08-02 update above — all of it external setup, none
+of it code.*
 
 - [ ] 🔴 **No MoR account, product, or checkout URL.** Nothing initiates a
       purchase; Polar is a signature format here, not an integration.
+      *Still open — this is the gating one.*
 - [ ] 🔴 **No forge identity at checkout** — nothing puts `metadata.subject` on
       the order, so the webhook has nothing to key a license to. Needs a
       success page doing GitHub OAuth. GitLab (and self-hosted) unsolved.
 - [ ] 🔴 **Cloudflare secrets never set** (`POLAR_WEBHOOK_SECRET`,
       `LICENSE_SIGNING_SEED`) — the endpoints cannot run in production even
       though the KV namespaces exist.
-- [ ] 🔴 **No `prflow://` scheme / no `tauri-plugin-deep-link`.** `activate.ts`
-      today redirects to `http://127.0.0.1:8765/callback`, a loopback port only
-      the OAuth flow listens on — the app would never receive the token. Same
-      dependency as [11a](#11a-opening-prs-from-githubgitlab-links--staged).
-- [ ] 🔴 **Desktop app has zero licensing code.** No `ed25519-dalek`, no token
-      verify, no local license storage, no trial timestamp, no purchase prompt,
-      no updater gating on `updates_until`.
-- [ ] 🟡 **Repeat purchases reset instead of extend `updatesUntil`** — known
-      defect, already described in RELEASING.md; fix is
-      `max(existing, now) + 1 year`.
-- [ ] 🟢 **`/restore` is a stub** — needs `POLAR_API_KEY`.
+- [x] 🔴 ~~**No `prflow://` scheme / no `tauri-plugin-deep-link`.**~~
+      **Closed** — `tauri-plugin-deep-link` is a dependency and
+      `activation.rs` (`watch_deep_links`) wires the scheme, draining a
+      launch URL and listening while running; `activate.ts` is now a success
+      page with a zero-click loopback push on port 8766 *and* the deep link as
+      the fallback. Note this also satisfies the scheme half of
+      [11a](#11a-opening-prs-from-githubgitlab-links--staged) — only
+      `prflow://pr/...` routing remains there, not the registration.
+- [x] 🔴 ~~**Desktop app has zero licensing code.**~~ **Closed** —
+      `ed25519-dalek` is a dependency and `license.rs` / `activation.rs`
+      (+ their test files) do offline token verify, local license storage, the
+      evaluation timestamp, the purchase prompt and updater gating on
+      `updates_until`.
+- [x] 🟡 ~~**Repeat purchases reset instead of extend `updatesUntil`**~~ —
+      **Closed**; repeat purchases now extend the term as specified.
+- [ ] 🟢 **`/restore` is a stub** — needs `POLAR_API_KEY`. *Still open,
+      dependent on the MoR account above.*
 
 The landing page (`apps/web/src/pages/index.astro`) is downloads-only and says
 "Free while it's an experiment." No pricing, no buy button, no `/pricing` route
@@ -781,6 +826,52 @@ The landing page (`apps/web/src/pages/index.astro`) is downloads-only and says
 
 **Rejected:** deterministic license keys (stateless, simple engineering, ugly UX —
 conflicts with zero-friction product goal).
+
+#### Pricing — what a license buys (2026-08-05)
+
+> **Merge note:** PR #203 adds a top-level **"Pricing and licensing
+> (2026-08-05)"** section covering the $39 → $59 raise, the team tier and the
+> renewal-SKU caveat. This branch is cut from `main` and does not contain it,
+> so the two will land as separate sections. **Fold this one into that one on
+> merge** — it answers a question #203 leaves open ("if nothing is gated, what
+> does buying *feel* like?") rather than restating it, and they should read as
+> one decision.
+
+**Decided (owner): recognition, not capability. Nothing in the app is ever
+gated.** The standing price is **$59** (PR #203) for a perpetual license plus
+one year of updates; the app never stops working, licensed or not.
+
+The question this settles: if an unlicensed copy keeps working forever, buying
+needs to *feel* like it grants something, and the tempting answer is to gate a
+delighter — themes, a Superhuman-style inbox-zero flourish. **Rejected**, on
+three grounds:
+
+1. **It would make the public copy false.** PR #203 ships the words *"no
+   feature gating"* and *"buy it once and the app is yours permanently"*. A
+   padlock in the theme picker two releases later is exactly the drift users
+   remember.
+2. **It contradicts the position we just wrote down.** [AI.md
+   § Position](./AI.md#position-2026-08-05) sells "a tool you own, not a seat
+   you rent". Gating cosmetics makes it a seat that comes with cosmetics.
+3. **The first gate is never the last.** Every future delighter would inherit
+   the question, and each answer builds more entitlement surface — which is how
+   a no-DRM product acquires DRM one reasonable step at a time.
+
+**What carries the feeling instead:** the purchase card disappearing is already
+a real reward, and buyers get **acknowledgment** — a quiet supporter mark in
+settings/about. Recognition costs no entitlement check, can't degrade anyone's
+app, and doesn't rot if the license lapses.
+
+- [ ] 🟢 **Supporter acknowledgment** — a quiet licensed-user mark in
+      settings/about. Deliberately cosmetic and deliberately *additive*: it
+      must never read as "unlicensed users are missing something", which is the
+      gate this decision refused wearing a different hat.
+
+*Consequence for the roadmap:* any future item proposing a licensed-only
+feature is off-position by default and needs this decision reversed first, not
+an exception carved. The one thing a license legitimately controls stays
+`updates_until` in the **updater**, exactly as
+[RELEASING.md](./RELEASING.md#commercial-launch) specifies.
 
 ### 11d. Linux install & update path (2026-07-25)
 
@@ -1056,8 +1147,11 @@ only format the in-app updater touches.
       matches neither `.qf-row` nor `.qf-code`, so a click inside one fell
       through to the branch that clears the DOM selection whenever occurrence
       marks happen to be lit — killing the caret. Original text below.
-- [ ] ~~🟢 **Comment text selection is cancelled by the occurrence handler**~~ —
-      the other half of the old "Copy comment text" item, and a separate
+- [x] ~~🟢 **Comment text selection is cancelled by the occurrence handler**~~ —
+      *superseded by the entry above, which shipped the fix; this is the
+      original diagnosis, kept for history. (It was left as an open checkbox by
+      mistake, inflating the open count.)*
+      The other half of the old "Copy comment text" item, and a separate
       root cause: `handleOccPointerClick` (`review-screen.tsx`) calls
       `window.getSelection()?.removeAllRanges()`, and its bail-outs cover
       editable surfaces and non-collapsed selections but **not**
@@ -1113,17 +1207,38 @@ only format the in-app updater touches.
         `pr-flow:drawerWide` localStorage pattern, whose `TODO: extract a
         useLocalStorage hook when a second persisted UI pref lands` this
         finally makes actionable.
-      *Open question, deferred not dropped:* once keyboard nav arrives, does
-      a file inside a **collapsed** folder stay in the `r`/`t`/`e` cycle? If
-      yes, `e` can advance into a file you cannot see; if no, "next file"
-      silently skips changed files. The second is worse. Recommendation when
-      the time comes: **keep collapsed files in the cycle and auto-expand
-      the folder on arrival** — the cycle is about the diff, not the tree.
+      *Open question, deferred not dropped — now owned by its own item below,
+      since nothing tracked "keyboard nav in the tree" and this question had no
+      home:* once keyboard nav arrives, does a file inside a **collapsed**
+      folder stay in the `r`/`t`/`e` cycle? If yes, `e` can advance into a file
+      you cannot see; if no, "next file" silently skips changed files. The
+      second is worse. Recommendation when the time comes: **keep collapsed
+      files in the cycle and auto-expand the folder on arrival** — the cycle is
+      about the diff, not the tree.
+- [ ] 🟡 **Keyboard navigation inside the file tree** — the accepted known
+      limitation from P15: `r`/`t`/`Tab`/`e` walk the **flat** file order, so
+      the tree is mouse-only and folders can't be collapsed from the keyboard
+      in a keyboard-first app. Carries the collapsed-folder question above, and
+      its recommended answer (stay in the cycle, auto-expand on arrival) —
+      which is decided enough to build against. Note `revealInList` is a
+      ref-callback, so a row inside a collapsed folder never fires it; arriving
+      at a hidden file **must** expand its folder or the selection lands
+      nowhere.
 - [ ] 🟡 **P16** — Faster inbox via conditional polling
       (ETag/304 → ~15 s interval); optional activity-aware detail refresh (see
       also §7 GitHub notifications gate).
-- [ ] 🔴 **P17** — Apply suggestion as commit (GitLab
-      native first; GitHub contents-API path second — needs product decision).
+- [ ] 🟡 **P17** — Apply a suggestion as a commit — **GitLab only.**
+      *Decided 2026-08-05 (owner), and the GitHub half is dropped rather than
+      deferred.* GitLab exposes a real apply-suggestion endpoint: one call, the
+      host authors the commit, no file content ever passes through Nod. GitHub
+      has no equivalent — the only path is read the file, splice the lines,
+      `PUT` a commit through the contents API, which makes **Nod** the author
+      of spliced content, can clobber a concurrent push (blind write against a
+      SHA that may have moved), and is a far bigger promise than the app's
+      write surface has ever made. Ship the honest half; re-open the GitHub
+      path only if users actually ask, and treat it as its own 🔴 decision.
+      *Downgraded 🔴 → 🟡:* the GitLab-only scope is one endpoint plus a
+      confirm, not the two-host build the original sizing assumed.
 - [x] 🟢 **P18** — Info drawer wide mode — **done**; `shift+i` widens the
       panel, persisted under `pr-flow:drawerWide`.
 
@@ -1425,8 +1540,19 @@ the 2026-08-03 owner decision below.
 > decisions (generic OpenAI-compatible seam, selection-or-PR ask scope,
 > snapshot-backed tool loop) and PR sequence live in [docs/AI.md](./AI.md);
 > the three sketches below are superseded by it and kept for history.
+>
+> **2026-08-05 status — ask-about-this-code has shipped.** All six PRs of
+> AI.md's sequence are merged: BYOK config storage + model listing (#172),
+> setup dialog + `a` onboarding (#173), `ai_ask` (#175), the agentic tool loop
+> over the repo snapshot (#176) and SSE streaming (#177), with the surface
+> since revised from a drawer mode to the inline ask note. `ai.rs`,
+> `ai_tests.rs`, `use-ask-note.ts` and `ai-setup-dialog.tsx` are the shipped
+> artefacts. **The three sketches below are therefore closed as built, not
+> merely superseded** — read [AI.md](./AI.md) for what exists and
+> [§ Position](./AI.md#position-2026-08-05) for what governs anything new.
 
-- [ ] ❓ **AI introduction (BYOK)** — bring-your-own-key model so AI features
+- [x] ❓ **AI introduction (BYOK)** — *shipped (#172); kept for history.*
+      Original sketch: bring-your-own-key model so AI features
       "just work" with the user's own key. **Nexos AI is the first key format
       to support**; others (OpenRouter, direct Anthropic/OpenAI) may follow,
       so the seam should be a provider list from day one rather than a Nexos
@@ -1435,13 +1561,15 @@ the 2026-08-03 owner decision below.
       cost/latency. *The "conflicts with our no-AI positioning" caveat this
       item used to carry is resolved:* the owner decided to build (2026-08-03,
       [AI.md](./AI.md)) and the site reframed from "no AI" to **"not rented,
-      not bundled"** (`a8cc268`) — BYOK is the position, not an exception to
+      not bundled"** (PR #201) — BYOK is the position, not an exception to
       it.
       - **Key storage is a backend concern.** Per the layering rule the
         webview never holds credentials, so the AI key belongs beside the
         host tokens in `accounts`/keychain, with calls made from Rust —
         *not* `fetch` from React. Model choice is plain UI state.
-- [ ] 🔴 **Ask-about-this-code — implementation plan** (2026-07-30).
+- [x] 🔴 **Ask-about-this-code — implementation plan** (2026-07-30).
+      *Superseded by [AI.md](./AI.md) and shipped (#172–#177); kept for
+      history — the probe findings it called for were run 2026-08-03.*
       Concrete plan for the feature above, now that the provider contract is
       known. **Nexos AI is OpenAI-compatible**, which changes the shape of
       this work: it is a generic integration, not a vendor one.
@@ -1501,7 +1629,11 @@ the 2026-08-03 owner decision below.
       per-repo allowlist stays as a later hardening step for people
       reviewing client or org code.
 
-- [ ] ❓ **"Ask questions about the code" — the first AI feature** (2026-07-30).
+- [x] ❓ **"Ask questions about the code" — the first AI feature** (2026-07-30).
+      *Shipped (#175–#177); kept for history. Its two open questions were both
+      answered: context scope is selection-or-PR with snapshot-backed tool
+      retrieval, and the privacy line was decided 2026-08-01 and is now written
+      down as [AI.md § Position](./AI.md#position-2026-08-05).*
       The opening surface for [BYOK](#post-mvp-backlog) above: ask a question
       about the PR you're reading and get an answer grounded in the actual
       code, rather than review-writing or auto-summary. Chosen first because
@@ -1624,11 +1756,18 @@ each carries an unresolved design question of its own, noted below.
 
 ## Parked ideas (2026-07-02)
 
-- **Subscribed repos**: watch chosen repositories (not just PRs involving you) —
-  a fifth inbox source, likely per-account repo picker + polling. Shape TBD.
-- **Watch repos spam** — `setWatchedRepos` fires per toggle with no debounce or
-  in-flight guard (unlike viewed-map persist). Debounce or coalesce rapid
-  watch/unwatch in the repos dialog.
+- ~~**Subscribed repos**~~ — **shipped, no longer parked.** Watching chosen
+  repositories is a real inbox source: `get_watched_repos`/`set_watched_repos`
+  + `list_subscribed`/`get_cached_subscribed` commands, `use-subscribed.ts`,
+  the repo picker in `watch-repos-dialog.tsx` and a **Watching** tab (which the
+  hide-empty-tabs work then taught to keep a keyless palette binding, precisely
+  so it stays reachable when empty — which is when you would go there to add a
+  repo).
+- [ ] 🟢 **Watch repos spam** — `setWatchedRepos` fires per toggle
+  (`watch-repos-dialog.tsx:154`) with no debounce or in-flight guard, unlike
+  the viewed-map persist. Debounce or coalesce rapid watch/unwatch. *Still
+  open, and now a plain bug rather than a parked idea — promoted to a checkbox
+  since the feature it belongs to shipped.*
 
 ## Tech debt
 
@@ -1713,9 +1852,18 @@ each carries an unresolved design question of its own, noted below.
 
 ## Inbox (2026-07-15)
 
-- [ ] **`ctrl+c` copy on click-highlighted word** — copy doesn't fire when a word
-      is highlighted via click; investigate editor-level selection handling for a
-      better approach (unsure whether to follow a standard here).
+- [ ] 🟢 **`ctrl+c` copy on click-highlighted word** — copy doesn't fire when a
+      word is highlighted via click. *The "unsure whether to follow a standard"
+      hesitation is resolved: follow the standard.* An occurrence mark is **not
+      a text selection** — it is painted via `CSS.highlights` and the DOM
+      selection is deliberately cleared (that clearing is what the
+      comment-text-selection fix had to carve exceptions into), so the browser
+      has nothing to copy and `ctrl+c` correctly does nothing. Two honest
+      options at build time, and neither is exotic: put a real collapsed DOM
+      selection over the marked word so native copy just works, or bind copy
+      explicitly to write the marked token when marks are lit. Prefer the
+      first — anything that makes the app's own clipboard rules diverge from
+      the platform's is a rule the user has to learn.
 - [ ] **Check for updates action** — explicit user-triggered update check.
 - [x] **Info comment section design rework** — the drawer composer now
       collapses to a one-line prompt that expands on intent (Esc backs out of
@@ -1838,8 +1986,19 @@ each carries an unresolved design question of its own, noted below.
       (`scrollToFile` — `e`, `r`/`t`, Tab, sidebar, file search) now seeds the
       line cursor on the target file's first nav row, so `f`/`g`/`j`/`k` step
       inside the file you landed on.
-- [ ] **Merge button in PR view** — add a way to merge the PR directly from
-      the review screen instead of switching to GitHub/GitLab.
+- [ ] 🟡 **Merge button in PR view** — merge without switching to the host.
+      *Scoped 2026-08-05 (owner): the repo's default merge method, behind a
+      confirm — no method picker, no commit-message editor.* Read the allowed
+      and default merge method from the host and use it; one action that
+      finishes the job you just approved. A full merge box (squash / merge /
+      rebase + message editing) is a second product surface and the message
+      editor is where the cost lives — not worth it in a review tool.
+      *Build notes:* this is the **first non-comment write** Nod performs, so
+      it needs a real confirm and honest failure copy — merges fail for
+      reasons the app doesn't model (branch protection, required checks still
+      running, conflicts, out-of-date base). Surface the host's own refusal
+      message rather than inventing one, and keep `o` (open on host) as the
+      escape hatch, since the host's merge box carries context Nod does not.
 - [ ] **Multi-line comment highlighting still broken in full-file view** —
       the flowing block-comment fix above (`markBlockCommentRows`) only
       covers `DiffRow`s built from the patch; full-file expansion's
@@ -2014,8 +2173,17 @@ each carries an unresolved design question of its own, noted below.
       context lines stay one line each. `SNIPPET_RADIUS` 2 → 4 (5 → 9 lines),
       and the in-review pane took its own `.qsp-panel-code` width (920px) so
       it no longer inherits a width chosen for PR titles.
-      **Still open (needs a decision):** the two-pane layout, and the
-      `MAX_LINES` truncation affordance.
+      **Decided 2026-08-05 (owner) — decision-free now:**
+      - [ ] 🟢 **Add a "showing first 60" affordance.** `MAX_LINES = 60`
+        truncates silently today, so a search that looks complete isn't —
+        the same class of defect as the ellipsised match that was just fixed,
+        and worse, because nothing on screen hints at it. Say how many were
+        shown and that more exist.
+      - **Two-pane layout: not building it.** The four cheap fixes (full-width
+        rows, wrapped hit line, 9 lines of context, the pane's own 920px
+        width) may already have solved the cramped glance. Re-open only if it
+        still feels tight in daily use — at which point the evidence will
+        exist, which it does not today.
 - [ ] 🟡 **Info tab: one comment feed, one comment design** (2026-07-30) —
       code discussions in the Info drawer show no avatar, author or
       timestamp, and sit in a separate list from PR-level comments. Make
@@ -2041,25 +2209,33 @@ each carries an unresolved design question of its own, noted below.
         header says the split is intentional. Extracting one `CommentRow`
         is the fix and pays off regardless of the feed decision. Do this
         part first; it is safe and independently shippable.
-      - **⚠️ The merged feed is a product decision, not a cleanup.**
-        [DESIGN.md](./DESIGN.md) states the split deliberately — Info tab is
-        "description + PR-level comments", inline stays in the code view —
-        and a single blended stream is close to **Conversation mode**, which
-        §layout defers as a post-MVP third tab and the
-        [build order](#explicitly-do-not-build-before-user-feedback) says
-        not to build before user feedback. Options: (a) unify the design
-        only, keep two sections; (b) one feed with threads as a distinct
-        entry kind. Prefer (a) first — it removes the complaint's real sting
-        (code discussions looking like second-class rows) without spending
-        the Conversation-mode decision early.
+      - **Decided 2026-08-05 (owner): one chronological feed, following the
+        standard.** Both GitHub and GitLab show PR-level and inline comments
+        in a single stream, and the complaint underneath this item is that
+        Nod's drawer shows *neither* kind's author — "not seeing who added the
+        comment doesn't make sense" regardless of which list it lands in. So:
+        **every entry carries avatar · author · time**, and inline entries
+        keep a **jump-to-code** affordance so the feed stays a way *into* the
+        diff rather than a copy of it. Build the shared `CommentRow` first —
+        it is the part that pays off either way — then merge the two sections
+        onto it.
+      - **⚠️ This spends the Conversation-mode decision, deliberately.**
+        [DESIGN.md](./DESIGN.md) states the split ("Info tab is description +
+        PR-level comments, inline stays in the code view") and § layout defers
+        a blended stream as post-MVP. The owner call overrides both: what was
+        being deferred was a *speculative* third surface, and a single
+        attributed feed is the industry-standard shape, not a bet. **DESIGN.md
+        must be updated with this item**, or it will keep contradicting the
+        shipped drawer — and the ⏸ Conversation-mode entry in § layout should
+        be folded in rather than left implying a separate future surface.
       - Pairs with **Reply in Info tab** (§keyboard/composer) — a code
         discussion that renders as a real comment is also the surface that
         would carry a reply box.
 - [ ] 🔴 **Theme selection** (2026-07-30) — let users pick a colour theme:
-      the current **Quiet** default plus **Monokai**, proposed as a
-      licensed feature. Blocked on the theming-mechanism decision in
-      [Inbox (2026-07-15)](#inbox-2026-07-15) — do that first, it is the
-      whole cost of this item.
+      the current **Quiet** default plus **Monokai**. **Decision-free as of
+      2026-08-05:** themes ship **free to everyone** (see the gating decision
+      below), and the theming-mechanism blocker is resolved (below) — what
+      remains is the literal sweep plus authoring each theme's three layers.
       - **A theme here is three coordinated layers, not a palette.** (1) the
         ~14 chrome tokens in `src/index.css` `@theme`; (2) the diff add/del
         row tints, which must stay legible *under* find marks, occurrence
@@ -2067,11 +2243,26 @@ each carries an unresolved design question of its own, noted below.
         editor theme doesn't have; (3) the syntax palette, currently
         highlight.js `github-dark`, which is a separate stylesheet. Porting
         Monokai means authoring all three, not swapping hexes.
-      - **The real blocker: `quiet.css` has ~59 hardcoded colour literals**
+      - **The real work: `quiet.css` has ~59 hardcoded colour literals**
         (`rgba(95, 208, 138, 0.08)`, `rgba(255, 112, 136, 0.3)`, …) that
         bypass the token layer entirely. Every one is a place a second theme
         would leak the first theme's colours. Tokenising those is the bulk of
-        the work and is worth doing regardless of whether themes ship.
+        the work and is worth doing regardless of whether themes ship — it is
+        also the whole of the "mechanism" question, now answered below.
+      - **Mechanism — decided 2026-08-05 (owner): tokenise onto the layer that
+        already exists. There is no CSS-vs-Tailwind choice to make.** The
+        question in [Inbox (2026-07-15)](#inbox-2026-07-15) assumed the two
+        were alternatives; in Tailwind v4 they are the same thing. `index.css`
+        already declares the palette in an `@theme` block, which **compiles to
+        CSS custom properties on `:root`**, and `quiet.css` consumes them
+        through short aliases (`--bg: var(--color-bg)`). "Moving to Tailwind"
+        would not remove the custom properties — it *is* the custom properties.
+        Two consequences worth stating so this isn't re-litigated: runtime
+        theme switching **requires** custom properties (utilities are static at
+        build time, so a compiled utility cannot change theme without them),
+        and there is no bundle win on offer — the 59 literals already ship in
+        the CSS, so tokenising moves bytes rather than adding or removing them.
+        Scope is therefore a **mechanical sweep**, not a rewrite.
       - **Recommended set — cover distinct axes, not a long list.** Each
         theme is real maintenance (3 layers × every diff state), so:
         **Quiet** (default) · **Quiet Light** · **High contrast** ·
@@ -2081,23 +2272,16 @@ each carries an unresolved design question of its own, noted below.
         counterweight to Monokai's cool neon). Hold Catppuccin, Tokyo Night,
         Nord and One Dark until asked; they are popular but occupy axes the
         set above already covers.
-      - **Recommendation on the paywall: don't gate legibility.** Light and
-        high-contrast should be **free** — for some users dark-on-light isn't
-        a preference, and a review tool that can't be read in a bright room
-        or shared on a projector is broken, not unlicensed. Gate the
-        *character* themes (Monokai, Solarized, Gruvbox). "You never pay to
-        read, you pay for personality" is both defensible and better
-        positioning than a paywalled light mode.
-      - **⚠️ Conflicts with the licensing model as designed.** Per
-        [RELEASING.md](./RELEASING.md#commercial-launch), a license buys
-        **updates** (`updates_until`) with client-side *updater* gating — the
-        app itself keeps working, and there is deliberately no DRM. Themes
-        would be the first **feature** gate, which needs runtime entitlement
-        checks that don't exist and cuts against the "no license keys, the
-        app just works" stance. Decide the model before building: either
-        accept a second gate, or make themes a free delighter and keep the
-        license purely about updates. Note the app has **no** licensing code
-        at all today — see [11c status](#11c-status--what-actually-exists-audited-2026-07-30).
+      - **Gating — decided 2026-08-05 (owner): every theme is free.** The
+        earlier proposal to sell the *character* themes is dropped. See
+        [Pricing — what a license buys](#pricing--what-a-license-buys-2026-08-05):
+        the model is recognition, not capability, so **nothing in the app is
+        ever entitlement-checked** and this item builds no gate. Light and
+        high-contrast were always going to be free (a review tool that can't
+        be read in a bright room is broken, not unlicensed); the decision
+        extends that to the rest rather than drawing a line inside a settings
+        list, where a locked row sitting beside free rows is the most visible
+        paywall the app could own.
 - [ ] ❓ **Code-similarity check between the diff and the repo** — flag hunks
       that closely match code already in the repository (duplicated logic,
       copy-paste, a helper that already exists). Open question on shape and

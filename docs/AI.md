@@ -67,7 +67,7 @@ them.
 
 What the position *does* forbid is narrow and worth stating plainly: an
 auto-summary on PR open, a background pre-fetch of answers, a Nod-hosted model,
-a bundled key, and any "AI credits" line item next to the $39.
+a bundled key, and any "AI credits" line item next to the license price.
 
 ## Product shape
 
@@ -193,20 +193,29 @@ original intent continues — the ask isn't lost to setup.
 Command palette also gets "Ask about this code" so the feature is
 discoverable without knowing the key.
 
-## PR sequence
+## PR sequence — shipped
 
-Ship via split-pr (one intent per PR, ~300-line soft budget, `pnpm check` /
-tests / knip green, `cargo test` for `src-tauri` changes, e2e + UI evidence
-for UI changes). Run pr-validity after each. frontend-design guides PRs 2–3.
+**All six landed (2026-08-03 → 2026-08-05).** Kept as the record of what was
+built and in what order. Shipped via split-pr (one intent per PR, ~300-line soft
+budget, `pnpm check` / tests / knip green, `cargo test` for `src-tauri` changes,
+e2e + UI evidence for UI changes), pr-validity after each.
 
-| PR | Intent | Notes |
+| PR | Intent | Shipped as |
 | --- | --- | --- |
-| **1** | `ai.json` storage + `get_ai_config`/`set_ai_config`/`clear_ai_config` + `ai_list_models` | Rust only; unit tests like `commands_tests.rs` |
-| **2** | AI setup dialog + `a`-opens-setup onboarding + palette entries | First settings surface; disclosure copy |
-| **3** | `ai_ask` non-streaming + Ask surface (drawer then, inline note now) + selection/PR prompt assembly | Degradation step 3 works here |
-| **4** | Layer 2: `grep_repo` + `list_files` over the snapshot | Rust only; also registered as commands; unblocks user-facing repo search |
-| **5** | Tool loop inside `ai_ask` + degradation ladder | After the tools probe (below) |
-| **6** | SSE streaming + polish (history, citations styling) | Only after the chunk-shape probe |
+| **1** | `ai.json` storage + `get_ai_config`/`set_ai_config`/`clear_ai_config` + `ai_list_models` | **#172** |
+| **2** | AI setup dialog + `a`-opens-setup onboarding + palette entries | **#173** |
+| **3** | `ai_ask` non-streaming + Ask surface + selection/PR prompt assembly | **#175** — surface later revised from drawer mode to the inline note |
+| **4** | Layer 2: `grep_repo` + `list_files` over the snapshot | folded into **#176** |
+| **5** | Tool loop inside `ai_ask` + degradation ladder | **#176** |
+| **6** | SSE streaming + polish | **#177** |
+
+> **One item did not land as specced.** PR 4 was meant to register `grep_repo`
+> and `list_files` as plain commands so user-facing whole-repo search "falls out
+> for free" (§9 Layer 2). They exist and work, but **only inside the `ai_ask`
+> tool loop** — neither is in `invoke_handler`, so there is still no repo search
+> in the app. Tracked in
+> [BACKLOG §9 Layer 2](./BACKLOG.md#9-repo-snapshot--sync-layers-decided-2026-07-12);
+> what remains is registration plus UI, not the search engine.
 
 **Probe (before PR 5/6, owner's live Nexos key):** `scripts/probe-nexos.mjs`
 hits `/v1/chat/completions` with `tools` and with `stream: true`.
