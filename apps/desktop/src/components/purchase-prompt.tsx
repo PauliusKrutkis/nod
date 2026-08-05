@@ -53,7 +53,7 @@ export function PurchasePrompt() {
           <span className="qb-update-title">Enjoying Nod?</span>
         </div>
         <p className="qb-update-text">
-          Nod is free to evaluate. A license is $39 — it funds development and
+          Nod is free to evaluate. A license is $59 — it funds development and
           keeps a year of updates coming.
         </p>
         {error ? <p className="qb-update-err">{error}</p> : null}
@@ -64,7 +64,7 @@ export function PurchasePrompt() {
             onClick={buy}
             type="button"
           >
-            {purchasing ? "Waiting for the browser…" : "Buy Nod — $39"}
+            {purchasing ? "Waiting for the browser…" : "Buy Nod — $59"}
           </button>
           <button
             className="qb-update-later"

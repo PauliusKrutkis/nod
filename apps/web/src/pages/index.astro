@@ -5,6 +5,7 @@ import FeatureShowcase from "../components/FeatureShowcase.astro";
 import LocalStrip from "../components/LocalStrip.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteNav from "../components/SiteNav.astro";
+import { CONTACT_EMAIL } from "../lib/site";
 
 // The buy button appears only when a checkout exists (build-time env, set
 // once the merchant account is live); until then the pricing card states the
@@ -97,13 +98,13 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
       <div class="wrap pricing__inner">
         <p class="eyebrow">Pricing</p>
         <p class="pricing__price">
-          $39 <span class="pricing__term">one-time · a year of updates</span>
+          $59 <span class="pricing__term">one-time · a year of updates</span>
         </p>
         <p class="pricing__copy">
-          Nod is free to evaluate, every feature, no time limit. A license
-          funds development and includes a year of updates. When the year is
-          up, the app keeps working as it is; you only stop getting new
-          versions.
+          Nod is free to evaluate, every feature, no time limit. Buy it once
+          and the app is yours permanently: the first year brings every new
+          version as it ships, and when that year is up Nod keeps working
+          exactly as it is. You stop receiving updates, nothing else.
         </p>
         <p class="pricing__copy">
           No subscription, and nothing resold on top: Nod is a tool you own,
@@ -119,7 +120,9 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
           ) : (
             <p class="pricing__note">
               Purchasing opens soon. Until then, the free evaluation is the
-              full app.
+              full app. Buying for a team?{" "}<a
+                href={`mailto:${CONTACT_EMAIL}`}>Email me</a
+              > and I'll sort out invoicing.
             </p>
           )
         }

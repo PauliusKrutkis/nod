@@ -16,7 +16,7 @@ test("pricing states the price and the evaluation terms", async ({ page }) => {
 
   const pricing = page.locator("#pricing");
   await expect(pricing).toBeVisible();
-  await expect(pricing).toContainText("$39");
+  await expect(pricing).toContainText("$59");
   await expect(pricing).toContainText("a year of updates");
   await expect(pricing).toContainText("free to evaluate");
 });
