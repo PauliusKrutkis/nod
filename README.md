@@ -12,7 +12,6 @@
 
 <p align="center">
   <a href="https://github.com/PauliusKrutkis/pr-flow/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/PauliusKrutkis/pr-flow?style=flat-square&labelColor=0f0f17&color=8b80ff"></a>
-  <a href="https://github.com/PauliusKrutkis/pr-flow/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/PauliusKrutkis/pr-flow/total?style=flat-square&labelColor=0f0f17&color=5fd08a"></a>
   <a href="LICENSE.md"><img alt="License" src="https://img.shields.io/badge/license-FSL--1.1--Apache--2.0-8b80ff?style=flat-square&labelColor=0f0f17"></a>
 </p>
 
