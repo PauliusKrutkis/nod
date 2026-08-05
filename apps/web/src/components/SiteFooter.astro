@@ -1,5 +1,5 @@
 ---
-import { REPO_URL } from "../lib/site";
+import { CONTACT_EMAIL, REPO_URL } from "../lib/site";
 ---
 
 <footer class="foot">
@@ -10,6 +10,9 @@ import { REPO_URL } from "../lib/site";
     <span class="foot__links">
       <a href={REPO_URL}>GitHub</a>
       <a href="/downloads">Downloads</a>
+      <a href="/about">About</a>
+      <a href="/about#privacy">Privacy</a>
+      <a href={`mailto:${CONTACT_EMAIL}`}>Contact</a>
     </span>
   </div>
 </footer>

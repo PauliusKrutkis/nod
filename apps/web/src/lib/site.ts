@@ -24,3 +24,5 @@ export const BREW_INSTALL_COMMANDS = [
 ];
 
 export const INSTALL_NOTES_URL = `${REPO_URL}#install--auto-updates`;
+
+export const CONTACT_EMAIL = "hello@nodreview.com";

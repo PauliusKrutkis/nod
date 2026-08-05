@@ -12,6 +12,13 @@ const { title, description } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site);
 const ogImage = new URL("/og.png", Astro.site);
 const ogImageAlt = "Nod: review PRs like an inbox, not a website.";
+
+// Cookieless Cloudflare Web Analytics, and only when the deploy provides a
+// token: local and preview builds ship no beacon at all. Keep this the only
+// analytics on the site — /about promises cookieless, aggregate measurement.
+const cfAnalyticsToken = import.meta.env.PUBLIC_CF_ANALYTICS_TOKEN as
+  | string
+  | undefined;
 ---
 
 <!doctype html>
@@ -36,6 +43,16 @@ const ogImageAlt = "Nod: review PRs like an inbox, not a website.";
     <meta name="twitter:image" content={ogImage} />
     <meta name="twitter:image:alt" content={ogImageAlt} />
     <meta name="theme-color" content="#0f0f17" />
+    {
+      cfAnalyticsToken && (
+        <script
+          is:inline
+          defer
+          src="https://static.cloudflareinsights.com/beacon.min.js"
+          data-cf-beacon={JSON.stringify({ token: cfAnalyticsToken })}
+        />
+      )
+    }
   </head>
   <body>
     <slot />

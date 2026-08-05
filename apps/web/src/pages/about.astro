@@ -1,0 +1,93 @@
+---
+import SiteFooter from "../components/SiteFooter.astro";
+import SiteNav from "../components/SiteNav.astro";
+import Base from "../layouts/Base.astro";
+import { CONTACT_EMAIL, REPO_URL } from "../lib/site";
+---
+
+<Base
+  title="About Nod"
+  description="Who makes Nod, how to reach them, and what the app and this site do with your data. Short version: everything stays on your machine."
+>
+  <SiteNav cta={{ href: "/downloads", label: "Download" }} />
+
+  <main>
+    <section class="wrap about">
+      <p class="eyebrow">About</p>
+      <h1 class="about__title">Made by one person who reviews a lot of PRs.</h1>
+
+      <div class="about__body">
+        <p>
+          Nod is built by me, Paulius Krutkis, a software engineer. I got tired
+          of reviewing pull requests in a browser tab, so I built the tool I
+          wanted: something that treats the review queue like an inbox and
+          keeps my hands on the keyboard.
+        </p>
+        <p>
+          The source is available on <a href={REPO_URL}>GitHub</a>. Bug
+          reports and feature requests are welcome in the{" "}
+          <a href={`${REPO_URL}/issues`}>issue tracker</a>, or write to{" "}
+          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+        </p>
+      </div>
+
+      <h2 class="about__head" id="privacy">Privacy</h2>
+      <div class="about__body">
+        <p>
+          The app has no telemetry, no analytics, and no account with me. Your
+          GitHub or GitLab token is stored on your machine and sent only to
+          the Git host it belongs to. The app talks to two kinds of servers:
+          your Git host, to fetch and submit reviews, and GitHub releases, to
+          check for updates.
+        </p>
+        <p>
+          This site sets no cookies. Traffic is measured with Cloudflare Web
+          Analytics, which is cookieless and aggregate: no identifiers on
+          your device, no cross-site tracking. The hosting network keeps
+          standard server logs.
+        </p>
+        <p>
+          If any of this changes, for example when purchasing opens and a
+          payment provider gets involved, this page changes with it.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <SiteFooter />
+</Base>
+
+<style>
+  .about {
+    max-width: 640px;
+    padding-top: clamp(56px, 10vh, 104px);
+    padding-bottom: 96px;
+  }
+
+  .about__title {
+    margin-top: 18px;
+    font-size: clamp(1.9rem, 4.4vw, 2.9rem);
+    font-weight: 640;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
+
+  .about__head {
+    margin-top: 56px;
+    font-size: 1.25rem;
+    font-weight: 620;
+    letter-spacing: -0.015em;
+  }
+
+  .about__body {
+    margin-top: 16px;
+    display: grid;
+    gap: 14px;
+    color: var(--muted);
+  }
+
+  .about__body a {
+    color: var(--fg);
+  }
+</style>
