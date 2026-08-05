@@ -146,7 +146,14 @@ Owner — now (all free):
       **Nod license, $39, one-time**.
 - [x] Webhook endpoint `https://nodreview.com/purchase-webhook`, format
       **Raw**, event `order.paid`; secret → `POLAR_WEBHOOK_SECRET`.
-      Verified live: an unsigned POST gets 401, so the binding is real.
+      **Verified with real deliveries 2026-08-05** — and the original
+      "unsigned POST gets 401" check turned out to prove nothing: every
+      genuine delivery also got 401 until PR #194 fixed the HMAC key
+      derivation (Polar keys off the raw secret string; standardwebhooks
+      base64-decodes its input, so the verifier must pass `btoa(secret)`).
+      The secret was also re-put from the API-readable endpoint value
+      (`GET /v1/webhooks/endpoints/{id}` exposes it), and Pages secrets
+      only bind on the **next deployment** — remember that when rotating.
 - [x] Organization access token → `POLAR_API_KEY` (checkout creation now,
       `/restore` later). Stored but not yet read by any code path.
 - [x] New **web** GitHub OAuth app — homepage `https://nodreview.com`,
@@ -160,10 +167,13 @@ Owner — now (all free):
 - [x] `node scripts/generate-license-keypair.mjs` (from `apps/web`):
       seed → `LICENSE_SIGNING_SEED` Pages secret **+ offline backup**;
       pubkey → `NOD_LICENSE_PUBKEY` repo variable. Both set 2026-08-04.
-      Still unproven that the two halves are the same keypair — CF secret
-      values are write-only, so only a signing round-trip through
-      `/activate` can confirm it. A mismatch would surface as activation
-      failures in already-shipped binaries; prove it before the first sale.
+      **Keypair PROVEN 2026-08-05**: a live sandbox purchase ran the whole
+      chain (checkout → webhook → license stored → `/activate` signed a
+      token) and the token's Ed25519 signature verifies against
+      `NOD_LICENSE_PUBKEY`. Step 6's remaining scope is only the app-side
+      part: deep-link/loopback activation in a build that embeds the
+      pubkey (no shipped release has it yet), plus repeat-purchase term
+      extension.
 
 Owner — site launch prep (Aug 2026), before the forum posts:
 
