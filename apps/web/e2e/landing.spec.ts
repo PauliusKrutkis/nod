@@ -3,6 +3,11 @@
  * where platform resolution happens. Its call to action is deliberately
  * platform-neutral — it navigates rather than downloading, so naming an OS on
  * it would both misdescribe the control and contradict the page it opens.
+ *
+ * That call to action lives in the install band after the argument, not in
+ * the hero, where the live demo is the only thing asking for attention. The
+ * sticky nav's download link is what covers a visitor who arrived already
+ * decided, so it is asserted alongside the hero's emptiness.
  */
 
 import { expect, type Page, test } from "@playwright/test";
@@ -235,13 +240,28 @@ test("does not name a platform on the call to action", async ({ page }) => {
   await page.goto("/");
 
   const cta = page
-    .locator(".get")
+    .locator(".install")
     .getByRole("link", { name: DOWNLOAD_LINK_PATTERN });
   await expect(cta).toHaveCount(1);
   await expect(cta).not.toContainText(PLATFORM_NAME_PATTERN);
 });
 
-test("lands on the Homebrew section from the hero", async ({ page }) => {
+test("keeps the fold for the demo, with no download button in the hero", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await expect(
+    page.locator(".hero").getByRole("link", { name: DOWNLOAD_LINK_PATTERN })
+  ).toHaveCount(0);
+  await expect(
+    page.locator(".nav").getByRole("link", { name: "Download" })
+  ).toBeVisible();
+});
+
+test("lands on the Homebrew section from the install band", async ({
+  page,
+}) => {
   await page.goto("/");
   await page.getByRole("link", { name: "Homebrew" }).click();
 

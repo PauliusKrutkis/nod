@@ -7,8 +7,10 @@ import SiteFooter from "../components/SiteFooter.astro";
 import SiteNav from "../components/SiteNav.astro";
 
 // The buy button appears only when a checkout exists (build-time env, set
-// once the merchant account is live); until then the pricing card is honest
-// about it and leads with the free intro instead of a dead button.
+// once the merchant account is live); until then the pricing card states the
+// price and says so, rather than carrying a dead button. It deliberately does
+// not fall back to a download link: the install band directly above it is
+// already the free path, and two identical asks in a row read as filler.
 const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
 ---
 
@@ -33,15 +35,6 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
           Keyboard-first and cache-first, for the thing you do every day: open a
           review request, read the diff, leave a comment, move on.
         </p>
-
-        <div class="get">
-          <a class="btn btn--primary" href="/downloads">Download Nod</a>
-          <p class="get__note">
-            macOS, Windows, and Linux, or install with{" "}<a
-              href="/downloads#homebrew">Homebrew</a
-            >. Free to evaluate, no time limit.
-          </p>
-        </div>
       </div>
 
       <HeroDemo />
@@ -88,6 +81,18 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
 
     <LocalStrip />
 
+    <section class="install" aria-label="Download">
+      <div class="wrap install__inner">
+        <h2 class="install__title">Take it to your own PRs.</h2>
+        <a class="btn btn--primary" href="/downloads">Download Nod</a>
+        <p class="install__note">
+          macOS, Windows, and Linux, or install with{" "}<a
+            href="/downloads#homebrew">Homebrew</a
+          >. Free to evaluate, no time limit.
+        </p>
+      </div>
+    </section>
+
     <section class="pricing" aria-label="Pricing" id="pricing">
       <div class="wrap pricing__inner">
         <p class="eyebrow">Pricing</p>
@@ -106,13 +111,6 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
               Buy Nod
             </a>
           ) : (
-            <a class="btn btn--primary" href="/downloads">
-              Evaluate for free
-            </a>
-          )
-        }
-        {
-          !checkoutUrl && (
             <p class="pricing__note">
               Purchasing opens soon. Until then, the free evaluation is the
               full app.

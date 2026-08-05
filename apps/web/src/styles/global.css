@@ -244,15 +244,6 @@ a {
   font-size: clamp(1rem, 1.4vw, 1.16rem);
 }
 
-.get {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  margin-top: 28px;
-}
-
 .cmd {
   display: inline-flex;
   align-items: center;
@@ -360,15 +351,41 @@ a {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-.get__note {
-  width: 100%;
+/* The download ask sits after the argument, not in the hero: above the fold
+   the live demo is the stronger call to action, and a second primary button
+   beside it split the eye between "try this" and "commit to this". The
+   sticky nav keeps a download link on screen throughout for anyone who
+   arrived already convinced. Platform names live here rather than on the
+   button because this is the decision point; the button itself stays
+   platform-neutral, since it navigates to /downloads rather than fetching a
+   binary. */
+.install {
+  margin-top: clamp(64px, 14vw, 112px);
   text-align: center;
-  margin-top: 4px;
+}
+
+.install__inner {
+  display: grid;
+  gap: 18px;
+  justify-items: center;
+}
+
+.install__title {
+  margin: 0;
+  max-width: 28ch;
+  font-size: clamp(1.375rem, 2.8vw, 1.875rem);
+  font-weight: 640;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.install__note {
+  margin: 0;
   font-size: 0.78125rem;
   color: var(--faint);
 }
 
-.get__note a {
+.install__note a {
   color: var(--muted);
   text-underline-offset: 3px;
 }
