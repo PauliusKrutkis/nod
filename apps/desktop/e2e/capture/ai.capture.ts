@@ -3,9 +3,10 @@
  * the mocked bridge — exactly like the ai-setup/ai-ask specs — and
  * screenshots each user-visible state of the feature: `a` with no key
  * (setup dialog is the onboarding), the model picker after a key validates,
- * the saved-key state, palette discoverability, the Ask panel over the whole
- * PR and over a cursor line, the pending spinner, a rendered answer, and the
- * provider-error state. Output: capture-out/ai/*.png. Run just this file:
+ * the saved-key state, palette discoverability, the inline AI note over the
+ * whole PR and under a cursor line, the pending spinner, a rendered answer,
+ * promote-to-comment, and the provider-error state. Output:
+ * capture-out/ai/*.png. Run just this file:
  *
  *   pnpm exec playwright test --config playwright.capture.config.ts ai.capture.ts
  */
@@ -125,6 +126,7 @@ test("asking: pending spinner, then the rendered answer", async ({ page }) => {
   await setupApp(page, { ...CONFIGURED, aiAnswer: ANSWER });
   await openReview(page);
 
+  await page.keyboard.press("j");
   await page.keyboard.press("a");
   const panel = askPanel(page);
   const input = panel.getByLabel("Question");
@@ -163,6 +165,13 @@ test("asking: pending spinner, then the rendered answer", async ({ page }) => {
   }, ANSWER);
   await expect(panel.getByText("deprecation note")).toBeVisible();
   await shot(page, "08-ask-answer");
+
+  // Promote: the answer becomes an editable draft in the normal composer.
+  await panel.getByRole("button", { name: "Start comment from this" }).click();
+  const editor = page.getByRole("textbox", { name: "Add a review comment…" });
+  await expect(editor).toBeVisible();
+  await expect(editor).toContainText("retry knob");
+  await shot(page, "10-promote-composer");
 });
 
 test("provider errors surface inline, never a dead end", async ({ page }) => {
