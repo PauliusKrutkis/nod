@@ -1529,10 +1529,14 @@ the 2026-08-03 owner decision below.
 ### AI surfaces beyond ask — parked, not planned (2026-08-05)
 
 Three ideas recorded so they stop being re-invented, **none of them scoped**.
-All three break the guardrail [AI.md](./AI.md) sets for v1 — *"every request is
-user-initiated"*, AI as **pull, never push** — so each needs that rule revisited
-before it can be planned, not merely designed. Ship ask-about-this-code first
-and let real usage decide whether any of them earns the exception.
+
+*Corrected 2026-08-05:* an earlier draft of this section said all three broke
+[AI.md](./AI.md)'s pull-not-push guardrail. That was wrong. The rule governs the
+**trigger, not the size of the answer** — each of these would be user-invoked,
+which is exactly what pulling means, and none of them needs the position
+revisited. See [AI.md § Position](./AI.md#position-2026-08-05). They stay parked
+for ordinary product reasons: ask-about-this-code should prove itself first, and
+each carries an unresolved design question of its own, noted below.
 
 - [ ] ❓ **Review-by-prompt → inline comments** — point the AI at the PR with a
       prompt (or one of the repo's skills, e.g. `pr-validity`) and have it
@@ -1542,13 +1546,13 @@ and let real usage decide whether any of them earns the exception.
       already exists — pending comments — instead of inventing an AI panel, so
       an accepted finding is indistinguishable from your own comment by the
       time it reaches GitHub.
-      *Why it's parked:* it is **push, not pull** — the whole review arrives
-      unasked — which is the one thing AI.md's guardrails forbid. The honest
-      version keeps the trigger explicit (you run it, per PR, per prompt) and
-      never auto-fires on open; decide that boundary before any code. Also
-      unresolved: whether AI-suggested comments must be visually distinct
-      *after* acceptance (they carry your name and your credibility), and what
-      happens to the ones you ignore.
+      *Why it's parked* — and it is **not** the pull rule, which this satisfies:
+      you run it, per PR, per prompt, and it never fires on open. The open
+      questions are about trust, not policy: whether AI-suggested comments stay
+      visually distinct *after* you accept them (once posted they carry your
+      name and your credibility, not the model's), what happens to the ones you
+      ignore, and whether a bad batch is cheap enough to discard that the
+      feature stays worth invoking. Answer those before scoping.
 - [ ] ❓ **Code diff layers — grouped changes with a summary** — group related
       hunks across files into labelled layers ("auth wiring", "test fixtures",
       "formatting") with a one-line summary each, so a 40-file PR can be read
