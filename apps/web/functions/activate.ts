@@ -24,6 +24,16 @@
  * on the port could have answered — so the copy stays non-committal and the
  * app's own window is the confirmation. The response is no-store because the
  * token is baked into the markup.
+ *
+ * A missing index is NOT immediately an invalid link: the buyer arrives here
+ * seconds after paying, racing the webhook write through KV's eventual
+ * consistency (writes can take up to a minute to reach the buyer's colo —
+ * observed live 2026-08-05, when a stored license read as absent for
+ * minutes). So a miss serves a 200 "preparing your activation" page that
+ * meta-refreshes with a retry counter, and only after the retry budget
+ * (about two minutes) does the invalid-link 404 appear. A garbage
+ * checkout_id costs an attacker nothing either way — the page carries no
+ * token until the index resolves.
  */
 import type { Env } from "./lib/env";
 import { getCheckoutIndex, getLicense, putCheckoutIndex } from "./lib/kv";
@@ -32,6 +42,37 @@ import { signLicenseToken } from "./lib/license-token";
 const DEEP_LINK_BASE = "prflow://purchase";
 const PURCHASE_LISTENER_BASE = "http://127.0.0.1:8766/callback";
 const ACTIVATION_WINDOW_SECONDS = 48 * 60 * 60;
+const RETRY_INTERVAL_SECONDS = 5;
+const MAX_RETRIES = 24;
+
+function preparingPage(checkoutId: string, retry: number): string {
+  const nextUrl = `/activate?checkout_id=${encodeURIComponent(checkoutId)}&retry=${retry + 1}`;
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta http-equiv="refresh" content="${RETRY_INTERVAL_SECONDS}; url=${nextUrl}">
+<title>Nod · preparing your activation</title>
+<style>
+  body { margin: 0; display: grid; place-items: center; min-height: 100vh;
+    background: #101014; color: #e6e6eb;
+    font: 16px/1.6 ui-sans-serif, system-ui, sans-serif; }
+  main { max-width: 26rem; padding: 2rem; text-align: center; }
+  h1 { font-size: 1.35rem; margin: 0 0 0.5rem; }
+  p { margin: 0.5rem 0; color: #9a9aa5; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Payment received</h1>
+  <p>Preparing your activation. This page refreshes by itself and usually
+  takes a few seconds.</p>
+</main>
+</body>
+</html>`;
+}
 
 function activationPage(token: string): string {
   const deepLink = `${DEEP_LINK_BASE}?token=${encodeURIComponent(token)}`;
@@ -42,7 +83,7 @@ function activationPage(token: string): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Nod — payment received</title>
+<title>Nod · payment received</title>
 <style>
   body { margin: 0; display: grid; place-items: center; min-height: 100vh;
     background: #101014; color: #e6e6eb;
@@ -73,15 +114,23 @@ function activationPage(token: string): string {
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const checkoutId = new URL(context.request.url).searchParams.get(
-    "checkout_id"
-  );
+  const url = new URL(context.request.url);
+  const checkoutId = url.searchParams.get("checkout_id");
   if (!checkoutId) {
     return new Response("missing checkout_id", { status: 400 });
   }
+  const retry = Number.parseInt(url.searchParams.get("retry") ?? "0", 10) || 0;
 
   const subject = await getCheckoutIndex(context.env.LICENSES, checkoutId);
   if (subject === null) {
+    if (retry < MAX_RETRIES) {
+      return new Response(preparingPage(checkoutId, retry), {
+        headers: {
+          "cache-control": "no-store",
+          "content-type": "text/html; charset=utf-8",
+        },
+      });
+    }
     return new Response("activation link is invalid or already used", {
       status: 404,
     });
@@ -89,6 +138,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   const record = await getLicense(context.env.LICENSES, subject);
   if (record === null) {
+    if (retry < MAX_RETRIES) {
+      return new Response(preparingPage(checkoutId, retry), {
+        headers: {
+          "cache-control": "no-store",
+          "content-type": "text/html; charset=utf-8",
+        },
+      });
+    }
     return new Response("no license found for this account", { status: 404 });
   }
 

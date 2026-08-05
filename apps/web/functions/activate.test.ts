@@ -151,7 +151,8 @@ describe("GET /activate", () => {
       kv,
       "https://x.test/activate?checkout_id=checkout_1"
     );
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(200);
+    expect(await tokenFromPage(response)).toBeNull();
 
     expect(await kv.get("checkout:checkout_1")).toBe(SUBJECT);
     expect(ttls.has("checkout:checkout_1")).toBe(false);
@@ -172,11 +173,43 @@ describe("GET /activate", () => {
     expect(ttls.has("checkout:checkout_1")).toBe(false);
   });
 
-  it("404s a checkout id that was never issued", async () => {
+  it("answers an unknown checkout id with a retrying page, not a 404", async () => {
     const response = await activate(
       licensedKv().kv,
       "https://x.test/activate?checkout_id=checkout_nope"
     );
+
+    expect(response.status).toBe(200);
+    const html = await response.text();
+    expect(html).toContain("Preparing your activation");
+    expect(html).toContain("url=/activate?checkout_id=checkout_nope&retry=1");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("counts retries up instead of refreshing forever", async () => {
+    const response = await activate(
+      licensedKv().kv,
+      "https://x.test/activate?checkout_id=checkout_nope&retry=7"
+    );
+
+    expect(await response.text()).toContain("retry=8");
+  });
+
+  it("gives up with a 404 once the retry budget is spent", async () => {
+    const response = await activate(
+      licensedKv().kv,
+      "https://x.test/activate?checkout_id=checkout_nope&retry=24"
+    );
     expect(response.status).toBe(404);
+  });
+
+  it("serves the token as soon as the index resolves, whatever the retry count", async () => {
+    const response = await activate(
+      licensedKv().kv,
+      "https://x.test/activate?checkout_id=checkout_1&retry=9"
+    );
+
+    expect(response.status).toBe(200);
+    expect(await tokenFromPage(response)).not.toBeNull();
   });
 });
