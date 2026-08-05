@@ -181,6 +181,17 @@ Owner — site launch prep (Aug 2026), before the forum posts:
 - [ ] After merging, spot-check production: link unfurl (paste the URL in
       Slack/Discord), `curl -I https://nodreview.com/robots.txt` returns
       text/plain, an unknown path returns 404, /about renders.
+- [ ] **Cloudflare Web Analytics** — dashboard → Analytics → Web Analytics,
+      add nodreview.com, copy the beacon token → `PUBLIC_CF_ANALYTICS_TOKEN`
+      Pages **build** env var (production only). The site renders the
+      beacon only when the token exists (PR #186), so nothing shows up
+      until this is set. Cookieless; /about's privacy copy already
+      describes it.
+- [ ] **Sentry for the payment functions** — create a (free-tier) Sentry
+      project, copy its DSN → `SENTRY_DSN` Pages secret. /activate,
+      /purchase-webhook, and /license/:subject report thrown errors and
+      no-op without the secret (PR #190). Do this at the latest with
+      step 4, so webhook failures are visible from the first sandbox test.
 
 Notarization stays deferred per step 2; the decision for the launch posts
 is to ship without it and take the Gatekeeper criticism.
