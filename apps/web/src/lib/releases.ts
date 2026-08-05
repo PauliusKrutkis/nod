@@ -80,6 +80,11 @@ const TARGETS: {
     matches: (name: string) => name.endsWith(".msi"),
   },
   {
+    platform: "Windows",
+    detail: "x64 setup.exe",
+    matches: (name: string) => name.endsWith("-setup.exe"),
+  },
+  {
     platform: "Linux",
     detail: "Debian / Ubuntu",
     matches: (name: string) => name.endsWith(".deb"),
