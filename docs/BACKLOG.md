@@ -873,6 +873,65 @@ an exception carved. The one thing a license legitimately controls stays
 `updates_until` in the **updater**, exactly as
 [RELEASING.md](./RELEASING.md#commercial-launch) specifies.
 
+#### Evaluation and the update gate (audited 2026-08-05)
+
+*What ships on `main` today, verified in code — none of it released yet
+(v0.4.0 predates the licensing PRs, so no user has reached day 15).*
+`get_license_state` returns `Trial{days_left}` for 14 days, then
+`TrialExpired`; `PurchasePrompt` renders **nothing** until expiry, then a
+dismissable card once per launch. The app never locks — correct, and
+on-position.
+
+**Gating updates is confirmed as the right lever (owner, 2026-08-05)** — it is
+not a feature gate, it is the thing the license actually sells, so it sits
+squarely inside the "recognition, not capability" decision above. Two defects
+in *how* it does it:
+
+- [ ] 🔴 **Pre-release blocker: the Buy button can't work.** `NOD_CHECKOUT_URL`
+      is a compile-time `option_env!` (`activation.rs:43`) and **the repo
+      variable is not set** (`NOD_LICENSE_PUBKEY` is). So `activate_license`
+      returns *"Purchasing isn't configured in this build."* before opening a
+      browser, and `PurchasePrompt` renders regardless of whether checkout
+      exists — the user only discovers this **after** clicking Buy. Harmless
+      today because it is unreleased; the moment a release is cut, every
+      install starts a 14-day fuse ending in a dead button. **Fix before
+      tagging:** set `NOD_CHECKOUT_URL` (needs the Polar product — the gating
+      item above), *and* have the card not render when checkout is
+      unconfigured, so a half-configured build stays quiet instead of nagging
+      toward an error.
+- [ ] 🟡 **Let patch releases through to unlicensed users** — *decided
+      2026-08-05 (owner).* `update_allowed` (`update.rs:39`) is all-or-nothing:
+      `TrialExpired => false`. Change it so a **patch** bump installs
+      (0.4.0 → 0.4.1) while a **feature** release does not (0.4.x → 0.5.0).
+      Fixes and security patches then reach everyone, which matters because the
+      app holds forge OAuth tokens and there is **no other channel** to a
+      stranded evaluator — the Linux "Failed to install package" bug in
+      [11b](#11b-auto-updates) is exactly the shape of thing that must not
+      become permanent for someone. New features stay what a license buys.
+      `check_for_update` already has both the version and `pub_date`, so the
+      comparison needs no new data.
+      *Build note — the incentive is currently invisible.* `update-prompt.tsx:84`
+      returns `null` for an ineligible update in `trialExpired` (deliberately:
+      two cards selling one license would race). Sound, but it means a withheld
+      feature release is **never mentioned** — the user silently falls behind
+      and is never told why, so today's freeze costs staleness and buys no
+      pressure at all. Once patches flow, have `PurchasePrompt` name the
+      version it is holding back ("0.5.0 is out — a license unlocks it")
+      instead of adding a second card.
+- [ ] 🟢 **Evaluation window 14 → 30 days** — *decided 2026-08-05 (owner).*
+      `TRIAL_DAYS` (`license.rs:36`). Review tools are used in bursts: someone
+      who installs, uses Nod for one sprint and then gets pulled elsewhere has
+      barely started evaluating by day 14. 30 days covers at least two review
+      cycles and costs nothing, since the app never locks either way.
+      *Considered and not taken:* counting **active** days rather than calendar
+      days — fairer still, but it needs a launch counter instead of the single
+      first-launch timestamp. Revisit if 30 calendar days proves too short.
+- [ ] 🟢 **Fix the "Sublime-style" comment** — `purchase-prompt.tsx` describes
+      the model as *"Sublime-style — no countdown, no lock"*, but Sublime nags
+      forever and never stops unlicensed users updating. The comment names a
+      model the code does not implement; reword it to describe the actual
+      deal (unlimited use, patches always, features on a license).
+
 ### 11d. Linux install & update path (2026-07-25)
 
 **Trigger:** updating a v0.3.x install to v0.4.0 on Arch took ~15 minutes of
