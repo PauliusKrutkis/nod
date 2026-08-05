@@ -21,16 +21,18 @@
     { "binding": "LICENSES", "id": "6e569935e5a0412e86e87e55cda058b9" }
   ],
   // Public buy-flow config. GH_WEB_CLIENT_ID is the web OAuth app's client
-  // id (public by nature; the secret half is a Pages secret). Two values
-  // join it as the runbook advances: POLAR_PRODUCT_ID once the sandbox
-  // product id is copied from the Polar dashboard, and POLAR_API_BASE
-  // ("https://api.polar.sh") at production flip-on — absent, the code
-  // defaults to the sandbox API so a bare deploy can never charge. `vars`
-  // is non-inheritable like kv_namespaces: preview deliberately gets none
-  // of these, so /buy answers 503 there instead of starting an OAuth flow
-  // whose callback URL could never match the registered app.
+  // id (public by nature; the secret half is a Pages secret), and
+  // POLAR_PRODUCT_ID is the *sandbox* Nod license product. Production
+  // flip-on (docs/LAUNCH.md step 7) swaps the product id for the
+  // production org's and adds POLAR_API_BASE ("https://api.polar.sh") —
+  // absent, the code defaults to the sandbox API so a bare deploy can
+  // never charge. `vars` is non-inheritable like kv_namespaces: preview
+  // deliberately gets none of these, so /buy answers 503 there instead of
+  // starting an OAuth flow whose callback URL could never match the
+  // registered app.
   "vars": {
-    "GH_WEB_CLIENT_ID": "Ov23lie6iqyqKu2DdlG9"
+    "GH_WEB_CLIENT_ID": "Ov23lie6iqyqKu2DdlG9",
+    "POLAR_PRODUCT_ID": "3ed56e3a-edbd-4723-a89d-52bdadcba7ac"
   },
   "env": {
     "preview": {
