@@ -2402,3 +2402,113 @@ each carries an unresolved design question of its own, noted below.
       filter. More control, but it migrates a working pipeline to buy a
       setting we can flip.
 
+
+## Feature ideas (2026-08-05)
+
+Nine candidates proposed 2026-08-05 and recorded so they can be chosen from
+rather than re-invented. **None is committed** — sizes are first-pass, and each
+carries enough scoping to start without a product call unless marked otherwise.
+Verified absent from the app before writing: the diff is **unified-only**, the
+notifier fires **only** on `reviewRequested`, and there is no noise-file
+handling, no canned comments and no offline write queue.
+
+Recommended first three: **since-my-last-review**, **noise files**, and
+**author-responded notifications** — the differentiator, the cheapest real win,
+and the leak. **Offline review** is the strongest long-term moat if a bet is
+wanted instead of a quick win.
+
+- [ ] 🔴 **"What changed since my last review"** — re-review is the worst part
+      of code review: the author pushes and you rescan 40 files to find the 3
+      that moved. Both hosts handle this badly, so being excellent at it is a
+      genuine differentiator rather than a nicer version of what exists.
+      *Ingredients already exist* — per-file viewed state, the fingerprints
+      that drive auto-unview on push, `use-review-head-sha-sync.ts` and the
+      reconcile toast that already names changed files. What is missing is a
+      **mode**: render only the delta between the SHA you last reviewed and
+      head, with the rest collapsed and reachable.
+      *Decide when building:* whether the delta is a filter over the existing
+      row stream (cheap, keeps every hotkey working) or a separate fetch of
+      `compare/{lastReviewedSha}...{head}` (accurate across force-pushes and
+      rebases, but a second diff source). **Recommendation: start as a filter**
+      — it reuses the whole review pipeline, and the compare call can be added
+      later for the force-push case without changing the surface. Note the
+      stale-base work already introduces `/compare`, so the second half is
+      shared, not new.
+- [ ] 🟡 **Noise files collapse by default** — lockfiles, generated code,
+      minified assets, snapshots and vendored trees render as thousands of
+      lines nobody reads, and they dominate exactly the PRs that are already
+      big. Collapse them to a one-line summary ("`pnpm-lock.yaml` · +412 −88 ·
+      generated") expandable in place, and discount them everywhere size is
+      counted. **Best effort-to-payoff ratio on this list** and needs no AI.
+      *Detection, in order of trust:* the repo's own `.gitattributes`
+      `linguist-generated` (authoritative, and free now that §9 layer 1 gives
+      local files), then a filename/glob list (`*-lock.*`, `*.min.*`,
+      `dist/`, `vendor/`, `__snapshots__/`), then a content heuristic (very
+      long lines, no spaces). *Constraint:* never hide, only collapse —
+      a generated file **is** sometimes the bug, so the row must stay present
+      and countable. Pairs with cost-to-review below, which is misleading
+      until this exists.
+- [ ] 🔴 **Offline review** — write comments, mark files viewed and stage a
+      review with no network, then sync on reconnect. **The widest moat on
+      this list: github.com fundamentally cannot do this**, and it is the
+      clearest answer to "why a desktop app at all?" The architecture already
+      leans this way — cache-first reads, a Rust backend that owns all IO, and
+      a local store — so the missing piece is a **durable write queue** rather
+      than an offline mode bolted over the UI.
+      *The hard part is not queuing, it is conflict:* a queued reply to a
+      thread someone resolved, or a comment on a line that a force-push moved.
+      Anchors are already fingerprinted for viewed-state reconcile, so the same
+      machinery can detect a moved anchor. **Decide before building** what a
+      failed replay does — silently drop, or surface a "these 3 comments
+      couldn't be posted" review. *Recommendation: surface them*, always; a
+      review tool that loses your writing is worse than one that cannot work
+      offline.
+- [ ] 🟢 **"Author responded" notifications** — `review-notifier.tsx` fires
+      only on `reviewRequested` (`data.reviewRequested.prs`), so the app
+      announces work arriving but never announces **your** review being
+      addressed: the author pushed after you requested changes, or replied to
+      your thread. That is the higher-signal event and the one most likely to
+      be dropped, because nothing pulls you back. Cheapest item here that
+      changes daily behaviour — the polling, the toast and the seen-set
+      persistence all exist; this adds a second source to the same notifier.
+- [ ] 🟡 **Cost-to-review estimate in the inbox** — a quiet "~4 min" / "~40
+      min" on each row, from changed lines, file count, test-vs-source ratio
+      and generated share. Reviewers procrastinate partly because they cannot
+      tell which PR is cheap, and a queue you can triage is a queue that moves.
+      No AI — this is arithmetic over data the inbox already has.
+      *Build after noise files*, which it depends on to not be a lie: a PR that
+      is 95% lockfile currently looks enormous, and an estimate that says so
+      would be actively misleading. Keep the unit honest (a range, or a
+      three-step small/medium/large) — a false precise minute count invites
+      exactly one complaint, that it was wrong.
+- [ ] 🟢 **Canned comments on a key** — reviewers type the same sentences
+      forever ("nit: naming", "needs a test", "prefer an early return").
+      A short user-editable list, insertable into the composer from a key or
+      the palette. Trivial to build, maximally on-brand for a keyboard-first
+      app, and it compounds with the rich composer already shipped.
+      *Scope note:* store per-user, not per-repo, and keep them plain text —
+      the moment they take variables they become a template language.
+- [ ] 🟢 **Mark a hunk for follow-up** — "I'll come back to this" is a thought
+      reviewers have constantly and no tool captures. A personal flag on a row
+      that survives the session, listed in the info drawer and steppable from
+      the keyboard. Distinct from a pending comment (it is private, and not
+      every follow-up becomes a comment) and from viewed state (which is about
+      coverage, not attention). Reuses the anchor + persistence pattern the
+      viewed map already established.
+- [ ] 🟡 **Review a whole stack as one continuous diff** — the natural payoff
+      of [stacked-PR detection](#stacked-prs-2026-07-30): read the chain
+      top-to-bottom as a single diff, with each comment routed to the PR that
+      owns the line. Nobody does this well, and it is precisely the workflow
+      where the app already has an edge.
+      *Hard dependency on the stack detector*, and it inherits that item's
+      limitation — a link outside your inbox is invisible, so the stack view
+      must degrade to "the part of the chain I can see" rather than claiming
+      completeness. Build after the indicator ships and gets used.
+- [ ] 🟡 **Side-by-side diff** — the app is unified-only. Not a killer
+      feature, and deliberately listed last: it is **table stakes** whose
+      absence is a live objection, especially for renames and refactors where
+      unified genuinely reads worse. Worth knowing it costs a real
+      architectural conversation — the row stream, cursor, find marks,
+      occurrence marks, fat-cursor ranges and comment anchoring are all built
+      around one row per line — so this is much bigger than it looks and
+      should not be picked up as a quick win.

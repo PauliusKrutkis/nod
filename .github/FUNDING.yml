@@ -1,0 +1,11 @@
+# Deliberately a `custom` link to the buy page, not GitHub Sponsors or any
+# donation platform. Nod is a paid product ($59, perpetual, a year of updates)
+# — a donate button would offer a cheaper way to feel like a supporter without
+# becoming a customer, and on a solo-maintained tool it reads as "hobby
+# project, may be abandoned", which is the objection the price is set to
+# answer. This uses the same high-traffic button slot for the real ask.
+#
+# Points at /buy rather than a checkout URL directly: /buy explains
+# identity-as-license before any redirect, and it stays correct while
+# PUBLIC_CHECKOUT_URL is still env-gated.
+custom: ["https://nodreview.com/buy"]
