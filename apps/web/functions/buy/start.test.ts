@@ -5,8 +5,8 @@
  * (authorizeUrl, stateCookie) are covered in lib/github-oauth.test.ts.
  */
 import { describe, expect, it } from "vitest";
-import { onRequestGet } from "./start";
 import type { Env } from "../lib/env";
+import { onRequestGet } from "./start";
 
 const STATE_COOKIE_PATTERN = /nod_oauth_state=([^;]+)/;
 
