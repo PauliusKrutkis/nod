@@ -177,10 +177,47 @@ Owner — now (all free):
 
 Owner — site launch prep (Aug 2026), before the forum posts:
 
-- [ ] **Cloudflare Email Routing** for `hello@nodreview.com` — CF dashboard
+- [x] **Cloudflare Email Routing** for `hello@nodreview.com` — CF dashboard
       → nodreview.com zone → Email → Email Routing, forward to a personal
-      inbox. The address is published by the /about page (PR #186), so set
-      up routing before that PR merges.
+      inbox. Live (MX → `route{1,2,3}.mx.cloudflare.net`); the address is
+      published by the /about page (PR #186). It is inbound-only and it
+      forwards, which leaves the three gaps below.
+- [ ] **Keep forwarded mail out of spam.** Routing preserves the original
+      `From:` and rewrites only the envelope (SRS), so SPF passes without
+      aligning, and CF's own DKIM (`cf2024-1._domainkey`, present) signs as
+      `nodreview.com`, which does not align either. DMARC then rides
+      entirely on the sender's own signature surviving the hop, so any
+      sender that doesn't DKIM-sign arrives DMARC-fail from an IP the
+      receiving side has never seen them use. Fix is inbox-side: a Gmail
+      filter on `to:hello@nodreview.com` → *Never send it to Spam*. Diagnose
+      with Show original before assuming. Note that mailing hello@ from your
+      own personal address is not a valid test — the forward comes back
+      claiming to be from you, off a non-Google IP, which always scores as
+      spoofing.
+- [ ] **Publish DMARC** — `_dmarc.nodreview.com` does not exist today
+      (NXDOMAIN), so the domain is spoofable and outbound mail as `hello@`
+      is trusted less. This does not fix the forwarding problem above; it is
+      table stakes for the domain. Start permissive, read reports, then
+      tighten to `quarantine`:
+
+      ```
+      _dmarc  TXT  "v=DMARC1; p=none; rua=mailto:hello@nodreview.com; fo=1"
+      ```
+
+- [ ] **Reply as `hello@`, not from a personal address.** There is no SMTP
+      behind Email Routing, so hitting reply puts a personal address on mail
+      answering the product's published contact address. Decided: **Resend
+      free tier** (3,000/month, 100/day, one domain, SMTP relay included on
+      every tier) wired into Gmail's *Send mail as*; its AUP restricts
+      content and purpose, not message type, and replying to someone who
+      wrote to you is opted-in by definition. Resend puts the envelope
+      sender on `send.nodreview.com` with its own SPF, so the root SPF
+      record stays as it is and nothing collides with the CF include —
+      alignment comes from the DKIM key it issues at the root. Zoho's free
+      tier was the alternative and lost: no IMAP/POP/SMTP and no forwarding
+      on free, so it cannot connect to Gmail in either direction. If a real
+      mailbox on the domain is ever wanted, Zoho Mail Lite (~$1/user/month)
+      is the destination, not a larger Resend plan.
 - [ ] **`www` DNS + redirect** — `www.nodreview.com` has no DNS record at
       all today. Add a `www` CNAME on the zone (proxied) plus a redirect
       rule to the apex.
