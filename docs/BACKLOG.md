@@ -3,8 +3,14 @@
 > **Planning only.** Captures requested improvements as a prioritized, actionable
 > backlog. Check items off as they ship.
 
-> **Constraint:** Once the release gate is satisfied, **no new backlog items** may
-> be added before five external developers have used the app for one week.
+> **Dogfood status (2026-08-05):** the [release gate](#release-gate) is fully
+> satisfied — it shipped, and the freeze it imposed ("no new items until five
+> external developers have used the app for a week") has served its purpose and
+> is retired. External dogfooding has **not** happened at scale yet: the app is
+> in daily use by its author, and the five-developer round is still gated behind
+> the commercial launch in [§11c](#11c-commercial-launch). Read every "after
+> users tell us" gate below as still binding on *build order* — it is only the
+> ban on *writing things down* that is lifted.
 
 Legend: 🟢 small · 🟡 medium · 🔴 large/involved · ⏸ post-MVP · ❓ open question.
 
@@ -41,7 +47,7 @@ Or resume where you left off. **No Slack link handling required.**
 - [x] **`mod+k` PR search** — primary way to open a PR
 - [x] Comment + submit review
 - [x] **Resume where you left off**
-- [ ] Auto-update (before external users)
+- [x] Auto-update (before external users) — shipped; see [§11b](#11b-auto-updates)
 - [x] Inbox zero-state
 
 **Not in v0.1:** browser extension, link interception, Universal Links, webhooks.
@@ -61,13 +67,13 @@ Or resume where you left off. **No Slack link handling required.**
 | Keyboard navigation | § shortcuts |
 | **`mod+k` search across PRs** | §6 |
 | **New review notification** | § notify |
-| Code-first layout + Info tab | § layout |
+| Code-first layout + Info drawer | § layout |
 | Viewed workflow + verdict v1 | §4 |
 | Orient banner | § delta |
 | PR-level comments in Info + badge | §5 |
 | Inbox zero-state | § inbox |
 | Remove manual refresh | §7 |
-| shadcn Phase 1 | §8 |
+| ~~shadcn Phase 1~~ (closed — §8) | §8 |
 
 ### 🏗 Category 2 — Product infrastructure
 
@@ -281,10 +287,21 @@ One line when relevant: *"2 files changed."* / *"3 new commits."* — skip when 
 
 ## PR view layout — code-first
 
-**Code** (default) ↔ **Info** (description + PR comments) via **`Tab`**.
+**Code** is the app. Description and PR-level comments live one keystroke away.
 
-- [ ] 🟡 Code-first · Info tab · comment badge.
-- [ ] ⏸ Conversation mode (third Tab).
+- [x] 🟡 Code-first · Info surface · comment badge — **done, differently.** The
+      spec here was a second *tab* toggled by `Tab`; what shipped is the
+      **`i` / `shift+i` info drawer** (`right-panel.tsx`), and it is the better
+      answer: a drawer keeps the code on screen while you read the description,
+      where a tab swaps it away — and the diff is the thing you came for. `Tab`
+      went to cycling files instead, which is the higher-frequency move. The
+      comment badge shipped as the CI/comment affordances on the header info
+      button. **No key needs reassigning** — there is no Code↔Info toggle left
+      to bind, which closes the follow-up the `Tab` item in § keyboard used to
+      carry.
+- [ ] ⏸ Conversation mode (third surface) — still deferred, and note it is the
+      decision the merged-feed half of
+      [Info tab: one comment feed](#inbox-2026-07-30) would spend early.
 
 ---
 
@@ -364,9 +381,9 @@ hotkey collapses.
 | **`Esc`** | Clear selection → close find → close panel → inbox |
 | **`mod`+click** on a word | Next occurrence of it (previous, on the last) — marks it first if nothing is marked |
 
-> Shipped keys, verified against `review-screen.tsx`. `Tab` cycles files;
-> the proposed Code ↔ Info toggle therefore needs a different key — see
-> § layout.
+> Shipped keys, verified against `review-screen.tsx`. `Tab` cycles files, and
+> nothing contends for it — the Code ↔ Info toggle that once wanted it was
+> resolved as the `i` drawer (see § layout).
 
 ---
 
@@ -548,9 +565,21 @@ inline by design). These are cleanups, not new scope.
 
 ---
 
-## 8. shadcn/ui — Phase 1
+## 8. shadcn/ui — closed, decided against (2026-08-05)
 
-- [ ] 🟡 `command`, `dialog`, `tooltip` — incremental with MVP modals.
+- [x] 🟡 ~~`command`, `dialog`, `tooltip` — incremental with MVP modals.~~
+      **Won't do (owner).** Every surface this was queued for shipped
+      hand-rolled and shipped well: `q-dialog` + `useModalDialog` over the
+      native `<dialog>`, the `mod+k` command palette, and `ui/tooltip.tsx`
+      (which the tooltip sweep then rolled out app-wide). The app carries
+      **zero** Radix / shadcn / cmdk dependencies, so adopting them now would
+      mean re-theming working components into a second design language rather
+      than saving work — the Quiet tokens in `quiet.css` are the design system
+      here. `apps/design-lab` keeps shadcn-on-Radix as a **mocking** tool only;
+      that is deliberate and does not imply a migration path for the app.
+      Revisit only if a genuinely new primitive (popover, combobox, context
+      menu) turns out to be expensive to hand-roll — and then as a scoped
+      one-component decision, not a phase.
 
 ---
 
@@ -880,9 +909,13 @@ only format the in-app updater touches.
       File sidebar was already fixed; inbox rows (`pr-list-item.tsx`) now blur
       on click too, since `role="option"` divs otherwise keep the browser's
       native focus outline after a mouse click.
-- [ ] 🟢 **P03** — Occurrence navigation blocked while find
-      (`mod+f`) is open — explicit handoff (select token → close find → start
-      occurrences).
+- [x] 🟢 **P03** — Occurrence navigation blocked while find
+      (`mod+f`) is open — **done**; the handoff is explicit and automatic.
+      `useOccurrenceTracking` closes the find bar the moment a new occurrence
+      spec commits (`closeFindRef` at `use-occurrence-tracking.ts:177`), so
+      selecting a token while find is open hands the marks over instead of
+      leaving `n`/`p` fighting two owners. `resolveMarks` still lets find win
+      while it holds the query, which is the correct precedence.
 - [x] 🟢 **Next occurrence scroll** — **done** (`07ba9d9`, 2026-07-15);
       `cursorViewLocation` returns null when the row is already in frame, so a
       step to a visible match leaves the viewport alone. Guarded by
@@ -968,8 +1001,13 @@ only format the in-app updater touches.
       modal: `shift+v` expands the file in place with synthesized head-blob
       context rows. See § "Full-file context expansion"; the modal approach
       was tried and dropped 2026-07-15.
-- [ ] 🟡 **P12** — "What's new" card on first launch after
-      an update (release notes via Rust command).
+- [x] 🟡 **P12** — "What's new" card on first launch after
+      an update — **done**; `whats-new.tsx` renders the card from the release
+      notes on the GitHub release, mounted in `app.tsx` behind the route chrome
+      and linking through to the full release history. The
+      [release skill](../.claude/skills/release/SKILL.md) now curates those
+      notes at tag time so the card shows a real changelog rather than the
+      generic placeholder.
 - [x] 🟢 **Distinct file header** — **done**. Root cause was a collision:
       the file header sat on `--surface-2`, one token away from the hunk
       header's `--surface`, so two near-identical bands competed to mean
@@ -1033,8 +1071,14 @@ only format the in-app updater touches.
 
 - [ ] 🔴 **P13** — Custom title bar for Linux & Windows
       (frameless + Quiet drag region + window controls).
-- [ ] 🟡 **P14** — Responsive / small-window / zoomed
-      layout (900 px min, PR header first).
+- [x] 🟡 **P14** — Responsive / small-window / zoomed
+      layout — **done**; the PR header sheds its branch chips below 1100px
+      (`.qf-branch` in `quiet.css`), the inbox detail pane drops out below
+      900px (`min-[900px]:flex` in `inbox.tsx`) with the toast host reclaiming
+      its margin, and the file sidebar already had its overlay mode for narrow
+      windows. Zoom rides the same breakpoints because they are `px` against a
+      zoom-scaled viewport — 900px at 1.5× behaves like ~600px, noted inline in
+      `quiet.css`.
 
 ### Wave 5 — bigger bets
 
@@ -1145,8 +1189,9 @@ only format the in-app updater touches.
 - [x] 🟡 **`Tab` cycles files** — **done**; `Tab` / `shift+Tab` wrap forward
       and back through changed files (`cycleFile`), and the reply collision is
       gone — reply moved to `r` ("reply to the active thread, else next file").
-      *Still open:* § layout wants `Tab` for Code ↔ Info, so that toggle needs
-      a different key — decide when the Info tab ships.
+      *Follow-up closed:* this used to note that § layout wanted `Tab` for
+      Code ↔ Info. That toggle no longer exists — the Info surface shipped as
+      the `i` drawer, so `Tab` keeps files uncontested.
 - [x] 🟡 **Comment threads as cursor stops** — **done** (PR 1 of 2); arrow keys
       and `j`/`k` now step onto a comment block, which arms it for
       `r`/`x`/`z`/`shift+e` and paints the keyboard iris (`--accent-soft` fill +
@@ -1220,8 +1265,12 @@ only format the in-app updater touches.
 ### Tooling, observability & investigation
 
 - [ ] 🟡 **Sentry** — error reporting for production builds (§11b crash reporting).
-- [ ] 🟡 **PR validity skill** — agent skill to check PR quality: commenting
-      patterns, `useEffect` usage, shadcn usage, split-pr gate compliance.
+- [x] 🟡 **PR validity skill** — **done**; `.claude/skills/pr-validity`
+      reviews a PR or branch diff against this repo's conventions (comment
+      placement per ARCHITECTURE.md, unnecessary effects, hand-rolled UI,
+      naming/placement, perf) and confirms findings before fixing anything.
+      Sits alongside `split-pr` and `react-doctor`; the "shadcn usage" check in
+      the original wording is moot — see §8, that direction was closed.
 - [ ] ⏸ **Whole-repo context index** — investigate local code index for search /
       navigation / future AI features; aligns with §9 repo snapshot layers 2–3
       (ripgrep search now, tree-sitter symbols later — no embeddings/LLM unless
@@ -1361,9 +1410,16 @@ shared `useAutoFocus(ref)` hook, or the native `autoFocus` attribute where no
 
 ## Post-MVP backlog
 
-AI · GitLab · Slack integration · streaks · celebration · Conversation mode ·
-webhooks · icon · Ultracite · vim jumps · persist pending comments · Stage 3
-link interception · Universal Links.
+Slack integration · streaks · celebration · Conversation mode · webhooks ·
+vim jumps · persist pending comments · Stage 3 link interception ·
+Universal Links.
+
+*Four entries left this list rather than being built as post-MVP:* **GitLab**
+shipped (`platform/gitlab.rs` + tests; MRs are a first-class host, and several
+items above are GitLab bug fixes), **Ultracite** shipped and is now the CI lint
+gate (`pnpm exec ultracite check` in `lint.yml`), the **icon** shipped along
+with the GitHub App logo and name, and **AI** was promoted out of post-MVP by
+the 2026-08-03 owner decision below.
 
 > **2026-08-03 (owner):** decision made — build it. Full end-to-end plan,
 > decisions (generic OpenAI-compatible seam, selection-or-PR ask scope,
@@ -1376,8 +1432,11 @@ link interception · Universal Links.
       so the seam should be a provider list from day one rather than a Nexos
       special case. **The user picks the model**, not us — a key alone isn't
       enough, since the same key reaches several models at very different
-      cost/latency. Conflicts with the current "no AI" go-to-market
-      direction — needs a product decision before scoping.
+      cost/latency. *The "conflicts with our no-AI positioning" caveat this
+      item used to carry is resolved:* the owner decided to build (2026-08-03,
+      [AI.md](./AI.md)) and the site reframed from "no AI" to **"not rented,
+      not bundled"** (`a8cc268`) — BYOK is the position, not an exception to
+      it.
       - **Key storage is a backend concern.** Per the layering rule the
         webview never holds credentials, so the AI key belongs beside the
         host tokens in `accounts`/keychain, with calls made from Rust —
@@ -1467,6 +1526,53 @@ link interception · Universal Links.
         explicit and opt-in per repo, which is a stronger promise than "no
         git operations" and should be written down before any code.
 
+### AI surfaces beyond ask — parked, not planned (2026-08-05)
+
+Three ideas recorded so they stop being re-invented, **none of them scoped**.
+All three break the guardrail [AI.md](./AI.md) sets for v1 — *"every request is
+user-initiated"*, AI as **pull, never push** — so each needs that rule revisited
+before it can be planned, not merely designed. Ship ask-about-this-code first
+and let real usage decide whether any of them earns the exception.
+
+- [ ] ❓ **Review-by-prompt → inline comments** — point the AI at the PR with a
+      prompt (or one of the repo's skills, e.g. `pr-validity`) and have it
+      produce findings **as the same inline comment objects you write by hand**,
+      which you then accept, edit or discard into your review.
+      *Why it's the most interesting of the three:* it reuses the surface that
+      already exists — pending comments — instead of inventing an AI panel, so
+      an accepted finding is indistinguishable from your own comment by the
+      time it reaches GitHub.
+      *Why it's parked:* it is **push, not pull** — the whole review arrives
+      unasked — which is the one thing AI.md's guardrails forbid. The honest
+      version keeps the trigger explicit (you run it, per PR, per prompt) and
+      never auto-fires on open; decide that boundary before any code. Also
+      unresolved: whether AI-suggested comments must be visually distinct
+      *after* acceptance (they carry your name and your credibility), and what
+      happens to the ones you ignore.
+- [ ] ❓ **Code diff layers — grouped changes with a summary** — group related
+      hunks across files into labelled layers ("auth wiring", "test fixtures",
+      "formatting") with a one-line summary each, so a 40-file PR can be read
+      as five intentions.
+      *Open, and it is the hard part:* does this **reorder the diff** or only
+      annotate it? Reordering is where the value is and where the risk is —
+      the review list, viewed-map, `e`/`r`/`t` ordering and resume-scroll all
+      key off file order today, so a second ordering is a real architectural
+      commitment, not a view toggle. An annotate-only first cut (badges + a
+      drawer index) tests the idea for a fraction of the cost.
+- [ ] ❓ **Change heat map — rank hunks by importance** — tint or badge hunks
+      by how much they matter, so attention lands on the risky change rather
+      than the 200-line lockfile.
+      *Cheapest to prototype, hardest to trust.* A wrong heat map is worse than
+      none: it actively steers a reviewer past the bug, and the failure is
+      silent. Note a non-AI baseline exists and should be tried first — file
+      churn, hunk size, test-vs-source, generated-file detection and
+      `.gitattributes` `linguist-generated` get most of the way without a model
+      and without sending anything anywhere. Also collides with the diff row
+      tints: add/del washes, find marks, occurrence marks, intraline emphasis
+      and the comment iris already compete for the same pixels (see the
+      three-layer constraint in **Theme selection**), so "just tint it" has no
+      free channel left.
+
 ---
 
 ## Suggested build order
@@ -1483,7 +1589,8 @@ link interception · Universal Links.
 
 ### After five friends use it for a week
 
-8. shadcn Phase 1 · code-first layout · Info tab
+8. ~~shadcn Phase 1~~ (closed, §8) · code-first layout · Info drawer — all
+   resolved; kept for the ordering below
 9. **Repo snapshot layer 1** (§9) — invisible infra, safe to build while
    friends test; layers 2–3 gated on their `shift+v` / search usage
 10. **Listen** — if *"GitHub links"* comes up → Stage 2 extension
@@ -1492,7 +1599,10 @@ link interception · Universal Links.
 ### Explicitly do not build before user feedback
 
 - Link interception · native messaging · Universal Links
-- Webhooks · streaks · celebration · Conversation mode · AI
+- Webhooks · streaks · celebration · Conversation mode
+- ~~AI~~ — superseded: the owner decided to build it on 2026-08-03
+  ([AI.md](./AI.md)). The rule still applies to the three parked AI surfaces
+  above, which stay unbuilt until usage asks for them.
 
 ---
 
@@ -1616,7 +1726,11 @@ link interception · Universal Links.
       the existing `mod+k` command palette (only in PR context). It opens a small
       dialog to quickly scribble a note — skipping the need to comment inline in
       code or open the info drawer and scroll to the comment area.
-- [ ] **Hide empty tabs**.
+- [x] **Hide empty tabs** — **done**; `inbox.tsx` derives `visibleTabs` by
+      dropping buckets with no PRs (archived rows discounted from the count),
+      and the `1`/`2`/`3` digits address those visible slots — see the
+      positional-digits item in [Inbox (2026-07-30)](#inbox-2026-07-30), which
+      shipped as the same change.
 
 ## Inbox (2026-07-18)
 
@@ -1984,6 +2098,60 @@ link interception · Universal Links.
       that closely match code already in the repository (duplicated logic,
       copy-paste, a helper that already exists). Open question on shape and
       whether it earns its keep: needs §9 repo snapshot (layer 1) to have
-      local files to compare against, and it is a *review-assist* feature,
-      which is adjacent to the "no AI" go-to-market direction even if
-      implemented as plain similarity matching rather than a model.
+      local files to compare against. Snapshot layer 1 **has since shipped**
+      (PRs #75/#113), so the prerequisite is met and this is now purely a
+      product question. The old "adjacent to our no-AI positioning" caveat is
+      moot — positioning is now "not rented, not bundled" — and note this would
+      be plain similarity matching, no model, so it costs nothing from the AI
+      budget either way. Pairs naturally with **stale-base diff pollution**:
+      both answer "is this hunk actually new?".
+
+## Inbox (2026-08-05)
+
+- [ ] 🟡 **Sticky file headers overlap awkwardly on scroll** — scrolling from
+      one file into the next leaves two sticky bands fighting for the same
+      strip, which reads as a glitch rather than as structure.
+      **Decided (owner): push-out.** The incoming file header shoves the
+      outgoing one up and off, GitHub/iOS-style, so **exactly one file header
+      is ever visible**. That is the behaviour that matches the hierarchy the
+      distinct-file-header work established — the file band means "a new file
+      starts here", and two of them on screen means that sentence is false.
+      *Scoping note:* the header is `position: sticky` inside a Virtuoso list,
+      so the classic CSS-only trick (a sentinel plus the next header's own
+      offset) is unreliable when the neighbouring section may not be mounted.
+      Measure against the mounted row range rather than assuming the next
+      header exists, and keep it off the scroll hot path — this is cosmetic and
+      must not cost scroll frames the perf budget is holding.
+- [ ] 🟡 **Search should reach closed and merged PRs** — today `mod+k` and `/`
+      only see PRs in the inbox buckets, all of which are open, so a review you
+      already submitted is unreachable the moment it merges. **Decided
+      (owner):** extend the existing search rather than adding a surface — no
+      fifth tab, no separate history screen. A merged PR is still the thing you
+      want to re-read; it should just be findable by the same title / number /
+      author / branch query that already works.
+      *Shape:* GitHub's search already accepts the state qualifier the inbox
+      queries omit, and GitLab's MR list takes `state=merged|closed`, so this
+      is a query change plus a result-source merge, not new plumbing. Keep open
+      PRs ranked above closed ones so the common case doesn't get diluted, and
+      mark closed/merged hits visibly in the row — opening one should not feel
+      like the app lost track of state. Pairs with **branch name in search**
+      (§6), which already landed the extra match field.
+- [ ] 🟢 **Scroll to a just-added Info-tab comment** — posting a PR-level
+      comment from the drawer leaves it below the fold, so the comment you just
+      wrote appears to have vanished. Scroll it into view on arrival, **without
+      animation** (the drawer is a reading surface; the app's motion budget in
+      `quiet.css` is deliberately near-zero). The optimistic insert already
+      gives a DOM node to target, so this is a scroll call at the right moment,
+      not a data problem.
+- [ ] 🟢 **Cloudflare deploys on every PR, including desktop-only ones** — the
+      site rebuilds for changes that cannot affect it. **Decided (owner):** set
+      the Pages project's **build watch paths** to the web app's directory in
+      the Cloudflare dashboard. One setting, no CI migration, and skipped
+      builds still report success so branch protection is unaffected. Note this
+      is a **dashboard change, not a repo change** — it lives with the rest of
+      the Pages config (`GITHUB_TOKEN` build secret et al.), so record it there
+      too or the next person will look for it in `release.yml` and not find it.
+      *Explicitly not doing:* moving the deploy into GitHub Actions with a path
+      filter. More control, but it migrates a working pipeline to buy a
+      setting we can flip.
+
