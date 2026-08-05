@@ -147,7 +147,13 @@ export function AskNote({
               {exchange.error}
             </p>
           )}
-          {exchange.answer === null && exchange.error === null && <Spinner />}
+          {exchange.answer === null &&
+            exchange.error === null &&
+            (exchange.partial ? (
+              <Markdown className="qf-ask-a">{exchange.partial}</Markdown>
+            ) : (
+              <Spinner />
+            ))}
           <AskActions exchange={exchange} onPromote={onPromote} />
         </div>
       ))}

@@ -16,10 +16,18 @@
  * elsewhere starts fresh. An AskTarget names where the note renders (anchor
  * row, plus the selection's start line when the ask covered a range); a null
  * target is a whole-PR ask, rendered above the first file.
+ *
+ * Answers stream in: Rust emits `ai-ask-delta` events keyed by a
+ * per-question askId, and the pending exchange accumulates them as `partial`
+ * — batched per animation frame so token-rate events don't force token-rate
+ * markdown re-parses. The mutation's resolved value replaces the final text;
+ * in a mocked environment with no events, the spinner simply holds until the
+ * promise resolves.
  */
 import { useMutation } from "@tanstack/react-query";
+import { listen } from "@tauri-apps/api/event";
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../lib/api.ts";
 import { askTargetLabel, buildAskContext } from "../lib/ask-context.ts";
 import {
@@ -37,8 +45,10 @@ import type { ChangedFile, PullRequest } from "../types.ts";
 
 export interface AskExchange {
   answer: string | null;
+  askId: string;
   error: string | null;
   id: number;
+  partial: string;
   question: string;
 }
 
@@ -115,6 +125,43 @@ function freezeTarget(
 
 export function useAskNote() {
   const [state, setState] = useState<AskNoteState>(CLOSED);
+
+  useEffect(() => {
+    const pending = new Map<string, string>();
+    let flushFrame = 0;
+    const flushDeltas = () => {
+      flushFrame = 0;
+      const batch = new Map(pending);
+      pending.clear();
+      setState((s) => ({
+        ...s,
+        exchanges: s.exchanges.map((exchange) => {
+          const text = batch.get(exchange.askId);
+          return text && exchange.answer === null && exchange.error === null
+            ? { ...exchange, partial: exchange.partial + text }
+            : exchange;
+        }),
+      }));
+    };
+    const unlisten = listen<{ askId: string; text: string }>(
+      "ai-ask-delta",
+      (event) => {
+        pending.set(
+          event.payload.askId,
+          (pending.get(event.payload.askId) ?? "") + event.payload.text
+        );
+        if (!flushFrame) {
+          flushFrame = requestAnimationFrame(flushDeltas);
+        }
+      }
+    );
+    return () => {
+      if (flushFrame) {
+        cancelAnimationFrame(flushFrame);
+      }
+      unlisten.then((stop) => stop());
+    };
+  }, []);
 
   const settleLast = (patch: Partial<AskExchange>) => {
     setState((s) => {
@@ -193,14 +240,22 @@ export function useAskNote() {
       selection: state.freeze.selection,
     });
     nextExchangeId += 1;
+    const askId = crypto.randomUUID();
     setState((s) => ({
       ...s,
       exchanges: [
         ...s.exchanges,
-        { answer: null, error: null, id: nextExchangeId, question },
+        {
+          answer: null,
+          askId,
+          error: null,
+          id: nextExchangeId,
+          partial: "",
+          question,
+        },
       ],
     }));
-    ask.mutate({ context, question });
+    ask.mutate({ askId, context, question });
   };
 
   return {

@@ -33,7 +33,7 @@ export const api = {
     token: string;
   }) => invoke<AccountInfo>("add_account", args),
 
-  aiAsk: (args: { question: string; context: AiAskContext }) =>
+  aiAsk: (args: { question: string; context: AiAskContext; askId: string }) =>
     invoke<string>("ai_ask", args),
   aiListModels: () => invoke<AiModel[]>("ai_list_models"),
 
