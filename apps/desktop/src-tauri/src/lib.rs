@@ -1,5 +1,6 @@
 mod accounts;
 mod activation;
+mod ai;
 mod auth;
 mod commands;
 mod http;
@@ -90,6 +91,10 @@ pub fn run() {
             accounts::add_account,
             accounts::set_active_account,
             accounts::remove_account,
+            ai::get_ai_config,
+            ai::set_ai_config,
+            ai::clear_ai_config,
+            ai::ai_list_models,
             commands::has_token,
             commands::set_token,
             commands::clear_token,
