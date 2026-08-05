@@ -4,6 +4,11 @@
 // strip instead of pretending to be scenes. Every claim here is literal app
 // behavior: cache-first paint with 60s/focus refresh, session resume,
 // review-request toasts, and a token that never leaves the Rust backend.
+//
+// "nowhere else" is the default the app ships with, and the reason it is
+// phrased as a destination rather than as "no AI": ask-about-code is opt-in
+// and reaches a provider only once the user pastes their own key, so a flat
+// no-AI claim would go stale the release it lands.
 ---
 
 <section class="wide locals" aria-label="Local-first qualities">
@@ -33,8 +38,8 @@
     <div class="locals__item">
       <dt class="locals__term mono">private</dt>
       <dd class="locals__body">
-        No AI, no cloud. Your token stays in the Rust backend and never
-        reaches the webview.
+        Nod talks to your Git host and nowhere else. Your token stays in the
+        Rust backend and never reaches the webview.
       </dd>
     </div>
   </dl>

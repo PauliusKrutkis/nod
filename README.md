@@ -46,8 +46,12 @@ move on.
   on its own.
 - **New review requests find you.** A fresh request pops a toast you can open
   or dismiss from the keyboard. No webhooks to set up.
-- **No AI, no cloud.** Your token stays in the Rust backend and never reaches
-  the webview. Nod talks to GitHub and GitLab, and to nothing else.
+- **Not an AI product, not a subscription.** Nod is a tool you own, not a seat
+  you rent, and nothing is resold to you on top. Your token stays in the Rust
+  backend and never reaches the webview, and out of the box Nod talks to your
+  Git host and nowhere else. Ask-about-code exists, but it is opt-in and runs
+  on a provider key you bring yourself: your code goes straight to that
+  provider, never through me.
 
 ## Install & auto-updates
 

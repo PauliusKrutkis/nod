@@ -105,6 +105,12 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
           up, the app keeps working as it is; you only stop getting new
           versions.
         </p>
+        <p class="pricing__copy">
+          No subscription, and nothing resold on top: Nod is a tool you own,
+          not a seat you rent. AI is not part of it either. If you want the
+          optional ask-about-code feature, you bring a provider key of your
+          own and it talks to that provider directly.
+        </p>
         {
           checkoutUrl ? (
             <a class="btn btn--primary" href={checkoutUrl}>
