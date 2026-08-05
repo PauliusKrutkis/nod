@@ -18,42 +18,47 @@ import {
   readStateCookie,
 } from "../../lib/github-oauth";
 import { createCheckout } from "../../lib/polar";
+import { withErrorReporting } from "../../lib/report";
 
-export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const { env } = context;
-  if (!(env.GH_WEB_CLIENT_ID && env.GH_WEB_CLIENT_SECRET)) {
-    return new Response("purchasing is not open yet", { status: 503 });
-  }
+export const onRequestGet: PagesFunction<Env> = withErrorReporting(
+  async (context) => {
+    const { env } = context;
+    if (!(env.GH_WEB_CLIENT_ID && env.GH_WEB_CLIENT_SECRET)) {
+      return new Response("purchasing is not open yet", { status: 503 });
+    }
 
-  const url = new URL(context.request.url);
-  const code = url.searchParams.get("code");
-  const state = url.searchParams.get("state");
-  const expectedState = readStateCookie(context.request.headers.get("cookie"));
-  if (!(code && state) || expectedState !== state) {
-    return new Response(
-      "sign-in state mismatch or expired; start again at /buy",
-      { status: 400 }
+    const url = new URL(context.request.url);
+    const code = url.searchParams.get("code");
+    const state = url.searchParams.get("state");
+    const expectedState = readStateCookie(
+      context.request.headers.get("cookie")
     );
+    if (!(code && state) || expectedState !== state) {
+      return new Response(
+        "sign-in state mismatch or expired; start again at /buy",
+        { status: 400 }
+      );
+    }
+
+    const userId = await fetchGitHubUserId(
+      env.GH_WEB_CLIENT_ID,
+      env.GH_WEB_CLIENT_SECRET,
+      code,
+      `${url.origin}/auth/github/callback`
+    );
+    const checkoutUrl = await createCheckout(
+      env,
+      `github:github.com:${userId}`,
+      url.origin
+    );
+
+    return new Response(null, {
+      status: 302,
+      headers: {
+        location: checkoutUrl,
+        "set-cookie": clearedStateCookie(),
+        "cache-control": "no-store",
+      },
+    });
   }
-
-  const userId = await fetchGitHubUserId(
-    env.GH_WEB_CLIENT_ID,
-    env.GH_WEB_CLIENT_SECRET,
-    code,
-    `${url.origin}/auth/github/callback`
-  );
-  const checkoutUrl = await createCheckout(
-    env,
-    `github:github.com:${userId}`,
-    url.origin
-  );
-
-  return new Response(null, {
-    status: 302,
-    headers: {
-      location: checkoutUrl,
-      "set-cookie": clearedStateCookie(),
-      "cache-control": "no-store",
-    },
-  });
-};
+);

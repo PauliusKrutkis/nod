@@ -15,22 +15,29 @@
 import type { Env } from "./lib/env";
 import { authorizeUrl, stateCookie } from "./lib/github-oauth";
 import { isCheckoutConfigured } from "./lib/polar";
+import { withErrorReporting } from "./lib/report";
 
-export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const { env } = context;
-  const clientId = env.GH_WEB_CLIENT_ID;
-  if (!(clientId && env.GH_WEB_CLIENT_SECRET && isCheckoutConfigured(env))) {
-    return new Response("purchasing is not open yet", { status: 503 });
+export const onRequestGet: PagesFunction<Env> = withErrorReporting(
+  async (context) => {
+    const { env } = context;
+    const clientId = env.GH_WEB_CLIENT_ID;
+    if (!(clientId && env.GH_WEB_CLIENT_SECRET && isCheckoutConfigured(env))) {
+      return new Response("purchasing is not open yet", { status: 503 });
+    }
+
+    const origin = new URL(context.request.url).origin;
+    const state = crypto.randomUUID();
+    return new Response(null, {
+      status: 302,
+      headers: {
+        location: authorizeUrl(
+          clientId,
+          `${origin}/auth/github/callback`,
+          state
+        ),
+        "set-cookie": stateCookie(state),
+        "cache-control": "no-store",
+      },
+    });
   }
-
-  const origin = new URL(context.request.url).origin;
-  const state = crypto.randomUUID();
-  return new Response(null, {
-    status: 302,
-    headers: {
-      location: authorizeUrl(clientId, `${origin}/auth/github/callback`, state),
-      "set-cookie": stateCookie(state),
-      "cache-control": "no-store",
-    },
-  });
-};
+);
