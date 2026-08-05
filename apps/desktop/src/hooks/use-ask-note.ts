@@ -303,23 +303,32 @@ export function nudgeAskIntoView(args: {
 }
 
 /**
- * Per-render glue between the hook, the keyboard layer, and the list props —
- * a plain function so the review screen's own complexity budget stays spent
- * on review concerns. `askAi` flushes any rAF-queued cursor move first: `a`
- * right after `j` must see the cursor the user just placed.
+ * Glue between the hook, the keyboard layer, and the list props, so the
+ * review screen's own complexity budget stays spent on review concerns.
+ * `askAi` flushes any rAF-queued cursor move first: `a` right after `j` must
+ * see the cursor the user just placed. Also owns the promoted draft — the
+ * answer handed to the composer — and clears it by wrapping `onCloseBox`:
+ * a draft belongs to exactly one composer opening, and must not haunt the
+ * next one after the box posts or cancels.
  */
-export function wireAskNote(args: {
+export function useAskNoteWiring(args: {
   askNote: ReturnType<typeof useAskNote>;
   cursorMoverRefs: Parameters<typeof buildCursorMover>[0];
   cursorRef: React.RefObject<CursorPos | null>;
   filesRef: React.RefObject<readonly ChangedFile[]>;
+  listCallbacks: {
+    onCloseBox: (fileIndex: number, anchor: string) => void;
+    onOpenBox: (fileIndex: number, anchor: string, startLine?: number) => void;
+  };
   liveSelectionRef: React.RefObject<ReturnType<typeof resolveLiveSelection>>;
   modelRef: React.RefObject<ReviewListModel>;
-  onOpenBox: (fileIndex: number, anchor: string, startLine?: number) => void;
   pr: PullRequest | null;
-  setAskDraft: (draft: { key: string; text: string } | null) => void;
 }) {
   const { askNote } = args;
+  const [askDraft, setAskDraft] = useState<{
+    key: string;
+    text: string;
+  } | null>(null);
 
   const askAi = () => {
     const moved = buildCursorMover(args.cursorMoverRefs).flushNow();
@@ -349,16 +358,21 @@ export function wireAskNote(args: {
     if (!target) {
       return;
     }
-    args.setAskDraft({
+    setAskDraft({
       key: fileAnchorKey(target.fileIndex, target.anchor),
       text,
     });
     askNote.closeAsk();
-    args.onOpenBox(
+    args.listCallbacks.onOpenBox(
       target.fileIndex,
       target.anchor,
       target.startLine ?? undefined
     );
+  };
+
+  const onCloseBox = (fileIndex: number, anchor: string) => {
+    setAskDraft(null);
+    args.listCallbacks.onCloseBox(fileIndex, anchor);
   };
 
   const askNoteProps = askNote.open
@@ -374,5 +388,5 @@ export function wireAskNote(args: {
       }
     : null;
 
-  return { askAi, askNoteProps };
+  return { askAi, askDraft, askNoteProps, onCloseBox };
 }
