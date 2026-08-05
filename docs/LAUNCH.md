@@ -209,9 +209,11 @@ Code — unblocked once the OAuth app exists:
 - [x] Sandbox/production Polar API base switch: `POLAR_API_BASE` var,
       code defaults to the sandbox API (PR #192). Production flip-on adds
       `"POLAR_API_BASE": "https://api.polar.sh"` to wrangler.jsonc vars.
-- [ ] **Owner:** copy the sandbox product id (Polar dashboard → the Nod
+- [x] **Owner:** copy the sandbox product id (Polar dashboard → the Nod
       license product → its uuid) into `POLAR_PRODUCT_ID` in
-      wrangler.jsonc `vars`. Until it is there, /buy answers 503.
+      wrangler.jsonc `vars`. Done 2026-08-05 on the buy-flow branch
+      (`3ed56e3a-edbd-4723-a89d-52bdadcba7ac`); at production flip-on the
+      value swaps to the production org's product id.
 - [ ] Polar secrets for the `preview` environment, if step 6 is to run
       against a preview URL rather than production — preview currently has
       only `GITHUB_TOKEN`.
