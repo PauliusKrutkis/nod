@@ -7,5 +7,6 @@
 //! fetch/extract service arrives with the command that drives it.
 
 pub(crate) mod extract;
+pub(crate) mod search;
 pub(crate) mod service;
 pub(crate) mod store;
