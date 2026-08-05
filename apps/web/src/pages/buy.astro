@@ -1,0 +1,200 @@
+---
+import SiteFooter from "../components/SiteFooter.astro";
+import SiteNav from "../components/SiteNav.astro";
+import Base from "../layouts/Base.astro";
+import { CONTACT_EMAIL } from "../lib/site";
+
+const PURCHASE_STEPS = [
+  {
+    title: "Sign in with GitHub",
+    detail: "read:user only. Nod never sees your code or repositories.",
+  },
+  {
+    title: "Pay $39 through Polar",
+    detail: "One time, by card. A year of updates included.",
+  },
+  {
+    title: "Open Nod",
+    detail: "The app activates itself. There is no key to paste.",
+  },
+];
+---
+
+<Base
+  title="Buy Nod"
+  description="Your GitHub account is your license. Sign in, pay once through Polar, and Nod activates on any machine you use."
+>
+  <SiteNav cta={{ href: "/downloads", label: "Download" }} />
+
+  <main>
+    <section class="wrap purchase">
+      <p class="eyebrow">Buy Nod · $39</p>
+      <h1 class="purchase__title">Your GitHub account is your license.</h1>
+      <p class="purchase__sub">
+        No license keys. Sign in, pay once, and Nod activates on any machine
+        you use.
+      </p>
+
+      <div class="purchase__row" aria-hidden="true">
+        <span class="purchase__avatar">@</span>
+        <span class="purchase__who">you · github.com</span>
+        <span class="mono purchase__state">
+          <span class="purchase__dot"></span>license · active
+        </span>
+      </div>
+
+      <ol class="purchase__steps">
+        {
+          PURCHASE_STEPS.map((step) => (
+            <li class="purchase__step">
+              <p class="purchase__step-title">{step.title}</p>
+              <p class="purchase__step-detail">{step.detail}</p>
+            </li>
+          ))
+        }
+      </ol>
+
+      <a class="btn btn--primary purchase__cta" href="/buy/start">
+        Continue with GitHub
+      </a>
+
+      <div class="purchase__notes">
+        <p>
+          Payment is handled by Polar, the merchant of record. The free
+          evaluation stays free, no account needed.
+        </p>
+        <p>
+          Buying for GitLab? Email{" "}
+          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> and I'll set
+          your license up by hand until GitLab checkout lands.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <SiteFooter />
+</Base>
+
+<style>
+  .purchase {
+    max-width: 560px;
+    padding-top: clamp(48px, 9vh, 96px);
+    padding-bottom: 96px;
+  }
+
+  .purchase__title {
+    margin-top: 18px;
+    font-size: clamp(1.9rem, 4.4vw, 2.9rem);
+    font-weight: 640;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
+
+  .purchase__sub {
+    margin-top: 14px;
+    max-width: 44ch;
+    color: var(--muted);
+  }
+
+  .purchase__row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 28px;
+    padding: 12px 16px;
+    background: var(--surface);
+    border: 1px solid var(--line-2);
+    border-radius: 10px;
+  }
+
+  .purchase__avatar {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .purchase__who {
+    color: var(--fg);
+    font-size: 0.9375rem;
+  }
+
+  .purchase__state {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-left: auto;
+    font-size: 0.75rem;
+    color: var(--add);
+  }
+
+  .purchase__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--add);
+  }
+
+  .purchase__steps {
+    margin: 36px 0 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: purchase-step;
+    display: grid;
+    gap: 22px;
+  }
+
+  .purchase__step {
+    counter-increment: purchase-step;
+    position: relative;
+    padding-left: 44px;
+  }
+
+  .purchase__step::before {
+    content: counter(purchase-step);
+    position: absolute;
+    left: 0;
+    top: 1px;
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border: 1px solid var(--line-2);
+    border-radius: 7px;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    color: var(--accent);
+  }
+
+  .purchase__step-title {
+    font-weight: 620;
+    letter-spacing: -0.01em;
+  }
+
+  .purchase__step-detail {
+    margin-top: 3px;
+    font-size: 0.9375rem;
+    color: var(--muted);
+  }
+
+  .purchase__cta {
+    margin-top: 36px;
+  }
+
+  .purchase__notes {
+    margin-top: 28px;
+    display: grid;
+    gap: 10px;
+    font-size: 0.875rem;
+    color: var(--muted);
+  }
+
+  .purchase__notes a {
+    color: var(--fg);
+  }
+</style>
