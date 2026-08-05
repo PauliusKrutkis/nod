@@ -45,7 +45,7 @@ function orderPaid(kv: KVNamespace, orderId: string): Promise<Response> {
   const headers = {
     "webhook-id": `msg_${orderId}`,
     "webhook-timestamp": String(Math.floor(timestamp.getTime() / 1000)),
-    "webhook-signature": new Webhook(SECRET).sign(
+    "webhook-signature": new Webhook(btoa(SECRET)).sign(
       `msg_${orderId}`,
       timestamp,
       payload
