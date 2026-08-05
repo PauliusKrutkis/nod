@@ -166,7 +166,6 @@ test("asking: pending spinner, then the rendered answer", async ({ page }) => {
   await expect(panel.getByText("deprecation note")).toBeVisible();
   await shot(page, "08-ask-answer");
 
-  // Promote: the answer becomes an editable draft in the normal composer.
   await panel.getByRole("button", { name: "Start comment from this" }).click();
   const editor = page.getByRole("textbox", { name: "Add a review comment…" });
   await expect(editor).toBeVisible();
