@@ -42,6 +42,7 @@ import { Avatar } from "../ui/avatar.tsx";
 import { Kbd } from "../ui/kbd.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
 import { AddCommentBox } from "./add-comment-box.tsx";
+import { AskNote, type AskNoteProps } from "./ask-note.tsx";
 import { CodeCell } from "./code-cell.tsx";
 import {
   CommentThread,
@@ -128,6 +129,11 @@ export interface ReviewListCallbacks {
 interface ReviewListProps {
   activeIndex: number;
   addPending: boolean;
+  /** The open inline AI note; prScope renders it above the first file. */
+  askNote: (AskNoteProps & { prScope: boolean }) | null;
+  /** Prefill for the composer opened from an ask answer, keyed by
+   *  fileAnchorKey — consumed by the box at that anchor. */
+  askDraft: { key: string; text: string } | null;
   replyPending: boolean;
   baseSha: string;
   callbacks: ReviewListCallbacks;
@@ -265,6 +271,8 @@ function computeReviewItemKey(
       return `h:${item.fileIndex}:${item.hunkIndex}`;
     case "comments":
       return `c:${item.fileIndex}:${item.anchor}`;
+    case "ask":
+      return `a:${item.fileIndex}:${item.anchor}`;
     default:
       return `f:${item.fileIndex}:${item.kind}`;
   }
@@ -536,12 +544,14 @@ function CommentAddBox({
   target,
   addPending,
   callbacks,
+  askDraft,
 }: {
   item: ReviewCommentsItem;
   filename: string;
   target: NonNullable<ReviewCommentsItem["target"]>;
   addPending: boolean;
   callbacks: ReviewListCallbacks;
+  askDraft: ReviewListProps["askDraft"];
 }) {
   const handleCancel = () => {
     callbacks.onCloseBox(item.fileIndex, item.anchor);
@@ -569,9 +579,15 @@ function CommentAddBox({
     callbacks.onCloseBox(item.fileIndex, item.anchor);
   };
 
+  const draftText =
+    askDraft?.key === fileAnchorKey(item.fileIndex, item.anchor)
+      ? askDraft.text
+      : undefined;
+
   return (
     <AddCommentBox
       autoFocus
+      initialMarkdown={draftText}
       onCancel={handleCancel}
       onSecondary={handleSecondary}
       onSubmit={handleSubmit}
@@ -601,6 +617,7 @@ function CommentsBlock({
   callbacks,
   owner,
   repo,
+  askDraft,
 }: {
   item: ReviewCommentsItem;
   filename: string;
@@ -613,6 +630,7 @@ function CommentsBlock({
   callbacks: ReviewListCallbacks;
   owner: string;
   repo: string;
+  askDraft: ReviewListProps["askDraft"];
 }) {
   const activeAccount = useAppStore((s) =>
     s.accounts.find((a) => a.id === s.activeAccountId)
@@ -660,6 +678,7 @@ function CommentsBlock({
             )}
             <CommentAddBox
               addPending={addPending}
+              askDraft={askDraft}
               callbacks={callbacks}
               filename={filename}
               item={item}
@@ -852,6 +871,7 @@ function renderCommentsItem(
   return (
     <CommentsBlock
       addPending={p.addPending}
+      askDraft={p.askDraft}
       callbacks={p.callbacks}
       cursorHere={
         navKey(item.fileIndex, item.anchor, "comments") === p.cursorKey
@@ -964,6 +984,14 @@ function renderItem(
       return <HunkRow item={item} onToggleHunk={p.callbacks.onToggleHunk} />;
     case "comments":
       return renderCommentsItem(p, item, file);
+    case "ask":
+      return p.askNote === null || p.askNote.prScope ? (
+        <div style={{ height: 1 }} />
+      ) : (
+        <div className="qf-comment-wrap" data-file-index={item.fileIndex}>
+          <AskNote {...p.askNote} />
+        </div>
+      );
     case "row":
       return renderRowItem(ctx, index, item, file, p);
     default:
@@ -990,6 +1018,21 @@ function virtuosoItemContent(
   ctx: ListContext
 ) {
   return renderItem(ctx, index, ctx.props.model.items[index]);
+}
+
+/** Whole-PR ask slot: scrolls with the content, above the first file — a
+ *  PR-scope question's subject is the PR itself, so its note lives at the
+ *  top, not under any row. */
+function ListHeader({ context }: { context?: ListContext }) {
+  const askNote = context?.props.askNote;
+  if (!askNote?.prScope) {
+    return null;
+  }
+  return (
+    <div className="qf-ask-pr">
+      <AskNote {...askNote} />
+    </div>
+  );
 }
 
 /**
@@ -1230,7 +1273,7 @@ export function ReviewList({
         {...(virtuosoInitialIndex === undefined
           ? {}
           : { initialTopMostItemIndex: virtuosoInitialIndex })}
-        components={{ Scroller }}
+        components={{ Header: ListHeader, Scroller }}
       />
     </div>
   );

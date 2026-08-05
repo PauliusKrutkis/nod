@@ -27,6 +27,7 @@ const PR = {
 
 function model() {
   return buildReviewItems({
+    ask: null,
     collapsed: new Map(),
     commentsByFile: new Map(),
     expandedRows: new Map(),
