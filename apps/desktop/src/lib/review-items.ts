@@ -13,6 +13,11 @@
  * "the conversation on line 42". `navKey(f, a, "row")` is deliberately equal to
  * `fileAnchorKey(f, a)`, so anchor-keyed lookups (`anchorItem`, `openBoxes`,
  * flash keys) are untouched and keep resolving rows.
+ *
+ * The "ask" item is the inline AI note's slot, anchored under its row like a
+ * comment block but off the nav (not a cursor stop). At most one exists —
+ * `askItem` points at it — and its content lives outside the model, in
+ * use-ask-note.ts.
  */
 import type { ChangedFile, PendingComment, ReviewComment } from "../types.ts";
 import { type DiffHunk, type DiffRow, parsePatch, rowAnchor } from "./diff.ts";
@@ -298,8 +303,6 @@ export interface ReviewNoteItem {
   kind: "note";
   text: string;
 }
-/** The inline AI note's slot, anchored under its row like a comment block.
- *  At most one exists; its content lives outside the model (use-ask-note). */
 interface ReviewAskItem {
   anchor: string;
   fileIndex: number;
