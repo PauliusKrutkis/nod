@@ -46,6 +46,36 @@ const ACTIVATION_WINDOW_SECONDS = 48 * 60 * 60;
 const RETRY_INTERVAL_SECONDS = 5;
 const MAX_RETRIES = 24;
 
+/**
+ * The site's tokens, inlined. These pages are Worker-rendered strings, so
+ * they cannot import src/styles/global.css (its filename is content-hashed
+ * at build time) — but they are the last screens of a purchase, and a buyer
+ * arriving from checkout should not feel handed to a different product.
+ * Values copy :root in global.css; the font stack degrades to system-ui
+ * because no @font-face travels with this page.
+ */
+const PAGE_STYLE = `
+  :root { color-scheme: dark; }
+  body { margin: 0; display: grid; place-items: center; min-height: 100vh;
+    background: #0f0f17; color: #e8e8f3;
+    font-family: "Inter Variable", Inter, system-ui, sans-serif;
+    font-size: 16px; line-height: 1.6; letter-spacing: -0.006em;
+    -webkit-font-smoothing: antialiased;
+    background-image: radial-gradient(1100px 560px at 50% -8%,
+      rgba(139, 128, 255, 0.08), transparent 62%); }
+  main { max-width: 26rem; padding: 2rem; text-align: center; }
+  h1 { font-size: 1.35rem; font-weight: 640; letter-spacing: -0.02em;
+    margin: 0 0 0.5rem; }
+  p { margin: 0.5rem 0 1.5rem; color: #9a9ab2; }
+  a.open { display: inline-block; padding: 11px 18px; border-radius: 10px;
+    background: #8b80ff; color: #14111f; text-decoration: none;
+    font-weight: 500; font-size: 0.90625rem; }
+  a.open:focus-visible { outline: 2px solid #8b80ff; outline-offset: 3px; }
+  p.alt { margin-top: 1.5rem; margin-bottom: 0; font-size: 0.8125rem;
+    color: #5f5f78; }
+  p.alt a { color: #9a9ab2; text-underline-offset: 3px; }
+`;
+
 function preparingPage(checkoutId: string, retry: number): string {
   const nextUrl = `/activate?checkout_id=${encodeURIComponent(checkoutId)}&retry=${retry + 1}`;
   return `<!doctype html>
@@ -56,14 +86,7 @@ function preparingPage(checkoutId: string, retry: number): string {
 <meta name="robots" content="noindex">
 <meta http-equiv="refresh" content="${RETRY_INTERVAL_SECONDS}; url=${nextUrl}">
 <title>Nod · preparing your activation</title>
-<style>
-  body { margin: 0; display: grid; place-items: center; min-height: 100vh;
-    background: #101014; color: #e6e6eb;
-    font: 16px/1.6 ui-sans-serif, system-ui, sans-serif; }
-  main { max-width: 26rem; padding: 2rem; text-align: center; }
-  h1 { font-size: 1.35rem; margin: 0 0 0.5rem; }
-  p { margin: 0.5rem 0; color: #9a9aa5; }
-</style>
+<style>${PAGE_STYLE}</style>
 </head>
 <body>
 <main>
@@ -85,19 +108,7 @@ function activationPage(token: string): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Nod · payment received</title>
-<style>
-  body { margin: 0; display: grid; place-items: center; min-height: 100vh;
-    background: #101014; color: #e6e6eb;
-    font: 16px/1.6 ui-sans-serif, system-ui, sans-serif; }
-  main { max-width: 26rem; padding: 2rem; text-align: center; }
-  h1 { font-size: 1.35rem; margin: 0 0 0.5rem; }
-  p { margin: 0.5rem 0 1.5rem; color: #9a9aa5; }
-  a.open { display: inline-block; padding: 0.65rem 1.6rem; border-radius: 8px;
-    background: #e6e6eb; color: #101014; text-decoration: none;
-    font-weight: 600; }
-  p.alt { margin-top: 1.5rem; font-size: 0.85rem; }
-  p.alt a { color: #9a9aa5; }
-</style>
+<style>${PAGE_STYLE}</style>
 </head>
 <body>
 <main>
@@ -105,7 +116,7 @@ function activationPage(token: string): string {
   <p>Thanks for buying Nod. Press the button to finish activation.</p>
   <a class="open" href="${deepLink}">Open Nod</a>
   <p class="alt">Don't have it installed yet? <a href="/downloads">Download
-  Nod</a>, then press Open Nod — this link works for 48 hours.</p>
+  Nod</a>, then press Open Nod. This link works for 48 hours.</p>
 </main>
 <script>
   fetch(${JSON.stringify(listenerUrl)}, { mode: "no-cors" }).catch(() => {});
