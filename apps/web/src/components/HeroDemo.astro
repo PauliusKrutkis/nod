@@ -233,10 +233,13 @@
   .hd__start {
     position: absolute;
     left: 50%;
-    /* A third of the way down, not centered: the frame's lower half sits
-       below the fold on 900px-tall laptops, and the start affordance must
-       never scroll to be seen. */
-    top: 33%;
+    /* Centered, which it could not be while the hero also carried a download
+       button: that pushed the frame down far enough that the middle of it
+       fell below the fold, so the start affordance sat at a third instead.
+       With the ask moved to its own band the frame rises, and a centered
+       button clears the fold with room to spare at 900px tall and still
+       clears it at 720px. */
+    top: 50%;
     transform: translate(-50%, -50%);
     display: inline-flex;
     align-items: center;
