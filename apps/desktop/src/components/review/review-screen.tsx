@@ -8,7 +8,12 @@
  */
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useAskPanel } from "../../hooks/use-ask-panel.ts";
+import {
+  askModelInput,
+  nudgeAskIntoView,
+  useAskNote,
+  wireAskNote,
+} from "../../hooks/use-ask-note.ts";
 import { useCommentMutations } from "../../hooks/use-comments.ts";
 import {
   useExpansionScrollRestore,
@@ -38,7 +43,6 @@ import {
 import { useReviewThreadActions } from "../../hooks/use-review-thread-actions.ts";
 import { useReviewUnmountCleanup } from "../../hooks/use-review-unmount-cleanup.ts";
 import { useViewedFileReconcile } from "../../hooks/use-viewed-file-reconcile.ts";
-import { askTargetLabel, buildAskContext } from "../../lib/ask-context.ts";
 import { cn } from "../../lib/cn.ts";
 import {
   type CapturedSelection,
@@ -85,7 +89,6 @@ import type {
   ReviewComment,
 } from "../../types.ts";
 import { parsePrKey } from "../../types.ts";
-import { AskPanel } from "./ask-panel.tsx";
 import { FileSidebar } from "./file-sidebar.tsx";
 import { PrSearch } from "./pr-search.tsx";
 import { ReviewDiffPane } from "./review-diff-pane.tsx";
@@ -277,10 +280,12 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     sidebarOverlayOpenRef,
   } = useReviewPanels();
   const rightPanelRef = useRef<RightPanelHandle>(null);
-  const { askAi, panelMode, setInfoOpenFromKey } = useAskPanel({
-    rightOpenRef,
-    setRightOpen,
-  });
+  const askNote = useAskNote();
+  const askOpenRef = useLatest(askNote.open);
+  const [askDraft, setAskDraft] = useState<{
+    key: string;
+    text: string;
+  } | null>(null);
   const [submitOpen, setSubmitOpen] = useState(false);
   const [prSearch, setPrSearch] = useState<null | "files" | "text">(null);
   const [reconcileDismissed, setReconcileDismissed] = useState<Set<string>>(
@@ -431,6 +436,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   });
 
   const model: ReviewListModel = buildReviewItems({
+    ask: askModelInput(askNote),
     collapsed,
     commentsByFile,
     expandedRows,
@@ -456,6 +462,19 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     }
     listRef.current?.nudgeItemIntoView(model.nav[navIdx].itemIndex);
   }, [openBoxes]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: model is rebuilt fresh every render; focusSeq is the gate — each `a` press brings the note into frame exactly once
+  useLayoutEffect(() => {
+    nudgeAskIntoView({ askNote, list: listRef.current, model });
+  }, [askNote.focusSeq]);
+
+  // A promoted draft belongs to exactly one composer opening; when that box
+  // goes away (posted or cancelled), the prefill must not haunt the next one.
+  useEffect(() => {
+    if (askDraft && !openBoxes.has(askDraft.key)) {
+      setAskDraft(null);
+    }
+  }, [askDraft, openBoxes]);
 
   /**
    * The expand/collapse swap shifts rows under a stationary pointer, and the
@@ -871,8 +890,22 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     openPrFilesInBrowser(pr);
   };
 
+  const { askAi: onAskAi, askNoteProps } = wireAskNote({
+    askNote,
+    cursorMoverRefs,
+    cursorRef,
+    filesRef,
+    liveSelectionRef,
+    modelRef,
+    onOpenBox: listCallbacks.onOpenBox,
+    pr: pr ?? null,
+    setAskDraft,
+  });
+
   useReviewHotkeys({
-    askAi,
+    askAi: onAskAi,
+    askOpenRef,
+    closeAsk: askNote.closeAsk,
     closeFind,
     commentAtCursor,
     commentOnPr: onCommentOnPr,
@@ -902,7 +935,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     rightOpenRef,
     selectionRef,
     setPrSearch,
-    setRightOpen: setInfoOpenFromKey,
+    setRightOpen,
     setSelection,
     sidebarOverlayOpenRef,
     toggleActiveThread,
@@ -928,15 +961,6 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
 
   const isOwnPr = !!activeLogin && pr.author === activeLogin;
   const reviews = detail.reviews ?? [];
-  const openPanel = rightOpen ? panelMode : null;
-  const buildAskPanelContext = () =>
-    buildAskContext({
-      cursor: liveCursor,
-      files,
-      model,
-      pr,
-      selection: liveSelection,
-    });
   return (
     <div className="dir-quiet relative flex h-full min-h-0 overflow-hidden">
       <aside className={sidebarColumnClass(sidebarCompact, sidebarOpen)}>
@@ -978,6 +1002,8 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
 
         <ReviewDiffPane
           addPending={addReviewComment.isPending}
+          askDraft={askDraft}
+          askNote={askNoteProps}
           changedSinceViewed={changedSinceViewed}
           changeFindQuery={changeFindQuery}
           clampedIndex={clampedIndex}
@@ -1032,23 +1058,10 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
         onJumpToThread={jumpToThread}
         onOpenPr={onOpenPrUrl}
         onToggleWide={onToggleDrawerWide}
-        open={openPanel === "info"}
+        open={rightOpen}
         pr={pr}
         ref={rightPanelRef}
         reviews={reviews}
-        wide={drawerWide}
-      />
-
-      <AskPanel
-        buildContext={buildAskPanelContext}
-        onClose={onCloseRightPanel}
-        open={openPanel === "ask"}
-        targetLabel={askTargetLabel({
-          cursor: liveCursor,
-          files,
-          model,
-          selection: liveSelection,
-        })}
         wide={drawerWide}
       />
 

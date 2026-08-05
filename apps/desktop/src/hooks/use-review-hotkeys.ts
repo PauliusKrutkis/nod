@@ -43,6 +43,8 @@ import { buildOccNav } from "../lib/review-occurrences.ts";
 
 export function useReviewHotkeys(config: {
   askAi: () => void;
+  askOpenRef: React.RefObject<boolean>;
+  closeAsk: () => void;
   closeFind: () => void;
   commentAtCursor: () => void;
   commentOnPr: () => void;
@@ -380,6 +382,8 @@ export function useReviewHotkeys(config: {
           config.closeFind();
         } else if (config.sidebarOverlayOpenRef.current) {
           config.closeSidebar();
+        } else if (config.askOpenRef.current) {
+          config.closeAsk();
         } else if (config.rightOpenRef.current) {
           config.setRightOpen(false);
         } else {

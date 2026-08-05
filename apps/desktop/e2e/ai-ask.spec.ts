@@ -18,30 +18,33 @@ async function openReview(page: Page) {
   await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
 }
 
-function askPanel(page: Page) {
-  return page.getByRole("complementary", { name: "Ask about code" });
+/** The inline note lives inside the diff scroller — never a drawer. */
+function askNote(page: Page) {
+  return page
+    .getByTestId("review-scroller")
+    .getByRole("complementary", { name: "Ask about code" });
 }
 
-test("a opens the ask panel when configured; question round-trips", async ({
+test("a with no cursor opens the whole-PR note; question round-trips", async ({
   page,
 }) => {
   await setupApp(page, CONFIGURED);
   await openReview(page);
 
   await page.keyboard.press("a");
-  const panel = askPanel(page);
-  await expect(panel).toBeVisible();
+  const note = askNote(page);
+  await expect(note).toBeVisible();
   await expect(
-    panel.getByText("Whole pull request", { exact: true })
+    note.getByText("Whole pull request", { exact: true })
   ).toBeVisible();
 
-  const input = panel.getByLabel("Question");
+  const input = note.getByLabel("Question");
   await expect(input).toBeFocused();
   await input.fill("What does this PR do?");
   await page.keyboard.press("Enter");
 
-  await expect(panel.getByText("What does this PR do?")).toBeVisible();
-  await expect(panel.getByText("renames the retry knob")).toBeVisible();
+  await expect(note.getByText("What does this PR do?")).toBeVisible();
+  await expect(note.getByText("renames the retry knob")).toBeVisible();
 
   const sent = await page.evaluate(() =>
     JSON.parse(localStorage.getItem("e2e:aiAsk") ?? "null")
@@ -53,18 +56,20 @@ test("a opens the ask panel when configured; question round-trips", async ({
   expect(sent.context.owner).toBeTruthy();
 });
 
-test("cursor line rides along as context", async ({ page }) => {
+test("cursor line: the note anchors under the row and code rides along", async ({
+  page,
+}) => {
   await setupApp(page, CONFIGURED);
   await openReview(page);
 
   await page.keyboard.press("j");
   await page.keyboard.press("a");
-  const panel = askPanel(page);
-  await expect(panel.getByText(FUZZY_LINE_CHIP)).toBeVisible();
+  const note = askNote(page);
+  await expect(note.getByText(FUZZY_LINE_CHIP)).toBeVisible();
 
-  await panel.getByLabel("Question").fill("Why this change?");
+  await note.getByLabel("Question").fill("Why this change?");
   await page.keyboard.press("Enter");
-  await expect(panel.getByText("renames the retry knob")).toBeVisible();
+  await expect(note.getByText("renames the retry knob")).toBeVisible();
 
   const sent = await page.evaluate(() =>
     JSON.parse(localStorage.getItem("e2e:aiAsk") ?? "null")
@@ -81,31 +86,58 @@ test("provider errors surface inline and asking again works", async ({
   await openReview(page);
 
   await page.keyboard.press("a");
-  const panel = askPanel(page);
-  await panel.getByLabel("Question").fill("Will this fail?");
+  const note = askNote(page);
+  await note.getByLabel("Question").fill("Will this fail?");
   await page.keyboard.press("Enter");
 
-  await expect(panel.getByRole("alert")).toContainText("out of credits");
+  await expect(note.getByRole("alert")).toContainText("out of credits");
 });
 
-test("escape closes ask; i reopens info; a returns to ask", async ({
+test("escape closes the note; a at the same spot resumes the conversation", async ({
   page,
 }) => {
   await setupApp(page, CONFIGURED);
   await openReview(page);
 
+  await page.keyboard.press("j");
   await page.keyboard.press("a");
-  await expect(askPanel(page)).toBeVisible();
+  const note = askNote(page);
+  await note.getByLabel("Question").fill("What does this PR do?");
+  await page.keyboard.press("Enter");
+  await expect(note.getByText("renames the retry knob")).toBeVisible();
 
   await page.keyboard.press("Escape");
-  await expect(askPanel(page)).not.toBeVisible();
-
-  await page.keyboard.press("i");
-  await expect(askPanel(page)).not.toBeVisible();
-  await expect(page.getByText("Pull request", { exact: true })).toBeVisible();
+  await expect(note).not.toBeVisible();
 
   await page.keyboard.press("a");
-  await expect(askPanel(page)).toBeVisible();
+  await expect(note).toBeVisible();
+  await expect(note.getByText("renames the retry knob")).toBeVisible();
+});
+
+test("start comment from this prefills the composer at the ask's line", async ({
+  page,
+}) => {
+  await setupApp(page, CONFIGURED);
+  await openReview(page);
+
+  await page.keyboard.press("j");
+  await page.keyboard.press("a");
+  const note = askNote(page);
+  await note.getByLabel("Question").fill("Why this change?");
+  await page.keyboard.press("Enter");
+  await expect(note.getByText("renames the retry knob")).toBeVisible();
+
+  await note.getByRole("button", { name: "Start comment from this" }).click();
+  await expect(note).not.toBeVisible();
+
+  const editor = page.getByRole("textbox", { name: "Add a review comment…" });
+  await expect(editor).toBeVisible();
+  await expect(editor).toContainText("renames the retry knob");
+
+  await page.getByRole("button", { name: "Add to review" }).click();
+  await expect(page.locator(".qf-pending")).toContainText(
+    "renames the retry knob"
+  );
 });
 
 test("a lands in setup when unconfigured, ask after configuring", async ({
@@ -123,5 +155,5 @@ test("a lands in setup when unconfigured, ask after configuring", async ({
   await dialog.getByRole("button", { name: "Done" }).click();
 
   await page.keyboard.press("a");
-  await expect(askPanel(page)).toBeVisible();
+  await expect(askNote(page)).toBeVisible();
 });

@@ -23,6 +23,8 @@ type ListProps = ComponentProps<typeof ReviewList>;
 
 export function ReviewDiffPane({
   addPending,
+  askDraft,
+  askNote,
   changedSinceViewed,
   changeFindQuery,
   clampedIndex,
@@ -63,6 +65,8 @@ export function ReviewDiffPane({
   viewedSet,
 }: {
   addPending: boolean;
+  askDraft: ListProps["askDraft"];
+  askNote: ListProps["askNote"];
   changedSinceViewed: ListProps["changedSinceViewed"];
   changeFindQuery: (q: string) => void;
   clampedIndex: number;
@@ -123,6 +127,8 @@ export function ReviewDiffPane({
         <ReviewList
           activeIndex={clampedIndex}
           addPending={addPending}
+          askDraft={askDraft}
+          askNote={askNote}
           baseSha={pr.baseSha}
           callbacks={listCallbacks}
           changedSinceViewed={changedSinceViewed}
