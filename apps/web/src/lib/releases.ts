@@ -18,7 +18,8 @@
  * TARGETS order is load-bearing beyond display order: groupByPlatform takes
  * the first match per platform as that platform's recommended build, which is
  * what /downloads offers as the one-click download. Apple silicon before
- * Intel, .deb before AppImage and .rpm. The platform names come from
+ * Intel, .msi before setup.exe, .deb before AppImage and .rpm. The platform
+ * names come from
  * ./platform because the page's client script matches against them.
  *
  * Releases are sorted by publishedAt rather than trusting the API's order:
