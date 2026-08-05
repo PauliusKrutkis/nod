@@ -3,11 +3,13 @@
    the site reads as a calm extension of the product (dark, iris accent, mono
    keyboard cues). Palette + type are copied verbatim from the app's tokens.
 
-   The hero's signature element — an inbox that triages itself as a pure-CSS
-   loop — lives in InboxReplay.astro with scoped styles, like the feature
-   components. House rules for every animated shell on this page: the window's
-   height is fixed so no motion ever shifts the page, and the loop freezes on
-   its composed frame under `prefers-reduced-motion`.
+   Two container widths, on purpose: prose lives in .wrap (a readable 940px
+   column) while app surfaces — the hero demo, feature footage, the locals
+   strip, page chrome — live in .wide (up to --wide) because they are
+   evidence, and evidence should be legible. House rule for every app shell
+   on this page: its height is reserved up front so nothing that loads or
+   plays ever shifts the page, and footage freezes on its composed frame
+   under `prefers-reduced-motion`.
    =========================================================================== */
 
 :root {
@@ -32,14 +34,32 @@
   --dr-row: 26px;
 
   --nav-clearance: 76px;
+
+  --wide: 1400px;
 }
 
 * {
   box-sizing: border-box;
 }
 
+/* Type is rem-based and the root steps up on large monitors, so the whole
+   page reads at arm's length on a 27" display without zoom; the layout grid
+   stays in px and does not move. */
 html {
+  font-size: 16px;
   scroll-behavior: smooth;
+}
+
+@media (min-width: 1536px) {
+  html {
+    font-size: 17px;
+  }
+}
+
+@media (min-width: 1920px) {
+  html {
+    font-size: 18px;
+  }
 }
 
 body {
@@ -47,7 +67,7 @@ body {
   background: var(--bg);
   color: var(--fg);
   font-family: var(--font-ui);
-  font-size: 16px;
+  font-size: 1rem;
   line-height: 1.6;
   letter-spacing: -0.006em;
   -webkit-font-smoothing: antialiased;
@@ -76,9 +96,16 @@ a {
   padding-inline: 24px;
 }
 
+.wide {
+  width: 100%;
+  max-width: calc(var(--wide) + 48px);
+  margin-inline: auto;
+  padding-inline: 24px;
+}
+
 .eyebrow {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 500;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -111,7 +138,7 @@ a {
   gap: 8px;
   font-family: var(--font-mono);
   font-weight: 500;
-  font-size: 15px;
+  font-size: 0.9375rem;
   letter-spacing: -0.01em;
   text-decoration: none;
 }
@@ -125,7 +152,7 @@ a {
 }
 
 .nav__link {
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--muted);
   text-decoration: none;
   transition: color 0.15s ease;
@@ -135,8 +162,11 @@ a {
   color: var(--fg);
 }
 
+/* The hero commits to the first viewport: a compressed headline block, then
+   the demo frame fills the rest of the screen with its start affordance
+   centered — visible without scrolling on common laptop heights. */
 .hero {
-  padding-top: clamp(56px, 12vh, 128px);
+  padding-top: clamp(44px, 7vh, 88px);
   padding-bottom: 40px;
   text-align: center;
 }
@@ -151,9 +181,60 @@ a {
   text-wrap: balance;
 }
 
-.hero__title em {
+/* The thesis set as the app would render it: an intraline diff. The del's
+   strike is a pseudo-element so it can sweep on load; both animations are
+   one-shot, start after paint, and vanish under reduced motion. */
+.hero__del {
+  position: relative;
+  color: var(--del);
+  text-decoration: none;
+  opacity: 0.9;
+  white-space: nowrap;
+}
+
+.hero__del::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 55%;
+  height: 0.06em;
+  width: 100%;
+  border-radius: 1px;
+  background: var(--del);
+}
+
+.hero__ins {
+  display: inline-block;
+  text-decoration: none;
   font-style: normal;
-  color: var(--accent);
+  color: var(--add);
+  background: rgba(95, 208, 138, 0.13);
+  border-radius: 0.14em;
+  padding-inline: 0.1em;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero__del::after {
+    animation: hero-strike 0.3s ease-out 0.15s backwards;
+  }
+
+  .hero__ins {
+    animation: hero-ins 0.3s ease-out 0.35s backwards;
+  }
+}
+
+@keyframes hero-strike {
+  from {
+    width: 0;
+  }
+}
+
+@keyframes hero-ins {
+  from {
+    opacity: 0;
+    transform: translateY(0.18em);
+  }
 }
 
 .hero__sub {
@@ -169,7 +250,7 @@ a {
   align-items: center;
   justify-content: center;
   gap: 14px;
-  margin-top: 34px;
+  margin-top: 28px;
 }
 
 .cmd {
@@ -181,7 +262,7 @@ a {
   border: 1px solid var(--line-2);
   border-radius: 10px;
   font-family: var(--font-mono);
-  font-size: 13.5px;
+  font-size: 0.84375rem;
   color: var(--fg);
   text-align: left;
 }
@@ -246,7 +327,7 @@ a {
   height: auto;
   clip-path: none;
   white-space: normal;
-  font-size: 11.5px;
+  font-size: 0.71875rem;
   color: var(--del);
 }
 
@@ -257,7 +338,7 @@ a {
   padding: 11px 18px;
   border-radius: 10px;
   font-weight: 500;
-  font-size: 14.5px;
+  font-size: 0.90625rem;
   text-decoration: none;
   border: 1px solid transparent;
   transition:
@@ -283,7 +364,7 @@ a {
   width: 100%;
   text-align: center;
   margin-top: 4px;
-  font-size: 12.5px;
+  font-size: 0.78125rem;
   color: var(--faint);
 }
 
@@ -292,68 +373,62 @@ a {
   text-underline-offset: 3px;
 }
 
-/* Feature showcases: real app footage in the same app-shell frame the hero's
-   .dr window uses, at full content width so the app's own text stays
-   readable. The frame reserves the capture's exact 1152x720 aspect ratio, so
-   a video that is still loading (or never plays, under reduced motion)
-   occupies identical space and the page cannot shift. */
+/* Feature showcases: real app footage near its captured 1152px width so the
+   app's own text stays readable. On wide screens each feature is a
+   copy-beside-footage row, sides alternating; below 1100px they stack. The
+   frame reserves the capture's exact 1152x720 aspect ratio, so a video that
+   is still loading (or never plays, under reduced motion) occupies identical
+   space and the page cannot shift. */
 .feats {
   margin-top: clamp(64px, 14vw, 112px);
 }
 
+/* The close is a full-width band at display scale — the page ends on a
+   note, not a whisper. Same tokens, only scale changes. */
 .pricing {
   margin-top: clamp(64px, 14vw, 112px);
+  padding-block: clamp(48px, 7vw, 84px);
+  background: var(--surface);
+  border-block: 1px solid var(--line);
   text-align: center;
 }
 
-.pricing .eyebrow {
-  margin: 0 0 clamp(24px, 5vw, 48px);
-}
-
-.pricing__card {
+.pricing__inner {
   display: grid;
-  gap: 14px;
+  gap: 16px;
   justify-items: center;
-  max-width: 420px;
-  margin: 0 auto;
-  padding: 30px 28px;
-  background: var(--surface);
-  border: 1px solid var(--line-2);
-  border-radius: 14px;
 }
 
 .pricing__price {
   margin: 0;
-  font-size: 30px;
-  font-weight: 600;
+  font-size: clamp(2.5rem, 4.6vw, 3.75rem);
+  font-weight: 640;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
   color: var(--fg);
 }
 
 .pricing__term {
   display: block;
-  margin-top: 4px;
-  font-size: 13px;
+  margin-top: 6px;
+  font-size: 0.875rem;
   font-weight: 400;
+  letter-spacing: 0;
   color: var(--muted);
 }
 
 .pricing__copy {
   margin: 0;
   max-width: 36ch;
-  font-size: 14.5px;
+  font-size: 0.90625rem;
   line-height: 1.6;
   color: var(--muted);
 }
 
 .pricing__note {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 0.78125rem;
   color: var(--faint);
-}
-
-.feats__eyebrow {
-  margin: 0 0 clamp(24px, 5vw, 48px);
-  text-align: center;
 }
 
 .feats__rows {
@@ -361,13 +436,88 @@ a {
   gap: clamp(52px, 9vw, 88px);
 }
 
+.show {
+  display: grid;
+  gap: 22px;
+  padding-inline: 24px;
+}
+
 .show__copy {
   max-width: 60ch;
 }
 
+/* Edge-bleed rows: four tracks — gutter, copy, media, gutter — and the
+   figure spans media plus its near gutter, so footage runs to the viewport
+   edge while copy stays in the reading column. The far gutter takes the
+   larger share (1fr vs 0.35fr) to keep the composition weighted toward the
+   bleed. nth-of-type, not nth-child: Astro can emit its component script as
+   a sibling between articles, which would shift child indices. */
+@media (min-width: 1100px) {
+  .show {
+    grid-template-columns:
+      minmax(24px, 1fr)
+      minmax(300px, 380px)
+      minmax(0, 1200px)
+      minmax(0, 0.35fr);
+    align-items: center;
+    column-gap: clamp(36px, 4vw, 64px);
+    padding-inline: 0;
+  }
+
+  /* Both cells pin to row 1: in flipped rows the copy is placed first at
+     column 3, and sparse auto-flow would push the figure into an implicit
+     second row instead of backtracking to columns 1-2. */
+  .show__copy {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .show__fig {
+    grid-column: 3 / -1;
+    grid-row: 1;
+    justify-self: end;
+    width: 100%;
+    max-width: 1440px;
+  }
+
+  .show:nth-of-type(even) {
+    grid-template-columns:
+      minmax(0, 0.35fr)
+      minmax(0, 1200px)
+      minmax(300px, 380px)
+      minmax(24px, 1fr);
+  }
+
+  .show:nth-of-type(even) .show__copy {
+    grid-column: 3;
+  }
+
+  .show:nth-of-type(even) .show__fig {
+    grid-column: 1 / 3;
+    justify-self: start;
+  }
+
+  .show__video {
+    border-radius: 14px 0 0 14px;
+  }
+
+  .show:nth-of-type(even) .show__video {
+    border-radius: 0 14px 14px 0;
+  }
+}
+
+/* Past ~2000px the figure hits its cap before the viewport edge; floating
+   flat corners would look unfinished, so the full radius returns. */
+@media (min-width: 2000px) {
+  .show__video,
+  .show:nth-of-type(even) .show__video {
+    border-radius: 14px;
+  }
+}
+
 .show__title {
   margin: 0;
-  font-size: clamp(20px, 2.6vw, 24px);
+  font-size: clamp(1.25rem, 2.6vw, 1.5rem);
   font-weight: 600;
   letter-spacing: -0.02em;
 }
@@ -375,11 +525,12 @@ a {
 .show__body {
   margin: 10px 0 0;
   color: var(--muted);
-  font-size: 15px;
+  font-size: 0.9375rem;
 }
 
 .show__fig {
-  margin: 22px 0 0;
+  margin: 0;
+  min-width: 0;
 }
 
 .show__video {
@@ -394,23 +545,51 @@ a {
     0 24px 64px -36px rgba(0, 0, 0, 0.9);
 }
 
-.show__caption {
-  padding-top: 12px;
-  text-align: center;
-  font-family: var(--font-mono);
-  font-size: 12px;
+.show__keys {
+  margin: 14px 0 0;
+  font-size: 0.75rem;
   color: var(--faint);
 }
 
-.show__key {
+/* The section marker is the keystroke itself, at keycap scale. */
+.show__cap {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.show__bigkey {
   display: inline-grid;
   place-items: center;
-  min-width: 20px;
-  height: 20px;
-  padding-inline: 5px;
+  min-width: 1.9em;
+  height: 1.9em;
+  padding-inline: 0.5em;
   font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--muted);
+  font-size: 1.25rem;
+  color: var(--fg);
+  background: var(--surface-hi);
+  border: 1px solid var(--line-2);
+  border-radius: 9px;
+  box-shadow:
+    0 3px 0 rgba(0, 0, 0, 0.5),
+    0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+
+.show__chord {
+  display: inline-flex;
+  gap: 3px;
+  vertical-align: bottom;
+}
+
+.keycap {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.7em;
+  height: 1.7em;
+  padding-inline: 0.4em;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--fg);
   background: var(--surface-hi);
   border: 1px solid var(--line-2);
   border-radius: 5px;
@@ -424,7 +603,7 @@ a {
 .locals__head {
   margin: 0 0 clamp(20px, 4vw, 32px);
   text-align: center;
-  font-size: clamp(18px, 2.2vw, 22px);
+  font-size: clamp(1.125rem, 2.2vw, 1.375rem);
   font-weight: 600;
   letter-spacing: -0.02em;
 }
@@ -445,6 +624,13 @@ a {
   }
 }
 
+/* Four qualities, one literal strip. */
+@media (min-width: 1100px) {
+  .locals__grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
 .locals__item {
   padding: 20px 22px;
   background: var(--surface);
@@ -452,7 +638,7 @@ a {
 
 .locals__term {
   margin: 0;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 500;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -461,7 +647,7 @@ a {
 
 .locals__body {
   margin: 8px 0 0;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--muted);
 }
 
@@ -478,7 +664,7 @@ a {
   gap: 12px;
   padding-block: 26px 40px;
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: 0.78125rem;
   color: var(--faint);
 }
 
@@ -508,7 +694,7 @@ a {
 
 .dl__title {
   margin: 12px 0 0;
-  font-size: clamp(30px, 6vw, 44px);
+  font-size: clamp(1.875rem, 6vw, 2.75rem);
   font-weight: 600;
   letter-spacing: -0.03em;
 }
@@ -517,7 +703,7 @@ a {
   margin: 12px auto 0;
   max-width: 46ch;
   color: var(--muted);
-  font-size: 15.5px;
+  font-size: 0.96875rem;
 }
 
 .dl__version {
@@ -541,7 +727,7 @@ a {
 .dl__note {
   margin: 4px auto 0;
   max-width: 52ch;
-  font-size: 12.5px;
+  font-size: 0.78125rem;
   color: var(--faint);
 }
 
@@ -561,7 +747,7 @@ a {
 .dl__brew-head {
   margin: 0 0 14px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -576,14 +762,14 @@ a {
 }
 
 .dl__btn-meta {
-  font-size: 11.5px;
+  font-size: 0.71875rem;
   font-weight: 400;
   opacity: 0.85;
 }
 
 .dl__alt {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 0.78125rem;
   color: var(--faint);
 }
 
@@ -610,7 +796,7 @@ a {
   cursor: pointer;
   list-style: none;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--faint);
   transition: color 0.15s ease;
 }
@@ -621,7 +807,7 @@ a {
 
 .dl__summary::before {
   content: "▶";
-  font-size: 9px;
+  font-size: 0.5625rem;
   line-height: 1;
   transition: transform 0.18s ease;
 }
@@ -650,7 +836,7 @@ a {
 
 .dl__group-head {
   margin: 0 0 8px;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -683,13 +869,13 @@ a {
 }
 
 .dl__detail {
-  font-size: 13px;
+  font-size: 0.8125rem;
   color: var(--fg);
 }
 
 .dl__size {
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--faint);
 }
 
@@ -700,7 +886,7 @@ a {
 
 .vers__head {
   margin: 0 0 16px;
-  font-size: 17px;
+  font-size: 1.0625rem;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -713,7 +899,7 @@ a {
   margin: 0;
   padding-left: 18px;
   color: var(--muted);
-  font-size: 14.5px;
+  font-size: 0.90625rem;
 }
 
 .vers__notes li {
@@ -727,7 +913,7 @@ a {
 .vers__empty {
   margin: 0;
   color: var(--muted);
-  font-size: 14.5px;
+  font-size: 0.90625rem;
 }
 
 .vers__older {
@@ -739,7 +925,7 @@ a {
   margin: 0;
   padding-block: 18px 6px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 500;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -770,7 +956,7 @@ a {
   content: "▶";
   width: 9px;
   color: var(--faint);
-  font-size: 9px;
+  font-size: 0.5625rem;
   line-height: 1;
   transition:
     transform 0.18s ease,
@@ -791,7 +977,7 @@ a {
 }
 
 .vers__tag {
-  font-size: 13px;
+  font-size: 0.8125rem;
   color: var(--fg);
   transition: color 0.15s ease;
 }
@@ -801,7 +987,7 @@ a {
 }
 
 .vers__date {
-  font-size: 12.5px;
+  font-size: 0.78125rem;
   color: var(--faint);
 }
 
@@ -814,7 +1000,7 @@ a {
   display: inline-block;
   margin-top: 12px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--muted);
   transition: color 0.15s ease;
 }

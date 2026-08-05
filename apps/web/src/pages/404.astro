@@ -1,0 +1,64 @@
+---
+import SiteFooter from "../components/SiteFooter.astro";
+import SiteNav from "../components/SiteNav.astro";
+import Base from "../layouts/Base.astro";
+---
+
+<Base
+  title="Page not found · Nod"
+  description="There's nothing at this address. Nod lives at nodreview.com."
+>
+  <SiteNav cta={{ href: "/downloads", label: "Download" }} />
+
+  <main>
+    <section class="wrap nf">
+      <p class="eyebrow">404</p>
+      <h1 class="nf__title">There's nothing at this address.</h1>
+      <p class="nf__sub">
+        The link is old, mistyped, or pointing at something that moved.
+      </p>
+      <div class="nf__actions">
+        <a class="btn btn--primary" href="/">Back to the homepage</a>
+        <a class="nf__alt" href="/downloads">or go to downloads</a>
+      </div>
+    </section>
+  </main>
+
+  <SiteFooter />
+</Base>
+
+<style>
+  .nf {
+    text-align: center;
+    padding: clamp(96px, 18vh, 180px) 24px;
+  }
+
+  .nf__title {
+    margin: 18px auto 0;
+    max-width: 24ch;
+    font-size: clamp(1.9rem, 4.4vw, 2.9rem);
+    font-weight: 640;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
+
+  .nf__sub {
+    margin: 16px auto 0;
+    max-width: 44ch;
+    color: var(--muted);
+  }
+
+  .nf__actions {
+    margin-top: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .nf__alt {
+    color: var(--muted);
+  }
+</style>
