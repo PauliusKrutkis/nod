@@ -3,6 +3,7 @@ import {
   HelpCircle,
   History,
   Search,
+  Sparkles,
   Ticket,
   User,
   UserPlus,
@@ -11,6 +12,7 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { AiSetupDialog } from "./components/ai-setup-dialog.tsx";
 import { CommandPalette } from "./components/command-palette.tsx";
 import { GlobalSearch } from "./components/global-search.tsx";
 import { HelpOverlay } from "./components/help-overlay.tsx";
@@ -41,6 +43,8 @@ export default function App() {
   const toast = useAppStore((s) => s.toast);
   const setToast = useAppStore((s) => s.setToast);
   const inboxPaneVisible = useAppStore((s) => s.inboxPaneVisible);
+  const aiSetupOpen = useAppStore((s) => s.aiSetupOpen);
+  const closeAiSetup = useAppStore((s) => s.closeAiSetup);
   const [trackerOpen, setTrackerOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -202,6 +206,14 @@ export default function App() {
         run: () => setTrackerOpen(true),
       },
       {
+        description: "Ask about code — AI settings…",
+        global: true,
+        group: "General",
+        icon: Sparkles,
+        keys: [],
+        run: () => useAppStore.getState().openAiSetup(),
+      },
+      {
         description: "Release history — what's new",
         global: true,
         group: "General",
@@ -285,6 +297,7 @@ export default function App() {
       </div>
 
       <IssueTrackerDialog onClose={closeTracker} open={trackerOpen} />
+      <AiSetupDialog onClose={closeAiSetup} open={aiSetupOpen} />
       <ReleaseHistory onClose={closeHistory} open={historyOpen} />
       <CommandPalette baseScope={baseScope} />
       <HelpOverlay baseScope={baseScope} />

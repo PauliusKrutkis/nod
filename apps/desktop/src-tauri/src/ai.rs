@@ -69,6 +69,19 @@ pub async fn get_ai_config(app: AppHandle) -> Result<AiInfo, String> {
     Ok(info_of(load(&app)?.as_ref()))
 }
 
+/// The webview never gets the key back, so editing the config can't round-trip
+/// it: an empty pasted key keeps the stored one, letting the model or base URL
+/// change without re-pasting.
+fn resolve_api_key(pasted: &str, existing: Option<AiConfig>) -> Result<String, String> {
+    let pasted = pasted.trim();
+    if !pasted.is_empty() {
+        return Ok(pasted.to_string());
+    }
+    existing
+        .map(|c| c.api_key)
+        .ok_or_else(|| "the API key is empty".to_string())
+}
+
 #[tauri::command]
 pub async fn set_ai_config(
     app: AppHandle,
@@ -80,10 +93,7 @@ pub async fn set_ai_config(
     if !(base_url.starts_with("http://") || base_url.starts_with("https://")) {
         return Err("the base URL must start with http(s)://".to_string());
     }
-    let api_key = api_key.trim().to_string();
-    if api_key.is_empty() {
-        return Err("the API key is empty".to_string());
-    }
+    let api_key = resolve_api_key(&api_key, load(&app)?)?;
     let config = AiConfig {
         base_url,
         api_key,

@@ -213,8 +213,10 @@ interface AppState {
       startLine?: number;
     }
   ) => void;
+  aiSetupOpen: boolean;
   clearDismissed: (prKey: string) => void;
   clearPendingComments: (prKey: string) => void;
+  closeAiSetup: () => void;
   closePalette: () => void;
   dismiss: (prKey: string, updatedAt: string) => void;
 
@@ -234,6 +236,7 @@ interface AppState {
 
   markSeen: (prKey: string, updatedAt: string) => void;
 
+  openAiSetup: () => void;
   openPalette: () => void;
   openReview: (owner: string, repo: string, number: number) => void;
   paletteOpen: boolean;
@@ -306,6 +309,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ pendingComments: map });
     savePending(map);
   },
+  aiSetupOpen: false,
+  closeAiSetup: () => set({ aiSetupOpen: false }),
   closePalette: () => set({ paletteOpen: false }),
   dismiss: (prKey, updatedAt) => {
     const map = { ...get().dismissed, [prKey]: updatedAt };
@@ -349,6 +354,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     saveLastSeen(map);
   },
 
+  openAiSetup: () => set({ aiSetupOpen: true, paletteOpen: false }),
   openPalette: () => set({ paletteOpen: true }),
   openReview: (owner, repo, number) => {
     flushPersistViewed();

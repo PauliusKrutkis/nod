@@ -2,6 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   AccountInfo,
   AccountsInfo,
+  AiInfo,
+  AiModel,
   FileBlob,
   GitHubUser,
   InboxBucket,
@@ -30,8 +32,12 @@ export const api = {
     token: string;
   }) => invoke<AccountInfo>("add_account", args),
 
+  aiListModels: () => invoke<AiModel[]>("ai_list_models"),
+
   checkForUpdate: () => invoke<UpdateInfo | null>("check_for_update"),
+  clearAiConfig: () => invoke<void>("clear_ai_config"),
   clearToken: () => invoke<void>("clear_token"),
+  getAiConfig: () => invoke<AiInfo>("get_ai_config"),
   createIssueComment: (args: {
     owner: string;
     repo: string;
@@ -136,6 +142,11 @@ export const api = {
 
   searchRepos: (query: string) => invoke<RepoHit[]>("search_repos", { query }),
   setActiveAccount: (id: string) => invoke<void>("set_active_account", { id }),
+  setAiConfig: (args: {
+    baseUrl: string;
+    apiKey: string;
+    model: string | null;
+  }) => invoke<AiInfo>("set_ai_config", args),
   setToken: (token: string) => invoke<GitHubUser>("set_token", { token }),
   setViewedMap: (map: ViewedMap) => invoke<void>("set_viewed_map", { map }),
   setWatchedRepos: (repos: string[]) =>
