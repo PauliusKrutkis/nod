@@ -7,6 +7,15 @@
  * an already-namespaced subject there (`<provider>:<host>:<id>`, see
  * functions/lib/kv.ts); this only reads whatever it is given.
  *
+ * The secret is base64-encoded before it reaches standardwebhooks, matching
+ * Polar's own SDK: Polar's HMAC key is the raw UTF-8 bytes of the whole
+ * secret string, `whsec_` prefix included, while the standardwebhooks
+ * constructor base64-DECODES whatever it is given (after stripping a
+ * `whsec_` prefix). Passing the secret straight through derives a different
+ * key and rejects every genuine delivery — proven live on 2026-08-05, when
+ * every sandbox order.paid bounced with a 401 against a correct stored
+ * secret.
+ *
  * verifyPolarWebhook returns a discriminated result rather than the event or
  * null: an unverified payload must never reach the handler body by way of a
  * forgotten null check, and `unknown | null` collapses to `unknown`, so the
@@ -31,7 +40,7 @@ export function verifyPolarWebhook(
   headers: Record<string, string>,
   secret: string
 ): PolarWebhookResult {
-  const webhook = new Webhook(secret);
+  const webhook = new Webhook(btoa(secret));
   try {
     return { verified: true, event: webhook.verify(payload, headers) };
   } catch (error) {

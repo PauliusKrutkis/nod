@@ -4,9 +4,20 @@ import { extractSubject, isOrderPaidEvent, verifyPolarWebhook } from "./polar";
 
 const secret = `whsec_${btoa("test-webhook-secret")}`;
 
+/**
+ * Signs the way Polar actually signs: HMAC key = UTF-8 bytes of the whole
+ * secret string, expressed as base64 for the standardwebhooks constructor —
+ * the exact derivation in polar-js's validateEvent. Deliberately independent
+ * of verifyPolarWebhook's internals so a regression to `new Webhook(secret)`
+ * fails these tests instead of round-tripping.
+ */
 function sign(webhookSecret: string, msgId: string, payload: string) {
   const timestamp = new Date();
-  const signature = new Webhook(webhookSecret).sign(msgId, timestamp, payload);
+  const signature = new Webhook(btoa(webhookSecret)).sign(
+    msgId,
+    timestamp,
+    payload
+  );
   return {
     "webhook-id": msgId,
     "webhook-timestamp": String(Math.floor(timestamp.getTime() / 1000)),
