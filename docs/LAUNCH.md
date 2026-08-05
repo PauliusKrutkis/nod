@@ -165,6 +165,26 @@ Owner — now (all free):
       `/activate` can confirm it. A mismatch would surface as activation
       failures in already-shipped binaries; prove it before the first sale.
 
+Owner — site launch prep (Aug 2026), before the forum posts:
+
+- [ ] **Cloudflare Email Routing** for `hello@nodreview.com` — CF dashboard
+      → nodreview.com zone → Email → Email Routing, forward to a personal
+      inbox. The address is published by the /about page (PR #186), so set
+      up routing before that PR merges.
+- [ ] **`www` DNS + redirect** — `www.nodreview.com` has no DNS record at
+      all today. Add a `www` CNAME on the zone (proxied) plus a redirect
+      rule to the apex.
+- [ ] **Merge the site-prep PRs**: #182 (og:image), #183 (404/robots/
+      sitemap), #186 (about/privacy), #189 (Windows .exe) are independent;
+      the copy stack #184 → #185 → #188 merges bottom-up, retargeting each
+      PR to `main` after its base lands.
+- [ ] After merging, spot-check production: link unfurl (paste the URL in
+      Slack/Discord), `curl -I https://nodreview.com/robots.txt` returns
+      text/plain, an unknown path returns 404, /about renders.
+
+Notarization stays deferred per step 2; the decision for the launch posts
+is to ship without it and take the Gatekeeper criticism.
+
 Code — unblocked once the OAuth app exists:
 
 - [ ] Buy-flow page: GitHub sign-in → create Polar checkout with
