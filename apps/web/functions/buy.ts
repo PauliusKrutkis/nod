@@ -16,29 +16,21 @@ import type { Env } from "./lib/env";
 import { authorizeUrl, stateCookie } from "./lib/github-oauth";
 import { isCheckoutConfigured } from "./lib/polar";
 
-export const onRequestGet: PagesFunction<Env> = (context) => {
+export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { env } = context;
   const clientId = env.GH_WEB_CLIENT_ID;
   if (!(clientId && env.GH_WEB_CLIENT_SECRET && isCheckoutConfigured(env))) {
-    return Promise.resolve(
-      new Response("purchasing is not open yet", { status: 503 })
-    );
+    return new Response("purchasing is not open yet", { status: 503 });
   }
 
   const origin = new URL(context.request.url).origin;
   const state = crypto.randomUUID();
-  return Promise.resolve(
-    new Response(null, {
-      status: 302,
-      headers: {
-        location: authorizeUrl(
-          clientId,
-          `${origin}/auth/github/callback`,
-          state
-        ),
-        "set-cookie": stateCookie(state),
-        "cache-control": "no-store",
-      },
-    })
-  );
+  return new Response(null, {
+    status: 302,
+    headers: {
+      location: authorizeUrl(clientId, `${origin}/auth/github/callback`, state),
+      "set-cookie": stateCookie(state),
+      "cache-control": "no-store",
+    },
+  });
 };
