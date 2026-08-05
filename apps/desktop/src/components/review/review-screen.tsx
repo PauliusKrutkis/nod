@@ -8,6 +8,12 @@
  */
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  askModelInput,
+  nudgeAskIntoView,
+  useAskNote,
+  useAskNoteWiring,
+} from "../../hooks/use-ask-note.ts";
 import { useCommentMutations } from "../../hooks/use-comments.ts";
 import {
   useExpansionScrollRestore,
@@ -274,6 +280,8 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     sidebarOverlayOpenRef,
   } = useReviewPanels();
   const rightPanelRef = useRef<RightPanelHandle>(null);
+  const askNote = useAskNote();
+  const askOpenRef = useLatest(askNote.open);
   const [submitOpen, setSubmitOpen] = useState(false);
   const [prSearch, setPrSearch] = useState<null | "files" | "text">(null);
   const [reconcileDismissed, setReconcileDismissed] = useState<Set<string>>(
@@ -424,6 +432,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   });
 
   const model: ReviewListModel = buildReviewItems({
+    ask: askModelInput(askNote),
     collapsed,
     commentsByFile,
     expandedRows,
@@ -449,6 +458,11 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     }
     listRef.current?.nudgeItemIntoView(model.nav[navIdx].itemIndex);
   }, [openBoxes]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: model is rebuilt fresh every render; focusSeq is the gate — each `a` press brings the note into frame exactly once
+  useLayoutEffect(() => {
+    nudgeAskIntoView({ askNote, list: listRef.current, model });
+  }, [askNote.focusSeq]);
 
   /**
    * The expand/collapse swap shifts rows under a stationary pointer, and the
@@ -864,8 +878,26 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     openPrFilesInBrowser(pr);
   };
 
+  const {
+    askAi: onAskAi,
+    askDraft,
+    askNoteProps,
+    onCloseBox: onCloseBoxWithDraft,
+  } = useAskNoteWiring({
+    askNote,
+    cursorMoverRefs,
+    cursorRef,
+    filesRef,
+    listCallbacks,
+    liveSelectionRef,
+    modelRef,
+    pr: pr ?? null,
+  });
+
   useReviewHotkeys({
-    askAi: () => useAppStore.getState().openAiSetup(),
+    askAi: onAskAi,
+    askOpenRef,
+    closeAsk: askNote.closeAsk,
     closeFind,
     commentAtCursor,
     commentOnPr: onCommentOnPr,
@@ -962,6 +994,8 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
 
         <ReviewDiffPane
           addPending={addReviewComment.isPending}
+          askDraft={askDraft}
+          askNote={askNoteProps}
           changedSinceViewed={changedSinceViewed}
           changeFindQuery={changeFindQuery}
           clampedIndex={clampedIndex}
@@ -983,7 +1017,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
           flashKey={flashKey}
           initialMem={initialMem}
           inputMode={inputMode}
-          listCallbacks={listCallbacks}
+          listCallbacks={{ ...listCallbacks, onCloseBox: onCloseBoxWithDraft }}
           listRef={listRef}
           liveCursor={liveCursor}
           liveSelection={liveSelection}

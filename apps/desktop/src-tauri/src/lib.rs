@@ -95,6 +95,7 @@ pub fn run() {
             ai::set_ai_config,
             ai::clear_ai_config,
             ai::ai_list_models,
+            ai::ai_ask,
             commands::has_token,
             commands::set_token,
             commands::clear_token,

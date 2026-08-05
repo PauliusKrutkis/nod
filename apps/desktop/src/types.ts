@@ -190,6 +190,15 @@ export interface AiModel {
   contextLength: number | null;
 }
 
+export interface AiAskContext {
+  prTitle: string;
+  prBody: string;
+  filePath: string | null;
+  lineRange: string | null;
+  code: string | null;
+  diffSummary: string | null;
+}
+
 export interface UpdateInfo {
   currentVersion: string;
   eligible: boolean;

@@ -13,6 +13,11 @@
  * "the conversation on line 42". `navKey(f, a, "row")` is deliberately equal to
  * `fileAnchorKey(f, a)`, so anchor-keyed lookups (`anchorItem`, `openBoxes`,
  * flash keys) are untouched and keep resolving rows.
+ *
+ * The "ask" item is the inline AI note's slot, anchored under its row like a
+ * comment block but off the nav (not a cursor stop). At most one exists —
+ * `askItem` points at it — and its content lives outside the model, in
+ * use-ask-note.ts.
  */
 import type { ChangedFile, PendingComment, ReviewComment } from "../types.ts";
 import { type DiffHunk, type DiffRow, parsePatch, rowAnchor } from "./diff.ts";
@@ -298,16 +303,23 @@ export interface ReviewNoteItem {
   kind: "note";
   text: string;
 }
+interface ReviewAskItem {
+  anchor: string;
+  fileIndex: number;
+  kind: "ask";
+}
 
 export type ReviewItem =
   | ReviewRowItem
   | ReviewHunkItem
   | ReviewCommentsItem
   | ReviewImageItem
-  | ReviewNoteItem;
+  | ReviewNoteItem
+  | ReviewAskItem;
 
 export interface ReviewListModel {
   anchorItem: Map<string, number>;
+  askItem: number | null;
   commentItems: number[];
   groupCounts: number[];
   groupFirstItem: number[];
@@ -322,6 +334,7 @@ export interface ReviewListModel {
 }
 
 export interface BuildReviewItemsInput {
+  ask: { anchor: string; fileIndex: number } | null;
   collapsed: ReadonlyMap<number, ReadonlySet<number>>;
   commentsByFile: ReadonlyMap<string, ReviewComment[]>;
   expandedRows: ReadonlyMap<number, readonly DiffRow[]>;
@@ -333,6 +346,8 @@ export interface BuildReviewItemsInput {
 
 interface HunkBuildContext {
   anchorItem: Map<string, number>;
+  ask: BuildReviewItemsInput["ask"];
+  askItemBox: { index: number | null };
   commentItems: number[];
   contentByAnchor: Map<string, string>;
   fileIndex: number;
@@ -435,6 +450,15 @@ function appendHunkRow(ctx: HunkBuildContext, row: DiffRow): void {
       boxStartLine
     );
   }
+  if (
+    ctx.ask &&
+    anchor !== null &&
+    ctx.ask.fileIndex === ctx.fileIndex &&
+    ctx.ask.anchor === anchor
+  ) {
+    ctx.askItemBox.index = ctx.items.length;
+    ctx.items.push({ anchor, fileIndex: ctx.fileIndex, kind: "ask" });
+  }
 }
 
 function appendHunkRows(ctx: HunkBuildContext, hunk: DiffHunk): void {
@@ -467,6 +491,7 @@ export function buildReviewItems(
   input: BuildReviewItemsInput
 ): ReviewListModel {
   const {
+    ask,
     files,
     isImage,
     collapsed,
@@ -482,6 +507,7 @@ export function buildReviewItems(
   const nav: ReviewListModel["nav"] = [];
   const navIndexOf = new Map<string, number>();
   const commentItems: number[] = [];
+  const askItemBox: { index: number | null } = { index: null };
 
   files.forEach((file, fileIndex) => {
     groupFirstItem.push(items.length);
@@ -519,6 +545,8 @@ export function buildReviewItems(
       appendExpandedRows(
         {
           anchorItem,
+          ask,
+          askItemBox,
           commentItems,
           contentByAnchor: new Map<string, string>(),
           fileIndex,
@@ -554,6 +582,8 @@ export function buildReviewItems(
       appendHunkRows(
         {
           anchorItem,
+          ask,
+          askItemBox,
           commentItems,
           contentByAnchor: new Map<string, string>(),
           fileIndex,
@@ -574,6 +604,7 @@ export function buildReviewItems(
 
   return {
     anchorItem,
+    askItem: askItemBox.index,
     commentItems,
     groupCounts,
     groupFirstItem,

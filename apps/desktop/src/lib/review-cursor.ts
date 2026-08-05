@@ -218,7 +218,11 @@ export function nextUnviewedFileIndex(
 
 /** The rAF-coalesced j/k cursor over the flattened nav list — see
  *  cursorMoverRefs. Stateless over refs, so per-event instances are
- *  interchangeable; holding the key accelerates (3×/6× after ~¼s/~¾s). */
+ *  interchangeable; holding the key accelerates (3×/6× after ~¼s/~¾s).
+ *  `flushNow` applies any queued move immediately and returns where the
+ *  cursor landed — for a follow-up action (`a` opening the ask note)
+ *  dispatched in the same frame as the move, which must see the cursor the
+ *  user just placed; `place` writes cursorRef eagerly for the same reason. */
 export function buildCursorMover(refs: {
   modelRef: React.RefObject<ReviewListModel>;
   cursorRef: React.RefObject<CursorPos | null>;
@@ -233,13 +237,22 @@ export function buildCursorMover(refs: {
   setCursor: React.Dispatch<React.SetStateAction<CursorPos | null>>;
   setActiveIndex: (i: number) => void;
   setInputMode: (m: "keyboard" | "mouse") => void;
-}): { move: (delta: number, isRepeat: boolean) => void } {
+}): {
+  flushNow: () => ReviewListModel["nav"][number] | null;
+  move: (delta: number, isRepeat: boolean) => void;
+} {
   const place = (entry: ReviewListModel["nav"][number]) => {
     refs.setCursor({
       anchor: entry.anchor,
       fileIndex: entry.fileIndex,
       kind: entry.kind,
     });
+    // eager — see the flushNow note above
+    refs.cursorRef.current = {
+      anchor: entry.anchor,
+      fileIndex: entry.fileIndex,
+      kind: entry.kind,
+    };
     refs.setActiveIndex(entry.fileIndex);
     refs.activeIndexRef.current = entry.fileIndex; // eager — see scrollToFile
     refs.activeThreadRef.current = armedThreadAt(
@@ -248,13 +261,13 @@ export function buildCursorMover(refs: {
       entry.itemIndex
     );
   };
-  const flush = () => {
+  const flush = (): ReviewListModel["nav"][number] | null => {
     refs.cursorRafRef.current = null;
     const m = refs.modelRef.current;
     const delta = refs.pendingDeltaRef.current;
     refs.pendingDeltaRef.current = 0;
     if (delta === 0 || m.nav.length === 0) {
-      return;
+      return null;
     }
     const cur = refs.cursorRef.current;
     const curIdx = cur
@@ -264,17 +277,24 @@ export function buildCursorMover(refs: {
       const start = refs.listRef.current?.firstVisibleRowItem() ?? 0;
       const entry = m.nav.find((n) => n.itemIndex >= start) ?? m.nav[0];
       place(entry);
-      return;
+      return entry;
     }
     const nextIdx = Math.min(Math.max(curIdx + delta, 0), m.nav.length - 1);
     if (nextIdx === curIdx) {
-      return;
+      return null;
     }
     const entry = m.nav[nextIdx];
     place(entry);
     refs.listRef.current?.nudgeItemIntoView(entry.itemIndex);
+    return entry;
   };
   return {
+    flushNow() {
+      if (refs.cursorRafRef.current !== null) {
+        cancelAnimationFrame(refs.cursorRafRef.current);
+      }
+      return flush();
+    },
     move(delta, isRepeat) {
       refs.keyboardHoldRef.current = true;
       refs.setInputMode("keyboard");

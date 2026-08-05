@@ -192,6 +192,102 @@ pub async fn ai_list_models(app: AppHandle) -> Result<Vec<AiModel>, String> {
     Ok(parse_models(&body))
 }
 
+#[derive(Deserialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct AskContext {
+    pub pr_title: String,
+    #[serde(default)]
+    pub pr_body: String,
+    #[serde(default)]
+    pub file_path: Option<String>,
+    #[serde(default)]
+    pub line_range: Option<String>,
+    #[serde(default)]
+    pub code: Option<String>,
+    #[serde(default)]
+    pub diff_summary: Option<String>,
+}
+
+const ASK_SYSTEM_PROMPT: &str =
+    "You are the code assistant inside Nod, a pull-request review app. \
+Answer questions about the code under review. Ground every claim in the provided code; \
+when you reference code, cite it as path:line. Be concise. \
+If the provided context is not enough to answer, say exactly what is missing.";
+
+fn build_ask_prompt(question: &str, context: &AskContext) -> String {
+    let mut sections = vec![format!("Pull request: {}", context.pr_title)];
+    if !context.pr_body.trim().is_empty() {
+        sections.push(format!("PR description:\n{}", context.pr_body.trim()));
+    }
+    if let Some(summary) = context.diff_summary.as_deref() {
+        sections.push(format!("Changed files:\n{summary}"));
+    }
+    if let (Some(path), Some(code)) = (context.file_path.as_deref(), context.code.as_deref()) {
+        let range = context.line_range.as_deref().unwrap_or_default();
+        let heading = if range.is_empty() {
+            format!("Selected code from {path}:")
+        } else {
+            format!("Selected code from {path} (lines {range}):")
+        };
+        sections.push(format!("{heading}\n```\n{code}\n```"));
+    }
+    sections.push(format!("Question: {question}"));
+    sections.join("\n\n")
+}
+
+fn answer_text(v: &Value) -> Option<String> {
+    let content = v
+        .get("choices")?
+        .get(0)?
+        .get("message")?
+        .get("content")?
+        .as_str()?
+        .trim();
+    if content.is_empty() {
+        return None;
+    }
+    Some(content.to_string())
+}
+
+#[tauri::command]
+pub async fn ai_ask(
+    app: AppHandle,
+    question: String,
+    context: AskContext,
+) -> Result<String, String> {
+    let config = load(&app)?.ok_or_else(|| "AI is not configured".to_string())?;
+    let model = config
+        .model
+        .ok_or_else(|| "Choose a model in AI settings first".to_string())?;
+    let body = serde_json::json!({
+        "model": model,
+        "messages": [
+            { "role": "system", "content": ASK_SYSTEM_PROMPT },
+            { "role": "user", "content": build_ask_prompt(&question, &context) },
+        ],
+        "max_completion_tokens": 2000,
+    });
+    let resp = ask_client()?
+        .post(format!("{}/v1/chat/completions", config.base_url))
+        .bearer_auth(&config.api_key)
+        .json(&body)
+        .send()
+        .await
+        .map_err(net_err)?;
+    let value = read_ai_body(resp).await?;
+    answer_text(&value).ok_or_else(|| "The provider returned an empty answer.".to_string())
+}
+
+/// Completions get a longer timeout than the metadata calls: a big-model
+/// answer can legitimately take a minute.
+fn ask_client() -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .user_agent("pr-flow")
+        .timeout(std::time::Duration::from_secs(120))
+        .build()
+        .map_err(|e| format!("could not build AI client: {e}"))
+}
+
 #[cfg(test)]
 #[path = "ai_tests.rs"]
 mod tests;
