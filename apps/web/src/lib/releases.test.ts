@@ -60,6 +60,7 @@ describe("pickDownloads", () => {
       "macOS Apple silicon",
       "macOS Intel",
       "Windows x64 installer",
+      "Windows x64 setup.exe",
       "Linux Debian / Ubuntu",
       "Linux AppImage",
       "Linux Fedora / RHEL",
@@ -105,7 +106,7 @@ describe("groupByPlatform", () => {
 
     expect(
       groups.map((group) => group.alternates.map((build) => build.detail))
-    ).toEqual([["Intel"], [], ["AppImage", "Fedora / RHEL"]]);
+    ).toEqual([["Intel"], ["x64 setup.exe"], ["AppImage", "Fedora / RHEL"]]);
   });
 
   it("returns nothing when the release matched no installer", () => {
