@@ -12,6 +12,11 @@ import { CONTACT_EMAIL } from "../lib/site";
 // price and says so, rather than carrying a dead button. It deliberately does
 // not fall back to a download link: the install band directly above it is
 // already the free path, and two identical asks in a row read as filler.
+//
+// The team line sits outside that branch on purpose. It is the demand signal
+// for whether a team tier is worth building (docs/BACKLOG.md), so it has to
+// survive the flip to a live checkout — which is exactly when someone buying
+// for a team needs an invoicing route.
 const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
 ---
 
@@ -120,12 +125,14 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
           ) : (
             <p class="pricing__note">
               Purchasing opens soon. Until then, the free evaluation is the
-              full app. Buying for a team?{" "}<a
-                href={`mailto:${CONTACT_EMAIL}`}>Email me</a
-              > and I'll sort out invoicing.
+              full app.
             </p>
           )
         }
+        <p class="pricing__note">
+          Buying for a team?{" "}<a href={`mailto:${CONTACT_EMAIL}`}>Email me</a
+          > and I'll sort out invoicing.
+        </p>
       </div>
     </section>
   </main>
