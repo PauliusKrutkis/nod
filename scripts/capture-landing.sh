@@ -12,7 +12,7 @@ out="$root/apps/web/public/landing"
 
 cd "$root/apps/desktop"
 rm -rf capture-out
-pnpm exec playwright test --config playwright.capture.config.ts
+pnpm exec playwright test --config playwright.capture.config.ts landing.capture.ts
 
 mkdir -p "$out"
 for scene in loop comments scan; do
