@@ -129,10 +129,7 @@ export interface ReviewListCallbacks {
 interface ReviewListProps {
   activeIndex: number;
   addPending: boolean;
-  /** The open inline AI note; prScope renders it above the first file. */
   askNote: (AskNoteProps & { prScope: boolean }) | null;
-  /** Prefill for the composer opened from an ask answer, keyed by
-   *  fileAnchorKey — consumed by the box at that anchor. */
   askDraft: { key: string; text: string } | null;
   replyPending: boolean;
   baseSha: string;
