@@ -11,13 +11,18 @@ import { envelopeUrl, withErrorReporting } from "./report";
 const DSN = "https://publickey@o12345.ingest.sentry.io/67890";
 const ENVELOPE_URL = "https://o12345.ingest.sentry.io/api/67890/envelope/";
 
+/**
+ * Typed to EventContext's own waitUntil signature, not inferred: the casts
+ * below rely on this stub context overlapping EventContext structurally, and
+ * a loosely-typed handle here makes TypeScript reject every one of them.
+ */
+const ignoreWaitUntil: (promise: Promise<unknown>) => void = () => undefined;
+
 function contextFor(env: { SENTRY_DSN?: string }) {
   return {
     request: new Request("https://x.test/activate?order_id=order_1"),
     env,
-    waitUntil: (promise: Promise<unknown>) => {
-      void promise;
-    },
+    waitUntil: ignoreWaitUntil,
   };
 }
 
