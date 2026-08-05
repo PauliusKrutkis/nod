@@ -48,6 +48,7 @@ function comment(over: Partial<ReviewComment> = {}): ReviewComment {
 
 function build(comments: ReviewComment[]) {
   return buildReviewItems({
+    ask: null,
     collapsed: new Map(),
     commentsByFile: new Map([[FILE.filename, comments]]),
     expandedRows: new Map(),
@@ -90,6 +91,7 @@ function buildLong(opts: { commentOn?: number; boxOn?: number } = {}) {
           }),
         ];
   return buildReviewItems({
+    ask: null,
     collapsed: new Map(),
     commentsByFile: new Map([[LONG_FILE.filename, comments]]),
     expandedRows: new Map(),
@@ -105,6 +107,7 @@ function buildLong(opts: { commentOn?: number; boxOn?: number } = {}) {
 
 function buildLongCommentedOn(lines: number[]) {
   return buildReviewItems({
+    ask: null,
     collapsed: new Map(),
     commentsByFile: new Map([
       [
@@ -179,6 +182,44 @@ describe("buildReviewItems nav", () => {
     const stops = m.nav.filter((n) => n.kind === "comments");
 
     expect(stops).toHaveLength(1);
+  });
+});
+
+describe("buildReviewItems ask", () => {
+  const withAsk = (ask: { anchor: string; fileIndex: number } | null) =>
+    buildReviewItems({
+      ask,
+      collapsed: new Map(),
+      commentsByFile: new Map([[FILE.filename, [comment()]]]),
+      expandedRows: new Map(),
+      files: [FILE],
+      isImage: () => false,
+      openBoxes: new Map(),
+      pendingByFile: new Map(),
+    });
+
+  it("slots the ask item after the row's comment block, off the nav", () => {
+    const m = withAsk({ anchor: "RIGHT:2", fileIndex: 0 });
+
+    expect(m.askItem).not.toBeNull();
+    const item = m.items[m.askItem as number];
+    expect(item.kind).toBe("ask");
+    const commentsIdx =
+      m.nav[m.navIndexOf.get(navKey(0, "RIGHT:2", "comments")) as number]
+        .itemIndex;
+    expect(m.askItem).toBe(commentsIdx + 1);
+    expect(m.nav.some((n) => n.itemIndex === m.askItem)).toBe(false);
+  });
+
+  it("reports no slot when the anchor is not in the diff", () => {
+    const m = withAsk({ anchor: "RIGHT:99", fileIndex: 0 });
+
+    expect(m.askItem).toBeNull();
+    expect(m.items.some((i) => i.kind === "ask")).toBe(false);
+  });
+
+  it("reports no slot without an ask", () => {
+    expect(withAsk(null).askItem).toBeNull();
   });
 });
 
@@ -347,6 +388,7 @@ describe("armedThreadAt", () => {
 
   it("arms nothing on a block that holds only a pending comment", () => {
     const m = buildReviewItems({
+      ask: null,
       collapsed: new Map(),
       commentsByFile: new Map(),
       expandedRows: new Map(),

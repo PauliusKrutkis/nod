@@ -233,13 +233,24 @@ export function buildCursorMover(refs: {
   setCursor: React.Dispatch<React.SetStateAction<CursorPos | null>>;
   setActiveIndex: (i: number) => void;
   setInputMode: (m: "keyboard" | "mouse") => void;
-}): { move: (delta: number, isRepeat: boolean) => void } {
+}): {
+  flushNow: () => ReviewListModel["nav"][number] | null;
+  move: (delta: number, isRepeat: boolean) => void;
+} {
   const place = (entry: ReviewListModel["nav"][number]) => {
     refs.setCursor({
       anchor: entry.anchor,
       fileIndex: entry.fileIndex,
       kind: entry.kind,
     });
+    // eager, like activeIndexRef below: an action in the same frame (`a`
+    // opening the ask note) must see the cursor the flush just placed,
+    // before React commits the state update.
+    refs.cursorRef.current = {
+      anchor: entry.anchor,
+      fileIndex: entry.fileIndex,
+      kind: entry.kind,
+    };
     refs.setActiveIndex(entry.fileIndex);
     refs.activeIndexRef.current = entry.fileIndex; // eager — see scrollToFile
     refs.activeThreadRef.current = armedThreadAt(
@@ -248,13 +259,13 @@ export function buildCursorMover(refs: {
       entry.itemIndex
     );
   };
-  const flush = () => {
+  const flush = (): ReviewListModel["nav"][number] | null => {
     refs.cursorRafRef.current = null;
     const m = refs.modelRef.current;
     const delta = refs.pendingDeltaRef.current;
     refs.pendingDeltaRef.current = 0;
     if (delta === 0 || m.nav.length === 0) {
-      return;
+      return null;
     }
     const cur = refs.cursorRef.current;
     const curIdx = cur
@@ -264,17 +275,27 @@ export function buildCursorMover(refs: {
       const start = refs.listRef.current?.firstVisibleRowItem() ?? 0;
       const entry = m.nav.find((n) => n.itemIndex >= start) ?? m.nav[0];
       place(entry);
-      return;
+      return entry;
     }
     const nextIdx = Math.min(Math.max(curIdx + delta, 0), m.nav.length - 1);
     if (nextIdx === curIdx) {
-      return;
+      return null;
     }
     const entry = m.nav[nextIdx];
     place(entry);
     refs.listRef.current?.nudgeItemIntoView(entry.itemIndex);
+    return entry;
   };
   return {
+    /** Apply any rAF-queued move NOW and return where the cursor landed —
+     *  for a follow-up action (like `a`) dispatched in the same frame as
+     *  the move, which must see the cursor the user just placed. */
+    flushNow() {
+      if (refs.cursorRafRef.current !== null) {
+        cancelAnimationFrame(refs.cursorRafRef.current);
+      }
+      return flush();
+    },
     move(delta, isRepeat) {
       refs.keyboardHoldRef.current = true;
       refs.setInputMode("keyboard");

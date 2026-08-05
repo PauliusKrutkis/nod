@@ -86,13 +86,28 @@ truncated with an explicit `[truncated]` marker so the model knows.
 `grep_repo` is also registered as a plain command — user-facing whole-repo
 search (§9 Layer 2) falls out of this work for free.
 
-### Surface — info drawer mode, hotkey `a`
+### Surface — inline AI note, hotkey `a` (revised 2026-08-05)
 
-The drawer already exists, is toggled by `i`/`shift+i`, and renders markdown.
-`a` (free in review scope, verified) opens it in a new **Ask** mode with an
-input; answer streams/renders as markdown below, question history per PR kept
-in memory only. `Esc` follows the existing ladder. No popover (no floating
-primitive + virtualized rows), no modal (fights keyboard flow).
+Originally shipped as a drawer mode; revised by owner decision 2026-08-05
+(design mock first): the answer renders next to its subject, not across the
+screen from it.
+
+- `a` anchors a **note in the diff** under the cursor row (or the selection's
+  end row, carrying the range); with no cursor it pins above the first file —
+  whole-PR scope. One note at a time; re-anchoring elsewhere starts a fresh
+  conversation, Esc keeps it for a same-spot reopen.
+- **Material rule** (the third comment material): posted thread = solid card
+  on surface; pending comment = dashed accent wash; AI note = dotted hairline
+  with **no fill** — ink, not paper, so machine text can never be mistaken
+  for a published comment. Sparkle glyph instead of an avatar, `you · local`
+  tag.
+- Exchanges and the in-flight ask live in `use-ask-note.ts`, outside the
+  virtualized list — scrolling the note out of frame must not lose an answer.
+- **"Start comment from this"** prefills the normal composer at the ask's
+  anchor with the answer as plain editable text — ask is a drafting step
+  inside review, not a chat. Posting dismisses the note.
+- `Esc` closes the note ahead of the info drawer in the ladder; `a` and `i`
+  are independent surfaces now (the drawer-mode dance is gone).
 
 Answers are asked to cite `path:line`; v1 renders citations as text.
 Click-through to the file is a follow-up, not v1.
@@ -104,7 +119,7 @@ the settings surface (none exists today; pattern: `issue-tracker-dialog.tsx`,
 a `q-dialog` also reachable from the command palette as "Set up AI…"). Fields:
 provider preset → base URL, key (paste, never echoed back), model picker
 (fetched via a Rust `ai_list_models` command once base URL + key validate),
-the disclosure sentence, Save. On save, the drawer opens in Ask mode and the
+the disclosure sentence, Save. On save, the inline note opens and the
 original intent continues — the ask isn't lost to setup.
 
 Command palette also gets "Ask about this code" so the feature is
@@ -120,7 +135,7 @@ for UI changes). Run pr-validity after each. frontend-design guides PRs 2–3.
 | --- | --- | --- |
 | **1** | `ai.json` storage + `get_ai_config`/`set_ai_config`/`clear_ai_config` + `ai_list_models` | Rust only; unit tests like `commands_tests.rs` |
 | **2** | AI setup dialog + `a`-opens-setup onboarding + palette entries | First settings surface; disclosure copy |
-| **3** | `ai_ask` non-streaming + drawer Ask mode + selection/PR prompt assembly | Degradation step 3 works here |
+| **3** | `ai_ask` non-streaming + Ask surface (drawer then, inline note now) + selection/PR prompt assembly | Degradation step 3 works here |
 | **4** | Layer 2: `grep_repo` + `list_files` over the snapshot | Rust only; also registered as commands; unblocks user-facing repo search |
 | **5** | Tool loop inside `ai_ask` + degradation ladder | After the tools probe (below) |
 | **6** | SSE streaming + polish (history, citations styling) | Only after the chunk-shape probe |
