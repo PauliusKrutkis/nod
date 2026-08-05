@@ -9,7 +9,11 @@
  * lives in use-ask-note.ts because this component is virtualized away when
  * scrolled out of frame. "Start comment from this" hands the answer to the
  * normal composer as plain editable text: ask is a drafting step inside
- * review, not a chat.
+ * review, not a chat. Focus follows two signals: focusSeq bumps per `a`
+ * press (rAF, because the note mounts a frame after the model rebuild picks
+ * its slot up), and the input — disabled while an ask is in flight — takes
+ * focus back the moment it re-enables so the follow-up can be typed
+ * immediately.
  */
 import { CornerDownLeft, Sparkles, X } from "lucide-react";
 import { type KeyboardEvent, useEffect, useRef } from "react";
@@ -76,16 +80,12 @@ export function AskNote({
 }: AskNoteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Focus on every open — focusSeq bumps per `a` press; rAF because the
-  // note mounts a frame after the model rebuild picks its slot up.
   useEffect(() => {
     if (focusSeq > 0) {
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [focusSeq]);
 
-  // The input is disabled while an ask is in flight; take focus back the
-  // moment it re-enables so the follow-up can be typed immediately.
   useEffect(() => {
     if (!pending) {
       requestAnimationFrame(() => inputRef.current?.focus());

@@ -10,6 +10,12 @@
  * The hook holds no refs of its own — callers pass the cursor/model snapshot
  * at the moment of the keypress, which also keeps it callable before the
  * render's list model exists.
+ *
+ * Conversation lifetime: exchanges survive a close (an accidental Esc must
+ * not eat an answer) — reopening at the same target resumes, re-anchoring
+ * elsewhere starts fresh. An AskTarget names where the note renders (anchor
+ * row, plus the selection's start line when the ask covered a range); a null
+ * target is a whole-PR ask, rendered above the first file.
  */
 import { useMutation } from "@tanstack/react-query";
 import type React from "react";
@@ -36,7 +42,6 @@ export interface AskExchange {
   question: string;
 }
 
-/** Where the note renders; a null target means whole-PR scope. */
 export interface AskTarget {
   anchor: string;
   fileIndex: number;
@@ -145,8 +150,6 @@ export function useAskNote() {
         };
         const target = freezeTarget(snap.model, freeze);
         setState((s) => ({
-          // Re-anchoring elsewhere starts a fresh conversation; pressing `a`
-          // again at the same spot keeps it.
           exchanges:
             s.target?.anchor === target?.anchor &&
             s.target?.fileIndex === target?.fileIndex
@@ -168,8 +171,6 @@ export function useAskNote() {
   };
 
   const closeAsk = () => {
-    // Exchanges survive the close: an accidental Esc must not eat an answer.
-    // Reopening at the same target resumes; elsewhere starts fresh (openAsk).
     setState((s) => ({ ...s, open: false }));
   };
 
@@ -228,7 +229,8 @@ export function askModelInput(
 }
 
 /** Bring the just-opened note into frame: its item when line-anchored, the
- *  top of the list for a whole-PR note (it renders above the first file). */
+ *  top of the list for a whole-PR note (it renders above the first file).
+ *  Instant, like every other cursor nudge — no smooth easing. */
 export function nudgeAskIntoView(args: {
   askNote: ReturnType<typeof useAskNote>;
   list: {
@@ -243,7 +245,7 @@ export function nudgeAskIntoView(args: {
   if (args.model.askItem !== null) {
     args.list.nudgeItemIntoView(args.model.askItem);
   } else if (args.askNote.target === null) {
-    args.list.scroller()?.scrollTo({ behavior: "smooth", top: 0 });
+    args.list.scroller()?.scrollTo({ top: 0 });
   }
 }
 
