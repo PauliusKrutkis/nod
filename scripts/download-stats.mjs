@@ -61,7 +61,9 @@ for (const release of releases) {
     `${release.tag_name}  ${date}  installers: ${installerTotal}` +
       (updateChecks === undefined ? "" : `  update checks: ${updateChecks}`)
   );
-  for (const asset of installers.filter((a) => a.download_count > 0)) {
+  for (const asset of installers.filter(
+    (installer) => installer.download_count > 0
+  )) {
     console.log(`    ${asset.name}: ${asset.download_count}`);
   }
 }
