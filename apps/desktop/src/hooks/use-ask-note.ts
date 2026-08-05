@@ -16,6 +16,13 @@
  * elsewhere starts fresh. An AskTarget names where the note renders (anchor
  * row, plus the selection's start line when the ask covered a range); a null
  * target is a whole-PR ask, rendered above the first file.
+ *
+ * Answers stream in: Rust emits `ai-ask-delta` events keyed by a
+ * per-question askId, and the pending exchange accumulates them as `partial`
+ * — batched per animation frame so token-rate events don't force token-rate
+ * markdown re-parses. The mutation's resolved value replaces the final text;
+ * in a mocked environment with no events, the spinner simply holds until the
+ * promise resolves.
  */
 import { useMutation } from "@tanstack/react-query";
 import { listen } from "@tauri-apps/api/event";
@@ -119,13 +126,6 @@ function freezeTarget(
 export function useAskNote() {
   const [state, setState] = useState<AskNoteState>(CLOSED);
 
-  // Answers stream in: Rust emits `ai-ask-delta` events keyed by a
-  // per-question askId, and the pending exchange accumulates them as
-  // `partial` — batched per animation frame so token-rate events don't force
-  // token-rate markdown re-parses. Lives here, not in the note component:
-  // the note is virtualized away when scrolled out of frame, and a stream
-  // must survive that. (In a mocked environment with no events, the spinner
-  // simply holds until the promise resolves.)
   useEffect(() => {
     const pending = new Map<string, string>();
     let flushFrame = 0;
