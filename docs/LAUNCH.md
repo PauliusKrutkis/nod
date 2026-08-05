@@ -198,13 +198,20 @@ is to ship without it and take the Gatekeeper criticism.
 
 Code — unblocked once the OAuth app exists:
 
-- [ ] Buy-flow page: GitHub sign-in → create Polar checkout with
+- [x] Buy-flow page: GitHub sign-in → create Polar checkout with
       `metadata.subject = github:github.com:<id>` and the success URL
-      above.
+      above. Built as /buy + /auth/github/callback in PRs #192 + #193
+      (stacked on this branch); both routes answer 503 until every
+      credential exists. At flip-on, `PUBLIC_CHECKOUT_URL` points at
+      `https://nodreview.com/buy`.
 - [x] Re-key the license index from `order_id` to `checkout_id`
       (`functions/lib/kv.ts`, `activate.ts`, the purchase webhook + tests).
-- [ ] Sandbox/production Polar API base switch (env var, defaults sandbox).
-      Nothing calls the Polar API yet, so this lands with the buy flow.
+- [x] Sandbox/production Polar API base switch: `POLAR_API_BASE` var,
+      code defaults to the sandbox API (PR #192). Production flip-on adds
+      `"POLAR_API_BASE": "https://api.polar.sh"` to wrangler.jsonc vars.
+- [ ] **Owner:** copy the sandbox product id (Polar dashboard → the Nod
+      license product → its uuid) into `POLAR_PRODUCT_ID` in
+      wrangler.jsonc `vars`. Until it is there, /buy answers 503.
 - [ ] Polar secrets for the `preview` environment, if step 6 is to run
       against a preview URL rather than production — preview currently has
       only `GITHUB_TOKEN`.
