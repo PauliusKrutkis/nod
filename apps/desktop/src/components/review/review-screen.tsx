@@ -12,7 +12,7 @@ import {
   askModelInput,
   nudgeAskIntoView,
   useAskNote,
-  wireAskNote,
+  useAskNoteWiring,
 } from "../../hooks/use-ask-note.ts";
 import { useCommentMutations } from "../../hooks/use-comments.ts";
 import {
@@ -282,10 +282,6 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const rightPanelRef = useRef<RightPanelHandle>(null);
   const askNote = useAskNote();
   const askOpenRef = useLatest(askNote.open);
-  const [askDraft, setAskDraft] = useState<{
-    key: string;
-    text: string;
-  } | null>(null);
   const [submitOpen, setSubmitOpen] = useState(false);
   const [prSearch, setPrSearch] = useState<null | "files" | "text">(null);
   const [reconcileDismissed, setReconcileDismissed] = useState<Set<string>>(
@@ -467,14 +463,6 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   useLayoutEffect(() => {
     nudgeAskIntoView({ askNote, list: listRef.current, model });
   }, [askNote.focusSeq]);
-
-  // A promoted draft belongs to exactly one composer opening; when that box
-  // goes away (posted or cancelled), the prefill must not haunt the next one.
-  useEffect(() => {
-    if (askDraft && !openBoxes.has(askDraft.key)) {
-      setAskDraft(null);
-    }
-  }, [askDraft, openBoxes]);
 
   /**
    * The expand/collapse swap shifts rows under a stationary pointer, and the
@@ -890,16 +878,20 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     openPrFilesInBrowser(pr);
   };
 
-  const { askAi: onAskAi, askNoteProps } = wireAskNote({
+  const {
+    askAi: onAskAi,
+    askDraft,
+    askNoteProps,
+    onCloseBox: onCloseBoxWithDraft,
+  } = useAskNoteWiring({
     askNote,
     cursorMoverRefs,
     cursorRef,
     filesRef,
+    listCallbacks,
     liveSelectionRef,
     modelRef,
-    onOpenBox: listCallbacks.onOpenBox,
     pr: pr ?? null,
-    setAskDraft,
   });
 
   useReviewHotkeys({
@@ -1025,7 +1017,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
           flashKey={flashKey}
           initialMem={initialMem}
           inputMode={inputMode}
-          listCallbacks={listCallbacks}
+          listCallbacks={{ ...listCallbacks, onCloseBox: onCloseBoxWithDraft }}
           listRef={listRef}
           liveCursor={liveCursor}
           liveSelection={liveSelection}

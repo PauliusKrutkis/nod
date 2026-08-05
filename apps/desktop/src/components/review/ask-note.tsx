@@ -12,7 +12,7 @@
  * review, not a chat.
  */
 import { CornerDownLeft, Sparkles, X } from "lucide-react";
-import { type KeyboardEvent, useEffect, useRef, useState } from "react";
+import { type KeyboardEvent, useEffect, useRef } from "react";
 import type { AskExchange } from "../../hooks/use-ask-note.ts";
 import { Markdown } from "../markdown.tsx";
 import { Spinner } from "../ui/spinner.tsx";
@@ -76,13 +76,13 @@ export function AskNote({
 }: AskNoteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Focus on every open (the comment-thread nonce pattern: compare during
-  // render); rAF because the note mounts a frame after the model rebuild.
-  const [seenFocusSeq, setSeenFocusSeq] = useState<number | null>(null);
-  if (seenFocusSeq !== focusSeq) {
-    setSeenFocusSeq(focusSeq);
-    requestAnimationFrame(() => inputRef.current?.focus());
-  }
+  // Focus on every open — focusSeq bumps per `a` press; rAF because the
+  // note mounts a frame after the model rebuild picks its slot up.
+  useEffect(() => {
+    if (focusSeq > 0) {
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }
+  }, [focusSeq]);
 
   // The input is disabled while an ask is in flight; take focus back the
   // moment it re-enables so the follow-up can be typed immediately.
