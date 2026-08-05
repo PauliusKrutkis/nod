@@ -80,7 +80,7 @@ const { commands, label = "Copy install commands" } = Astro.props;
         await navigator.clipboard.writeText(text);
         report("copied", "Copied", COPIED_MS);
       } catch {
-        report("failed", "Couldn't copy — select the text instead", FAILED_MS);
+        report("failed", "Couldn't copy. Select the text instead", FAILED_MS);
       }
     });
   }

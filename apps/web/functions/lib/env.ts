@@ -9,4 +9,9 @@ export interface Env {
   POLAR_WEBHOOK_SECRET: string;
   LICENSE_SIGNING_SEED: string;
   POLAR_API_KEY?: string;
+  SENTRY_DSN?: string;
+  POLAR_API_BASE?: string;
+  POLAR_PRODUCT_ID?: string;
+  GH_WEB_CLIENT_ID?: string;
+  GH_WEB_CLIENT_SECRET?: string;
 }

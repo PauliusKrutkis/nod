@@ -4,12 +4,25 @@
  * module evaluates — @tauri-apps/api reads window.__TAURI_INTERNALS__ at
  * call time from module scope — hence the dynamic import. Built by
  * vite.demo.config.ts into the marketing site's public/demo/, where the
- * landing page embeds it as the driveable hero.
+ * landing page embeds it as the driveable hero. Persisted UI state clears
+ * before boot: the app's resume feature would otherwise relaunch returning
+ * visitors into their last-open review, while the poster around the embed
+ * promises the inbox — every demo session starts at the top of the morning
+ * queue instead.
  */
 
 import { buildBridgeConfig, installBridge } from "../e2e/bridge-install.ts";
-import { DEMO_INBOX } from "./fixtures.ts";
+import { DEMO_DETAILS, DEMO_FILE_BLOBS, DEMO_INBOX } from "./fixtures.ts";
 
-installBridge(buildBridgeConfig({ inbox: DEMO_INBOX }));
+localStorage.clear();
+sessionStorage.clear();
+
+installBridge(
+  buildBridgeConfig({
+    detailByNumber: DEMO_DETAILS,
+    fileBlobs: DEMO_FILE_BLOBS,
+    inbox: DEMO_INBOX,
+  })
+);
 
 await import("../src/main.tsx");

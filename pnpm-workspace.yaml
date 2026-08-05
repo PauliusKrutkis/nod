@@ -4,8 +4,16 @@ packages:
 
 # esbuild's install script fetches its platform binary; vite cannot build
 # without it. Every other dependency stays script-less by omission.
+#
+# workerd arrives with wrangler and its script fetches the local Cloudflare
+# runtime binary. Denied rather than omitted because an undecided build script
+# fails `pnpm exec` for the whole workspace, not just the package that pulled
+# it in. Nothing needs it: the Functions tests run under vitest against a fake
+# KV, and the wrangler commands the launch runbook uses are all API calls.
+# Flip to true if `wrangler pages dev` is ever wanted for local Functions.
 allowBuilds:
   esbuild: true
+  workerd: false
 
 # Quarantine freshly published versions for a week. This is the control that
 # actually matters: the common attack is a compromised maintainer account
