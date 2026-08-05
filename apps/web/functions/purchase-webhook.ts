@@ -23,46 +23,51 @@ import {
   isOrderPaidEvent,
   verifyPolarWebhook,
 } from "./lib/polar";
+import { withErrorReporting } from "./lib/report";
 
 const LICENSE_DURATION_MS = 365 * 24 * 60 * 60 * 1000;
 
-export const onRequestPost: PagesFunction<Env> = async (context) => {
-  const payload = await context.request.text();
-  const headers = Object.fromEntries(context.request.headers);
+export const onRequestPost: PagesFunction<Env> = withErrorReporting(
+  async (context) => {
+    const payload = await context.request.text();
+    const headers = Object.fromEntries(context.request.headers);
 
-  const result = verifyPolarWebhook(
-    payload,
-    headers,
-    context.env.POLAR_WEBHOOK_SECRET
-  );
-  if (!result.verified) {
-    return new Response("invalid signature", { status: 401 });
-  }
+    const result = verifyPolarWebhook(
+      payload,
+      headers,
+      context.env.POLAR_WEBHOOK_SECRET
+    );
+    if (!result.verified) {
+      return new Response("invalid signature", { status: 401 });
+    }
 
-  if (!isOrderPaidEvent(result.event)) {
+    if (!isOrderPaidEvent(result.event)) {
+      return new Response(null, { status: 200 });
+    }
+
+    const subject = extractSubject(result.event);
+    if (subject === null) {
+      return new Response(null, { status: 200 });
+    }
+
+    const orderId = result.event.data.id;
+    const checkoutId = extractCheckoutId(result.event);
+    const existing = await getLicense(context.env.LICENSES, subject);
+    const existingUntil = existing
+      ? Date.parse(existing.updatesUntil)
+      : Number.NaN;
+    const extendFrom = Math.max(
+      Number.isNaN(existingUntil) ? 0 : existingUntil,
+      Date.now()
+    );
+    const updatesUntil = new Date(
+      extendFrom + LICENSE_DURATION_MS
+    ).toISOString();
+    await putLicense(context.env.LICENSES, subject, { orderId, updatesUntil });
+    if (checkoutId !== null) {
+      await putCheckoutIndex(context.env.LICENSES, checkoutId, subject);
+    }
+
     return new Response(null, { status: 200 });
   }
-
-  const subject = extractSubject(result.event);
-  if (subject === null) {
-    return new Response(null, { status: 200 });
-  }
-
-  const orderId = result.event.data.id;
-  const checkoutId = extractCheckoutId(result.event);
-  const existing = await getLicense(context.env.LICENSES, subject);
-  const existingUntil = existing
-    ? Date.parse(existing.updatesUntil)
-    : Number.NaN;
-  const extendFrom = Math.max(
-    Number.isNaN(existingUntil) ? 0 : existingUntil,
-    Date.now()
-  );
-  const updatesUntil = new Date(extendFrom + LICENSE_DURATION_MS).toISOString();
-  await putLicense(context.env.LICENSES, subject, { orderId, updatesUntil });
-  if (checkoutId !== null) {
-    await putCheckoutIndex(context.env.LICENSES, checkoutId, subject);
-  }
-
-  return new Response(null, { status: 200 });
-};
+);

@@ -38,6 +38,7 @@
 import type { Env } from "./lib/env";
 import { getCheckoutIndex, getLicense, putCheckoutIndex } from "./lib/kv";
 import { signLicenseToken } from "./lib/license-token";
+import { withErrorReporting } from "./lib/report";
 
 const DEEP_LINK_BASE = "prflow://purchase";
 const PURCHASE_LISTENER_BASE = "http://127.0.0.1:8766/callback";
@@ -113,57 +114,62 @@ function activationPage(token: string): string {
 </html>`;
 }
 
-export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const url = new URL(context.request.url);
-  const checkoutId = url.searchParams.get("checkout_id");
-  if (!checkoutId) {
-    return new Response("missing checkout_id", { status: 400 });
-  }
-  const retry = Number.parseInt(url.searchParams.get("retry") ?? "0", 10) || 0;
+export const onRequestGet: PagesFunction<Env> = withErrorReporting(
+  async (context) => {
+    const url = new URL(context.request.url);
+    const checkoutId = url.searchParams.get("checkout_id");
+    if (!checkoutId) {
+      return new Response("missing checkout_id", { status: 400 });
+    }
+    const retry =
+      Number.parseInt(url.searchParams.get("retry") ?? "0", 10) || 0;
 
-  const subject = await getCheckoutIndex(context.env.LICENSES, checkoutId);
-  if (subject === null) {
-    if (retry < MAX_RETRIES) {
-      return new Response(preparingPage(checkoutId, retry), {
-        headers: {
-          "cache-control": "no-store",
-          "content-type": "text/html; charset=utf-8",
-        },
+    const subject = await getCheckoutIndex(context.env.LICENSES, checkoutId);
+    if (subject === null) {
+      if (retry < MAX_RETRIES) {
+        return new Response(preparingPage(checkoutId, retry), {
+          headers: {
+            "cache-control": "no-store",
+            "content-type": "text/html; charset=utf-8",
+          },
+        });
+      }
+      return new Response("activation link is invalid or already used", {
+        status: 404,
       });
     }
-    return new Response("activation link is invalid or already used", {
-      status: 404,
+
+    const record = await getLicense(context.env.LICENSES, subject);
+    if (record === null) {
+      if (retry < MAX_RETRIES) {
+        return new Response(preparingPage(checkoutId, retry), {
+          headers: {
+            "cache-control": "no-store",
+            "content-type": "text/html; charset=utf-8",
+          },
+        });
+      }
+      return new Response("no license found for this account", {
+        status: 404,
+      });
+    }
+
+    const token = await signLicenseToken(
+      { orderId: record.orderId, subject, updatesUntil: record.updatesUntil },
+      context.env.LICENSE_SIGNING_SEED
+    );
+    await putCheckoutIndex(
+      context.env.LICENSES,
+      checkoutId,
+      subject,
+      ACTIVATION_WINDOW_SECONDS
+    );
+
+    return new Response(activationPage(token), {
+      headers: {
+        "cache-control": "no-store",
+        "content-type": "text/html; charset=utf-8",
+      },
     });
   }
-
-  const record = await getLicense(context.env.LICENSES, subject);
-  if (record === null) {
-    if (retry < MAX_RETRIES) {
-      return new Response(preparingPage(checkoutId, retry), {
-        headers: {
-          "cache-control": "no-store",
-          "content-type": "text/html; charset=utf-8",
-        },
-      });
-    }
-    return new Response("no license found for this account", { status: 404 });
-  }
-
-  const token = await signLicenseToken(
-    { orderId: record.orderId, subject, updatesUntil: record.updatesUntil },
-    context.env.LICENSE_SIGNING_SEED
-  );
-  await putCheckoutIndex(
-    context.env.LICENSES,
-    checkoutId,
-    subject,
-    ACTIVATION_WINDOW_SECONDS
-  );
-
-  return new Response(activationPage(token), {
-    headers: {
-      "cache-control": "no-store",
-      "content-type": "text/html; charset=utf-8",
-    },
-  });
-};
+);
