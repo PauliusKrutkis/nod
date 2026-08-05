@@ -96,7 +96,9 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
         </p>
         <p class="pricing__copy">
           Nod is free to evaluate, every feature, no time limit. A license
-          funds development and keeps the updates coming.
+          funds development and includes a year of updates. When the year is
+          up, the app keeps working as it is; you only stop getting new
+          versions.
         </p>
         {
           checkoutUrl ? (
@@ -112,7 +114,8 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
         {
           !checkoutUrl && (
             <p class="pricing__note">
-              Purchasing opens soon — the intro is full-featured.
+              Purchasing opens soon. Until then, the free evaluation is the
+              full app.
             </p>
           )
         }
