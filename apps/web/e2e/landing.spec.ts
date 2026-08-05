@@ -19,6 +19,8 @@ const STABLE_FRAMES = 3;
 
 const START_DEMO_PATTERN = /try the real app/i;
 
+const MAXIMIZED_PATTERN = /hd__frame--max/;
+
 /**
  * Resolves once the scroll position has stopped moving. `scroll-behavior` is
  * smooth, so an anchor jump animates; any geometry read mid-flight describes a
@@ -51,9 +53,16 @@ async function waitForScrollToSettle(page: Page) {
 test("leads with the inbox thesis in the hero", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Review PRs like an inbox, not a website."
-  );
+  // The visual headline is a diff (del/ins); the accessible name carries the
+  // full thesis sentence.
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Review PRs like an inbox, not a website.",
+    })
+  ).toBeVisible();
+  await expect(page.locator(".hero__del")).toHaveText("a website");
+  await expect(page.locator(".hero__ins")).toHaveText("an inbox");
 });
 
 test("the hero starts as a poster, with no demo bundle loaded", async ({
@@ -73,14 +82,86 @@ test("starting the hero embeds the real app and hands it the keyboard", async ({
 }) => {
   await page.goto("/");
   await page.getByRole("button", { name: START_DEMO_PATTERN }).click();
+  // The app selects the row under the mouse (its hover behavior), and the
+  // pointer rests over the queue where the start button was. Park it off the
+  // frame and assert relative movement instead of a fixed starting row.
+  await page.mouse.move(0, 0);
 
   const demo = page.frameLocator(".hd__iframe");
   const options = demo.getByRole("option");
   await expect(options.first()).toBeVisible();
-  await expect(options.nth(0)).toHaveAttribute("aria-selected", "true");
+  const selected = demo.locator('[role="option"][aria-selected="true"]');
+  await expect(selected).toHaveCount(1);
+  const start = await options.evaluateAll((rows) =>
+    rows.findIndex((row) => row.getAttribute("aria-selected") === "true")
+  );
 
   await page.keyboard.press("j");
-  await expect(options.nth(1)).toHaveAttribute("aria-selected", "true");
+  await expect(options.nth(start + 1)).toHaveAttribute("aria-selected", "true");
+});
+
+test("pressing j anywhere starts the demo, as the button promises", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.locator(".hd__iframe")).toHaveCount(0);
+
+  await page.keyboard.press("j");
+
+  const demo = page.frameLocator(".hd__iframe");
+  await expect(demo.getByRole("option").first()).toBeVisible();
+});
+
+test("a modified j does not hijack browser shortcuts into the demo", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page.keyboard.press("ControlOrMeta+j");
+
+  await expect(page.locator(".hd__iframe")).toHaveCount(0);
+});
+
+test("shift+f toggles the demo to viewport size and back", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: START_DEMO_PATTERN }).click();
+  const demo = page.frameLocator(".hd__iframe");
+  await expect(demo.getByRole("option").first()).toBeVisible();
+  const frame = page.locator(".hd__frame");
+
+  await page.keyboard.press("Shift+F");
+  await expect(frame).toHaveClass(MAXIMIZED_PATTERN);
+  const viewport = page.viewportSize();
+  const box = await frame.boundingBox();
+  expect(box?.width).toBe(viewport?.width);
+  expect(box?.height).toBe(viewport?.height);
+
+  await page.keyboard.press("Shift+F");
+  await expect(frame).not.toHaveClass(MAXIMIZED_PATTERN);
+});
+
+test("esc walks back through the app before it leaves full screen", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: START_DEMO_PATTERN }).click();
+  const demo = page.frameLocator(".hd__iframe");
+  await expect(demo.getByRole("option").first()).toBeVisible();
+  const frame = page.locator(".hd__frame");
+
+  await page.keyboard.press("Enter");
+  await expect(demo.locator(".qf-row").first()).toBeVisible();
+
+  await page.keyboard.press("Shift+F");
+  await expect(frame).toHaveClass(MAXIMIZED_PATTERN);
+
+  await page.keyboard.press("Escape");
+  await expect(demo.getByRole("option").first()).toBeVisible();
+  await expect(frame).toHaveClass(MAXIMIZED_PATTERN);
+
+  await page.keyboard.press("Escape");
+  await expect(frame).not.toHaveClass(MAXIMIZED_PATTERN);
+  await expect(demo.getByRole("option").first()).toBeVisible();
 });
 
 test("shows each capability as real footage with a poster", async ({
@@ -92,7 +173,7 @@ test("shows each capability as real footage with a poster", async ({
   await expect(shows).toHaveCount(3);
   for (const [i, scene] of ["loop", "comments", "scan"].entries()) {
     const video = shows.nth(i).locator("video");
-    await expect(video).toHaveAttribute("poster", `/landing/${scene}.png`);
+    await expect(video).toHaveAttribute("poster", `/landing/${scene}.webp`);
     await expect(video).toHaveAttribute("src", `/landing/${scene}.webm`);
   }
 });

@@ -17,6 +17,47 @@ test("boots the real app from the static bundle", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("each pull request opens its own review", async ({ page }) => {
+  await page.goto("/demo/");
+  const options = page.getByRole("option");
+  await expect(options.first()).toBeVisible();
+
+  await page.keyboard.press("Enter");
+  await expect(page.getByText("fuzzy.ts").first()).toBeVisible();
+  await expect(page.getByText("search.md").first()).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(options.first()).toBeVisible();
+  await page.keyboard.press("j");
+  await page.keyboard.press("Enter");
+  await expect(page.getByText("diff-row.tsx").first()).toBeVisible();
+  await expect(page.getByText("scroll-anchor.ts").first()).toBeVisible();
+});
+
+test("every visit starts at the inbox, never resumed state", async ({
+  page,
+}) => {
+  await page.goto("/demo/");
+  await expect(page.getByRole("option").first()).toBeVisible();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".qf-row").first()).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole("option").first()).toBeVisible();
+});
+
+test("full-file expansion reveals lines beyond the patch", async ({ page }) => {
+  await page.goto("/demo/");
+  await expect(page.getByRole("option").first()).toBeVisible();
+
+  await page.keyboard.press("Enter");
+  // FUZZY_VERSION exists only in the blob's tail, past the hunk — visible
+  // only if the expansion served the full file, not a diff re-render.
+  await expect(page.getByText("FUZZY_VERSION")).toHaveCount(0);
+  await page.getByText("Full file").first().click();
+  await expect(page.getByText("FUZZY_VERSION")).toBeVisible();
+});
+
 test("answers the keyboard", async ({ page }) => {
   await page.goto("/demo/");
   const options = page.getByRole("option");
