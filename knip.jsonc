@@ -11,14 +11,11 @@
   // platform, not imported from anywhere in the JS graph — the Astro plugin
   // only knows about src/pages entries.
   "workspaces": {
-    // The landing-footage capture runs through its own playwright config,
-    // which the playwright plugin does not auto-detect (it only knows
+    // Capture scenes run through their own playwright config, which the
+    // playwright plugin does not auto-detect (it only knows
     // playwright.config.ts).
     "apps/desktop": {
-      "entry": [
-        "playwright.capture.config.ts",
-        "e2e/capture/landing.capture.ts"
-      ]
+      "entry": ["playwright.capture.config.ts", "e2e/capture/*.capture.ts"]
     },
     "apps/web": {
       "entry": ["functions/**/*.ts!"]
