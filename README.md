@@ -1,289 +1,140 @@
+<p align="center">
+  <img src="docs/assets/banner.png" alt="Nod. Review PRs like an inbox, not a website." width="820">
+</p>
+
+<p align="center">
+  <a href="https://nodreview.com"><b>nodreview.com</b></a> &nbsp;·&nbsp;
+  <a href="https://nodreview.com/downloads">Download</a> &nbsp;·&nbsp;
+  <a href="#install--auto-updates">Install</a> &nbsp;·&nbsp;
+  <a href="#signing-in">Sign in</a> &nbsp;·&nbsp;
+  <a href="docs/DEVELOPMENT.md">Build from source</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/PauliusKrutkis/pr-flow/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/PauliusKrutkis/pr-flow?style=flat-square&labelColor=0f0f17&color=8b80ff"></a>
+  <a href="LICENSE.md"><img alt="License" src="https://img.shields.io/badge/license-FSL--1.1--Apache--2.0-8b80ff?style=flat-square&labelColor=0f0f17"></a>
+</p>
+
 # Nod
 
-> A keyboard-first, cache-first desktop app for reviewing GitHub pull requests.
+Nod is a desktop app for reviewing GitHub and GitLab pull requests. It is
+keyboard-first and cache-first: the queue, the diffs and the comments paint
+from a local cache, and the whole review runs without the mouse.
 
-Nod (formerly PR Flow) is a focused experiment with one hypothesis:
+It does one thing. Open a review request, read the diff, leave a comment,
+move on.
 
-> **Keyboard-first + cache-first PR review is faster and more satisfying than the GitHub web UI** — closer to triaging an inbox than navigating a website.
+<p align="center">
+  <img src="docs/assets/inbox.webp" alt="The Nod inbox: a list of review requests on the left, the selected pull request on the right." width="900">
+</p>
 
-It is intentionally small. No AI, no git operations, no team features — just the
-fastest possible loop for the thing you do every day: open a review request, read
-the diff, leave a comment, move on.
+## What you get
 
-Built with **Tauri 2 + React 19 + TypeScript + Tailwind v4**.
-
----
-
-## Highlights
-
-- ⌨️ **Keyboard-first.** Navigate PRs, files, hunks and comments without the mouse.
-- ⚡ **Cache-first.** Everything you've seen paints instantly from a local cache;
-  the network refreshes quietly in the background (every 60s and on window focus).
-- ⏯️ **Resume where you left off.** Launch straight back into the last PR — even
-  the file and scroll position you were on.
-- 🔔 **New-review notifications.** When a fresh review request lands, a
-  keyboard-dismissable toast pops up; press `Enter` to open it. No webhooks.
-- 🔍 **Diff-centric review.** Syntax-highlighted, collapsible diffs with inline
-  comment threads.
-- 💬 **Comment inline or on the PR** without leaving the keyboard flow.
-- ✅ **Mark files as viewed** to track review progress (stored locally).
-- 🎯 **Command palette** (`⌘K`) and a **shortcut cheatsheet** (`?`).
-- 🔒 **Your token stays on the backend.** All GitHub calls run in Rust — no CORS,
-  no token in the webview.
-
----
-
-## Keyboard shortcuts
-
-### Inbox
-
-| Key        | Action            |
-| ---------- | ----------------- |
-| `j` / `↓`  | Next PR           |
-| `k` / `↑`  | Previous PR       |
-| `Enter`    | Open PR           |
-| `/`        | Focus search      |
-| `1`–`4`    | Switch tab (Review requests · Assigned · Created · Involved) |
-| `⌘K`       | Command palette   |
-| `?`        | Keyboard shortcuts |
-
-### Review
-
-| Key        | Action                       |
-| ---------- | ---------------------------- |
-| `n` / `p`  | Next / previous file         |
-| `j` / `k`  | Move the line cursor (`↑`/`↓`) |
-| `Space`    | Page down the diff           |
-| `q` / `w`  | Next / previous comment      |
-| `c`        | Comment on the cursor line   |
-| `e`        | Mark file viewed and advance |
-| `v`        | Toggle file as viewed        |
-| `o`        | Open the files on GitHub     |
-| `y`        | Copy the PR link             |
-| `i`        | Toggle the info panel        |
-| `s`        | Submit review                |
-| `Esc`      | Back to inbox                |
-
-Inline comments: hover a diff line and click the **`+`** in the gutter. PR-level
-comments: use the composer in the info panel (`i`).
-
----
-
-## Architecture
-
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for layering and comment conventions,
-[docs/RUST.md](docs/RUST.md) for the Tauri backend module map,
-and state/caching notes. Overview:
-
-```
-┌──────────────────────────── Webview (React) ────────────────────────────┐
-│  Inbox / Review screens  ·  keyboard layer  ·  zustand UI state          │
-│  TanStack Query (in-memory cache, 60s polling, refetch-on-focus)         │
-└───────────────────────────────┬──────────────────────────────────────────┘
-                                 │  invoke()  (typed wrappers in apps/desktop/src/lib/api.ts)
-┌───────────────────────────────▼──────────────────────────────────────────┐
-│  Rust (Tauri commands)                                                    │
-│   • GitHub REST client (reqwest) — token never leaves the backend         │
-│   • JSON file cache: prs.json, pr_<owner>_<repo>_<n>.json, viewed.json     │
-└───────────────────────────────────────────────────────────────────────────┘
-```
-
-**Cache-first flow:** the Rust commands fetch from GitHub and persist JSON to the
-app config dir. On startup the UI seeds TanStack Query from that on-disk cache, so
-the first paint is instant; the live fetch then reconciles in the background.
-
-Key source files:
-
-- `apps/desktop/src-tauri/src/platform/github.rs` — GitHub client + commands: a single GraphQL request powers the inbox (all four tabs + counts at once); REST handles PR detail / diffs / comments
-- `apps/desktop/src-tauri/src/storage.rs` — JSON file persistence + token storage
-- `apps/desktop/src/lib/api.ts` — typed `invoke()` wrappers
-- `apps/desktop/src/keyboard/` — the scope-aware keyboard system (the differentiator)
-- `apps/desktop/src/hooks/` — TanStack Query data hooks (polling, focus refetch, cache seeding)
-- `apps/desktop/src/components/inbox`, `apps/desktop/src/components/review` — the two screens
-
----
-
-## Prerequisites
-
-- **Node 18+** and **pnpm**
-- **Rust toolchain** (via [rustup](https://rustup.rs)) — required to run the
-  desktop app, since Tauri compiles a native Rust binary
-- Platform build deps for Tauri — see
-  [tauri.app/start/prerequisites](https://tauri.app/start/prerequisites/)
-  (on macOS: Xcode Command Line Tools)
-
-## Getting started
-
-```bash
-pnpm install
-
-# Run the desktop app (requires the Rust toolchain)
-pnpm tauri dev
-
-# Type-check / build just the frontend
-pnpm build
-
-# Produce a distributable bundle
-pnpm tauri build
-```
-
-### Authenticate
-
-You can authenticate two ways:
-
-#### Option A — Sign in with GitHub (OAuth, best UX)
-
-Click **Sign in with GitHub**: the browser opens GitHub's authorize page, you log
-in, and the app catches the redirect on a local `http://127.0.0.1` listener and
-captures the token automatically — no copy/paste.
-
-This needs a **one-time OAuth App registration** (only the developer does this
-once):
-
-1. Go to **GitHub → Settings → Developer settings → OAuth Apps → New OAuth App**
-   ([github.com/settings/applications/new](https://github.com/settings/applications/new)).
-2. Set **Authorization callback URL** to exactly:
-   ```
-   http://127.0.0.1:8765/callback
-   ```
-   (Homepage URL can be anything, e.g. `http://127.0.0.1:8765`.)
-3. Create it, copy the **Client ID**, and **Generate a new client secret**.
-4. Put them in **`apps/desktop/src-tauri/.env`** (copy the provided `apps/desktop/src-tauri/.env.example`):
-   ```dotenv
-   # Copy these exactly as shown on the OAuth App page — no prefix.
-   PRFLOW_GH_CLIENT_ID=Ov23xxxxxxxxxxxxxxxx
-   PRFLOW_GH_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxx
-   ```
-   Then start the app:
-   ```bash
-   pnpm tauri dev
-   ```
-
-`apps/desktop/src-tauri/.env` is **gitignored**, so the secret never gets committed; the app
-loads it at startup (real shell environment variables, if set, take precedence).
-You can equally `export` the two vars instead of using `.env` — either works.
-
-(The callback uses a fixed loopback port, `8765`. GitHub OAuth Apps don't support
-PKCE, so the authorization-code flow needs the secret; for a single-user desktop
-tool that's an acceptable trade-off. The button shows a "needs setup" hint until
-the credentials are present.)
-
-#### Option B — Personal Access Token
-
-Paste a **PAT** with the **`repo`** scope. Create one at
-[github.com/settings/tokens/new](https://github.com/settings/tokens/new?scopes=repo&description=PR%20Flow)
-(the in-app link pre-selects the scope). No OAuth App needed.
-
-#### GitLab
-
-**gitlab.com — Sign in with GitLab (OAuth + PKCE, no client secret):** needs a
-one-time application registration:
-
-1. GitLab → **Preferences → Applications → Add new application**
-   ([gitlab.com/-/user_settings/applications](https://gitlab.com/-/user_settings/applications)).
-2. Redirect URI: `http://127.0.0.1:8765/callback`, scope: **`api`**,
-   **uncheck "Confidential"** (public client, PKCE) and **uncheck "Expire
-   access tokens"** (otherwise tokens expire after 2h and you'd re-auth).
-3. Put the Application ID in `apps/desktop/src-tauri/.env`:
-   ```dotenv
-   NOD_GITLAB_CLIENT_ID=xxxxxxxx
-   ```
-
-**Self-managed GitLab:** OAuth apps register per instance, so use a **PAT**
-with the `api` scope plus your host URL in the GitLab tab of the sign-in
-screen.
-
-Either way, the token and all cached data are stored locally under the app config
-directory (e.g. on macOS:
-`~/Library/Application Support/com.pauliuskrutkis.nod/`). The token is stored in
-plain JSON — fine for a local MVP; moving it to the OS keychain is on the roadmap.
-
----
+- **The whole loop, no mouse.** Triage with `j` and `k`, open with Enter, step
+  the diff, mark files viewed with `e`, submit with `s`. Press `?` in the app
+  for the full map.
+- **Cache-first.** Anything you have seen paints instantly from disk. The
+  network refreshes quietly in the background, every 60 seconds and on window
+  focus. No spinners, no refresh button.
+- **Resume where you left off.** Launch straight back into the last pull
+  request, on the file and scroll position you left it at.
+- **Built for reading diffs.** Syntax highlighting, intraline emphasis on
+  renames, occurrence marks on double-click, find-in-diff with matches ticked
+  on an overview ruler, and full-file context on `shift+v`.
+- **Comment without breaking stride.** `c` opens a composer on the cursor line
+  or across a selected range. Batch comments into a pending review, or send one
+  on its own.
+- **New review requests find you.** A fresh request pops a toast you can open
+  or dismiss from the keyboard. No webhooks to set up.
+- **No AI, no cloud.** Your token stays in the Rust backend and never reaches
+  the webview. Nod talks to GitHub and GitLab, and to nothing else.
 
 ## Install & auto-updates
 
-**macOS (Homebrew):**
+Every release publishes builds for macOS (arm64 and x64), Windows and Linux on
+the [Releases page](https://github.com/PauliusKrutkis/pr-flow/releases).
+[nodreview.com/downloads](https://nodreview.com/downloads) picks the right one
+for your machine.
+
+### macOS
 
 ```bash
 brew install pauliuskrutkis/tap/nod
 xattr -dr com.apple.quarantine /Applications/Nod.app
 ```
 
-The fully-qualified name auto-taps, so `brew tap` is not a separate step.
-Once tapped, plain `brew install nod` works too — the cask token resolves
-from the tap, and `--cask` is not needed since no formula shares the name.
+The fully qualified name auto-taps, so `brew tap` is not a separate step. The
+second command clears Gatekeeper quarantine, which stands in for notarization
+until Apple notarization lands. If you prefer the `.dmg`, download it from
+Releases and approve it once under System Settings → Privacy & Security.
 
-The `xattr` step clears Gatekeeper quarantine, needed because releases
-aren't Apple-notarized yet (Homebrew 6 removed the old `--no-quarantine`
-flag). It disappears once notarization lands — see
-[RELEASING.md](docs/RELEASING.md#apple-notarization). Alternatively, download
-the `.dmg` from [Releases](https://github.com/PauliusKrutkis/pr-flow/releases)
-and approve it once under System Settings → Privacy & Security.
+### Windows
 
-`brew trust --tap pauliuskrutkis/tap` is only required if you've opted into
-`HOMEBREW_REQUIRE_TAP_TRUST`, which is off by default — most people never
-need it. Note the `--tap` flag if you do: plain `brew trust <tap>` is rejected.
+Download the `.msi` from Releases and run it.
 
-**Windows / Linux:** grab the installer (`.msi` / `.deb` / `.AppImage`) from
-[Releases](https://github.com/PauliusKrutkis/pr-flow/releases).
+### Linux
 
-After the first install the app keeps itself current: it polls the release
-feed, shows an **"Update available"** prompt, and installs + relaunches in one
-click. Updates are signed (minisign via `tauri-plugin-updater`) and verified
-against the public key baked into the app.
+Prefer the native package for your distribution. It gives you a launcher entry,
+an icon and `prflow://` scheme registration, none of which an AppImage sets up
+on its own.
 
-### Cutting a release
+| Distribution | Build |
+| --- | --- |
+| Debian, Ubuntu, Mint, Pop!_OS | `Nod_<version>_amd64.deb` |
+| Fedora, RHEL, openSUSE | `Nod-<version>-1.x86_64.rpm` |
+| Anything else | `.AppImage`, portable but slower to start and with no desktop integration |
 
-Full guide — including testing auto-updates locally while the repo is private,
-and the go-public checklist (name, identifier, icon) — in
-**[docs/RELEASING.md](docs/RELEASING.md)**.
+Hosted apt and dnf repositories and an AUR package are planned. Until they
+exist, updating on Linux means installing the newer package from Releases.
 
-```bash
-git tag v0.1.1 && git push origin v0.1.1
-```
+### Auto-updates
 
-The `release.yml` workflow builds macOS (arm64 + x64), Windows and Linux
-bundles, signs the updater artifacts, publishes a GitHub Release with
-`latest.json`, and bumps the Homebrew tap (when the `TAP_REPO_TOKEN` secret is
-set). Bump `version` in `apps/desktop/src-tauri/tauri.conf.json` before
-tagging — that's the version the updater compares against.
+On macOS and Windows the app keeps itself current: it polls the release feed,
+shows an **Update available** prompt, and installs plus relaunches in one click.
+Updates are signed with minisign and verified against a public key baked into
+the app. On Linux only the AppImage can replace itself, so package installs
+update through the package manager instead.
 
-Signing secrets (already configured): `TAURI_SIGNING_PRIVATE_KEY` (from
-`~/.tauri/prflow.key` — **back this file up**; losing it breaks the update
-chain) and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
+## Signing in
 
----
+**GitHub.** Click **Sign in with GitHub**. The browser opens GitHub's authorize
+page and the app catches the redirect on a local listener, so there is nothing
+to copy and paste. Alternatively, paste a personal access token with the `repo`
+scope.
 
-## Scope
+**GitLab.** The same two options on gitlab.com, where sign-in uses OAuth with
+PKCE. For a self-managed instance, use a personal access token with the `api`
+scope plus your host URL, in the GitLab tab of the sign-in screen.
 
-**In scope (MVP v0.1):** token + OAuth auth · inbox tabs (review-requested ·
-assigned · created · involved) · open a PR · view changed files ·
-syntax-highlighted diffs · view & add comments (inline, reply, PR-level) ·
-submit reviews (approve / request changes) with batched comments · mark files
-viewed · resume where you left off · in-app new-review notifications · keyboard
-navigation · local caching · background polling.
+Your token and every cached pull request stay on your machine, under the app
+config directory (on macOS,
+`~/Library/Application Support/com.pauliuskrutkis.nod/`). The token is held in
+the Rust backend so it never reaches the webview. It is stored as plain JSON
+today; moving it to the OS keychain is on the list.
 
-**Out of scope (for now):** git operations · GitLab · AI review/chat · webhooks ·
-team features · desktop/OS notifications · offline sync.
+## Price and license
 
-## Roadmap
+Nod is free to evaluate, every feature, no time limit. A license is $39, once,
+and carries a year of updates. When the year is up the app keeps working
+exactly as it is; you stop receiving new versions. Details on
+[nodreview.com](https://nodreview.com/#pricing).
 
-- OS-keychain token storage
-- Auto-updates: wire the scaffolded updater to a signed CI release feed (above)
-- Fuzzy file finder, richer command palette actions
-- Per-line syntax-highlighting context across hunks
+The source is available under the
+[Functional Source License 1.1 with an Apache 2.0 future license](LICENSE.md):
+read it, build it, change it, use it internally. The one thing you may not do
+is ship a competing product. Each release becomes Apache 2.0 two years after it
+ships. What is for sale is signed builds and updates, not the code.
 
----
+## Documentation
 
-Built as a 7-day experiment. The first milestone — *launch, see assigned PRs, open
-one, navigate files with the keyboard* — is the core of the product; everything
-else is iteration.
+| Document | What is in it |
+| --- | --- |
+| [DEVELOPMENT.md](docs/DEVELOPMENT.md) | Build and run Nod from source |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Layering, state, caching, comment conventions |
+| [RUST.md](docs/RUST.md) | Tauri backend module map |
+| [TESTING.md](docs/TESTING.md) | Test strategy and what each suite covers |
+| [RELEASING.md](docs/RELEASING.md) | Cutting a release, signing, commercial launch |
+| [DESIGN.md](docs/DESIGN.md) | Product and interaction decisions |
+| [BACKLOG.md](docs/BACKLOG.md) | What is planned, and the reasoning behind it |
 
-## License
-
-Nod is **source-available** under the [Functional Source License,
-Version 1.1, with Apache 2.0 Future License](LICENSE.md)
-(FSL-1.1-Apache-2.0): read it, build it, modify it, use it internally —
-anything except offering a competing product. Each release automatically
-becomes Apache 2.0 two years after it ships. Signed binaries, auto-updates
-and licenses are what's for sale, not the code.
+Built with Tauri 2, Rust, React 19, TypeScript and Tailwind v4.

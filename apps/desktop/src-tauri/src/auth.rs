@@ -45,7 +45,7 @@ fn oauth_credentials() -> Result<(String, String), String> {
     if id.trim().is_empty() || secret.trim().is_empty() {
         return Err(
             "GitHub sign-in isn't configured. Set PRFLOW_GH_CLIENT_ID and \
-             PRFLOW_GH_CLIENT_SECRET and restart (see README → Sign in with GitHub). \
+             PRFLOW_GH_CLIENT_SECRET and restart (see docs/DEVELOPMENT.md). \
              You can still paste a token instead."
                 .to_string(),
         );
@@ -119,7 +119,7 @@ fn gitlab_client_id() -> Result<String, String> {
     if id.trim().is_empty() {
         return Err(
             "GitLab sign-in isn't configured. Set NOD_GITLAB_CLIENT_ID and restart \
-             (see README → Sign in with GitLab). You can still paste a token instead."
+             (see docs/DEVELOPMENT.md). You can still paste a token instead."
                 .to_string(),
         );
     }

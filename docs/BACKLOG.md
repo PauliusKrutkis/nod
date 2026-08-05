@@ -789,12 +789,18 @@ below requires changing how the app is built.
 
 **Tier 0 — do now (docs + one flag, no infrastructure)**
 
-- [ ] 🔴 **One honest recommendation per distro** — README (`README.md:221`),
+- [x] 🔴 **One honest recommendation per distro** — README (`README.md:221`),
       release notes and the Phase 0 landing page list `.msi` / `.deb` /
       `.AppImage` flat with no guidance. Replace with a per-distro table:
       Debian/Ubuntu → apt repo, Arch → AUR, Fedora → dnf repo, everything else →
       `.deb`/`.rpm` direct, AppImage last and labelled "portable, slower cold
       start, no desktop integration".
+      *Done for the README as part of the rework below: native package per
+      distro in a table, AppImage last and labelled portable/slower/no desktop
+      integration, plus a line saying updates mean installing the newer package
+      until the repos exist. The apt/AUR/dnf rows land with Tier 1; there is
+      nothing to point at yet. Release notes and the landing page still list
+      the builds flat.*
 - [ ] 🔴 **`nod --version` / `--help`** — an installed binary must be able to
       describe itself. Print version, detected install format (system package vs
       AppImage vs unmanaged copy) and the exact upgrade command for that format.
@@ -1830,11 +1836,26 @@ link interception · Universal Links.
       (`width: 0`, `translateX(-100%)`, `opacity: 0`) are load-bearing and
       stayed. The 120ms `.qf-file` row hover cross-fade is deliberately
       kept — that is hover feedback on a row, not the tree animating.
-- [ ] 🔴 **README rework** — the README has grown by accretion and no longer
+- [x] 🔴 **README rework** — the README has grown by accretion and no longer
       reads as an introduction to the product. Rewrite it. Folds in the
       per-distro install guidance already queued in
       [11d Tier 0](#11d-linux-install--update-path-2026-07-25) (`README.md:221`)
       — do that pass as part of this rather than twice.
+      *Shipped: 290 lines down to ~140. Leads with the landing page's OG banner
+      and a real inbox screenshot (`docs/assets/`, copied from `apps/web` so the
+      social card can change without silently changing the README), then pitch,
+      features, install, sign-in, price and licence, docs index. Cut: both
+      shortcut tables (`?` owns them in-app), the runtime diagram and key-source
+      list (ARCHITECTURE.md / RUST.md own them), Scope, Roadmap and the "7-day
+      experiment" framing, which read as a hobby project next to a $39 price.
+      Build-from-source, OAuth app registration and the check commands moved to
+      the new [DEVELOPMENT.md](./DEVELOPMENT.md); release cutting was already
+      duplicated from RELEASING.md and is now just a link. Also fixed the stale
+      Scope line claiming GitLab was out of scope, and repointed the two
+      `auth.rs` "see README" sign-in errors plus the RUST.md/ARCHITECTURE.md
+      cross-links at DEVELOPMENT.md. The `## Install & auto-updates` heading is
+      load-bearing: `apps/web/src/lib/site.ts` `INSTALL_NOTES_URL` links the
+      macOS note to that anchor.*
 - [ ] 🟡 **`mod+r` code search — the glance is too cramped** (2026-07-30) —
       snippets aren't full width, some content never fits, and the code
       preview needs more room and more lines. Audit of

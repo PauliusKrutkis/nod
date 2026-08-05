@@ -234,4 +234,5 @@ once a module has one.
 
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — stack-wide layering, comments, state
 - [TESTING.md](./TESTING.md) — what to test when changing cache or commands
-- [README.md](../README.md) — product overview and runtime diagram
+- [DEVELOPMENT.md](./DEVELOPMENT.md) — build from source, credentials, checks
+- [README.md](../README.md) — product overview
