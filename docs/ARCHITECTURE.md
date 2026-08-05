@@ -1,8 +1,9 @@
 # Architecture
 
 This document captures structural decisions and coding conventions for the
-Nod (PR Flow) codebase. For product overview and the runtime diagram, see the
-[README](../README.md).
+Nod (PR Flow) codebase. For the product overview see the
+[README](../README.md); to build and run it from source see
+[DEVELOPMENT.md](./DEVELOPMENT.md).
 
 ---
 
