@@ -364,7 +364,9 @@ needed once `/restore` is implemented for real.
 ## Commercial launch
 
 Paid distribution layered on top of the existing updater feed, signing chain,
-and CI releases (most of the hard infrastructure is already done).
+and CI releases. The code side is complete — the ordered list of what
+remains (accounts, secrets, one buy-flow page) lives in
+**[docs/LAUNCH.md](LAUNCH.md)**; this section stays the design record.
 
 ### Canonical domain
 
