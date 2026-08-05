@@ -12,4 +12,6 @@ export interface Env {
   SENTRY_DSN?: string;
   POLAR_API_BASE?: string;
   POLAR_PRODUCT_ID?: string;
+  GH_WEB_CLIENT_ID?: string;
+  GH_WEB_CLIENT_SECRET?: string;
 }
