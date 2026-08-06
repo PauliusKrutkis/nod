@@ -7,7 +7,7 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
  * CSS zoom on the root element is the fallback.
  */
 
-const KEY = "pr-flow:zoom";
+const KEY = "nod:zoom";
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 2.0;
 export const ZOOM_STEP = 0.1;

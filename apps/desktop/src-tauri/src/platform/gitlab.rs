@@ -279,7 +279,7 @@ impl GitLabPlatform {
     pub fn new(host: &str, token: &str) -> Result<Self, String> {
         use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, USER_AGENT};
         let mut headers = HeaderMap::new();
-        headers.insert(USER_AGENT, HeaderValue::from_static("pr-flow"));
+        headers.insert(USER_AGENT, HeaderValue::from_static("nod"));
         let auth = HeaderValue::from_str(&format!("Bearer {token}"))
             .map_err(|e| format!("invalid token header: {e}"))?;
         headers.insert(AUTHORIZATION, auth);

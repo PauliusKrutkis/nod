@@ -101,7 +101,7 @@ warrants.
 
 With sandbox Polar + real keypair + a locally built app carrying the
 pubkey: buy → webhook stores license → `/activate` → zero-click loopback
-activation, deep-link activation (macOS bundled build for `prflow://`),
+activation, deep-link activation (macOS bundled build for `nod://`),
 Safari's button path, and repeat-purchase term extension. This is the first
 time the whole chain runs against reality.
 
@@ -127,8 +127,10 @@ time the whole chain runs against reality.
 The concrete remaining actions, distilled from the steps above. Tick as
 they land.
 
-The Pages project is **`pr-flow`** (it predates the rename to Nod); every
-`wrangler pages` command below needs `--project-name pr-flow`. Production and
+The Pages project is **`pr-flow`** — it predates the rename to Nod and stays
+that way, because Cloudflare has no rename for a Pages project and recreating
+one means re-pointing `nodreview.com`. Every `wrangler pages` command below
+therefore needs `--project-name pr-flow`. Production and
 preview hold separate secret sets — add `--env preview` for anything a
 preview deployment has to exercise.
 

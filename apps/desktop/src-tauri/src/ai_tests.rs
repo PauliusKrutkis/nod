@@ -8,7 +8,7 @@ use serde_json::json;
 use std::path::PathBuf;
 
 fn tool_snapshot(label: &str) -> (PathBuf, SnapshotKey) {
-    let root = std::env::temp_dir().join(format!("prflow-ai-{label}-{}", std::process::id()));
+    let root = std::env::temp_dir().join(format!("nod-ai-{label}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).expect("temp root");
     let key = SnapshotKey {

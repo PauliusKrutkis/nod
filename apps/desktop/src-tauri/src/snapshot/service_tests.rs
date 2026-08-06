@@ -7,7 +7,7 @@ static COUNTER: AtomicU32 = AtomicU32::new(0);
 fn temp_root(label: &str) -> PathBuf {
     let n = COUNTER.fetch_add(1, Ordering::Relaxed);
     let path =
-        std::env::temp_dir().join(format!("prflow-service-{label}-{}-{n}", std::process::id()));
+        std::env::temp_dir().join(format!("nod-service-{label}-{}-{n}", std::process::id()));
     let _ = std::fs::remove_dir_all(&path);
     std::fs::create_dir_all(&path).expect("temp root");
     path

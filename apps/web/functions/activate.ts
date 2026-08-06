@@ -1,7 +1,7 @@
 /**
  * GET /activate — post-checkout success page: look up the checkout_id index
  * the webhook stored, sign an activation token, render an "Open Nod" page
- * whose button carries the token as a prflow://purchase deep link.
+ * whose button carries the token as a nod://purchase deep link.
  *
  * Keyed by `?checkout_id=` (Polar's opaque checkout identifier), not
  * `?subject=` — a subject is public, so trusting it alone here would let
@@ -40,7 +40,7 @@ import { getCheckoutIndex, getLicense, putCheckoutIndex } from "./lib/kv";
 import { signLicenseToken } from "./lib/license-token";
 import { withErrorReporting } from "./lib/report";
 
-const DEEP_LINK_BASE = "prflow://purchase";
+const DEEP_LINK_BASE = "nod://purchase";
 const PURCHASE_LISTENER_BASE = "http://127.0.0.1:8766/callback";
 const ACTIVATION_WINDOW_SECONDS = 48 * 60 * 60;
 const RETRY_INTERVAL_SECONDS = 5;

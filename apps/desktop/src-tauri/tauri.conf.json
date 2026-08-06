@@ -40,12 +40,12 @@
   "plugins": {
     "deep-link": {
       "desktop": {
-        "schemes": ["prflow"]
+        "schemes": ["nod"]
       }
     },
     "updater": {
       "endpoints": [
-        "https://github.com/PauliusKrutkis/pr-flow/releases/latest/download/latest.json"
+        "https://github.com/PauliusKrutkis/nod/releases/latest/download/latest.json"
       ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEFCMDFERTA3MDFEMTIyODUKUldTRkl0RUJCOTRCcS9sMHdNNnZSTlhRelRTUTkzVnpHeWRVSjVmRDRYZTJqNmFHRXNRaDh5RjMK"
     }

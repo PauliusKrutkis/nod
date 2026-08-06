@@ -40,7 +40,7 @@ test("the palette opens the release history with the current version marked", as
 
 test("the what's-new card links to all releases", async ({ page }) => {
   await page.addInitScript(() => {
-    localStorage.setItem("pr-flow:lastRunVersion", "1.3.0");
+    localStorage.setItem("nod:lastRunVersion", "1.3.0");
   });
   await setupApp(page, { appVersion: "1.4.0", releases: RELEASES });
 

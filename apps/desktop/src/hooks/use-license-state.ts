@@ -13,7 +13,7 @@ import type { LicenseState } from "../types.ts";
  * flow, whose backend response is already the authoritative persisted state
  * — writing it into the cache beats refetching the same file.
  *
- * Focus always refetches (ignoring staleness): a prflow:// deep-link
+ * Focus always refetches (ignoring staleness): a nod:// deep-link
  * activation happens entirely in Rust and ends by focusing the window, so
  * the focus refetch is what flips the UI — no event plumbing needed for a
  * read this cheap.

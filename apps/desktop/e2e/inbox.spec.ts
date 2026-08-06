@@ -95,7 +95,7 @@ test("the Watching zero-state offers the watch-a-repository action", async ({
   page,
 }) => {
   await page.addInitScript(() => {
-    localStorage.setItem("pr-flow:lastInboxTab", "subscribed");
+    localStorage.setItem("nod:lastInboxTab", "subscribed");
   });
   await setupApp(page, { inbox: EMPTY_INBOX });
 

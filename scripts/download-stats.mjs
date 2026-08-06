@@ -9,7 +9,7 @@
  * GITHUB_TOKEN is optional and only matters for rate limits.
  */
 
-const REPO_SLUG = "PauliusKrutkis/pr-flow";
+const REPO_SLUG = "PauliusKrutkis/nod";
 
 const VERSION_TAG_PATTERN = /^v\d+\.\d+\.\d+$/;
 

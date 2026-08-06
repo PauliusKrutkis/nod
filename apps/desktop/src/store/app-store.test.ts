@@ -45,7 +45,7 @@ describe("archive (dismiss until update)", () => {
   it("persists to localStorage", () => {
     useAppStore.getState().dismiss(KEY, "2026-07-01T10:00:00Z");
     expect(
-      JSON.parse(localStorage.getItem("pr-flow:dismissed:v1") ?? "{}")[KEY]
+      JSON.parse(localStorage.getItem("nod:dismissed:v1") ?? "{}")[KEY]
     ).toBe("2026-07-01T10:00:00Z");
   });
 
@@ -56,7 +56,7 @@ describe("archive (dismiss until update)", () => {
     const g = useAppStore.getState();
     expect(g.isDismissed(KEY, "2026-07-01T10:00:00Z")).toBe(false);
     expect(
-      JSON.parse(localStorage.getItem("pr-flow:dismissed:v1") ?? "{}")[KEY]
+      JSON.parse(localStorage.getItem("nod:dismissed:v1") ?? "{}")[KEY]
     ).toBeUndefined();
   });
 });
@@ -108,7 +108,7 @@ describe("pending review comments", () => {
       side: "RIGHT",
     });
     const stored = JSON.parse(
-      localStorage.getItem("pr-flow:pendingComments:v1") ?? "{}"
+      localStorage.getItem("nod:pendingComments:v1") ?? "{}"
     );
     expect(stored[KEY]).toHaveLength(1);
   });
@@ -117,18 +117,18 @@ describe("pending review comments", () => {
 describe("inbox tab persistence", () => {
   it("setInboxTab persists to localStorage", () => {
     useAppStore.getState().setInboxTab("created");
-    expect(localStorage.getItem("pr-flow:lastInboxTab:v1")).toBe("created");
+    expect(localStorage.getItem("nod:lastInboxTab:v1")).toBe("created");
     expect(useAppStore.getState().inboxTab).toBe("created");
   });
 
   it("loadLastTab returns a previously saved valid tab", () => {
-    localStorage.setItem("pr-flow:lastInboxTab:v1", "subscribed");
+    localStorage.setItem("nod:lastInboxTab:v1", "subscribed");
     expect(loadLastTab()).toBe("subscribed");
   });
 
   it("loadLastTab ignores unknown or missing values", () => {
     expect(loadLastTab()).toBeNull();
-    localStorage.setItem("pr-flow:lastInboxTab:v1", "bogus");
+    localStorage.setItem("nod:lastInboxTab:v1", "bogus");
     expect(loadLastTab()).toBeNull();
   });
 });

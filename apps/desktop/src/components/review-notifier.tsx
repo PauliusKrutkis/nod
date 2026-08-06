@@ -14,8 +14,8 @@ import { Kbd } from "./ui/kbd.tsx";
  * Enter opens it, Esc dismisses. No webhooks, no desktop-notification perms.
  */
 
-const KNOWN_KEY = "pr-flow:knownReviewRequested:v1";
-const LEGACY_KNOWN_KEY = "pr-flow:knownReviewRequested";
+const KNOWN_KEY = "nod:knownReviewRequested:v1";
+const LEGACY_KNOWN_KEY = "nod:knownReviewRequested";
 const AUTO_DISMISS_MS = 12_000;
 
 function loadKnown(): Set<string> | null {

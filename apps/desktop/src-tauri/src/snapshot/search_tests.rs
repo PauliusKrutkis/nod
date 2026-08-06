@@ -3,7 +3,7 @@ use crate::snapshot::store::{partial_dir, promote, SnapshotKey};
 use std::path::{Path, PathBuf};
 
 fn temp_root(label: &str) -> PathBuf {
-    let path = std::env::temp_dir().join(format!("prflow-search-{label}-{}", std::process::id()));
+    let path = std::env::temp_dir().join(format!("nod-search-{label}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&path);
     std::fs::create_dir_all(&path).expect("temp root");
     path

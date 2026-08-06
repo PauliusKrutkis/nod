@@ -98,7 +98,7 @@ Then refresh the lockfile's entry for the local package (offline — it's a
 path package, nothing to fetch):
 
 ```sh
-cd apps/desktop/src-tauri && cargo update -p pr-flow --offline
+cd apps/desktop/src-tauri && cargo update -p nod --offline
 ```
 
 ### 4. Run the gate

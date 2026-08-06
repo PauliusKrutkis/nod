@@ -5,7 +5,8 @@
   // bindings and vars set in the dashboard are ignored and become read-only
   // there. Add bindings here, not in the UI.
   // Must match the real Cloudflare Pages project, which is `pr-flow` — it
-  // predates the rename to Nod. Git-integration builds resolve the project
+  // predates the rename to Nod and outlived it, because Cloudflare has no
+  // rename for a Pages project. Git-integration builds resolve the project
   // from the dashboard and ignore this field, so a wrong value breaks nothing
   // at deploy time; it breaks every `wrangler pages ...` command run from this
   // directory, which is how the secrets below get set.

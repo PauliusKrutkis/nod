@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/PauliusKrutkis/pr-flow/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/PauliusKrutkis/pr-flow?style=flat-square&labelColor=0f0f17&color=8b80ff"></a>
+  <a href="https://github.com/PauliusKrutkis/nod/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/PauliusKrutkis/nod?style=flat-square&labelColor=0f0f17&color=8b80ff"></a>
   <a href="LICENSE.md"><img alt="License" src="https://img.shields.io/badge/license-FSL--1.1--Apache--2.0-8b80ff?style=flat-square&labelColor=0f0f17"></a>
 </p>
 
@@ -56,7 +56,7 @@ move on.
 ## Install & auto-updates
 
 Every release publishes builds for macOS (arm64 and x64), Windows and Linux on
-the [Releases page](https://github.com/PauliusKrutkis/pr-flow/releases).
+the [Releases page](https://github.com/PauliusKrutkis/nod/releases).
 [nodreview.com/downloads](https://nodreview.com/downloads) picks the right one
 for your machine.
 
@@ -79,7 +79,7 @@ Download the `.msi` from Releases and run it.
 ### Linux
 
 Prefer the native package for your distribution. It gives you a launcher entry,
-an icon and `prflow://` scheme registration, none of which an AppImage sets up
+an icon and `nod://` scheme registration, none of which an AppImage sets up
 on its own.
 
 | Distribution | Build |

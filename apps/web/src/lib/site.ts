@@ -14,7 +14,7 @@
  * renders as separate prompt lines and copies newline-joined; drop the second
  * entry when notarization lands and it becomes a one-liner again.
  */
-export const REPO_SLUG = "PauliusKrutkis/pr-flow";
+export const REPO_SLUG = "PauliusKrutkis/nod";
 
 export const REPO_URL = `https://github.com/${REPO_SLUG}`;
 

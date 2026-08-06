@@ -1,7 +1,7 @@
 [package]
-name = "pr-flow"
+name = "nod"
 version = "0.4.0"
-description = "PR Flow — a keyboard-first, cache-first GitHub pull request reviewer"
+description = "Nod — a keyboard-first, cache-first GitHub pull request reviewer"
 authors = ["Paulius Krutkis"]
 edition = "2021"
 
@@ -11,7 +11,7 @@ edition = "2021"
 # The `_lib` suffix may seem redundant but it is necessary
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
-name = "pr_flow_lib"
+name = "nod_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -36,11 +36,11 @@ sha2 = "0.10"
 sha1 = "0.10"
 rand = "0.8"
 dotenvy = "0.15"
-# Auto-update. PR Flow is a desktop-only app, so this stays a plain dependency.
+# Auto-update. Nod is a desktop-only app, so this stays a plain dependency.
 tauri-plugin-updater = "2"
 # License token verification (Ed25519, offline) — see license.rs.
 ed25519-dalek = "2"
-# prflow:// scheme — purchase activation now, "Open in Nod" extension later.
+# nod:// scheme — purchase activation now, "Open in Nod" extension later.
 tauri-plugin-deep-link = "2"
 # Reading the updater's release date for updates_until gating (update.rs).
 time = "0.3"

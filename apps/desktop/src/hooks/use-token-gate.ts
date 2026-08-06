@@ -64,7 +64,7 @@ export interface GitlabInstance {
   host: string;
 }
 
-const INSTANCES_KEY = "pr-flow:gitlabInstances:v1";
+const INSTANCES_KEY = "nod:gitlabInstances:v1";
 const HTTPS_PREFIX = /^https?:\/\//;
 const GH_TOKEN_URL =
   "https://github.com/settings/tokens/new?scopes=repo&description=Nod";

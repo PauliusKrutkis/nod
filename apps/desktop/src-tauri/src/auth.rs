@@ -8,6 +8,14 @@
 //!
 //! Credentials come from the environment (kept out of the repo):
 //!   PRFLOW_GH_CLIENT_ID, PRFLOW_GH_CLIENT_SECRET
+//!
+//! The `PRFLOW_` prefix outlived the rename to Nod on purpose. These two are
+//! GitHub Actions *secrets*, and a secret's value cannot be read back out —
+//! renaming means re-entering both by hand, and an unset pair does not fail
+//! the release build, it silently ships binaries with GitHub sign-in
+//! disabled. A cosmetic rename is not worth that failure mode. The GitLab
+//! credential below is a repo *variable* (readable, and PKCE means there is
+//! no secret at all), which is why it could take the `NOD_` name.
 
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -290,7 +298,7 @@ async fn exchange_code(
     let resp = client
         .post("https://github.com/login/oauth/access_token")
         .header(reqwest::header::ACCEPT, "application/json")
-        .header(reqwest::header::USER_AGENT, "pr-flow")
+        .header(reqwest::header::USER_AGENT, "nod")
         .json(&json!({
             "client_id": client_id,
             "client_secret": client_secret,
