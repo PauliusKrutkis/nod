@@ -49,7 +49,15 @@
     "preview": {
       "kv_namespaces": [
         { "binding": "LICENSES", "id": "8a9184da4e5443ef9f63f485436d22dc" }
-      ]
+      ],
+      // TEMPORARY probe, removed before merge. Answers one question: does a
+      // Wrangler `vars` entry reach the Astro *build*, or is it a runtime
+      // binding only? Production cannot answer it without merging, and the
+      // top-level `vars` block is not inherited here. Only the analytics
+      // token is listed, so /buy still 503s on preview as designed.
+      "vars": {
+        "PUBLIC_CF_ANALYTICS_TOKEN": "92b8fbe9e1ea409484577a3fbc472727"
+      }
     }
   }
   // Secrets are deliberately absent and must stay that way:
