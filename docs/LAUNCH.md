@@ -119,8 +119,12 @@ time the whole chain runs against reality.
   until then support = manual token issuance.
 - Renewal SKU ("+1 year of updates").
 - `nod-keygen` CLI for support grants and refunds.
-- Delete the stale pre-monorepo `src-tauri/` dir at the repo root (owner —
-  it holds a local `.env` with OAuth dev credentials; now gitignored).
+- ~~Delete the stale pre-monorepo `src-tauri/` dir at the repo root.~~ Done
+  2026-08-06. The warning about it holding a local `.env` with OAuth dev
+  credentials was already out of date: what remained was 5.1 GB of
+  regenerable build output (`target/` plus Tauri's `gen/schemas/`) and no
+  `.env` at all. The live build directory is `apps/desktop/src-tauri/target`
+  and was untouched.
 
 ## Live checklist (Aug 2026)
 
@@ -163,9 +167,12 @@ Owner — now (all free):
       whole registration; an OAuth App has no scope field, `read:user` is
       requested in the authorize URL by the buy-flow code. Must be a second
       app, not the desktop one (step 5 says why). Client secret → Pages
-      secret `GH_WEB_CLIENT_SECRET`; client id → repo variable
-      `NOD_GH_WEB_CLIENT_ID` (it is public). Both set and verified
-      2026-08-05; **the buy flow is unblocked**.
+      secret `GH_WEB_CLIENT_SECRET`; client id → `GH_WEB_CLIENT_ID` in
+      `apps/web/wrangler.jsonc` (it is public). Both set and verified
+      2026-08-05; **the buy flow is unblocked**. The id was briefly also a
+      repo variable named `NOD_GH_WEB_CLIENT_ID`; that copy was deleted
+      2026-08-06 because no workflow ever read it and a second home for the
+      same value is a chance for the two to disagree.
 - [x] `node scripts/generate-license-keypair.mjs` (from `apps/web`):
       seed → `LICENSE_SIGNING_SEED` Pages secret **+ offline backup**;
       pubkey → `NOD_LICENSE_PUBKEY` repo variable. Both set 2026-08-04.
@@ -193,8 +200,10 @@ Owner — site launch prep (Aug 2026), before the forum posts:
 - [ ] After merging, spot-check production: link unfurl (paste the URL in
       Slack/Discord), `curl -I https://nodreview.com/robots.txt` returns
       text/plain, an unknown path returns 404, /about renders.
-- [ ] **Cloudflare Web Analytics** — tick this only once production HTML
-      actually carries the beacon; the whole point of this entry is that a
+- [x] **Cloudflare Web Analytics** — **live and verified in production
+      2026-08-06** (PR #205): every Base.astro page serves the beacon, held
+      across 12 consecutive samples once the edge cache turned over. Ticked
+      only on that evidence, because the whole point of this entry is that a
       dashboard which *looks* configured proved nothing. The site was
       created 2026-07-29
       (site tag `2b3423c5…`, beacon token `92b8fbe9…`, zone
@@ -213,16 +222,30 @@ Owner — site launch prep (Aug 2026), before the forum posts:
       verified: a preview deployment carrying the token under
       `env.preview.vars` rendered the beacon, which is also what proves a
       `vars` entry reaches the *build* and not just Functions at runtime.
-      What is **not** yet verified is production, because only a merge can
-      do that. Cookieless; /about's privacy copy already describes it.
+      One thing is still owed, and needs the dashboard because a Pages-scoped
+      API token cannot write RUM config: **turn `auto_install` off** on the
+      Web Analytics site. It injects nothing for Pages, so it is inert today,
+      but leaving it armed means a future Cloudflare change could start a
+      second beacon and double every number.
+      Cookieless; /about's privacy copy already describes it.
       Verify after any change with
       `curl -sS https://nodreview.com/ | grep -c cloudflareinsights`
       — expect `1`, and expect `0` on preview deployments by design.
-- [ ] **Sentry for the payment functions** — create a (free-tier) Sentry
-      project, copy its DSN → `SENTRY_DSN` Pages secret. /activate,
-      /purchase-webhook, and /license/:subject report thrown errors and
-      no-op without the secret (PR #190). Do this at the latest with
-      step 4, so webhook failures are visible from the first sandbox test.
+- [x] **Sentry for the payment functions** — set up 2026-08-06, EU region
+      (`ingest.de.sentry.io`, chosen to match what /about promises about
+      where data goes). DSN → `SENTRY_DSN` production Pages secret, bound on
+      the deploy after it was set, since a Pages secret only takes effect on
+      the next build. The DSN itself is proven: a hand-built envelope in the
+      shape `errorEnvelope()` produces was accepted with a `200`.
+      **Not** proven is a real production error reaching Sentry — every
+      wrapped handler is payment plumbing (`/activate`,
+      `/purchase-webhook`, `/license/:subject`, `/auth/github/callback`,
+      `/buy/start`) and none has a safe synthetic failure path, so
+      manufacturing one to test a logger was not worth it. The next sandbox
+      purchase run exercises all of them and settles it.
+      Note `report.ts` only fires on **thrown** errors: a handler that
+      catches its own failure and returns a status — `/buy/start`'s 503 when
+      unconfigured — stays invisible by design.
 
 Notarization stays deferred per step 2; the decision for the launch posts
 is to ship without it and take the Gatekeeper criticism.
