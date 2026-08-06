@@ -67,8 +67,8 @@ Both live in `apps/desktop/src-tauri/.env` (gitignored, see
 4. Write both into `apps/desktop/src-tauri/.env`:
 
    ```dotenv
-   PRFLOW_GH_CLIENT_ID=Ov23xxxxxxxxxxxxxxxx
-   PRFLOW_GH_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxx
+   NOD_GH_CLIENT_ID=Ov23xxxxxxxxxxxxxxxx
+   NOD_GH_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxx
    ```
 
 The callback uses a fixed loopback port, 8765. GitHub OAuth Apps do not support

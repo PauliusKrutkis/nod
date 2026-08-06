@@ -27,7 +27,7 @@ pub(crate) fn build_client(token: &str) -> Result<reqwest::Client, String> {
         ACCEPT,
         HeaderValue::from_static("application/vnd.github+json"),
     );
-    headers.insert(USER_AGENT, HeaderValue::from_static("pr-flow"));
+    headers.insert(USER_AGENT, HeaderValue::from_static("nod"));
     headers.insert(
         "X-GitHub-Api-Version",
         HeaderValue::from_static("2022-11-28"),
@@ -332,7 +332,7 @@ impl GitHubPlatform {
 
         let resp = redirector
             .get(format!("{API}/repos/{owner}/{repo}/tarball/{sha}"))
-            .header(reqwest::header::USER_AGENT, "pr-flow")
+            .header(reqwest::header::USER_AGENT, "nod")
             .header(
                 reqwest::header::AUTHORIZATION,
                 format!("Bearer {}", self.token),
@@ -360,7 +360,7 @@ impl GitHubPlatform {
             .map_err(|e| format!("could not build http client: {e}"))?;
         let resp = signed
             .get(location)
-            .header(reqwest::header::USER_AGENT, "pr-flow")
+            .header(reqwest::header::USER_AGENT, "nod")
             .send()
             .await
             .map_err(net_err)?;

@@ -56,7 +56,7 @@ pub(crate) fn net_err(e: reqwest::Error) -> String {
 
 /// Lightweight stderr logging — shows up in the `tauri dev` terminal.
 pub(crate) fn log(msg: &str) {
-    eprintln!("[pr-flow] {msg}");
+    eprintln!("[nod] {msg}");
 }
 
 /// Reads a response body, turning non-2xx responses into a friendly error that

@@ -1,4 +1,4 @@
-# PR Flow — backlog
+# Nod — backlog
 
 > **Planning only.** Captures requested improvements as a prioritized, actionable
 > backlog. Check items off as they ship.
@@ -28,7 +28,7 @@ validating the other 95% (the review experience inside the app).
 
 Not: *"How do I intercept every GitHub link?"*
 
-Yes: *"How do I make opening a PR in PR Flow effortless?"*
+Yes: *"How do I make opening a PR in Nod effortless?"*
 
 For v0.1 users (you + ~5 developers), that's already solved:
 
@@ -84,13 +84,13 @@ Or resume where you left off. **No Slack link handling required.**
 | **Auto-updates** | §11b | Before external users |
 | CI releases + signing | §11b | With auto-update |
 | **Commercial launch** | §11c | After §11c release gate |
-| **`prflow://` scheme** | §11a | Stage 2 (simple extension); also §11c purchase activation |
+| **`nod://` scheme** | §11a | Stage 2 (simple extension); also §11c purchase activation |
 
 ### ✨ Category 3 — Delighters (prove the pain first)
 
 | Item | Section | When |
 | --- | --- | --- |
-| Simple **"Open in PR Flow"** extension | §11a Stage 2 | After daily-use users |
+| Simple **"Open in Nod"** extension | §11a Stage 2 | After daily-use users |
 | Link **interception** + native messaging | §11a Stage 3 | Only if users ask |
 | Universal Links / wrapper domain | §11a | Unlikely needed if extension suffices |
 | **Repo snapshot (sync layers 1–3)** | §9 | Layer 1 after PR #47; during beta |
@@ -245,13 +245,13 @@ Slack → browser → app.
 Simple browser extension — **not interception**. ~10% of interception effort,
 most of the value:
 
-- **"Open in PR Flow"** button on GitHub/GitLab PR pages (content script)
-- Toolbar button + context menu ("Open in PR Flow")
-- Calls **`prflow://pr/owner/repo/123`** — register scheme in Tauri app
+- **"Open in Nod"** button on GitHub/GitLab PR pages (content script)
+- Toolbar button + context menu ("Open in Nod")
+- Calls **`nod://pr/owner/repo/123`** — register scheme in Tauri app
 
 No native messaging. No auto-intercept. Easy to build and test.
 
-- [ ] 🟡 **Stage 2 extension** — content script + toolbar + `prflow://` handler.
+- [ ] 🟡 **Stage 2 extension** — content script + toolbar + `nod://` handler.
 - [ ] 🟡 **Self-hosted GitLab** — user-configurable host patterns in extension.
 
 ### Stage 3 — proven pain only (⏸)
@@ -665,20 +665,20 @@ prove the need.
 | Stage | What | Slack click → app? | Build when |
 | --- | --- | --- | --- |
 | **1** | `mod+k` + resume + notifications | N/A — don't use Slack link | **v0.1** |
-| **2** | Extension: "Open in PR Flow" on PR page | Browser → one click → app | Daily users |
+| **2** | Extension: "Open in Nod" on PR page | Browser → one click → app | Daily users |
 | **3** | Interception + native messaging | Brief flash → app | Users ask for it |
 
 **Stage 2 UX (good enough):** user clicks GitHub link in Slack → lands on GitHub
-→ clicks **"Open in PR Flow"** (or toolbar) → app opens. One extra click, ~10%
+→ clicks **"Open in Nod"** (or toolbar) → app opens. One extra click, ~10%
 of Stage 3 effort.
 
 **Stage 3 UX (best for raw links):** click → brief browser flash → app. Only
 worth it after validation.
 
-- [x] 🟡 **`prflow://` scheme** — **registration done**, via
+- [x] 🟡 **`nod://` scheme** — **registration done**, via
       `tauri-plugin-deep-link` in `activation.rs` (`watch_deep_links`), shipped
       for purchase activation. *Remaining for this section, tracked by the
-      Stage 2 extension item:* only `prflow://pr/owner/repo/123` **routing** —
+      Stage 2 extension item:* only `nod://pr/owner/repo/123` **routing** —
       the scheme understands `purchase` today and nothing else. The
       infrastructure blocker this item represented is gone.
 - [ ] 🟡 **Link-open hydration** — when app opens from any source: cache-first
@@ -720,7 +720,7 @@ worth it after validation.
 Full plan in [`docs/RELEASING.md` — Commercial launch](./RELEASING.md#commercial-launch).
 
 **Philosophy:** no license keys. GitHub identity is the license. Browser-brokered
-activation (`prflow://purchase?token=…`) — Raycast-style **Open Nod** after
+activation (`nod://purchase?token=…`) — Raycast-style **Open Nod** after
 checkout. One Cloudflare Worker; MoR (Polar / Paddle / Lemon Squeezy) for
 payments and tax.
 
@@ -744,7 +744,7 @@ an open item: production-build perf e2e). Landing page (§0) and MoR account
 - [ ] 🔴 **Phase 1** — MoR product + checkout linked to GitHub identity.
 - [x] 🟡 **Phase 1** — endpoint code (`/purchase-webhook`, `/activate`,
       `/license/:subject`); `/restore` still a 501 stub.
-- [x] 🟡 **Phase 1** — `prflow://purchase` deep link + Ed25519 token verify in Rust.
+- [x] 🟡 **Phase 1** — `nod://purchase` deep link + Ed25519 token verify in Rust.
 - [x] 🟡 **Phase 1** — Trial (first-launch timestamp) + purchase prompt UI.
 - [x] 🟡 **Phase 1** — Updater gating on local `updates_until` (static `latest.json`).
 - [ ] ⏸ `nod-keygen` CLI for manual/support grants.
@@ -754,7 +754,7 @@ an open item: production-build perf e2e). Landing page (§0) and MoR account
 **2026-08-02 update — the purchase flow is now code-complete** (PRs #123,
 #125, #129, #133, #138, #140, #143): repeat purchases extend the term;
 `/activate` is a success page with a 48-hour window, zero-click loopback
-push (port 8766, PNA preflight handled) and a `prflow://purchase` deep
+push (port 8766, PNA preflight handled) and a `nod://purchase` deep
 link the app registers; the desktop app verifies tokens offline
 (`ed25519-dalek`, cross-stack fixture tests), runs the free unlimited
 evaluation (nothing licensing-visible for 14 days, then a dismissable
@@ -802,14 +802,14 @@ of it code.*
 - [ ] 🔴 **Cloudflare secrets never set** (`POLAR_WEBHOOK_SECRET`,
       `LICENSE_SIGNING_SEED`) — the endpoints cannot run in production even
       though the KV namespaces exist.
-- [x] 🔴 ~~**No `prflow://` scheme / no `tauri-plugin-deep-link`.**~~
+- [x] 🔴 ~~**No `nod://` scheme / no `tauri-plugin-deep-link`.**~~
       **Closed** — `tauri-plugin-deep-link` is a dependency and
       `activation.rs` (`watch_deep_links`) wires the scheme, draining a
       launch URL and listening while running; `activate.ts` is now a success
       page with a zero-click loopback push on port 8766 *and* the deep link as
       the fallback. Note this also satisfies the scheme half of
       [11a](#11a-opening-prs-from-githubgitlab-links--staged) — only
-      `prflow://pr/...` routing remains there, not the registration.
+      `nod://pr/...` routing remains there, not the registration.
 - [x] 🔴 ~~**Desktop app has zero licensing code.**~~ **Closed** —
       `ed25519-dalek` is a dependency and `license.rs` / `activation.rs`
       (+ their test files) do offline token verify, local license storage, the
@@ -948,7 +948,7 @@ sells. Performance: it runs from a squashfs image mounted over FUSE, so cold
 start pays mount + decompression and the shared libraries never hit the normal
 page cache the way an installed binary does; on Wayland it additionally needs the
 LD_PRELOAD EGL wrapper (see PR #15). Integration: no `.desktop` entry, no icon in
-the launcher, no MIME/scheme registration for `prflow://`
+the launcher, no MIME/scheme registration for `nod://`
 ([11a](#11a-opening-prs-from-githubgitlab-links--staged) depends on this) unless
 the user separately installs AppImageLauncher. The `.deb`/`.rpm` install gets all
 of that from the packaging system for free. Trading measurable startup cost and
@@ -1026,7 +1026,7 @@ below requires changing how the app is built.
       gap noted in [Performance architecture](#performance-architecture--decisions-queued-2026-07-05),
       pinning a newer runtime could be a *win*, but it must be benchmarked
       against a `.deb` install, not assumed; (2) sandbox holes for what Nod needs
-      — secret-service (token keychain), browser-open for OAuth, `prflow://`
+      — secret-service (token keychain), browser-open for OAuth, `nod://`
       registration — plus the updater plugin disabled in that build. Take it once
       Linux users exist in number, consistent with the dogfood-first gate in
       [11c](#11c-commercial-launch).
@@ -1037,7 +1037,7 @@ the GPG key → `install.sh` on top → Flathub only after the release gate, and
 if it benchmarks at parity with `.deb`.
 
 **Rejected:** AppImage as the recommended Linux format — self-updating is not
-worth the cold-start cost, the missing desktop entry, or the lost `prflow://`
+worth the cold-start cost, the missing desktop entry, or the lost `nod://`
 registration. It stays published as a portable escape hatch, and it stays the
 only format the in-app updater touches.
 
@@ -1083,7 +1083,7 @@ only format the in-app updater touches.
       was the *larger* value, so tall windows now cap lower (640px vs 840px
       at 1200px tall). That is the point — parity with the palette — but it
       is a reduction there, not a pure gain.
-- [ ] 🟢 **GitHub org OAuth restrictions** — `[pr-flow] API error 403` when an org
+- [ ] 🟢 **GitHub org OAuth restrictions** — `[nod] API error 403` when an org
       (e.g. Decodo) enables OAuth App access restrictions; surface a clear
       in-app message with the GitHub docs link and what the admin must allow.
       *Diagnosis (2026-07-30).* The message is built in `http.rs` as
@@ -1237,7 +1237,7 @@ only format the in-app updater touches.
 
 - [x] 🔴 **P15** — File tree: folders, indentation, collapse.
       **done** in #112 on the decided terms: tree as the default mode, flat
-      list one click away, choice persisted (`pr-flow:fileTreeMode`).
+      list one click away, choice persisted (`nod:fileTreeMode`).
       **Decided 2026-07-30 (owner):** the tree is an *added mode*, not a
       replacement — the flat list stays — and the tree is the **default**.
       Keyboard navigation inside the tree is **explicitly out of scope for
@@ -1262,8 +1262,8 @@ only format the in-app updater touches.
       - **Folder collapse must be instant** — no height/`grid-template-rows`
         transition. See the sidebar note in `quiet.css`; that motion was
         removed deliberately.
-      - `pr-flow:fileTreeMode` + collapsed-folder state follow the existing
-        `pr-flow:drawerWide` localStorage pattern, whose `TODO: extract a
+      - `nod:fileTreeMode` + collapsed-folder state follow the existing
+        `nod:drawerWide` localStorage pattern, whose `TODO: extract a
         useLocalStorage hook when a second persisted UI pref lands` this
         finally makes actionable.
       *Open question, deferred not dropped — now owned by its own item below,
@@ -1299,7 +1299,7 @@ only format the in-app updater touches.
       *Downgraded 🔴 → 🟡:* the GitLab-only scope is one endpoint plus a
       confirm, not the two-host build the original sizing assumed.
 - [x] 🟢 **P18** — Info drawer wide mode — **done**; `shift+i` widens the
-      panel, persisted under `pr-flow:drawerWide`.
+      panel, persisted under `nod:drawerWide`.
 
 ### Anytime — hygiene & design
 

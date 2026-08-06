@@ -35,7 +35,7 @@ them. Use this table as the mental model:
 
 | File | Layer | Responsibility |
 | ---- | ----- | -------------- |
-| `main.rs` | Entry | Delegates to `pr_flow_lib::run()`. |
+| `main.rs` | Entry | Delegates to `nod_lib::run()`. |
 | `lib.rs` | Bootstrap | Tauri builder, plugin setup, `generate_handler![…]`. |
 | `commands.rs` | Handlers | PR/inbox/review/file commands; cache key helpers. |
 | `auth.rs` | Handlers + infra | OAuth loopback server (GitHub + GitLab), token exchange. |
@@ -184,7 +184,7 @@ fetch commands write through to the same paths.
 3. Exchange code for token, validate via `current_user`, store via
    `accounts::upsert_github` or GitLab equivalent.
 
-Credentials come from env (`PRFLOW_GH_*`, `PRFLOW_GL_*`) or compile-time
+Credentials come from env (`NOD_GH_*`, `NOD_GITLAB_*`) or compile-time
 `option_env!` for release builds. `dotenvy` loads `apps/desktop/src-tauri/.env` in dev.
 
 Token paste (`set_token` / `add_account`) bypasses OAuth but still validates
@@ -197,7 +197,7 @@ the token against the host before persisting.
 - Commands return `Result<T, String>` — errors are user-facing strings.
 - API failures surface the host's `message` when present (`read_body` in
   `http.rs`).
-- Debug logging goes to stderr with a `[pr-flow]` prefix (`log()` helper in
+- Debug logging goes to stderr with a `[nod]` prefix (`log()` helper in
   `http.rs`).
 
 ---

@@ -27,7 +27,7 @@ function subscribeSidebarCompact(onStoreChange: () => void): () => void {
   return () => mq.removeEventListener("change", onStoreChange);
 }
 
-const DRAWER_WIDE_KEY = "pr-flow:drawerWide";
+const DRAWER_WIDE_KEY = "nod:drawerWide";
 
 // TODO: extract a useLocalStorage hook when a second persisted UI pref lands (separate PR).
 function readDrawerWide(): boolean {

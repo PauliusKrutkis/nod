@@ -64,12 +64,12 @@ fn preflight_gets_the_private_network_opt_in() {
 fn purchase_token_reads_only_the_purchase_deep_link() {
     let parse = |s: &str| url::Url::parse(s).unwrap();
     assert_eq!(
-        super::purchase_token(&parse("prflow://purchase?token=abc")),
+        super::purchase_token(&parse("nod://purchase?token=abc")),
         Some("abc".to_string())
     );
-    assert_eq!(super::purchase_token(&parse("prflow://purchase")), None);
+    assert_eq!(super::purchase_token(&parse("nod://purchase")), None);
     assert_eq!(
-        super::purchase_token(&parse("prflow://pr/acme/rocket/1?token=abc")),
+        super::purchase_token(&parse("nod://pr/acme/rocket/1?token=abc")),
         None
     );
     assert_eq!(

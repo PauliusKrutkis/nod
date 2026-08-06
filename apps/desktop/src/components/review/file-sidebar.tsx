@@ -60,7 +60,7 @@ function splitPath(filename: string): { dir: string; base: string } {
   return { base: filename.slice(idx + 1), dir: filename.slice(0, idx + 1) };
 }
 
-const TREE_MODE_KEY = "pr-flow:fileTreeMode";
+const TREE_MODE_KEY = "nod:fileTreeMode";
 
 function readTreeMode(): boolean {
   try {

@@ -19,7 +19,7 @@ export interface ReviewMemory {
   topRow?: { fileIndex: number; anchor: string; top: number };
 }
 
-const KEY = "pr-flow:reviewMemory:v1";
+const KEY = "nod:reviewMemory:v1";
 const WRITE_DELAY = 400;
 
 function loadAll(): Record<string, ReviewMemory> {

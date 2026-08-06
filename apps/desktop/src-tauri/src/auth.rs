@@ -7,7 +7,7 @@
 //! never race a closed port.
 //!
 //! Credentials come from the environment (kept out of the repo):
-//!   PRFLOW_GH_CLIENT_ID, PRFLOW_GH_CLIENT_SECRET
+//!   NOD_GH_CLIENT_ID, NOD_GH_CLIENT_SECRET
 
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -37,15 +37,15 @@ fn env_or_baked(runtime: &str, baked: Option<&'static str>) -> String {
 }
 
 fn oauth_credentials() -> Result<(String, String), String> {
-    let id = env_or_baked("PRFLOW_GH_CLIENT_ID", option_env!("PRFLOW_GH_CLIENT_ID"));
+    let id = env_or_baked("NOD_GH_CLIENT_ID", option_env!("NOD_GH_CLIENT_ID"));
     let secret = env_or_baked(
-        "PRFLOW_GH_CLIENT_SECRET",
-        option_env!("PRFLOW_GH_CLIENT_SECRET"),
+        "NOD_GH_CLIENT_SECRET",
+        option_env!("NOD_GH_CLIENT_SECRET"),
     );
     if id.trim().is_empty() || secret.trim().is_empty() {
         return Err(
-            "GitHub sign-in isn't configured. Set PRFLOW_GH_CLIENT_ID and \
-             PRFLOW_GH_CLIENT_SECRET and restart (see docs/DEVELOPMENT.md). \
+            "GitHub sign-in isn't configured. Set NOD_GH_CLIENT_ID and \
+             NOD_GH_CLIENT_SECRET and restart (see docs/DEVELOPMENT.md). \
              You can still paste a token instead."
                 .to_string(),
         );
@@ -290,7 +290,7 @@ async fn exchange_code(
     let resp = client
         .post("https://github.com/login/oauth/access_token")
         .header(reqwest::header::ACCEPT, "application/json")
-        .header(reqwest::header::USER_AGENT, "pr-flow")
+        .header(reqwest::header::USER_AGENT, "nod")
         .json(&json!({
             "client_id": client_id,
             "client_secret": client_secret,

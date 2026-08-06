@@ -95,8 +95,8 @@ pub struct ReleaseInfo {
 /// No token — releases are public.
 #[tauri::command]
 pub async fn list_releases() -> Result<Option<Vec<ReleaseInfo>>, String> {
-    let url = "https://api.github.com/repos/PauliusKrutkis/pr-flow/releases?per_page=30";
-    let client = match reqwest::Client::builder().user_agent("pr-flow").build() {
+    let url = "https://api.github.com/repos/PauliusKrutkis/nod/releases?per_page=30";
+    let client = match reqwest::Client::builder().user_agent("nod").build() {
         Ok(client) => client,
         Err(_) => return Ok(None),
     };

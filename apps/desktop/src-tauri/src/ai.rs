@@ -117,7 +117,7 @@ pub async fn clear_ai_config(app: AppHandle) -> Result<(), String> {
 /// so the AI provider gets its own, with the key attached per request.
 fn client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
-        .user_agent("pr-flow")
+        .user_agent("nod")
         .timeout(std::time::Duration::from_secs(30))
         .build()
         .map_err(|e| format!("could not build AI client: {e}"))
@@ -646,7 +646,7 @@ pub async fn ai_ask(
 /// answer can legitimately take a minute.
 fn ask_client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
-        .user_agent("pr-flow")
+        .user_agent("nod")
         .timeout(std::time::Duration::from_secs(120))
         .build()
         .map_err(|e| format!("could not build AI client: {e}"))

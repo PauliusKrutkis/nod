@@ -88,7 +88,7 @@ day the OAuth app exists.
 be: an OAuth App holds one callback URL, and GitHub matches `redirect_uri`
 on host and port, which `127.0.0.1:8765` (`auth.rs`) and `nodreview.com` do
 not share. Mostly because the desktop client secret is compiled into every
-shipped binary (`option_env!("PRFLOW_GH_CLIENT_SECRET")`) and is therefore
+shipped binary (`option_env!("NOD_GH_CLIENT_SECRET")`) and is therefore
 public — fine for a loopback flow, where the redirect is the real boundary,
 but this flow is what binds a GitHub identity to a paid license. Trusting a
 client whose secret ships in every download would let anyone forge the
@@ -101,7 +101,7 @@ warrants.
 
 With sandbox Polar + real keypair + a locally built app carrying the
 pubkey: buy → webhook stores license → `/activate` → zero-click loopback
-activation, deep-link activation (macOS bundled build for `prflow://`),
+activation, deep-link activation (macOS bundled build for `nod://`),
 Safari's button path, and repeat-purchase term extension. This is the first
 time the whole chain runs against reality.
 
@@ -127,8 +127,10 @@ time the whole chain runs against reality.
 The concrete remaining actions, distilled from the steps above. Tick as
 they land.
 
-The Pages project is **`pr-flow`** (it predates the rename to Nod); every
-`wrangler pages` command below needs `--project-name pr-flow`. Production and
+The Pages project is **`pr-flow`** — it predates the rename to Nod and stays
+that way, because Cloudflare has no rename for a Pages project and recreating
+one means re-pointing `nodreview.com`. Every `wrangler pages` command below
+therefore needs `--project-name pr-flow`. Production and
 preview hold separate secret sets — add `--env preview` for anything a
 preview deployment has to exercise.
 

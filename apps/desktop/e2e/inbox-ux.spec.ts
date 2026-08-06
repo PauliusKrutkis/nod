@@ -313,7 +313,7 @@ test("doesn't bounce off Watching while its data is still loading", async ({
   page,
 }) => {
   await page.addInitScript(() => {
-    localStorage.setItem("pr-flow:lastInboxTab", "subscribed");
+    localStorage.setItem("nod:lastInboxTab", "subscribed");
   });
   const decoyTabHasContent: InboxFixture = {
     assigned: { count: 0, prs: [] },

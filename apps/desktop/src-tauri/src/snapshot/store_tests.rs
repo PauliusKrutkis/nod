@@ -9,7 +9,7 @@ impl TempRoot {
     fn new(label: &str) -> Self {
         let n = COUNTER.fetch_add(1, Ordering::Relaxed);
         let path = std::env::temp_dir().join(format!(
-            "prflow-snapshot-{label}-{}-{n}",
+            "nod-snapshot-{label}-{}-{n}",
             std::process::id()
         ));
         let _ = fs::remove_dir_all(&path);

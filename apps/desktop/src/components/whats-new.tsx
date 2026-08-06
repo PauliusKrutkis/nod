@@ -9,7 +9,7 @@ import {
 } from "../lib/releases.ts";
 import { Markdown } from "./markdown.tsx";
 
-const LAST_RUN_KEY = "pr-flow:lastRunVersion";
+const LAST_RUN_KEY = "nod:lastRunVersion";
 
 function readLastRun(): string | null {
   try {

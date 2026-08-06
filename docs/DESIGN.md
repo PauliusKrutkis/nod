@@ -1,7 +1,7 @@
-# PR Flow — design brief & rework
+# Nod — design brief & rework
 
 > **Purpose.** This document is the starting point for a focused **design
-> rework**. It captures what PR Flow *is*, the design principles it should hold
+> rework**. It captures what Nod *is*, the design principles it should hold
 > to, the current visual language, and an inventory of **every view** in the
 > app — so the rework has one shared reference. It is a living brief, not a spec;
 > code lands in follow-up PRs against this branch.
@@ -13,7 +13,7 @@
 > **Keyboard-first + cache-first PR review is faster and more satisfying than
 > the GitHub web UI** — closer to triaging an inbox than navigating a website.
 
-PR Flow is a small desktop app (**Tauri 2 + React 19 + TypeScript + Tailwind
+Nod is a small desktop app (**Tauri 2 + React 19 + TypeScript + Tailwind
 v4**) for the loop you do every day: open a review request, read the diff, leave
 a comment, move on. No git operations, no team features, and no AI in the
 product itself — ask-about-code is opt-in and runs on a key the user brings,

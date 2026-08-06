@@ -1,7 +1,7 @@
 //! Browser-brokered license activation. `activate_license` opens the checkout
 //! page, listens on a dedicated loopback port and waits for the activation
 //! token — either pushed automatically by the /activate success page's inline
-//! fetch, or via the prflow:// deep link behind its Open Nod button
+//! fetch, or via the nod:// deep link behind its Open Nod button
 //! (watch_deep_links below). The received token is verified offline
 //! (license::verify_license_token) and persisted; the command resolves to the
 //! new license state so the webview can flip without a refetch.
@@ -157,11 +157,11 @@ fn write_preflight_response(stream: &mut TcpStream) {
     let _ = stream.flush();
 }
 
-/// Wires the prflow:// scheme: drains any URL the app was launched with
+/// Wires the nod:// scheme: drains any URL the app was launched with
 /// (cold start via the activation page's Open Nod button), subscribes to
 /// URLs arriving while running, and best-effort registers the scheme at
 /// runtime for installs the bundler's metadata doesn't cover (dev builds,
-/// portable copies). Only `prflow://purchase?token=…` is understood today;
+/// portable copies). Only `nod://purchase?token=…` is understood today;
 /// other paths are reserved for the §11a "Open in Nod" extension and are
 /// ignored, never errors — a stray link must not pop dialogs.
 pub fn watch_deep_links(app: &AppHandle) {
@@ -191,7 +191,7 @@ fn handle_deep_link_urls(app: &AppHandle, urls: &[url::Url]) {
 }
 
 fn purchase_token(url: &url::Url) -> Option<String> {
-    if url.scheme() != "prflow" || url.host_str() != Some("purchase") {
+    if url.scheme() != "nod" || url.host_str() != Some("purchase") {
         return None;
     }
     url.query_pairs()

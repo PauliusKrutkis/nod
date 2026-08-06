@@ -2252,6 +2252,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
 
 [[package]]
+name = "nod"
+version = "0.4.0"
+dependencies = [
+ "base64 0.22.1",
+ "dotenvy",
+ "ed25519-dalek",
+ "flate2",
+ "futures-util",
+ "rand 0.8.6",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "sha1",
+ "sha2",
+ "tar",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-deep-link",
+ "tauri-plugin-opener",
+ "tauri-plugin-updater",
+ "time",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "num-conv"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2787,32 +2813,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85eae3c4ed2f50dcfe72643da4befc30deadb458a9b590d720cde2f2b1e97da9"
 dependencies = [
  "zerocopy",
-]
-
-[[package]]
-name = "pr-flow"
-version = "0.4.0"
-dependencies = [
- "base64 0.22.1",
- "dotenvy",
- "ed25519-dalek",
- "flate2",
- "futures-util",
- "rand 0.8.6",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "sha1",
- "sha2",
- "tar",
- "tauri",
- "tauri-build",
- "tauri-plugin-deep-link",
- "tauri-plugin-opener",
- "tauri-plugin-updater",
- "time",
- "tokio",
- "url",
 ]
 
 [[package]]

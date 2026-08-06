@@ -19,10 +19,10 @@ cask "nod" do
   sha256 arm:   "REPLACE_ARM_SHA256",
          intel: "REPLACE_INTEL_SHA256"
 
-  url "https://github.com/PauliusKrutkis/pr-flow/releases/download/v#{version}/Nod_#{version}_#{arch}.dmg"
+  url "https://github.com/PauliusKrutkis/nod/releases/download/v#{version}/Nod_#{version}_#{arch}.dmg"
   name "Nod"
   desc "Keyboard-first code review for GitHub and GitLab"
-  homepage "https://github.com/PauliusKrutkis/pr-flow"
+  homepage "https://github.com/PauliusKrutkis/nod"
 
   livecheck do
     url :url

@@ -79,8 +79,8 @@ jobs:
           # OAuth identities baked into the binary at compile time (auth.rs
           # option_env!). Unset secrets/vars just disable the buttons in the
           # released app — the build still succeeds.
-          PRFLOW_GH_CLIENT_ID: ${{ secrets.PRFLOW_GH_CLIENT_ID }}
-          PRFLOW_GH_CLIENT_SECRET: ${{ secrets.PRFLOW_GH_CLIENT_SECRET }}
+          NOD_GH_CLIENT_ID: ${{ secrets.NOD_GH_CLIENT_ID }}
+          NOD_GH_CLIENT_SECRET: ${{ secrets.NOD_GH_CLIENT_SECRET }}
           NOD_GITLAB_CLIENT_ID: ${{ vars.NOD_GITLAB_CLIENT_ID }}
           # Licensing, same option_env! pattern (license.rs / activation.rs):
           # both are public values, set as repo variables once the signing
@@ -137,10 +137,10 @@ jobs:
             echo "  sha256 arm:   \"$ARM_SHA\","
             echo "         intel: \"$INTEL_SHA\""
             echo ''
-            echo '  url "https://github.com/PauliusKrutkis/pr-flow/releases/download/v#{version}/Nod_#{version}_#{arch}.dmg"'
+            echo '  url "https://github.com/PauliusKrutkis/nod/releases/download/v#{version}/Nod_#{version}_#{arch}.dmg"'
             echo '  name "Nod"'
             echo '  desc "Keyboard-first code review for GitHub and GitLab"'
-            echo '  homepage "https://github.com/PauliusKrutkis/pr-flow"'
+            echo '  homepage "https://github.com/PauliusKrutkis/nod"'
             echo ''
             echo '  livecheck do'
             echo '    url :url'

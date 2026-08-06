@@ -12,7 +12,7 @@ import { verifyLicenseToken } from "./lib/license-token";
 
 const SIGNING_SEED = "ab".repeat(32);
 const SUBJECT = "github:github.com:583231";
-const DEEP_LINK_PATTERN = /href="(prflow:\/\/purchase\?token=[^"]+)"/;
+const DEEP_LINK_PATTERN = /href="(nod:\/\/purchase\?token=[^"]+)"/;
 
 interface FakeKv {
   kv: KVNamespace;

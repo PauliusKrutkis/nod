@@ -24,7 +24,7 @@ The `v*` tag triggers `.github/workflows/release.yml`, which:
    minisign key from the repo secrets.
 3. Publishes a GitHub Release with all assets **plus `latest.json`** — the
    manifest the in-app updater polls
-   (`https://github.com/PauliusKrutkis/pr-flow/releases/latest/download/latest.json`).
+   (`https://github.com/PauliusKrutkis/nod/releases/latest/download/latest.json`).
 4. Bumps the Homebrew tap (only when the `TAP_DEPLOY_KEY` secret exists —
    skipped quietly otherwise).
 
@@ -39,7 +39,7 @@ install + relaunch in one click.
 | Public key in `tauri.conf.json` | ✅ `plugins.updater.pubkey` |
 | Repo secrets | ✅ `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (empty) |
 | Homebrew tap repo | ✅ `PauliusKrutkis/homebrew-tap` (public), seeded with the v0.1.0 cask. The release workflow pushes bumps over SSH via the `TAP_DEPLOY_KEY` secret — a deploy key that can write only to that one repo. Cask template: `packaging/homebrew/Casks/nod.rb`. |
-| OAuth in released builds | ✅ Baked in at compile time (`option_env!` in auth.rs): secrets `PRFLOW_GH_CLIENT_ID` / `PRFLOW_GH_CLIENT_SECRET` are set; the repo **variable** `NOD_GITLAB_CLIENT_ID` activates GitLab sign-in once the gitlab.com app is registered (`gh variable set NOD_GITLAB_CLIENT_ID`). Runtime `.env` still overrides in dev. Note: a client secret inside a desktop binary is extractable — a known, accepted trade-off for GitHub OAuth apps (GitHub CLI does the same); GitLab uses PKCE and has no secret at all. |
+| OAuth in released builds | ✅ Baked in at compile time (`option_env!` in auth.rs): secrets `NOD_GH_CLIENT_ID` / `NOD_GH_CLIENT_SECRET` are set; the repo **variable** `NOD_GITLAB_CLIENT_ID` activates GitLab sign-in once the gitlab.com app is registered (`gh variable set NOD_GITLAB_CLIENT_ID`). Runtime `.env` still overrides in dev. Note: a client secret inside a desktop binary is extractable — a known, accepted trade-off for GitHub OAuth apps (GitHub CLI does the same); GitLab uses PKCE and has no secret at all. |
 | Apple notarization | ⬜ **Required before paid launch (Phase 1)** — Apple Developer cert ($99/yr). Until then macOS users clear quarantine after install (`xattr -dr com.apple.quarantine /Applications/Nod.app`) or approve the app once under System Settings → Privacy & Security. (Homebrew 6 removed `--no-quarantine`.) An app that needs an `xattr` incantation to open is not shippable to paying customers — notarization is a Phase 1 gate, not a nice-to-have. Setup and env vars: [Apple notarization](#apple-notarization). |
 | Commercial launch (Phase 0 + 1) | ⬜ See [Commercial launch](#commercial-launch) below. |
 
@@ -118,7 +118,7 @@ re-test the one-liner on a machine that has never had the tap.
 
 ## Repo visibility vs auto-updates
 
-**The repo is public** (`PauliusKrutkis/pr-flow`). Installed apps can fetch
+**The repo is public** (`PauliusKrutkis/nod`). Installed apps can fetch
 `latest.json` from GitHub Releases without auth — the updater works as-is.
 
 If the code should go private again later, use a **public releases-only repo**
@@ -139,7 +139,7 @@ drive the whole loop on your machine:
 1. **Build + install the "old" version** (0.1.0):
 
    ```bash
-   cd /path/to/pr-flow
+   cd /path/to/nod
    TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/prflow.key)" pnpm tauri build --bundles app
    cp -r "apps/desktop/src-tauri/target/release/bundle/macos/Nod.app" /Applications/
    ```
@@ -192,7 +192,7 @@ drive the whole loop on your machine:
 ## Local builds (for handing someone a one-off)
 
 ```bash
-cd /path/to/pr-flow
+cd /path/to/nod
 TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/prflow.key)" pnpm tauri build --bundles app
 ```
 
@@ -209,14 +209,17 @@ Gotchas learned the hard way:
 - [x] **Name: Nod** — renamed 2026-07-02 (`productName`, identifier
   `com.pauliuskrutkis.nod`, cask `nod.rb`, workflow asset names `Nod_…`,
   README, window title). The identifier names the config dir, so it had to be
-  final before the first real release — it now is. Note: the *repo* is still
-  `pr-flow`; renaming it on GitHub is optional (GitHub redirects old URLs,
-  including release downloads, so the updater endpoint keeps working).
+  final before the first real release — it now is. The *repo* followed on
+  2026-08-06 (`PauliusKrutkis/nod`), along with the `nod://` scheme, the Cargo
+  crate and the `nod:` localStorage namespace. GitHub redirects the old URLs,
+  including release downloads, so pre-rename installs keep updating. Two names
+  deliberately did **not** move: the Cloudflare Pages project (see below) and
+  `~/.tauri/prflow.key`, whose filename is arbitrary and not worth risking.
 - [x] **Icon: the keycap** (resting variant from the original design exploration,
   view 9) — `app-icon.svg` is the source; platform sizes in
   `apps/desktop/src-tauri/icons/` were regenerated with `pnpm tauri icon`. To change it
   later: edit the SVG, export 1024×1024 PNG, re-run `pnpm tauri icon <png>`.
-- [x] **Repo visibility** — public (`PauliusKrutkis/pr-flow`). If the code goes
+- [x] **Repo visibility** — public (`PauliusKrutkis/nod`). If the code goes
   private later, split to a public releases-only repo (above).
 - [x] Homebrew tap + `TAP_DEPLOY_KEY` secret (see one-time setup table).
 - [ ] First tagged release: expect one round of CI fixup on the Windows/Linux
@@ -335,7 +338,7 @@ pnpm --filter @nod/web run typecheck:functions
   8765 so neither flow can abort the other; the listener answers Chromium's
   private-network preflight; Safari blocks https→loopback mixed content and
   always needs the button), and the **Open Nod** button carries the same
-  token as a `prflow://purchase?token=…` deep link, registered via
+  token as a `nod://purchase?token=…` deep link, registered via
   `tauri-plugin-deep-link`. The activation link stays valid for 48 hours
   after first open — strict single-use burned the token for anyone who
   closed the tab before installing, with `/restore` still a stub.
@@ -497,14 +500,14 @@ record; the Worker holds only `subject → { updates_until, order_id }`.
 
 ```
 POST /purchase-webhook     MoR order.created → verify signature → store license by subject
-GET  /activate             Post-checkout success page → sign token → redirect prflow://purchase?token=…
+GET  /activate             Post-checkout success page → sign token → redirect nod://purchase?token=…
 GET  /license/:subject     Restore support → { active, updates_until }
-GET  /restore              Email fallback → MoR lookup → same prflow:// redirect
+GET  /restore              Email fallback → MoR lookup → same nod:// redirect
 ```
 
 Built as Cloudflare **Pages Functions** in `apps/web/functions` (see [License
 server](#license-server-pages-functions) above), not a standalone Worker —
-see that section for why, and for a correction to the `prflow://` redirect
+see that section for why, and for a correction to the `nod://` redirect
 target assumed above.
 
 Webhook flow: checkout proves a forge identity (OAuth on the success page) →
@@ -539,7 +542,7 @@ All of this exists now (`apps/desktop/src-tauri/src/license.rs` +
   the app never blocks.
 - **Activation:** `activate_license` opens checkout and waits on
   `127.0.0.1:8766` (read-timeout hardened, PNA preflight answered);
-  `prflow://purchase?token=…` via `tauri-plugin-deep-link` covers Safari
+  `nod://purchase?token=…` via `tauri-plugin-deep-link` covers Safari
   and web-initiated purchases.
 - **Launch check:** none — the stored token verifies offline every launch.
 - **Updater gating:** `check_for_update` marks releases eligible against
@@ -555,7 +558,7 @@ All of this exists now (`apps/desktop/src-tauri/src/license.rs` +
 ```
 Enjoying Nod?  Nod is free to evaluate. A license is $39 …
 [ Buy Nod — $39 ]  →  browser opens MoR checkout  →  pay
-Payment received  [ Open Nod ]  →  prflow://purchase?token=…
+Payment received  [ Open Nod ]  →  nod://purchase?token=…
 App: card clears, updates resume.
 ```
 
@@ -591,7 +594,7 @@ Prerequisites in order:
 1. Apple Developer account + notarization (hard gate — see one-time setup).
 2. MoR account + product setup (needs approved landing page for Paddle).
 3. Cloudflare Worker (webhook + activate + license lookup).
-4. In-app: verify / trial / gating / `prflow://purchase` handler (~2–3 days).
+4. In-app: verify / trial / gating / `nod://purchase` handler (~2–3 days).
 5. Wire checkout → GitHub identity on success page.
 
 Running costs: domain + Apple $99/yr + per-sale MoR fees. Fixed monthly: $0
@@ -619,7 +622,7 @@ needs live accounts:
       fail activation fast and the site shows "purchasing opens soon"
 - [x] Endpoint code (`/purchase-webhook`, `/activate`, `/license/:subject`;
       `/restore` still a 501 stub pending `POLAR_API_KEY`)
-- [x] `tauri-plugin-deep-link` — `prflow://purchase` handler
+- [x] `tauri-plugin-deep-link` — `nod://purchase` handler
 - [x] Evaluation + purchase card UI (never blocks — see the evaluation-model decision)
 - [x] Updater gating on `updates_until`
 - [x] Checkout success page with **Open Nod** button (zero-click loopback
