@@ -26,3 +26,19 @@ export const BREW_INSTALL_COMMANDS = [
 export const INSTALL_NOTES_URL = `${REPO_URL}#install--auto-updates`;
 
 export const CONTACT_EMAIL = "hello@nodreview.com";
+
+/**
+ * Narrows the Cloudflare Web Analytics beacon token to a value worth
+ * rendering. Two shapes have to collapse to "no beacon": absent, which is
+ * every local and preview build, and present-but-blank, which is what a
+ * declared-then-emptied Cloudflare var looks like. Emitting the blank one
+ * would load a third-party script on every page that reports to nothing —
+ * the worst of both halves of the promise /about makes about measurement.
+ */
+export function analyticsBeaconToken(raw: unknown): string | null {
+  if (typeof raw !== "string") {
+    return null;
+  }
+  const trimmed = raw.trim();
+  return trimmed === "" ? null : trimmed;
+}

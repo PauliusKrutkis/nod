@@ -35,11 +35,19 @@
   // public by definition — it ships in the HTML of every page. It belongs
   // here rather than in the dashboard for the reason at the top of this
   // file: once this block exists it is authoritative, and a plain-text var
-  // set only through the API is silently ignored at build time. That is not
-  // hypothetical — setting it via the API produced a green deploy whose
-  // HTML carried no beacon, while `secret_text` vars (GITHUB_TOKEN) reached
-  // the same build fine. Being in `vars` also means preview inherits none of
-  // it, which is what we want: preview traffic must not land in the numbers.
+  // set only through the API is silently ignored. That is not hypothetical —
+  // setting it via the API produced a green deploy whose HTML carried no
+  // beacon, and a later `wrangler pages secret put` deleted it outright,
+  // leaving the project's plain-text vars exactly matching this block.
+  //
+  // It is also the first entry here consumed at *build* time — the others are
+  // runtime bindings read by Functions (`env.GH_WEB_CLIENT_ID` in
+  // buy/start.ts), while the beacon token is read by Base.astro during
+  // `astro build`. That difference is worth naming because it looks wrong at
+  // a glance; it was verified on a preview deployment carrying this token
+  // under `env.preview.vars`, whose HTML did render the beacon. Being in
+  // `vars` also means preview inherits none of it, which is what we want:
+  // preview traffic must not land in the numbers.
   "vars": {
     "GH_WEB_CLIENT_ID": "Ov23lie6iqyqKu2DdlG9",
     "POLAR_PRODUCT_ID": "3ed56e3a-edbd-4723-a89d-52bdadcba7ac",
@@ -49,15 +57,7 @@
     "preview": {
       "kv_namespaces": [
         { "binding": "LICENSES", "id": "8a9184da4e5443ef9f63f485436d22dc" }
-      ],
-      // TEMPORARY probe, removed before merge. Answers one question: does a
-      // Wrangler `vars` entry reach the Astro *build*, or is it a runtime
-      // binding only? Production cannot answer it without merging, and the
-      // top-level `vars` block is not inherited here. Only the analytics
-      // token is listed, so /buy still 503s on preview as designed.
-      "vars": {
-        "PUBLIC_CF_ANALYTICS_TOKEN": "92b8fbe9e1ea409484577a3fbc472727"
-      }
+      ]
     }
   }
   // Secrets are deliberately absent and must stay that way:
