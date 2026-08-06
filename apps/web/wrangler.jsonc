@@ -30,9 +30,20 @@
   // deliberately gets none of these, so /buy answers 503 there instead of
   // starting an OAuth flow whose callback URL could never match the
   // registered app.
+  //
+  // PUBLIC_CF_ANALYTICS_TOKEN is the Cloudflare Web Analytics beacon token,
+  // public by definition — it ships in the HTML of every page. It belongs
+  // here rather than in the dashboard for the reason at the top of this
+  // file: once this block exists it is authoritative, and a plain-text var
+  // set only through the API is silently ignored at build time. That is not
+  // hypothetical — setting it via the API produced a green deploy whose
+  // HTML carried no beacon, while `secret_text` vars (GITHUB_TOKEN) reached
+  // the same build fine. Being in `vars` also means preview inherits none of
+  // it, which is what we want: preview traffic must not land in the numbers.
   "vars": {
     "GH_WEB_CLIENT_ID": "Ov23lie6iqyqKu2DdlG9",
-    "POLAR_PRODUCT_ID": "3ed56e3a-edbd-4723-a89d-52bdadcba7ac"
+    "POLAR_PRODUCT_ID": "3ed56e3a-edbd-4723-a89d-52bdadcba7ac",
+    "PUBLIC_CF_ANALYTICS_TOKEN": "92b8fbe9e1ea409484577a3fbc472727"
   },
   "env": {
     "preview": {

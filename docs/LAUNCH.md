@@ -191,12 +191,19 @@ Owner — site launch prep (Aug 2026), before the forum posts:
 - [ ] After merging, spot-check production: link unfurl (paste the URL in
       Slack/Discord), `curl -I https://nodreview.com/robots.txt` returns
       text/plain, an unknown path returns 404, /about renders.
-- [ ] **Cloudflare Web Analytics** — dashboard → Analytics → Web Analytics,
-      add nodreview.com, copy the beacon token → `PUBLIC_CF_ANALYTICS_TOKEN`
-      Pages **build** env var (production only). The site renders the
-      beacon only when the token exists (PR #186), so nothing shows up
-      until this is set. Cookieless; /about's privacy copy already
-      describes it.
+- [x] **Cloudflare Web Analytics** — the site was created 2026-07-29
+      (site tag `2b3423c5…`, beacon token `92b8fbe9…`, zone
+      `nodreview.com`) but **collected nothing for a week**: it was set up
+      with `auto_install`, which injects the beacon by rewriting HTML at the
+      zone edge, and that does not apply to Pages-served responses. The
+      served HTML carried no beacon at all. Fixed by feeding the token to
+      the in-code beacon (PR #186's path) via `vars` in
+      `apps/web/wrangler.jsonc` — **not** the dashboard/API, which is
+      silently ignored for plain-text vars once that file declares a `vars`
+      block. Cookieless; /about's privacy copy already describes it.
+      Verify after any change with
+      `curl -sS https://nodreview.com/ | grep -c cloudflareinsights`
+      — expect `1`, and expect `0` on preview deployments by design.
 - [ ] **Sentry for the payment functions** — create a (free-tier) Sentry
       project, copy its DSN → `SENTRY_DSN` Pages secret. /activate,
       /purchase-webhook, and /license/:subject report thrown errors and
