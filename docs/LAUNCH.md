@@ -191,12 +191,31 @@ Owner — site launch prep (Aug 2026), before the forum posts:
 - [ ] After merging, spot-check production: link unfurl (paste the URL in
       Slack/Discord), `curl -I https://nodreview.com/robots.txt` returns
       text/plain, an unknown path returns 404, /about renders.
-- [ ] **Cloudflare Web Analytics** — dashboard → Analytics → Web Analytics,
-      add nodreview.com, copy the beacon token → `PUBLIC_CF_ANALYTICS_TOKEN`
-      Pages **build** env var (production only). The site renders the
-      beacon only when the token exists (PR #186), so nothing shows up
-      until this is set. Cookieless; /about's privacy copy already
-      describes it.
+- [ ] **Cloudflare Web Analytics** — tick this only once production HTML
+      actually carries the beacon; the whole point of this entry is that a
+      dashboard which *looks* configured proved nothing. The site was
+      created 2026-07-29
+      (site tag `2b3423c5…`, beacon token `92b8fbe9…`, zone
+      `nodreview.com`) but has been **effectively dead since 2026-08-02**.
+      It was set up with `auto_install`, which injects the beacon by
+      rewriting HTML at the zone edge — a path that does not apply to
+      Pages-served responses. All it ever recorded was 40 sampled-adjusted
+      views on three days (Jul 29 / 31, Aug 2), every one of them a direct
+      US hit to `/`; the counts are all multiples of 10, consistent with a
+      10× sample rate over ~4 real events, and it reads as bot or monitor
+      traffic rather than visitors. Nothing since, and the served HTML
+      carries no beacon at all. The fix feeds the token to the in-code
+      beacon (PR #186's path) via `vars` in `apps/web/wrangler.jsonc` —
+      **not** the dashboard/API, which is silently ignored for plain-text
+      vars once that file declares a `vars` block. That mechanism is
+      verified: a preview deployment carrying the token under
+      `env.preview.vars` rendered the beacon, which is also what proves a
+      `vars` entry reaches the *build* and not just Functions at runtime.
+      What is **not** yet verified is production, because only a merge can
+      do that. Cookieless; /about's privacy copy already describes it.
+      Verify after any change with
+      `curl -sS https://nodreview.com/ | grep -c cloudflareinsights`
+      — expect `1`, and expect `0` on preview deployments by design.
 - [ ] **Sentry for the payment functions** — create a (free-tier) Sentry
       project, copy its DSN → `SENTRY_DSN` Pages secret. /activate,
       /purchase-webhook, and /license/:subject report thrown errors and
