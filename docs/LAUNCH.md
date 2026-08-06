@@ -193,10 +193,15 @@ Owner — site launch prep (Aug 2026), before the forum posts:
       text/plain, an unknown path returns 404, /about renders.
 - [x] **Cloudflare Web Analytics** — the site was created 2026-07-29
       (site tag `2b3423c5…`, beacon token `92b8fbe9…`, zone
-      `nodreview.com`) but **collected nothing for a week**: it was set up
-      with `auto_install`, which injects the beacon by rewriting HTML at the
-      zone edge, and that does not apply to Pages-served responses. The
-      served HTML carried no beacon at all. Fixed by feeding the token to
+      `nodreview.com`) but has been **effectively dead since 2026-08-02**.
+      It was set up with `auto_install`, which injects the beacon by
+      rewriting HTML at the zone edge — a path that does not apply to
+      Pages-served responses. All it ever recorded was 40 sampled-adjusted
+      views on three days (Jul 29 / 31, Aug 2), every one of them a direct
+      US hit to `/`; the counts are all multiples of 10, consistent with a
+      10× sample rate over ~4 real events, and it reads as bot or monitor
+      traffic rather than visitors. Nothing since, and the served HTML
+      carries no beacon at all. Fixed by feeding the token to
       the in-code beacon (PR #186's path) via `vars` in
       `apps/web/wrangler.jsonc` — **not** the dashboard/API, which is
       silently ignored for plain-text vars once that file declares a `vars`
