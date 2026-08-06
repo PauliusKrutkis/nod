@@ -15,7 +15,9 @@
 
 PR Flow is a small desktop app (**Tauri 2 + React 19 + TypeScript + Tailwind
 v4**) for the loop you do every day: open a review request, read the diff, leave
-a comment, move on. No AI, no git operations, no team features.
+a comment, move on. No git operations, no team features, and no AI in the
+product itself — ask-about-code is opt-in and runs on a key the user brings,
+so the app ships knowing nothing about any model.
 
 **Who it's for:** developers who live in the keyboard and review PRs daily.
 **The core loop:** `resume / ⌘K / inbox → read diff → comment → submit → next`.
