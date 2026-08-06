@@ -184,7 +184,7 @@ fetch commands write through to the same paths.
 3. Exchange code for token, validate via `current_user`, store via
    `accounts::upsert_github` or GitLab equivalent.
 
-Credentials come from env (`NOD_GH_*`, `NOD_GITLAB_*`) or compile-time
+Credentials come from env (`PRFLOW_GH_*`, `NOD_GITLAB_*`) or compile-time
 `option_env!` for release builds. `dotenvy` loads `apps/desktop/src-tauri/.env` in dev.
 
 Token paste (`set_token` / `add_account`) bypasses OAuth but still validates

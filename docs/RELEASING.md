@@ -39,7 +39,7 @@ install + relaunch in one click.
 | Public key in `tauri.conf.json` | ✅ `plugins.updater.pubkey` |
 | Repo secrets | ✅ `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (empty) |
 | Homebrew tap repo | ✅ `PauliusKrutkis/homebrew-tap` (public), seeded with the v0.1.0 cask. The release workflow pushes bumps over SSH via the `TAP_DEPLOY_KEY` secret — a deploy key that can write only to that one repo. Cask template: `packaging/homebrew/Casks/nod.rb`. |
-| OAuth in released builds | ✅ Baked in at compile time (`option_env!` in auth.rs): secrets `NOD_GH_CLIENT_ID` / `NOD_GH_CLIENT_SECRET` are set; the repo **variable** `NOD_GITLAB_CLIENT_ID` activates GitLab sign-in once the gitlab.com app is registered (`gh variable set NOD_GITLAB_CLIENT_ID`). Runtime `.env` still overrides in dev. Note: a client secret inside a desktop binary is extractable — a known, accepted trade-off for GitHub OAuth apps (GitHub CLI does the same); GitLab uses PKCE and has no secret at all. |
+| OAuth in released builds | ✅ Baked in at compile time (`option_env!` in auth.rs): secrets `PRFLOW_GH_CLIENT_ID` / `PRFLOW_GH_CLIENT_SECRET` are set; the repo **variable** `NOD_GITLAB_CLIENT_ID` activates GitLab sign-in once the gitlab.com app is registered (`gh variable set NOD_GITLAB_CLIENT_ID`). Runtime `.env` still overrides in dev. Note: a client secret inside a desktop binary is extractable — a known, accepted trade-off for GitHub OAuth apps (GitHub CLI does the same); GitLab uses PKCE and has no secret at all. |
 | Apple notarization | ⬜ **Required before paid launch (Phase 1)** — Apple Developer cert ($99/yr). Until then macOS users clear quarantine after install (`xattr -dr com.apple.quarantine /Applications/Nod.app`) or approve the app once under System Settings → Privacy & Security. (Homebrew 6 removed `--no-quarantine`.) An app that needs an `xattr` incantation to open is not shippable to paying customers — notarization is a Phase 1 gate, not a nice-to-have. Setup and env vars: [Apple notarization](#apple-notarization). |
 | Commercial launch (Phase 0 + 1) | ⬜ See [Commercial launch](#commercial-launch) below. |
 
@@ -212,9 +212,13 @@ Gotchas learned the hard way:
   final before the first real release — it now is. The *repo* followed on
   2026-08-06 (`PauliusKrutkis/nod`), along with the `nod://` scheme, the Cargo
   crate and the `nod:` localStorage namespace. GitHub redirects the old URLs,
-  including release downloads, so pre-rename installs keep updating. Two names
-  deliberately did **not** move: the Cloudflare Pages project (see below) and
-  `~/.tauri/prflow.key`, whose filename is arbitrary and not worth risking.
+  including release downloads, so pre-rename installs keep updating. Three
+  names deliberately did **not** move: the Cloudflare Pages project (see
+  below), `~/.tauri/prflow.key` (an arbitrary local filename guarding the
+  updater chain), and the `PRFLOW_GH_CLIENT_*` secrets — a secret's value
+  cannot be read back, so renaming means re-entering both by hand, and an
+  unset pair silently ships builds without GitHub sign-in rather than failing
+  the release (see the module doc in `auth.rs`).
 - [x] **Icon: the keycap** (resting variant from the original design exploration,
   view 9) — `app-icon.svg` is the source; platform sizes in
   `apps/desktop/src-tauri/icons/` were regenerated with `pnpm tauri icon`. To change it

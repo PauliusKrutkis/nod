@@ -79,8 +79,8 @@ jobs:
           # OAuth identities baked into the binary at compile time (auth.rs
           # option_env!). Unset secrets/vars just disable the buttons in the
           # released app — the build still succeeds.
-          NOD_GH_CLIENT_ID: ${{ secrets.NOD_GH_CLIENT_ID }}
-          NOD_GH_CLIENT_SECRET: ${{ secrets.NOD_GH_CLIENT_SECRET }}
+          PRFLOW_GH_CLIENT_ID: ${{ secrets.PRFLOW_GH_CLIENT_ID }}
+          PRFLOW_GH_CLIENT_SECRET: ${{ secrets.PRFLOW_GH_CLIENT_SECRET }}
           NOD_GITLAB_CLIENT_ID: ${{ vars.NOD_GITLAB_CLIENT_ID }}
           # Licensing, same option_env! pattern (license.rs / activation.rs):
           # both are public values, set as repo variables once the signing

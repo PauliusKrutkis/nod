@@ -88,7 +88,7 @@ day the OAuth app exists.
 be: an OAuth App holds one callback URL, and GitHub matches `redirect_uri`
 on host and port, which `127.0.0.1:8765` (`auth.rs`) and `nodreview.com` do
 not share. Mostly because the desktop client secret is compiled into every
-shipped binary (`option_env!("NOD_GH_CLIENT_SECRET")`) and is therefore
+shipped binary (`option_env!("PRFLOW_GH_CLIENT_SECRET")`) and is therefore
 public — fine for a loopback flow, where the redirect is the real boundary,
 but this flow is what binds a GitHub identity to a paid license. Trusting a
 client whose secret ships in every download would let anyone forge the
