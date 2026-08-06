@@ -415,7 +415,7 @@ evaluate with every feature and no time limit, and nothing licensing-related
 is even visible for the first 14 days (first-launch timestamp in the config
 dir, no countdown anywhere). After that grace window, two gentle levers and
 only two: a dismissable once-per-launch purchase card ("Enjoying Nod?"), and
-updates pause until a license exists. The app itself never blocks. A **$39
+updates pause until a license exists. The app itself never blocks. A **$59
 one-time license buys a year of updates** (webhook writes `updatesUntil`;
 the updater compares release dates against it client-side, `latest.json`
 stays static). Character themes join the paid side when theming ships — the
@@ -560,8 +560,8 @@ All of this exists now (`apps/desktop/src-tauri/src/license.rs` +
 **Grace window over → purchase**
 
 ```
-Enjoying Nod?  Nod is free to evaluate. A license is $39 …
-[ Buy Nod — $39 ]  →  browser opens MoR checkout  →  pay
+Enjoying Nod?  Nod is free to evaluate. A license is $59 …
+[ Buy Nod — $59 ]  →  browser opens MoR checkout  →  pay
 Payment received  [ Open Nod ]  →  nod://purchase?token=…
 App: card clears, updates resume.
 ```

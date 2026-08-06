@@ -118,9 +118,11 @@ today; moving it to the OS keychain is on the list.
 
 ## Price and license
 
-Nod is free to evaluate, every feature, no time limit. A license is $39, once,
-and carries a year of updates. When the year is up the app keeps working
-exactly as it is; you stop receiving new versions. Details on
+Nod is free to evaluate, every feature, no time limit. A license is $59, paid
+once: the app is yours permanently, and the first year brings every new version
+as it ships. When that year is up Nod keeps working exactly as it is, you just
+stop receiving updates. No subscription, and nothing stops working if you never
+pay again. Buying for a team? Email hello@nodreview.com. Details on
 [nodreview.com](https://nodreview.com/#pricing).
 
 The source is available under the

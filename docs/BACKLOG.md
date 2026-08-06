@@ -1582,6 +1582,42 @@ shared `useAutoFocus(ref)` hook, or the native `autoFocus` attribute where no
 
 ---
 
+## Pricing and licensing (2026-08-05)
+
+> **Owner decision, 2026-08-05:** standing price moved **$39 → $59**. The
+> model is unchanged and stays unchanged: perpetual license, one year of
+> updates, app never stops working, no feature gating (`license.rs` is
+> explicit that this is not DRM). $39 sat at half the floor of the band for
+> daily-driver developer tools (Fork $60 once, Kaleidoscope ~$79, TablePlus
+> ~$89, Sublime $99/3yr, Tower $69 **per year**), and a low price on a
+> solo-maintained tool reads as "hobby project, may be abandoned" — the top
+> unspoken objection to buying one. Same buyers convert at $59; the free tier
+> keeps doing the distribution work.
+
+- [ ] 🟡 **Team / company license.** The single highest-leverage revenue item:
+      individuals agonise over $59 of their own money, a company expenses
+      ~$249 for five seats without a meeting. Same product, no new
+      entitlement machinery needed if seats are just N individual licenses
+      issued together — what it actually needs is an invoice-friendly
+      checkout (Polar supports business details and VAT ID) and a subject
+      that can represent an org rather than one GitHub id. Until it exists,
+      the pricing card and README both invite team buyers to email
+      hello@nodreview.com, which doubles as the demand signal for whether to
+      build it at all.
+
+- [ ] 🟢 **Launch discount, $59 → $39.** Polar discount code, time- or
+      count-limited, announced in the launch posts. Anchors the real price
+      while giving early adopters the friendly number, and creates the only
+      honest urgency a perpetual license has. Discounting later is painless;
+      raising a published price later is not, which is why the standing price
+      went up *before* launch rather than after.
+
+- [ ] ⏸ **Renewal SKU (+1 year of updates).** Already noted in
+      [LAUNCH.md](./LAUNCH.md) step 8. Keep it a manual purchase, never an
+      auto-charge: an optional renewal is still "no subscription", an
+      automatic one is not, and the word appears in the footer creed, the
+      pricing card, the README and the baked share card.
+
 ## Post-MVP backlog
 
 Slack integration · streaks · celebration · Conversation mode · webhooks ·

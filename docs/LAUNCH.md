@@ -50,7 +50,7 @@ prints both halves in the exact format the signer expects. Then:
 
 ## 4. Polar — owner account, then verification
 
-Create the account (sandbox first), one product: **Nod license, $39,
+Create the account (sandbox first), one product: **Nod license, $59,
 one-time** (renewal SKU can wait). Configure:
 
 - Webhook → `https://nodreview.com/purchase-webhook`, secret →
@@ -145,7 +145,7 @@ pnpm --filter @nod/web exec wrangler pages secret list --project-name pr-flow
 Owner — now (all free):
 
 - [x] Polar **sandbox** org (`sandbox.polar.sh`, slug `nod`), product
-      **Nod license, $39, one-time**.
+      **Nod license, $59, one-time**.
 - [x] Webhook endpoint `https://nodreview.com/purchase-webhook`, format
       **Raw**, event `order.paid`; secret → `POLAR_WEBHOOK_SECRET`.
       **Verified with real deliveries 2026-08-05** — and the original
