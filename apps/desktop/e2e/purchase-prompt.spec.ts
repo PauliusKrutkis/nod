@@ -24,7 +24,7 @@ test("an ended grace window shows the card over a working app", async ({
 
   await expect(card(page)).toBeVisible();
   await expect(card(page)).toContainText("free to evaluate");
-  await expect(card(page)).toContainText("Buy Nod — $39");
+  await expect(card(page)).toContainText("Buy Nod — $59");
   await expect(page.getByRole("option").first()).toBeVisible();
 });
 

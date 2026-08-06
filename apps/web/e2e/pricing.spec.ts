@@ -5,30 +5,48 @@
  * the card says purchasing isn't open yet. A dead buy button on a live site
  * would be worse than no button.
  *
- * With no checkout it carries no button at all, not even a download one: the
- * install band immediately above is the free path, and repeating it here
- * would put two identical asks back to back.
+ * With no checkout it carries no purchase or download call to action at all:
+ * the install band immediately above is the free path, and repeating it here
+ * would put two identical asks back to back. The team contact link is not one
+ * of those asks — it routes a different kind of buyer and stays in both
+ * states, so the absence check names the CTAs rather than counting anchors.
  */
 import { expect, test } from "@playwright/test";
+
+const PURCHASE_CTA_PATTERN = /Buy Nod|Download|Evaluate/;
+
+const TEAM_CONTACT_HREF = "mailto:hello@nodreview.com";
 
 test("pricing states the price and the evaluation terms", async ({ page }) => {
   await page.goto("/");
 
   const pricing = page.locator("#pricing");
   await expect(pricing).toBeVisible();
-  await expect(pricing).toContainText("$39");
+  await expect(pricing).toContainText("$59");
   await expect(pricing).toContainText("a year of updates");
   await expect(pricing).toContainText("free to evaluate");
 });
 
-test("without a checkout the card states the terms and carries no button", async ({
+test("without a checkout the card states the terms and carries no call to action", async ({
   page,
 }) => {
   await page.goto("/");
 
   const pricing = page.locator("#pricing");
-  await expect(pricing.getByRole("link")).toHaveCount(0);
+  await expect(
+    pricing.getByRole("link", { name: PURCHASE_CTA_PATTERN })
+  ).toHaveCount(0);
   await expect(pricing).toContainText("Purchasing opens soon");
+});
+
+test("the team route is offered whether or not checkout is open", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await expect(
+    page.locator("#pricing").getByRole("link", { name: "Email me" })
+  ).toHaveAttribute("href", TEAM_CONTACT_HREF);
 });
 
 test("the free path sits in the install band above pricing", async ({
