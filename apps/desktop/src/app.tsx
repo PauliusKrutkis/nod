@@ -2,7 +2,6 @@ import {
   Command as CommandIcon,
   HelpCircle,
   History,
-  KeyRound,
   Search,
   Sparkles,
   Ticket,
@@ -28,14 +27,10 @@ import { Kbd } from "./components/ui/kbd.tsx";
 import { Spinner } from "./components/ui/spinner.tsx";
 import { UpdatePrompt } from "./components/update-prompt.tsx";
 import { WhatsNew } from "./components/whats-new.tsx";
-import {
-  useLicenseState,
-  useSetLicenseState,
-} from "./hooks/use-license-state.ts";
+import { useLicenseCommand } from "./hooks/use-license-command.ts";
 import type { Binding } from "./keyboard/types.ts";
 import { useHotkeys } from "./keyboard/use-hotkeys.ts";
 import { api } from "./lib/api.ts";
-import { licenseCommandLabel } from "./lib/license-label.ts";
 import { applyZoom, clampZoom, loadZoom, ZOOM_STEP } from "./lib/zoom.ts";
 import { loadLastRoute, useAppStore } from "./store/app-store.ts";
 
@@ -48,28 +43,7 @@ export default function App() {
   const switchAccount = useAppStore((s) => s.switchAccount);
   const toast = useAppStore((s) => s.toast);
   const setToast = useAppStore((s) => s.setToast);
-  const license = useLicenseState();
-  const setLicenseState = useSetLicenseState();
-
-  const runLicenseCommand = async () => {
-    if (license?.status === "licensed") {
-      setToast({ message: licenseCommandLabel(license), title: "License" });
-      return;
-    }
-    setToast({
-      message: "Finish in the browser window that just opened.",
-      title: "Waiting for activation",
-    });
-    try {
-      setLicenseState(await api.activateLicense());
-      setToast({
-        message: "Nod is licensed on this machine.",
-        title: "Activated",
-      });
-    } catch (e) {
-      setToast({ message: String(e), title: "Activation failed" });
-    }
-  };
+  const licenseCommand = useLicenseCommand();
   const inboxPaneVisible = useAppStore((s) => s.inboxPaneVisible);
   const aiSetupOpen = useAppStore((s) => s.aiSetupOpen);
   const closeAiSetup = useAppStore((s) => s.closeAiSetup);
@@ -241,14 +215,7 @@ export default function App() {
         keys: [],
         run: () => useAppStore.getState().openAiSetup(),
       },
-      {
-        description: licenseCommandLabel(license),
-        global: true,
-        group: "General",
-        icon: KeyRound,
-        keys: [],
-        run: runLicenseCommand,
-      },
+      licenseCommand,
       {
         description: "Release history · what's new",
         global: true,
