@@ -111,10 +111,10 @@ function expandFailure(
     return `${file.filename} is too large to expand.`;
   }
   if (lines === "binary") {
-    return `${file.filename} is a binary file — nothing to expand.`;
+    return `${file.filename} is a binary file. There is nothing to expand.`;
   }
   if (!file.patch || expandFileRows(file.patch, lines) === null) {
-    return `${file.filename} changed since this diff — couldn't expand.`;
+    return `${file.filename} changed since this diff, so it couldn't be expanded.`;
   }
   return null;
 }

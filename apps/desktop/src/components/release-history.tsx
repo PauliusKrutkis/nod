@@ -121,7 +121,7 @@ function ReleaseHistoryContent({ onClose }: { onClose: () => void }) {
         )}
         {releases === null && (
           <p className="qrh-note">
-            Couldn't load releases — check your connection and reopen this view.
+            Couldn't load releases. Check your connection and reopen this view.
           </p>
         )}
         {releases?.length === 0 && (

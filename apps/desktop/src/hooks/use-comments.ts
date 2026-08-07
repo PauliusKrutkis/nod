@@ -82,7 +82,7 @@ export function useCommentMutations(
     useAppStore
       .getState()
       .setFlash(
-        `${what} didn't post on ${owner}/${repo}#${number} — ${String(e)}`
+        `${what} didn't post on ${owner}/${repo}#${number}. ${String(e)}`
       );
   };
 

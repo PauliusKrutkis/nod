@@ -135,7 +135,7 @@ export function useReviewSubmitActions(args: {
       .then(() => args.clearPendingComments(args.keyValue))
       .catch((e) => {
         args.setFlash(
-          `Review for ${args.owner}/${args.repo}#${args.number} didn't submit — your comments are still pending. ${String(e)}`
+          `Review for ${args.owner}/${args.repo}#${args.number} didn't submit. Your comments are still pending. ${String(e)}`
         );
       });
   };
