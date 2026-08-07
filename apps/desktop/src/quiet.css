@@ -3872,7 +3872,7 @@ dialog.q-dialog::backdrop {
   margin-top: 9px;
   font-size: 11px;
   line-height: 1.45;
-  color: var(--faint);
+  color: var(--muted);
 }
 
 .qb-whatsnew .qb-update-icon {
