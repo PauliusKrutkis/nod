@@ -109,7 +109,7 @@ function IssueTrackerDialogContent({
           spellCheck={false}
         />
         <p className="mt-2 text-faint text-xs">
-          The ticket ID is appended — or use {"{id}"} anywhere in the URL. Leave
+          The ticket ID is appended, or use {"{id}"} anywhere in the URL. Leave
           empty to turn linking off.
         </p>
       </div>

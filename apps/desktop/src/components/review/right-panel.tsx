@@ -466,7 +466,7 @@ function DrawerConversation({
       </h3>
       {timeline.length === 0 ? (
         <p className="text-faint text-sm">
-          No discussion yet — start one below.
+          No discussion yet. Start one below.
         </p>
       ) : (
         <div className="qf-convo">

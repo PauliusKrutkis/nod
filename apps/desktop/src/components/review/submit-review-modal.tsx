@@ -143,14 +143,14 @@ function SubmitReviewModalContent({
         <p className="mt-0.5 text-muted text-xs">
           {pendingCount > 0
             ? `${pendingCount} pending comment${pendingCount === 1 ? "" : "s"} will be included.`
-            : "No pending comments — submits the verdict and summary only."}
+            : "No pending comments. Submits the verdict and summary only."}
         </p>
       </div>
 
       <div className="px-5 py-4">
         {!!ownPr && (
           <p className="mb-2.5 text-faint text-xs">
-            This is your own PR — only a comment review can be submitted.
+            This is your own PR. Only a comment review can be submitted.
           </p>
         )}
         <div className="flex gap-2">

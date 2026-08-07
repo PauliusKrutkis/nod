@@ -117,7 +117,7 @@ export function HelpOverlay({ baseScope }: { baseScope: string }) {
           <Command aria-hidden size={15} />
           <span className="qh-title">Keyboard</span>
           <span className="qh-head-note">
-            Scope-aware — only the screen you're on responds
+            Scope-aware. Only the screen you're on responds
           </span>
         </div>
         <button
@@ -169,7 +169,7 @@ export function HelpOverlay({ baseScope }: { baseScope: string }) {
       </div>
 
       <footer className="qh-foot">
-        Generated from the live bindings — the legend, the palette, and this
+        Generated from the live bindings, so the legend, the palette, and this
         sheet can never drift.
       </footer>
     </dialog>

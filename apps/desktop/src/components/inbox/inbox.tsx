@@ -61,7 +61,7 @@ const TABS: { key: InboxTabKey; label: string; hint: string }[] = [
     label: "Involved",
   },
   {
-    hint: "Every open PR in the repositories you watch — involved or not.",
+    hint: "Every open PR in the repositories you watch, involved or not.",
     key: "subscribed",
     label: "Watching",
   },
@@ -691,7 +691,7 @@ function InboxMainContent({
     if (showArchived) {
       return (
         <InboxZero
-          hint="Archive a PR with e and it waits here — press u to come back."
+          hint="Archive a PR with e and it waits here. Press u to come back."
           title={`No archived PRs in “${activeTab.label}”`}
         />
       );
@@ -784,7 +784,7 @@ function InboxListPane({
           <div className="qi-archived-banner">
             <ArchiveRestore size={13} />
             <span>
-              Archived — <Kbd combo="e" /> restores, <Kbd combo="u" /> returns
+              Archived · <Kbd combo="e" /> restores, <Kbd combo="u" /> returns
             </span>
           </div>
         )}

@@ -88,7 +88,7 @@ test("configured state shows the saved-key hint and remove action", async ({
   const dialog = page.getByRole("dialog", { name: ASK_ABOUT_CODE });
   await expect(dialog.getByLabel("API key")).toHaveAttribute(
     "placeholder",
-    "Key saved — paste to replace"
+    "Key saved. Paste to replace."
   );
   await expect(
     dialog.getByRole("button", { name: "Remove key" })
