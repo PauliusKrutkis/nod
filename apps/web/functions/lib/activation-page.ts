@@ -79,12 +79,21 @@ export function activationPage(token: string): string {
 </html>`;
 }
 
-/** Both end-screens are token-bearing HTML, so neither may be cached. */
-export function activationHtmlResponse(body: string): Response {
+/**
+ * Both end-screens are token-bearing HTML, so neither may be cached. `extra`
+ * carries whatever the route owes on top of that — the OAuth callback clears
+ * its state cookie here, because reaching this screen ends that flow just as
+ * a redirect into checkout does.
+ */
+export function activationHtmlResponse(
+  body: string,
+  extra: Record<string, string> = {}
+): Response {
   return new Response(body, {
     headers: {
       "cache-control": "no-store",
       "content-type": "text/html; charset=utf-8",
+      ...extra,
     },
   });
 }
