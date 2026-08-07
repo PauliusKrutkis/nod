@@ -206,7 +206,7 @@ export default function App() {
         run: () => setTrackerOpen(true),
       },
       {
-        description: "Ask about code — AI settings…",
+        description: "Ask about code · AI settings…",
         global: true,
         group: "General",
         icon: Sparkles,
@@ -214,7 +214,7 @@ export default function App() {
         run: () => useAppStore.getState().openAiSetup(),
       },
       {
-        description: "Release history — what's new",
+        description: "Release history · what's new",
         global: true,
         group: "General",
         icon: History,

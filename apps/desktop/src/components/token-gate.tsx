@@ -235,8 +235,8 @@ function SelfHostedPanel({
           <label className="qg-label" htmlFor="qg-appid">
             Application ID{" "}
             <span className="qg-label-soft">
-              optional. A group owner creates it once, then sign-in is one click
-              for everyone
+              · optional. A group owner creates it once, then sign-in is one
+              click for everyone
             </span>
           </label>
           <input
