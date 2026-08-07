@@ -1,6 +1,11 @@
 ---
+/**
+ * `cta` is optional: /buy passes none, because the only nav affordance there
+ * used to be a free Download sitting next to a paid Continue with GitHub.
+ * The brand stays a link so the page keeps a way back out.
+ */
 interface Props {
-  cta: { href: string; label: string };
+  cta?: { href: string; label: string };
 }
 
 const { cta } = Astro.props;
@@ -12,6 +17,6 @@ const { cta } = Astro.props;
       <span class="brand__mark">nod</span>
       <span class="brand__dim">· pr review</span>
     </a>
-    <a class="nav__link" href={cta.href}>{cta.label}</a>
+    {cta && <a class="nav__link" href={cta.href}>{cta.label}</a>}
   </div>
 </header>

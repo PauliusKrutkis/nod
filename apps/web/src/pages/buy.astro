@@ -24,7 +24,7 @@ const PURCHASE_STEPS = [
   title="Buy Nod"
   description="Your GitHub account is your license. Sign in, pay once through Polar, and Nod activates on any machine you use."
 >
-  <SiteNav cta={{ href: "/downloads", label: "Download" }} />
+  <SiteNav />
 
   <main>
     <section class="wrap purchase">
@@ -58,6 +58,10 @@ const PURCHASE_STEPS = [
         Continue with GitHub
       </a>
 
+      <p class="mono purchase__creed">
+        No subscription. No telemetry. Your token stays on your machine.
+      </p>
+
       <div class="purchase__notes">
         <p>
           Payment is handled by Polar, the merchant of record. The free
@@ -72,7 +76,7 @@ const PURCHASE_STEPS = [
     </section>
   </main>
 
-  <SiteFooter />
+  <SiteFooter minimal />
 </Base>
 
 <style>
@@ -185,6 +189,17 @@ const PURCHASE_STEPS = [
 
   .purchase__cta {
     margin-top: 36px;
+  }
+
+  /* The last thing read before the button, not the last thing on the page.
+     Held to 34ch so it breaks into two lines against the CTA rather than
+     running the full column width. */
+  .purchase__creed {
+    margin: 14px 0 0;
+    max-width: 34ch;
+    font-size: 0.8125rem;
+    line-height: 1.55;
+    color: var(--muted);
   }
 
   .purchase__notes {

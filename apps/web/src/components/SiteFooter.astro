@@ -1,18 +1,41 @@
 ---
 import { CONTACT_EMAIL, REPO_URL } from "../lib/site";
+
+/**
+ * `minimal` drops the creed and the browsing links, leaving only what a buyer
+ * is owed on the way to a payment: how their data is handled, and how to reach
+ * a human. /buy promotes the creed next to its own button instead, where it is
+ * read rather than skimmed past.
+ */
+interface Props {
+  minimal?: boolean;
+}
+
+const { minimal = false } = Astro.props;
 ---
 
 <footer class="foot">
-  <div class="wide foot__inner">
-    <span class="foot__creed"
-      >No subscription. No telemetry. Your token stays on your machine.</span
-    >
-    <span class="foot__links">
-      <a href={REPO_URL}>GitHub</a>
-      <a href="/downloads">Downloads</a>
-      <a href="/about">About</a>
-      <a href="/about#privacy">Privacy</a>
-      <a href={`mailto:${CONTACT_EMAIL}`}>Contact</a>
-    </span>
+  <div class:list={["wide", "foot__inner", minimal && "foot__inner--narrow"]}>
+    {
+      minimal ? (
+        <span class="foot__links foot__links--minimal">
+          <a href="/about#privacy">Privacy</a>
+          <a href={`mailto:${CONTACT_EMAIL}`}>Contact</a>
+        </span>
+      ) : (
+        <>
+          <span class="foot__creed">
+            No subscription. No telemetry. Your token stays on your machine.
+          </span>
+          <span class="foot__links">
+            <a href={REPO_URL}>GitHub</a>
+            <a href="/downloads">Downloads</a>
+            <a href="/about">About</a>
+            <a href="/about#privacy">Privacy</a>
+            <a href={`mailto:${CONTACT_EMAIL}`}>Contact</a>
+          </span>
+        </>
+      )
+    }
   </div>
 </footer>
