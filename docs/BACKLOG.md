@@ -2548,3 +2548,49 @@ wanted instead of a quick win.
       occurrence marks, fat-cursor ranges and comment anchoring are all built
       around one row per line — so this is much bigger than it looks and
       should not be picked up as a quick win.
+
+---
+
+## Inbox (2026-08-07)
+
+- [ ] 🟡 **No in-app way to say "I already bought this"** — the only licensing
+      surface in the app is `PurchasePrompt`, and it returns `null` unless the
+      state is exactly `trialExpired`. A fresh install is `Trial { days_left:
+      14 }`, so a customer who **bought on the website and then downloaded the
+      app** sees nothing about licensing at all for two weeks, and `mod+k` has
+      no license command of any kind — not "activate", not "check my license",
+      nothing. They have paid and the product offers them no way to say so.
+      Their receipt link is not a fallback either: `/activate` is keyed by a
+      checkout index with a **48-hour** TTL, so anyone who installs a few days
+      later finds it expired, and `/restore` is still a 501 stub.
+      *What the buy-flow fix does and does not cover:* the OAuth callback now
+      returns the activation screen for a subject that already owns a license
+      (PR #212), so signing in at nodreview.com/buy **does** re-activate them
+      correctly. The gap is purely discovery — nothing in the app tells them
+      that, and during trial there is no affordance to find.
+      *Shape:* a `mod+k` command ("Activate my license" / "Check my license")
+      that works in **every** license state, not just expired, wired to the
+      existing `activate_license` command — the loopback listener and the
+      token verification are already built and need no changes. Consider also
+      showing licence state somewhere permanent so "check my license" has an
+      answer, and revisit whether `PurchasePrompt`'s `trialExpired`-only gate
+      is still right once a palette entry exists.
+- [ ] 🟡 **Copy voice sweep: desktop, and hold the line on the web** — PR #188
+      removed every em dash from the *site* copy because the dash-heavy rhythm
+      reads as generated text. The desktop app was never swept: roughly 49 in
+      `apps/desktop/src` strings and JSX text, plus ~12 in user-facing Rust
+      error strings (`activation.rs` "Activation is already waiting in another
+      window — finish checkout there", `update.rs` "This release is outside
+      your update window — get a license…"). Rewrite the sentences rather than
+      swapping the dash for a comma; the construction is the problem, not the
+      character.
+      *Scope:* strings a user can read — JSX text, toasts, command palette
+      descriptions, `Err(String)` messages that surface in the UI, and the
+      Worker-rendered purchase pages under `apps/web/functions`. **Not** code
+      comments (#188 explicitly kept theirs, they never render), **not** this
+      backlog, and not commit messages or PR bodies.
+      *Sample text counts too:* placeholder and demo strings shipped as
+      product surface should read as something a person wrote for this app,
+      not as filler.
+      *Guard:* [Check 9 in the pr-validity skill](../skills/pr-validity/SKILL.md)
+      catches new instances in review, so this item is the existing debt only.
