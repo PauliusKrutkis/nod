@@ -16,7 +16,7 @@ import type { LicenseState } from "../types.ts";
 
 const BUY_BUTTON = /Buy Nod — \$59/;
 const RESTORE_NOTE =
-  /signing in restores your license instead of charging you/i;
+  /Signing in restores your license instead of charging you/i;
 
 const licenseState = vi.hoisted(() => ({
   current: undefined as LicenseState | undefined,

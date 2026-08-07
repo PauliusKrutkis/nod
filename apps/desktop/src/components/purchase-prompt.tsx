@@ -82,8 +82,8 @@ export function PurchasePrompt() {
           </button>
         </div>
         <p className="qb-update-note">
-          Already bought Nod? Same button — signing in restores your license
-          instead of charging you.
+          Already bought Nod? Press the same button. Signing in restores your
+          license instead of charging you.
         </p>
       </div>
     </div>
