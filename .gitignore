@@ -13,6 +13,12 @@ dist
 dist-ssr
 *.local
 
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+
 # Astro build cache (apps/web)
 .astro/
 
