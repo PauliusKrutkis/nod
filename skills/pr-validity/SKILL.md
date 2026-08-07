@@ -1,11 +1,11 @@
 ---
 name: pr-validity
-description: Review a PR or branch diff for validity against this repo's conventions — comment placement per docs/ARCHITECTURE.md, unnecessary React effects, hand-rolled UI where shadcn would be richer, performance issues, naming, file/folder placement, readability, and general code quality. Use when the user asks to check, validate, or review a PR or the current branch. Findings are confirmed with the user before anything is fixed.
+description: Review a PR or branch diff for validity against this repo's conventions — comment placement per docs/ARCHITECTURE.md, unnecessary React effects, hand-rolled UI where shadcn would be richer, performance issues, naming, file/folder placement, readability, user-facing copy that reads as generated, and general code quality. Use when the user asks to check, validate, or review a PR or the current branch. Findings are confirmed with the user before anything is fixed.
 ---
 
 # pr-validity
 
-Review a diff against eight checks, report findings ranked by severity, and **only fix what the user approves**. This skill never edits code before the user has confirmed which findings to act on.
+Review a diff against nine checks, report findings ranked by severity, and **only fix what the user approves**. This skill never edits code before the user has confirmed which findings to act on.
 
 ## Scope of the review
 
@@ -109,9 +109,23 @@ Softer placement recommendations (propose a target path and name the convention 
 - Tests: does the PR carry the tests that prove its own change (see TESTING.md)?
 - Gate: note whether `pnpm check`, `pnpm typecheck`, `pnpm test`, `pnpm knip` (and `cargo test` if `apps/desktop/src-tauri/` changed) pass; run them if the working tree matches the reviewed diff.
 
+## Check 9 — User-facing copy reads as human-written
+
+Applies to strings a user can read: JSX text, toasts, command-palette labels and descriptions, placeholder and empty-state text, `Err(String)` messages that surface in the UI, `.astro` page copy, and the Worker-rendered purchase pages under `apps/web/functions`.
+
+**Does not apply** to code comments (PR #188 deliberately kept theirs — they never render), test names and fixtures, commit messages, PR descriptions, or `docs/`.
+
+- **Em dashes are out.** PR #188 swept them from the site copy because the dash-heavy rhythm reads as generated text. Flag every `—` in a user-facing string. The fix is to **rewrite the sentence**, not to swap the dash for a comma or semicolon — the construction is what reads as generated, not the character. Two plain sentences usually beat one hinged sentence.
+- **Trailing-flourish constructions**, the shape #188 named specifically: a complete sentence, a dash, then a summarising appositive (`"submit — one unbroken keyboard motion"`, `"— either way it lands instantly"`). Flag these even when the dash has already been swapped for a comma; the rhythm is the tell.
+- **Filler and sample text** shipped as product surface — lorem ipsum, `"Example item"`, `"John Doe"`, placeholder copy that was never rewritten. If a user can read it, it should read as something a person wrote for *this* app.
+- **Middot is the house separator** for label fragments (`nod · pr review`, `license · active`), matching the mono captions. Prefer it where a separator genuinely is wanted.
+- Do not flag em dashes in `docs/`, in this repo's backlog, or in comments. Reviewers wasting findings on non-rendered text is the failure mode to avoid.
+
+Existing debt is tracked in `docs/BACKLOG.md` under Inbox (2026-08-07) and swept by PRs #216 and #217 — 31 strings in `apps/desktop/src` and 4 in user-facing Rust. This check exists to stop the count growing, so flag **new or touched** strings in the diff rather than reporting the standing backlog.
+
 ## Reporting and confirmation (required)
 
-1. Collect findings from all eight checks. Deduplicate; one finding per root cause.
-2. Present them ranked by severity — **blocker** (correctness, layering violation), **should-fix** (convention violations: comments, effects, shadcn, naming, placement, readability, real perf issues), **suggestion** — each with `file:line`, which check it came from, why it matters, and the concrete proposed fix.
+1. Collect findings from all nine checks. Deduplicate; one finding per root cause.
+2. Present them ranked by severity — **blocker** (correctness, layering violation), **should-fix** (convention violations: comments, effects, shadcn, naming, placement, readability, real perf issues, user-facing copy), **suggestion** — each with `file:line`, which check it came from, why it matters, and the concrete proposed fix.
 3. **Stop and confirm with the user which findings to fix before editing anything.** Use AskUserQuestion (multi-select) when the list is short, or present the numbered list and ask which to apply. "No findings" is a valid outcome — say so and stop.
 4. Apply only the approved fixes, then re-run the relevant gate commands and report results. Leave declined findings out of the code; summarize them at the end so they're on record.
