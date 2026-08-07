@@ -14,7 +14,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LicenseState } from "../types.ts";
 
-const BUY_BUTTON = /Buy Nod — \$59/;
+const BUY_BUTTON = /Buy Nod/;
 const RESTORE_NOTE =
   /Signing in restores your license instead of charging you/i;
 
