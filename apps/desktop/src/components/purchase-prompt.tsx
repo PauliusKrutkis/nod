@@ -18,6 +18,13 @@ import { api } from "../lib/api.ts";
  * query. Later stays enabled during the wait (checkout can take many
  * minutes, and abandoning it must not trap the card on screen); a dismissed
  * card's pending activation still resolves into the shared query.
+ *
+ * One button covers buying and re-activating, because the server treats them
+ * as one flow: signing in as a subject that already holds a license returns
+ * the activation screen rather than a checkout (functions/auth/github/
+ * callback.ts). The note under the actions exists because the button is
+ * labelled with a price, and someone who has already paid will not press a
+ * price without being told what it does.
  */
 
 export function PurchasePrompt() {
@@ -74,6 +81,10 @@ export function PurchasePrompt() {
             Later
           </button>
         </div>
+        <p className="qb-update-note">
+          Already bought Nod? Same button — signing in restores your license
+          instead of charging you.
+        </p>
       </div>
     </div>
   );

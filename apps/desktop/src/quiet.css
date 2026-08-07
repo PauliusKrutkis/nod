@@ -3868,6 +3868,12 @@ dialog.q-dialog::backdrop {
   font-size: 11px;
   color: var(--del);
 }
+.qb-update-note {
+  margin-top: 9px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--faint);
+}
 
 .qb-whatsnew .qb-update-icon {
   color: var(--add);
