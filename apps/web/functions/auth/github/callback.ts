@@ -12,11 +12,21 @@
  * is single-use.
  *
  * A subject that already owns a license never reaches Polar: it gets the
- * activation screen instead. That is what makes buying and re-activating the
- * same door, which matters because the app only knows how to open one — the
- * purchase prompt sends everyone to /buy, including the buyer who paid on
- * the website before installing and has no local license to show for it.
- * Without this, that buyer's only route back is a second charge.
+ * activation screen instead. Finishing sign-in has just proved the visitor
+ * holds the GitHub account the license is keyed to, which is the same claim
+ * /activate needs an unguessable checkout_id to make about an anonymous
+ * visitor. That is what makes buying and re-activating the same door, which
+ * matters because the app only knows how to open one — the purchase prompt
+ * sends everyone to /buy, including the buyer who paid on the website before
+ * installing and has no local license to show for it. Without this, that
+ * buyer's only route back is a second charge.
+ *
+ * The cost of that fork: an owner can no longer reach checkout at all, so
+ * repeat-purchase term extension (docs/LAUNCH.md step 6) cannot arrive as
+ * "press Buy again" and needs its own affordance. Gating the fork on
+ * updatesUntil instead would be worse — it would charge a lapsed owner who
+ * only wanted to re-activate on a new machine, and the license is perpetual
+ * by design (src-tauri/src/license.rs); only updates lapse.
  */
 import {
   activationHtmlResponse,
@@ -28,10 +38,28 @@ import {
   fetchGitHubUserId,
   readStateCookie,
 } from "../../lib/github-oauth";
-import { getLicense } from "../../lib/kv";
+import { getLicense, type LicenseRecord } from "../../lib/kv";
 import { signLicenseToken } from "../../lib/license-token";
 import { createCheckout } from "../../lib/polar";
 import { withErrorReporting } from "../../lib/report";
+
+async function reactivate(
+  env: Env,
+  subject: string,
+  license: LicenseRecord
+): Promise<Response> {
+  const token = await signLicenseToken(
+    {
+      orderId: license.orderId,
+      subject,
+      updatesUntil: license.updatesUntil,
+    },
+    env.LICENSE_SIGNING_SEED
+  );
+  return activationHtmlResponse(activationPage(token), {
+    "set-cookie": clearedStateCookie(),
+  });
+}
 
 export const onRequestGet: PagesFunction<Env> = withErrorReporting(
   async (context) => {
@@ -60,25 +88,9 @@ export const onRequestGet: PagesFunction<Env> = withErrorReporting(
       `${url.origin}/auth/github/callback`
     );
     const subject = `github:github.com:${userId}`;
-
-    // Signing in is proof enough to re-activate: the sign-in just established
-    // that this visitor holds the GitHub account the license is keyed to,
-    // which is the same claim /activate needs a checkout_id to make about an
-    // anonymous visitor. So an owner who reaches here never sees a second
-    // checkout — they get their existing license back.
-    const existing = await getLicense(env.LICENSES, subject);
-    if (existing !== null) {
-      const token = await signLicenseToken(
-        {
-          orderId: existing.orderId,
-          subject,
-          updatesUntil: existing.updatesUntil,
-        },
-        env.LICENSE_SIGNING_SEED
-      );
-      return activationHtmlResponse(activationPage(token), {
-        "set-cookie": clearedStateCookie(),
-      });
+    const existingLicense = await getLicense(env.LICENSES, subject);
+    if (existingLicense !== null) {
+      return await reactivate(env, subject, existingLicense);
     }
 
     const checkoutUrl = await createCheckout(env, subject, url.origin);

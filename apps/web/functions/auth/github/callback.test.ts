@@ -7,7 +7,10 @@
  *
  * It is also the fork between buying and re-activating, so the cases below
  * pin which one a given subject gets: an owner must never be sent to a
- * second checkout, and a stranger must still reach the first one.
+ * second checkout, and a stranger must still reach the first one. The
+ * cookie case asserts a 200 rather than only the cleared cookie because a
+ * 302 into checkout clears it too — without pinning the branch it would
+ * pass against the very code it is meant to rule out.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Env } from "../../lib/env";
@@ -143,7 +146,6 @@ describe("GET /auth/github/callback", () => {
     expect(body).toContain("nod://purchase?token=");
     expect(body).toContain("127.0.0.1:8766");
 
-    // The point of the change: no second charge, ever.
     expect(
       fetchSpy.mock.calls.some(([input]) =>
         String(input).includes("/v1/checkouts/")
@@ -168,8 +170,6 @@ describe("GET /auth/github/callback", () => {
       env
     );
 
-    // 200, not 302: a redirect into checkout clears the cookie too, so
-    // without pinning the branch this asserts nothing.
     expect(response.status).toBe(200);
     expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
     expect(response.headers.get("cache-control")).toBe("no-store");
