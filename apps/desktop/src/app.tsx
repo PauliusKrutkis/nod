@@ -27,6 +27,7 @@ import { Kbd } from "./components/ui/kbd.tsx";
 import { Spinner } from "./components/ui/spinner.tsx";
 import { UpdatePrompt } from "./components/update-prompt.tsx";
 import { WhatsNew } from "./components/whats-new.tsx";
+import { useLicenseCommand } from "./hooks/use-license-command.ts";
 import type { Binding } from "./keyboard/types.ts";
 import { useHotkeys } from "./keyboard/use-hotkeys.ts";
 import { api } from "./lib/api.ts";
@@ -42,6 +43,7 @@ export default function App() {
   const switchAccount = useAppStore((s) => s.switchAccount);
   const toast = useAppStore((s) => s.toast);
   const setToast = useAppStore((s) => s.setToast);
+  const licenseCommand = useLicenseCommand();
   const inboxPaneVisible = useAppStore((s) => s.inboxPaneVisible);
   const aiSetupOpen = useAppStore((s) => s.aiSetupOpen);
   const closeAiSetup = useAppStore((s) => s.closeAiSetup);
@@ -206,15 +208,16 @@ export default function App() {
         run: () => setTrackerOpen(true),
       },
       {
-        description: "Ask about code — AI settings…",
+        description: "Ask about code · AI settings…",
         global: true,
         group: "General",
         icon: Sparkles,
         keys: [],
         run: () => useAppStore.getState().openAiSetup(),
       },
+      licenseCommand,
       {
-        description: "Release history — what's new",
+        description: "Release history · what's new",
         global: true,
         group: "General",
         icon: History,
