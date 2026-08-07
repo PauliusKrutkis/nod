@@ -182,29 +182,35 @@ Owner — site launch prep (Aug 2026), before the forum posts:
       inbox. Live (MX → `route{1,2,3}.mx.cloudflare.net`); the address is
       published by the /about page (PR #186). It is inbound-only and it
       forwards, which leaves the three gaps below.
-- [ ] **Keep forwarded mail out of spam.** Routing preserves the original
+- [x] **Keep forwarded mail out of spam.** Routing preserves the original
       `From:` and rewrites only the envelope (SRS), so SPF passes without
       aligning, and CF's own DKIM (`cf2024-1._domainkey`, present) signs as
       `nodreview.com`, which does not align either. DMARC then rides
       entirely on the sender's own signature surviving the hop, so any
       sender that doesn't DKIM-sign arrives DMARC-fail from an IP the
-      receiving side has never seen them use. Fix is inbox-side: a Gmail
-      filter on `to:hello@nodreview.com` → *Never send it to Spam*. Diagnose
-      with Show original before assuming. Note that mailing hello@ from your
-      own personal address is not a valid test — the forward comes back
-      claiming to be from you, off a non-Google IP, which always scores as
-      spoofing.
-- [ ] **Publish DMARC** — `_dmarc.nodreview.com` does not exist today
-      (NXDOMAIN), so the domain is spoofable and outbound mail as `hello@`
-      is trusted less. This does not fix the forwarding problem above; it is
-      table stakes for the domain. Start permissive, read reports, then
-      tighten to `quarantine`:
+      receiving side has never seen them use. Fixed inbox-side 2026-08-07: a
+      Gmail filter on `to:hello@nodreview.com` → *Never send it to Spam*,
+      plus a `nod/hello` label. The match is on the recipient, not the
+      sender, so it holds regardless of whose signature survives the hop.
+      Verified with a real inbound message. Diagnose any future stray with
+      Show original before assuming. Note that mailing hello@ from your own
+      personal address is not a valid test — the forward comes back claiming
+      to be from you, off a non-Google IP, which always scores as spoofing.
+- [x] **Publish DMARC** — was NXDOMAIN, so the domain was spoofable and
+      outbound mail as `hello@` trusted less. This does not fix the
+      forwarding problem above; it is table stakes for the domain. Live
+      2026-08-07 at monitoring strength:
 
       ```
       _dmarc  TXT  "v=DMARC1; p=none; rua=mailto:hello@nodreview.com; fo=1"
       ```
 
-- [ ] **Reply as `hello@`, not from a personal address.** There is no SMTP
+      `p=none` changes no delivery decisions. Read a week or two of the
+      aggregate reports landing at `hello@` before tightening to
+      `quarantine`, and do not tighten until Resend below is verified —
+      that is what makes outbound actually align.
+
+- [x] **Reply as `hello@`, not from a personal address.** There is no SMTP
       behind Email Routing, so hitting reply puts a personal address on mail
       answering the product's published contact address. Decided: **Resend
       free tier** (3,000/month, 100/day, one domain, SMTP relay included on
@@ -213,14 +219,45 @@ Owner — site launch prep (Aug 2026), before the forum posts:
       wrote to you is opted-in by definition. Resend puts the envelope
       sender on `send.nodreview.com` with its own SPF, so the root SPF
       record stays as it is and nothing collides with the CF include —
-      alignment comes from the DKIM key it issues at the root. Zoho's free
+      alignment comes from the DKIM key it issues at the root. Verification
+      wants three records, not two: DKIM (TXT at the root), SPF (TXT on
+      `send.`), and an **MX on `send.`** pointing at
+      `feedback-smtp.<region>.amazonses.com` priority 10, which is the
+      bounce/complaint return path. MX records only affect the subdomain
+      they sit on, so this one does not disturb the root MX — Routing keeps
+      receiving while Resend sends. Zoho's free
       tier was the alternative and lost: no IMAP/POP/SMTP and no forwarding
       on free, so it cannot connect to Gmail in either direction. If a real
       mailbox on the domain is ever wanted, Zoho Mail Lite (~$1/user/month)
       is the destination, not a larger Resend plan.
-- [ ] **`www` DNS + redirect** — `www.nodreview.com` has no DNS record at
-      all today. Add a `www` CNAME on the zone (proxied) plus a redirect
-      rule to the apex.
+
+      Live 2026-08-07. Resend's Cloudflare integration wrote all three
+      records itself; region `eu-west-1`, so the MX is
+      `feedback-smtp.eu-west-1.amazonses.com`. Gmail *Send mail as* uses
+      host `smtp.resend.com`, port 587, TLS, username the literal string
+      `resend`, password an API key. Scope that key to **Sending access**
+      on this domain — the default Full-access key can also mint and revoke
+      keys and add or remove domains, which an SMTP password has no business
+      doing. Ownership is proven by a code Google mails to `hello@`, which
+      arrives through Routing, so the verify step exercises both directions
+      at once.
+
+      Gmail's *When replying to a message → reply from the same address the
+      message was sent to* only appears once the alias is verified, and it
+      governs Gmail's own clients only. Third-party clients keep their own
+      copy: in Shortwave, run Settings → Support → **Refresh Gmail data** to
+      pick up an alias added after sign-in, then set its alias preference
+      separately. Any other client will need the same treatment.
+- [x] **`www` DNS + redirect** — done 2026-08-07. Proxied `www` CNAME to the
+      apex, plus a Redirect Rule (`http_request_dynamic_redirect` phase) on
+      `http.host eq "www.nodreview.com"` → 301 with target expression
+      `concat("https://nodreview.com", http.request.uri.path)` and
+      `preserve_query_string`. Both halves are required together: the CNAME
+      alone would serve a Pages error, since `www` is not a custom domain on
+      the project. The rule answers at the edge, so Pages never sees the
+      request and the CNAME target is irrelevant — it exists only to make
+      the hostname proxied. Verified: `/about?ref=test` survives the hop
+      with path and query intact; apex still 200.
 - [ ] **Merge the site-prep PRs**: #182 (og:image), #183 (404/robots/
       sitemap), #186 (about/privacy), #189 (Windows .exe) are independent;
       the copy stack #184 → #185 → #188 merges bottom-up, retargeting each
