@@ -101,13 +101,13 @@ export function UpdatePrompt() {
         </div>
         {update.eligible ? (
           <p className="qb-update-text">
-            You're on {update.currentVersion}. Installs on the next restart —
+            You're on {update.currentVersion}. Installs on the next restart, so
             nothing interrupts your review.
           </p>
         ) : (
           <p className="qb-update-text">
-            {update.version} is outside your update window. Nod keeps working —
-            a license unlocks another year of updates.
+            {update.version} is outside your update window. Nod keeps working,
+            and a license unlocks another year of updates.
           </p>
         )}
         {update.notes ? (
@@ -134,7 +134,7 @@ export function UpdatePrompt() {
               onClick={buyLicense}
               type="button"
             >
-              {purchasing ? "Waiting for the browser…" : "Get a license — $59"}
+              {purchasing ? "Waiting for the browser…" : "Get a license · $59"}
             </button>
           )}
           <button

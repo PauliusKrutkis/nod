@@ -159,8 +159,8 @@ export function unviewedReconcileToast(unviewed: readonly string[]): {
   return {
     message:
       unviewed.length === 1
-        ? `${unviewed[0]} changed since you viewed it — marked unviewed.`
-        : `${unviewed.length} files changed since you viewed them — marked unviewed.`,
+        ? `${unviewed[0]} changed since you viewed it. Marked unviewed.`
+        : `${unviewed.length} files changed since you viewed them. Marked unviewed.`,
     title: "Pull request updated",
   };
 }

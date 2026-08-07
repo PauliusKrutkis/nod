@@ -18,7 +18,7 @@ test("a viewed file whose content changed is auto-unviewed on reopen, with a not
   await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
 
   await expect(page.locator(".qb-toast")).toContainText(
-    "src/lib/fuzzy.ts changed since you viewed it — marked unviewed."
+    "src/lib/fuzzy.ts changed since you viewed it. Marked unviewed."
   );
   await expect(page.locator(".qf-side-count")).toHaveText("0/3 viewed");
   await expect(page.locator(".qf-file-dot")).toHaveCount(1);
@@ -78,7 +78,7 @@ test("an inbox heartbeat that sees the PR move refreshes the open diff", async (
 
   await expect(page.getByText("const two = 2;")).toBeVisible();
   await expect(page.locator(".qb-toast")).toContainText(
-    "changed since you viewed it — marked unviewed."
+    "changed since you viewed it. Marked unviewed."
   );
   await expect(page.locator(".qf-side-count")).toHaveText("0/3 viewed");
   await expect(page.locator(".qf-file-dot")).toHaveCount(1);

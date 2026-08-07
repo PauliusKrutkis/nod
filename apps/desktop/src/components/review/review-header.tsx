@@ -59,7 +59,7 @@ export function ReviewHeader({
 
   const ciDot = ciDotClass(detail.ciStatus);
   const infoTitle = ciDot
-    ? `PR info & checks — ${ciDotLabel(detail.ciStatus)}`
+    ? `PR info & checks · ${ciDotLabel(detail.ciStatus)}`
     : "PR description & conversation";
 
   return (
@@ -99,12 +99,12 @@ export function ReviewHeader({
               <span className="qf-dot">·</span>
               <span className="qf-branch">
                 <BranchChip
-                  label="Target branch — click to copy"
+                  label="Target branch · click to copy"
                   name={pr.baseRef}
                 />
                 <span className="qf-arrow">←</span>
                 <BranchChip
-                  label="PR branch — click to copy"
+                  label="PR branch · click to copy"
                   name={pr.headRef}
                 />
               </span>

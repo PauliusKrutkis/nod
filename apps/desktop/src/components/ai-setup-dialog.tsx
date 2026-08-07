@@ -206,7 +206,7 @@ function AiSetupDialogContent({
             className="q-input font-mono"
             onKeyDown={onKeyInputKeyDown}
             placeholder={
-              info.configured ? "Key saved — paste to replace" : "nexos-…"
+              info.configured ? "Key saved. Paste to replace." : "nexos-…"
             }
             ref={keyRef}
             spellCheck={false}

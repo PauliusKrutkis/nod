@@ -64,7 +64,7 @@ export function PurchasePrompt() {
             onClick={buy}
             type="button"
           >
-            {purchasing ? "Waiting for the browser…" : "Buy Nod — $59"}
+            {purchasing ? "Waiting for the browser…" : "Buy Nod · $59"}
           </button>
           <button
             className="qb-update-later"

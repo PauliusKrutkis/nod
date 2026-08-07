@@ -235,8 +235,8 @@ function SelfHostedPanel({
           <label className="qg-label" htmlFor="qg-appid">
             Application ID{" "}
             <span className="qg-label-soft">
-              — optional; a group owner creates it once, then sign-in is one
-              click for everyone
+              optional. A group owner creates it once, then sign-in is one click
+              for everyone
             </span>
           </label>
           <input
@@ -370,7 +370,7 @@ function TokenPanel({
       {tokenProvider === "gitlab" ? (
         <>
           <label className="qg-label" htmlFor="qg-token-host">
-            Host <span className="qg-label-soft">— empty for gitlab.com</span>
+            Host <span className="qg-label-soft">· empty for gitlab.com</span>
           </label>
           <input
             autoComplete="off"
@@ -388,7 +388,7 @@ function TokenPanel({
 
       <label className="qg-label" htmlFor="qg-token">
         Personal access token{" "}
-        <span className="qg-label-soft">— {scopeLabel} scope</span>
+        <span className="qg-label-soft">· {scopeLabel} scope</span>
       </label>
       <input
         autoComplete="off"

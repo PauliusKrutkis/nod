@@ -279,7 +279,7 @@ function WatchReposDialogContent({ onClose }: { onClose: () => void }) {
           Watched repositories
         </h2>
         <p className="mt-0.5 text-muted text-xs">
-          Every open PR in these repos shows up under Watching — whether or not
+          Every open PR in these repos shows up under Watching, whether or not
           you're involved.
         </p>
       </div>
@@ -328,7 +328,7 @@ function WatchReposDialogContent({ onClose }: { onClose: () => void }) {
             {!searching && hits.length === 0 ? (
               <p className="px-2 py-2 text-faint text-xs">
                 {input.includes("/")
-                  ? `No matches — Enter watches “${input.trim()}” as typed.`
+                  ? `No matches. Enter watches “${input.trim()}” as typed.`
                   : "No matches."}
               </p>
             ) : null}
