@@ -52,7 +52,7 @@ pub async fn activate_license(app: AppHandle) -> Result<LicenseState, String> {
         .ok_or_else(|| "License verification isn't configured in this build.".to_string())?;
 
     let listener = TcpListener::bind(("127.0.0.1", PURCHASE_PORT)).map_err(|_| {
-        "Activation is already waiting in another window — finish checkout there, \
+        "Activation is already waiting in another window. Finish checkout there, \
          or restart Nod if this keeps happening."
             .to_string()
     })?;
@@ -74,8 +74,8 @@ fn wait_for_token(listener: TcpListener, pubkey: &str) -> Result<String, String>
     loop {
         if Instant::now() > deadline {
             return Err(
-                "Activation timed out. If you already paid, reopen the receipt page — \
-                 the activation link works for 48 hours."
+                "Activation timed out. If you already paid, reopen the receipt page. \
+                 The activation link works for 48 hours."
                     .to_string(),
             );
         }

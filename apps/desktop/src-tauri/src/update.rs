@@ -156,7 +156,7 @@ pub async fn install_update(app: AppHandle) -> Result<(), String> {
     let state = license::get_license_state(app.clone());
     if !update_allowed(&state, iso_date(update.date).as_deref()) {
         return Err(
-            "This release is outside your update window — get a license for another year of updates."
+            "This release is outside your update window. A license unlocks another year of updates."
                 .to_string(),
         );
     }

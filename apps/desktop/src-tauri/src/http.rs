@@ -73,7 +73,7 @@ pub(crate) async fn read_body(resp: reqwest::Response) -> Result<Value, String> 
             .unwrap_or_else(|| text.clone());
         if let Some(errors) = parsed.as_ref().and_then(|v| v.get("errors")) {
             if !errors.is_null() {
-                msg = format!("{msg} — {errors}");
+                msg = format!("{msg}: {errors}");
             }
         }
         log(&format!("API error {}: {}", status.as_u16(), msg));
