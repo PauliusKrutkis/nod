@@ -2577,13 +2577,16 @@ wanted instead of a quick win.
       is still right once a palette entry exists.
 - [ ] 🟡 **Copy voice sweep: desktop, and hold the line on the web** — PR #188
       removed every em dash from the *site* copy because the dash-heavy rhythm
-      reads as generated text. The desktop app was never swept: roughly 49 in
-      `apps/desktop/src` strings and JSX text, plus ~12 in user-facing Rust
-      error strings (`activation.rs` "Activation is already waiting in another
-      window — finish checkout there", `update.rs` "This release is outside
-      your update window — get a license…"). Rewrite the sentences rather than
-      swapping the dash for a comma; the construction is the problem, not the
-      character.
+      reads as generated text. The desktop app was never swept: 31 strings in
+      `apps/desktop/src` and 4 in user-facing Rust errors (`activation.rs`
+      "Activation is already waiting in another window — finish checkout
+      there", `update.rs` "This release is outside your update window — get a
+      license…"). Rewrite the sentences rather than swapping the dash for a
+      comma; the construction is the problem, not the character.
+      *Shipping in PRs #216 (labels, hints, empty states) and #217 (failure
+      messages).* Counted properly while doing it: an earlier estimate of ~49
+      and ~12 counted doc-comment lines, which never render, and machine-facing
+      strings like the `[truncated — …]` markers fed to the model.
       *Scope:* strings a user can read — JSX text, toasts, command palette
       descriptions, `Err(String)` messages that surface in the UI, and the
       Worker-rendered purchase pages under `apps/web/functions`. **Not** code

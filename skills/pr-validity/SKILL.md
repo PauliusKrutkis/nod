@@ -121,7 +121,7 @@ Applies to strings a user can read: JSX text, toasts, command-palette labels and
 - **Middot is the house separator** for label fragments (`nod · pr review`, `license · active`), matching the mono captions. Prefer it where a separator genuinely is wanted.
 - Do not flag em dashes in `docs/`, in this repo's backlog, or in comments. Reviewers wasting findings on non-rendered text is the failure mode to avoid.
 
-Existing debt is tracked in `docs/BACKLOG.md` under Inbox (2026-08-07) — roughly 49 instances in `apps/desktop/src` and ~12 in user-facing Rust strings. This check exists to stop the count growing, so flag **new or touched** strings in the diff rather than reporting the standing backlog.
+Existing debt is tracked in `docs/BACKLOG.md` under Inbox (2026-08-07) and swept by PRs #216 and #217 — 31 strings in `apps/desktop/src` and 4 in user-facing Rust. This check exists to stop the count growing, so flag **new or touched** strings in the diff rather than reporting the standing backlog.
 
 ## Reporting and confirmation (required)
 
