@@ -18,19 +18,18 @@
  * app's own window is the confirmation.
  *
  * Callers must serve it no-store: the token is baked into the markup.
+ *
+ * PAGE_STYLE inlines the site's tokens. These pages are Worker-rendered
+ * strings, so they cannot import src/styles/global.css (its filename is
+ * content-hashed at build time) — but they are the last screens of a
+ * purchase, and a buyer arriving from checkout should not feel handed to a
+ * different product. Values copy :root in global.css; the font stack degrades
+ * to system-ui because no @font-face travels with this page.
  */
 
 const DEEP_LINK_BASE = "nod://purchase";
 const PURCHASE_LISTENER_BASE = "http://127.0.0.1:8766/callback";
 
-/**
- * The site's tokens, inlined. These pages are Worker-rendered strings, so
- * they cannot import src/styles/global.css (its filename is content-hashed
- * at build time) — but they are the last screens of a purchase, and a buyer
- * arriving from checkout should not feel handed to a different product.
- * Values copy :root in global.css; the font stack degrades to system-ui
- * because no @font-face travels with this page.
- */
 export const PAGE_STYLE = `
   :root { color-scheme: dark; }
   body { margin: 0; display: grid; place-items: center; min-height: 100vh;
