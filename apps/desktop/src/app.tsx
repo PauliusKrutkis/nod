@@ -56,8 +56,16 @@ export default function App() {
       setToast({ message: licenseCommandLabel(license), title: "License" });
       return;
     }
+    setToast({
+      message: "Finish in the browser window that just opened.",
+      title: "Waiting for activation",
+    });
     try {
       setLicenseState(await api.activateLicense());
+      setToast({
+        message: "Nod is licensed on this machine.",
+        title: "Activated",
+      });
     } catch (e) {
       setToast({ message: String(e), title: "Activation failed" });
     }

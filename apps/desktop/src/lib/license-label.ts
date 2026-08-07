@@ -8,7 +8,7 @@
  *
  * updatesUntil arrives as whatever the signed token carried, so a value that
  * does not parse is shown verbatim rather than rendered as "Invalid Date" —
- * a licence holder reading a date they cannot recognise is worse than one
+ * a license holder reading a date they cannot recognise is worse than one
  * reading the raw string the server sent.
  */
 import type { LicenseState } from "../types.ts";
