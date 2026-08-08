@@ -1,11 +1,13 @@
 ---
 // One feature shown as real app footage: copy, then a full-width app-shell
 // frame playing a captured loop from /landing (regenerate with
-// `pnpm capture:landing`). The video only plays while it is on screen and
-// never under prefers-reduced-motion — in both idle cases the poster (the
-// scene's composed frame) shows instead. The script below registers one
-// shared IntersectionObserver per page, not per instance: Astro hoists and
-// dedupes module scripts across component occurrences.
+// `pnpm capture:landing`). Exactly one video plays at a time — the one the
+// reader is most looking at — and never under prefers-reduced-motion; every
+// other frame shows the poster (the scene's composed frame) instead. The
+// script below registers one shared IntersectionObserver per page, not per
+// instance: Astro hoists and dedupes module scripts across component
+// occurrences, which is also what lets a single observer pick a page-wide
+// winner rather than each instance deciding for itself.
 
 interface Props {
   keys: string[];
@@ -41,37 +43,57 @@ const { keys, title, body, scene, label } = Astro.props;
 
 <script>
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
-  const videos = document.querySelectorAll<HTMLVideoElement>(".show__video");
-  const inView = new WeakSet<Element>();
+  const videos = [
+    ...document.querySelectorAll<HTMLVideoElement>(".show__video"),
+  ];
+  const ratios = new Map<HTMLVideoElement, number>();
 
-  const sync = (video: HTMLVideoElement) => {
-    if (inView.has(video) && !reduced.matches) {
-      video.play().catch(() => {});
-    } else {
-      video.pause();
+  // Playing every intersecting frame meant two decoders at 1280x900 and all
+  // three on a tall viewport, measured — a 2304x1440 loop each, compositing
+  // against the same scroll, for footage nobody is reading. The most visible
+  // frame wins; ties keep whichever is earlier in the page, so a scroll that
+  // parks two frames at equal height does not flicker between them. The
+  // threshold list is what makes the ratios update at all — a single
+  // threshold only reports the crossing.
+  const MIN_RATIO = 0.25;
+  const THRESHOLDS = [0, 0.25, 0.5, 0.75, 1];
+
+  const sync = () => {
+    let winner: HTMLVideoElement | null = null;
+    if (!reduced.matches) {
+      let best = MIN_RATIO;
+      for (const video of videos) {
+        const ratio = ratios.get(video) ?? 0;
+        if (ratio > best) {
+          best = ratio;
+          winner = video;
+        }
+      }
+    }
+    for (const video of videos) {
+      if (video === winner) {
+        video.play().catch(() => {});
+      } else {
+        video.pause();
+      }
     }
   };
 
   const watcher = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) {
-        if (entry.isIntersecting) {
-          inView.add(entry.target);
-        } else {
-          inView.delete(entry.target);
-        }
-        sync(entry.target as HTMLVideoElement);
+        ratios.set(
+          entry.target as HTMLVideoElement,
+          entry.isIntersecting ? entry.intersectionRatio : 0
+        );
       }
+      sync();
     },
-    { threshold: 0.25 }
+    { threshold: THRESHOLDS }
   );
 
   for (const video of videos) {
     watcher.observe(video);
   }
-  reduced.addEventListener("change", () => {
-    for (const video of videos) {
-      sync(video);
-    }
-  });
+  reduced.addEventListener("change", sync);
 </script>

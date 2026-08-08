@@ -200,6 +200,35 @@ test("plays footage only in view, never under reduced motion", async ({
     .toBe(true);
 });
 
+test("never runs more than one loop at a time down the whole page", async ({
+  page,
+}) => {
+  // Before this was scoped to a single winner, a 1280x900 viewport ran two
+  // decoders at once and a tall one ran all three. A handful of sampled
+  // scroll offsets misses that: the overlap only exists over part of the
+  // page, so the sweep has to be fine enough to land inside it.
+  await page.goto("/");
+
+  let mostAtOnce = 0;
+  for (let percent = 0; percent <= 100; percent += 4) {
+    await page.evaluate((p) => {
+      scrollTo(0, (document.body.scrollHeight - innerHeight) * (p / 100));
+    }, percent);
+    await page.waitForTimeout(60);
+    mostAtOnce = Math.max(
+      mostAtOnce,
+      await page.evaluate(
+        () =>
+          [
+            ...document.querySelectorAll<HTMLVideoElement>(".show video"),
+          ].filter((v) => !v.paused).length
+      )
+    );
+  }
+
+  expect(mostAtOnce).toBe(1);
+});
+
 test("states the local-first qualities plainly", async ({ page }) => {
   await page.goto("/");
 
