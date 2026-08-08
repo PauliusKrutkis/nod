@@ -2597,3 +2597,185 @@ wanted instead of a quick win.
       not as filler.
       *Guard:* [Check 9 in the pr-validity skill](../skills/pr-validity/SKILL.md)
       catches new instances in review, so this item is the existing debt only.
+
+---
+
+## Inbox (2026-08-08)
+
+Nine items raised by the owner. Each was checked against the code before being
+written down, and where the check contradicted the report that is recorded
+here rather than quietly fixed — the three AI-setup items and the ask-hotkey
+item in particular are worth reading together, because they are one dialog and
+one interaction, not seven separate defects.
+
+### Site
+
+- [ ] 🟡 **Landing videos stutter the scroll** — the three `FeatureShowcase`
+      loops make scrolling feel heavy. **The format is not the problem and GIF
+      would be a downgrade** (no interframe compression, no hardware decode, a
+      256-colour palette, and roughly 10× the bytes for the same seconds) — the
+      problem is resolution. `apps/web/public/landing/*.webm` are VP9 at
+      **2304×1440 @ 30fps**, and `global.css` renders them in a frame that
+      reserves **1152×720**. That is 2× per axis, so ~4× the decode work per
+      frame, and `FeatureShowcase.astro`'s observer plays every video whose
+      0.25 threshold is met — on a tall viewport that is two or three decoders
+      running at once, on the same thread that is compositing the scroll.
+      *Fix, in order of payoff:* re-encode at the display size (1152×720, or
+      1536×960 if 1× looks soft on retina) and drop to 24fps; then play **one**
+      video at a time (highest intersection ratio wins) instead of every
+      intersecting one; then give the frame its own compositing layer so a
+      playing video never repaints the page around it. The capture pipeline is
+      `pnpm capture:landing`, so the encode settings belong in that script, not
+      in a one-off re-export that the next capture silently reverts.
+      *Measure before and after* — this is a "feels laggy" report, exactly the
+      class the perf post-mortem in § performance-architecture says to answer
+      with numbers.
+
+- [ ] 🟢 **README banner and badges should lead to the site** — the banner
+      image at the top of `README.md` is a bare `<img>`, and the two shields
+      point at the Releases page and `LICENSE.md`. GitHub is where most people
+      meet the project, and the top of the page currently sends them anywhere
+      except the product. Wrap the banner in a link to
+      `https://nodreview.com`, and point the release badge at
+      `nodreview.com/downloads` (which already picks the right build) rather
+      than the raw releases list. The text link row underneath already does
+      this correctly and does not need touching.
+
+### Distribution
+
+- [x] 🟡 ~~**Drop the Homebrew cask?**~~ — **Decided (owner, 2026-08-08):
+      keep it.** Notarization (§11c Phase 1) is the fix; dropping brew is not.
+      Kept below because the reasoning is the answer to the next person who
+      proposes it.
+      Originally proposed to sidestep Apple
+      notarization. *Recorded with a correction, because the premise does not
+      hold:* removing the cask does **not** remove the Gatekeeper problem. The
+      `.dmg` on the Releases page is the same unnotarized build, and a user who
+      downloads it hits the same quarantine wall — they just hit it in a dialog
+      instead of in a command they pasted. `BREW_INSTALL_COMMANDS` in
+      `apps/web/src/lib/site.ts` already ships the `xattr -dr` line for exactly
+      this reason, and its own file header explains why splitting the two
+      halves hands out a broken install.
+      *So the real choice is:* **notarize** (§11c Phase 1, already on the list,
+      and the only option that makes either path clean), or **keep both and
+      change nothing**. Dropping brew is the one move that costs the smoothest
+      install path and buys nothing.
+      *If it is dropped anyway* — an owner call, not a technical one — the
+      blast radius is `README.md` § macOS, `site.ts`, `downloads.astro`
+      (`#homebrew`), the `/downloads#homebrew` link in `index.astro`, the tap
+      bump step in the release workflow, and `packaging/homebrew/`. The tap
+      repo itself would need a tombstone, not deletion: casks that vanish break
+      `brew upgrade` for everyone who already installed.
+
+### Design system
+
+- [ ] 🟡 **Buttons read as generic, and radius is untokenized** — two asks in
+      one, and the second is the blocker for the first. `quiet.css` has **no
+      radius token at all**: ~60 hand-written `border-radius` declarations
+      spread across `4 / 5 / 6 / 7 / 8 / 10 / 12 / 14 / 999px`, several of them
+      differing by a pixel for no reason anyone can now reconstruct. "Reduce
+      the radius everywhere" is therefore a 60-site sweep with no single knob,
+      which is why it has not happened.
+      *Do it in two steps.* First a **pure refactor**: introduce a radius scale
+      (`--r-sm` / `--r-md` / `--r-lg` / `--r-pill`), map every existing value
+      onto its nearest step, and change nothing visually — the 1px variants
+      collapse into their neighbours and that is the whole point. Only then is
+      "tighter everywhere" one edit to four numbers, and reversible in one
+      commit.
+      *The button half is a design question, not a CSS one*, and needs a
+      decision before code: `.q-btn` today is 8px radius, 600 weight, 13px,
+      `7px 13px` padding, with four variants. Generic is a fair reading. Take
+      it to `apps/design-lab` and confirm a direction against real screens
+      before touching the app — this is the most visible surface in the
+      product and the least testable, so it earns a mock first.
+
+### Ask about code
+
+The next four are one feature. `ai-setup-dialog.tsx` is a 285-line dialog that
+was built for the first-run case and never revisited for the configured one,
+and `a` opens a surface the composer already almost is.
+
+- [ ] 🟡 **The setup dialog has the wrong shape once a key is saved** — with a
+      key stored, `AiSetupDialogContent` still renders the first-run form:
+      "Save & load models" is the primary button, the model `<select>` does not
+      appear until you press it, and the key input sits there as an empty
+      password field captioned "Key saved. Paste to replace." Nothing in that
+      layout says *configured* — reopening the dialog to change a model means
+      re-running a save you did not want.
+      *Shape:* branch on `info.configured`. Configured state shows the provider
+      and a **saved-key affordance that reads as a fact, not an input** (masked
+      value or a "Key saved · Nexos AI" row with Replace and Remove beside it),
+      loads the model list on open rather than on a button, and makes the model
+      picker the primary control. First-run keeps today's flow. **Decide when
+      building** whether "Replace" swaps the row back into an input inline or
+      opens a second step — inline is fewer surfaces and is the recommendation.
+      *Constraint that must survive:* the key is write-only from the frontend
+      (the backend never returns it) and saving with an empty key deliberately
+      keeps the stored one, so "show it as added" can never mean showing the
+      key. A provenance line — provider, model, and that a key exists — is the
+      honest version of the ask.
+
+- [ ] 🟢 **The model picker should accept typing** — it is a bare `<select>`
+      over whatever `aiListModels` returned. OpenRouter alone lists hundreds,
+      the ordering is the provider's, and a model that the endpoint does not
+      enumerate cannot be chosen at all. Make it a combobox: type to filter,
+      Enter to pick, and accept a free-typed id that is not in the list (the
+      backend already stores `model` as a plain string, so nothing downstream
+      cares). Reuses the input-plus-listbox pattern
+      `watch-repos-dialog.tsx` already implements, so this is composition, not
+      a new primitive. Note §8 closed shadcn out — a combobox is one of the
+      three primitives that section names as a legitimate reason to revisit,
+      but only if hand-rolling this one turns out to be expensive.
+
+- [ ] 🟡 **Dialog keyboard behaviour should be one shared pattern** — the ask
+      here was "focus should work the same as watched repos", and it is a
+      correct read of a real inconsistency. `watch-repos-dialog.tsx` has a
+      worked-out model: `useArmedRing` over an explicit arm order, Tab cycling
+      actions, arrows moving the selection, Enter acting on whatever is armed,
+      and a footer hint bar that **names the current Enter action**
+      (`armedActionLabel`). `ai-setup-dialog.tsx` has none of it — Escape, and
+      then the browser's own tab order. `issue-tracker-dialog.tsx` is worth
+      auditing in the same pass.
+      *This is the item to build first of the four*, because it is where the
+      "design or something where this dialog UX is saved and used everywhere"
+      instinct is right: extract the armed-ring + hint-bar shell out of
+      `watch-repos-dialog.tsx` into a reusable dialog pattern, then adopt it in
+      the AI dialog. Doing it in the other order means writing the AI dialog's
+      keyboard handling twice.
+      *Do not extract speculatively* — two consumers is the threshold, and the
+      knip rule in `skills/split-pr/SKILL.md` will reject a shell nothing uses,
+      so the extraction and its first adoption ship in one PR.
+
+- [x] 🟡 ~~**Fold ask into the comment composer as a tab**~~ — **Decided
+      (owner, 2026-08-08): no. The ask note stays its own surface.** The
+      separation argument below won: three distinct comment materials is a
+      deliberate design, and one tab away from a button that posts to GitHub is
+      too close. *What is being built instead:* the multi-line reproduction
+      below (🟢, the actual defect the proposal was reaching for) and prompt
+      suggestions on the note. Reopen only if the separation stops earning its
+      keep in daily use.
+      Originally proposed: `c`
+      opens the composer on Comment, `a` opens the same composer on Ask, and
+      the separate `AskNote` surface goes away.
+      *One premise is wrong and it matters, because it was offered as the
+      reason to do this:* multi-line ask **already works**. `a` is wired to the
+      live selection (`liveSelectionRef` → `useAskNoteWiring`), and
+      `selectionContext` in `ask-context.ts` walks `fromItem`..`toItem` and
+      ships every row in the range — the chip renders `file:12–15` exactly like
+      the composer's range header. So if selecting with `shift+j/k` and
+      pressing `a` asks about one line in practice, **that is a bug to
+      reproduce and fix**, and it is a 🟢 fix inside today's design, not a
+      reason to rebuild the surface.
+      *The rest of the proposal still stands on its own merits, and it is a
+      genuine tension.* For: one composer, one place your writing lives, and
+      "Start comment from this" stops being a hand-off between two surfaces and
+      becomes a tab switch. Against: `ask-note.tsx`'s file header records that
+      the dotted, unfilled skin exists **so that nothing machine-written can be
+      mistaken for something published** — three deliberately distinct comment
+      materials, of which ask is the third. Putting the answer inside the
+      composer, one tab away from a box whose button posts to GitHub, spends
+      exactly that separation. Answer that before building, not after.
+      *Prompt suggestions* (the other half of the ask) are independent of the
+      tab decision, cheap, and pair naturally with **canned comments on a key**
+      in § feature-ideas — build them as one list mechanism with two sources,
+      or they will diverge.
