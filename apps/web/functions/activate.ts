@@ -33,6 +33,11 @@
  * real activation screen. The retry budget moved with it, from the URL into
  * the page's own script.
  *
+ * The interval backs off from two seconds towards eight, because the common
+ * case resolves almost immediately and the slow case can run for minutes; a
+ * flat two-second poll would spend sixty round trips on the wait it is least
+ * likely to shorten.
+ *
  * `?poll=1` is deliberately read-only: it reports whether the license
  * resolves and nothing else. It signs no token and does not extend the
  * checkout index's TTL, both of which stay on the render path, so polling can
@@ -52,6 +57,7 @@ import { withErrorReporting } from "./lib/report";
 
 const ACTIVATION_WINDOW_SECONDS = 48 * 60 * 60;
 const POLL_INTERVAL_MS = 2000;
+const POLL_MAX_INTERVAL_MS = 8000;
 const POLL_BUDGET_MS = 2 * 60 * 1000;
 
 function preparingPage(checkoutId: string): string {
@@ -80,6 +86,7 @@ function preparingPage(checkoutId: string): string {
   var pollUrl = ${JSON.stringify(pollUrl)};
   var pageUrl = ${JSON.stringify(pageUrl)};
   var deadline = Date.now() + ${POLL_BUDGET_MS};
+  var wait = ${POLL_INTERVAL_MS};
 
   function giveUp() {
     document.getElementById("spin").hidden = true;
@@ -89,7 +96,7 @@ function preparingPage(checkoutId: string): string {
   }
 
   function poll() {
-    fetch(pollUrl, { headers: { accept: "application/json" } })
+    fetch(pollUrl)
       .then(function (r) { return r.ok ? r.json() : { ready: false }; })
       .then(function (data) {
         if (data && data.ready) {
@@ -106,7 +113,8 @@ function preparingPage(checkoutId: string): string {
       giveUp();
       return;
     }
-    setTimeout(poll, ${POLL_INTERVAL_MS});
+    setTimeout(poll, wait);
+    wait = Math.min(Math.round(wait * 1.5), ${POLL_MAX_INTERVAL_MS});
   }
 
   poll();
