@@ -14,6 +14,10 @@
  * `fileAnchorKey(f, a)`, so anchor-keyed lookups (`anchorItem`, `openBoxes`,
  * flash keys) are untouched and keep resolving rows.
  *
+ * A previewable file (`isImage`) opens its group with an image item. Bitmaps
+ * stop there, having no patch; an SVG carries one, so its rows follow the
+ * preview and stay navigable, searchable and commentable like any other text.
+ *
  * The "ask" item is the inline AI note's slot, anchored under its row like a
  * comment block but off the nav (not a cursor stop). At most one exists —
  * `askItem` points at it — and its content lives outside the model, in
@@ -513,20 +517,21 @@ export function buildReviewItems(
     groupFirstItem.push(items.length);
     const startCount = items.length;
 
-    if (isImage(file)) {
+    const previewable = isImage(file);
+    if (previewable) {
       items.push({ fileIndex, kind: "image" });
-      groupCounts.push(items.length - startCount);
-      return;
     }
     if (!file.patch) {
-      items.push({
-        fileIndex,
-        kind: "note",
-        text:
-          file.changes > 0
-            ? "Diff not available."
-            : "Binary file or no textual diff.",
-      });
+      if (!previewable) {
+        items.push({
+          fileIndex,
+          kind: "note",
+          text:
+            file.changes > 0
+              ? "Diff not available."
+              : "Binary file or no textual diff.",
+        });
+      }
       groupCounts.push(items.length - startCount);
       return;
     }

@@ -406,6 +406,51 @@ export const DETAIL_OWN_REPLY_THEN_OTHERS = {
 };
 
 /**
+ * A hostile SVG, served as the blob for both sides of SVG_PATH in DETAIL_SVG.
+ * It carries every trick an attacker would put in an icon: a script element,
+ * an inline handler, and a reference to a remote file. Rendering it as an
+ * image must leave `window.__svgEscaped` unset and must fetch nothing from
+ * evil.example. ASCII only, because the bridge base64s blobs with btoa.
+ */
+export const HOSTILE_SVG = [
+  '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="120" height="120" viewBox="0 0 120 120">',
+  "  <script>window.__svgEscaped = true;</script>",
+  '  <circle cx="60" cy="60" r="50" fill="#5fd08a" />',
+  '  <animate attributeName="opacity" onbegin="window.__svgEscaped = true" />',
+  '  <image xlink:href="https://evil.example/beacon.png" x="0" y="0" width="10" height="10" onerror="window.__svgEscaped = true" />',
+  "</svg>",
+  "",
+].join("\n");
+
+export const SVG_PATH = "icons/logo.svg";
+
+/**
+ * A PR whose only file is an SVG. Unlike a bitmap it arrives with a patch, so
+ * the review pane shows the preview and the markup rows together.
+ */
+export const DETAIL_SVG = {
+  ...DETAIL,
+  files: [
+    {
+      additions: 3,
+      changes: 4,
+      deletions: 1,
+      filename: SVG_PATH,
+      patch: `@@ -1,3 +1,6 @@
+ <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="120" height="120" viewBox="0 0 120 120">
+-  <circle cx="60" cy="60" r="50" fill="#888888" />
++  <script>window.__svgEscaped = true;</script>
++  <circle cx="60" cy="60" r="50" fill="#5fd08a" />
++  <animate attributeName="opacity" onbegin="window.__svgEscaped = true" />
++  <image xlink:href="https://evil.example/beacon.png" x="0" y="0" width="10" height="10" onerror="window.__svgEscaped = true" />
+ </svg>`,
+      sha: "svg1",
+      status: "modified",
+    },
+  ],
+};
+
+/**
  * A repo with no CI configured: the pill must render nothing so quiet repos
  * stay quiet. Serve via `detailByCall: [DETAIL_NO_CI]`.
  */
