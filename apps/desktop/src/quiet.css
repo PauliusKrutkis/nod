@@ -45,7 +45,7 @@
 /* ---- one focus-ring treatment, everywhere ---- */
 .q-focus:focus-visible {
   outline: none;
-  border-radius: 7px;
+  border-radius: var(--r-md);
   box-shadow:
     0 0 0 1.5px var(--bg),
     0 0 0 3px var(--accent);
@@ -103,7 +103,7 @@
   text-align: center;
   background: var(--surface-hi);
   border: 1px solid var(--line-2);
-  border-radius: 4px;
+  border-radius: var(--r-sm);
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
 }
 
@@ -116,7 +116,7 @@
   font-weight: 600;
   color: #fff;
   object-fit: cover;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 
 /* ---- status glyph (file / PR change kind) ---- */
@@ -129,7 +129,7 @@
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 600;
-  border-radius: 4px;
+  border-radius: var(--r-sm);
 }
 .q-glyph-add {
   color: var(--add);
@@ -157,13 +157,13 @@
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 .q-pill-dot {
   width: 6px;
   height: 6px;
   background: currentColor;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 .q-pill-open {
   color: var(--add);
@@ -216,7 +216,7 @@
   white-space: nowrap;
   cursor: pointer;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--r-lg);
   transition:
     background-color 120ms ease,
     border-color 120ms ease,
@@ -276,7 +276,7 @@
   line-height: 1.5;
   color: var(--accent);
   background: var(--accent-ink);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 
 /* ---- inputs ---- */
@@ -288,7 +288,7 @@
   color: var(--fg);
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--r-lg);
   transition:
     border-color 120ms ease,
     box-shadow 120ms ease;
@@ -315,7 +315,7 @@ textarea.q-input {
 .q-card {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--r-2xl);
 }
 
 /* ---- shadcn primitives, Quiet-themed (dialog / tabs / tooltip) ---- */
@@ -339,7 +339,7 @@ textarea.q-input {
   overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--line-2);
-  border-radius: 14px;
+  border-radius: var(--r-2xl);
   box-shadow:
     0 24px 64px -24px rgba(0, 0, 0, 0.7),
     0 0 0 1px rgba(139, 128, 255, 0.06);
@@ -407,7 +407,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: transparent;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--r-lg);
   transition:
     color 120ms ease,
     background-color 120ms ease;
@@ -430,7 +430,7 @@ dialog.q-dialog::backdrop {
   text-align: center;
   background: var(--bg);
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 .q-tab[data-state="active"] .q-tab-count {
   color: var(--accent);
@@ -450,7 +450,7 @@ dialog.q-dialog::backdrop {
   pointer-events: none;
   background: var(--surface-hi);
   border: 1px solid var(--line-2);
-  border-radius: 7px;
+  border-radius: var(--r-md);
   box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.6);
   animation: q-fade 100ms ease;
 }
@@ -534,7 +534,7 @@ dialog.q-dialog::backdrop {
   height: 4px;
   content: "";
   background: var(--accent);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   opacity: 0.7;
 }
 .md a {
@@ -560,7 +560,7 @@ dialog.q-dialog::backdrop {
   color: #c4b6ff;
   background: var(--surface-hi);
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: var(--r-sm);
 }
 .md pre {
   padding: 12px;
@@ -569,7 +569,7 @@ dialog.q-dialog::backdrop {
   font-family: var(--font-mono);
   background: var(--bg);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--r-lg);
 }
 .md pre code {
   padding: 0;
@@ -607,7 +607,7 @@ dialog.q-dialog::backdrop {
 .md img,
 .md video {
   max-width: 100%;
-  border-radius: 8px;
+  border-radius: var(--r-lg);
 }
 
 /* ```suggestion fences render as a proposed change, not a code sample: the
@@ -616,7 +616,7 @@ dialog.q-dialog::backdrop {
   margin: 10px 0;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--r-lg);
 }
 .md-suggestion-head {
   display: flex;
@@ -640,7 +640,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: transparent;
   border: 1px solid var(--line-2);
-  border-radius: 6px;
+  border-radius: var(--r-md);
   transition:
     color 120ms ease,
     border-color 120ms ease;
@@ -799,7 +799,7 @@ dialog.q-dialog::backdrop {
 /* ---- focus ring (single, consistent treatment) ---- */
 .dir-quiet .qf-focusable:focus-visible {
   outline: none;
-  border-radius: 7px;
+  border-radius: var(--r-md);
   box-shadow:
     0 0 0 1.5px var(--bg),
     0 0 0 3px var(--accent);
@@ -858,7 +858,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--r-md);
   transition:
     color 120ms ease,
     border-color 120ms ease,
@@ -896,7 +896,7 @@ dialog.q-dialog::backdrop {
   color: var(--muted);
   text-align: left;
   cursor: pointer;
-  border-radius: 7px;
+  border-radius: var(--r-md);
   transition:
     background-color 120ms ease,
     color 120ms ease;
@@ -910,7 +910,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: none;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
 }
 .dir-quiet .qf-side-mode:hover {
   color: var(--fg);
@@ -945,7 +945,7 @@ dialog.q-dialog::backdrop {
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 600;
-  border-radius: 4px;
+  border-radius: var(--r-sm);
 }
 .dir-quiet .qf-st-add {
   color: var(--add);
@@ -997,7 +997,7 @@ dialog.q-dialog::backdrop {
   font-family: var(--font-mono);
   font-size: 10px;
   line-height: 1;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 .dir-quiet .qf-file-badge-comment {
   color: var(--muted);
@@ -1038,7 +1038,7 @@ dialog.q-dialog::backdrop {
   text-align: center;
   background: var(--surface-hi);
   border: 1px solid var(--line-2);
-  border-radius: 4px;
+  border-radius: var(--r-sm);
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
 }
 
@@ -1145,7 +1145,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: var(--surface-hi);
   border: 1px solid var(--line-2);
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   transition:
     color 120ms ease,
     border-color 120ms ease,
@@ -1179,13 +1179,13 @@ dialog.q-dialog::backdrop {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.01em;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 .dir-quiet .qf-state-dot {
   width: 6px;
   height: 6px;
   background: currentColor;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 .dir-quiet .qf-state-open {
   color: var(--add);
@@ -1222,7 +1222,7 @@ dialog.q-dialog::backdrop {
   gap: 5px;
   height: 24px;
   padding: 0 7px 0 6px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   box-shadow: inset 0 0 0 1px var(--line-2);
 }
 .dir-quiet .qf-verdict-approved {
@@ -1265,7 +1265,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: transparent;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   box-shadow: inset 0 0 0 1px var(--line-2);
   transition: filter 120ms ease;
 }
@@ -1309,7 +1309,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--r-md);
   transition:
     color 120ms ease,
     border-color 120ms ease,
@@ -1335,7 +1335,7 @@ dialog.q-dialog::backdrop {
   color: var(--accent);
   background: var(--surface);
   border: 1px solid var(--accent-line);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 /* CI health, distilled to a corner dot — the full pill lives in the info drawer.
    Ringed in the button's own background so it reads on rest and pressed states. */
@@ -1345,7 +1345,7 @@ dialog.q-dialog::backdrop {
   bottom: -3px;
   width: 9px;
   height: 9px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   box-shadow: 0 0 0 2px var(--bg);
 }
 .dir-quiet .qf-ci-dot-success {
@@ -1369,7 +1369,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: var(--accent);
   border: 1px solid var(--accent);
-  border-radius: 8px;
+  border-radius: var(--r-lg);
   transition: filter 120ms ease;
 }
 .dir-quiet .qf-submit:hover {
@@ -1389,7 +1389,7 @@ dialog.q-dialog::backdrop {
   line-height: 1.5;
   color: var(--accent);
   background: #14111f;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 
 .dir-quiet .qf-back {
@@ -1402,7 +1402,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: transparent;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--r-md);
   transition:
     color 120ms ease,
     background-color 120ms ease;
@@ -1484,14 +1484,14 @@ dialog.q-dialog::backdrop {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   background: var(--warn-bg);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 .dir-quiet .qf-file-dot {
   flex-shrink: 0;
   width: 6px;
   height: 6px;
   background: var(--warn);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   box-shadow: 0 0 8px -1px var(--warn);
 }
 .dir-quiet .qf-filebar-prev {
@@ -1514,7 +1514,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: transparent;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--r-md);
   transition:
     color 120ms ease,
     background-color 120ms ease;
@@ -1598,7 +1598,7 @@ dialog.q-dialog::backdrop {
   );
   background-size: 16px 16px;
   border: 1px solid var(--line-2);
-  border-radius: 10px;
+  border-radius: var(--r-xl);
 }
 .dir-quiet .qf-img-old .qf-img-frame {
   border-color: rgba(255, 112, 136, 0.28);
@@ -1609,7 +1609,7 @@ dialog.q-dialog::backdrop {
 .dir-quiet .qf-img-frame img {
   max-width: 100%;
   max-height: 480px;
-  border-radius: 4px;
+  border-radius: var(--r-sm);
 }
 .dir-quiet .qf-img-err {
   font-size: 12px;
@@ -1624,7 +1624,7 @@ dialog.q-dialog::backdrop {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: var(--r-sm);
 }
 
 /* ============ DIFF ============ */
@@ -1836,7 +1836,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: var(--accent);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--r-sm);
   transform: translateY(-50%);
 }
 /* A single "+" affordance, driven by the last input modality: keyboard shows it
@@ -1882,7 +1882,7 @@ dialog.q-dialog::backdrop {
     var(--surface-2) 75%
   );
   background-size: 200% 100%;
-  border-radius: 6px;
+  border-radius: var(--r-md);
   animation: qf-shimmer 1.4s ease-in-out infinite;
 }
 @keyframes qf-shimmer {
@@ -1916,7 +1916,7 @@ dialog.q-dialog::backdrop {
   font-family: var(--font-ui);
   background: var(--surface);
   border: 1px solid var(--line-2);
-  border-radius: 10px;
+  border-radius: var(--r-xl);
   box-shadow:
     0 12px 32px -16px rgba(0, 0, 0, 0.7),
     0 0 0 1px rgba(139, 128, 255, 0.05);
@@ -1965,7 +1965,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--r-md);
 }
 .dir-quiet .qf-findbar-btn:hover:not(:disabled) {
   color: var(--fg);
@@ -1987,7 +1987,7 @@ dialog.q-dialog::backdrop {
   margin: 0;
   color: inherit;
   background: var(--accent-soft);
-  border-radius: 2px;
+  border-radius: var(--r-xs);
   box-shadow: inset 0 0 0 1px var(--accent-line);
 }
 .dir-quiet mark.qf-find-current {
@@ -2024,7 +2024,7 @@ dialog.q-dialog::backdrop {
   margin: 0;
   color: inherit;
   background: transparent;
-  border-radius: 2px;
+  border-radius: var(--r-xs);
 }
 .dir-quiet .qf-row-del mark.qf-intra-mark {
   background: color-mix(in srgb, var(--del) 30%, transparent);
@@ -2046,7 +2046,7 @@ dialog.q-dialog::backdrop {
   right: 1px;
   left: 1px;
   height: 2px;
-  border-radius: 1px;
+  border-radius: var(--r-xs);
 }
 .dir-quiet .qf-ruler-find {
   background: color-mix(in srgb, var(--accent) 70%, transparent);
@@ -2072,7 +2072,7 @@ dialog.q-dialog::backdrop {
   font-family: var(--font-ui);
   background: var(--surface);
   border: 1px solid var(--line-2);
-  border-radius: 10px;
+  border-radius: var(--r-xl);
 }
 
 .dir-quiet .qf-thread-fold {
@@ -2085,7 +2085,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--r-md);
   transition:
     color 120ms ease,
     background-color 120ms ease;
@@ -2164,7 +2164,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--r-md);
   transition:
     color 120ms ease,
     background-color 120ms ease;
@@ -2264,7 +2264,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: transparent;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--r-lg);
   transition: background-color 120ms ease;
 }
 .dir-quiet .qf-thread-collapsed-lead:hover {
@@ -2319,7 +2319,7 @@ dialog.q-dialog::backdrop {
   font-family: var(--font-ui);
   background: transparent;
   border: 1px dotted var(--line-2);
-  border-radius: 10px;
+  border-radius: var(--r-xl);
 }
 .dir-quiet .qf-ask-head {
   display: flex;
@@ -2351,7 +2351,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--r-md);
   transition:
     color 120ms ease,
     background-color 120ms ease;
@@ -2398,7 +2398,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--r-md);
   transition:
     color 120ms ease,
     background-color 120ms ease;
@@ -2418,7 +2418,7 @@ dialog.q-dialog::backdrop {
   font-size: 10px;
   color: var(--muted);
   border: 1px solid var(--line-2);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 /* whole-PR slot: above the first file, same comment-column inset */
 .dir-quiet .qf-ask-pr {
@@ -2447,7 +2447,7 @@ dialog.q-dialog::backdrop {
   letter-spacing: 0.04em;
   background: var(--bg);
   border: 1px solid var(--accent-line);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 .dir-quiet .qf-pending-remove {
   display: inline-flex;
@@ -2460,7 +2460,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: var(--del-bg);
   border: 1px solid color-mix(in srgb, var(--del) 40%, transparent);
-  border-radius: 6px;
+  border-radius: var(--r-md);
   transition:
     color 120ms ease,
     border-color 120ms ease,
@@ -2489,7 +2489,7 @@ dialog.q-dialog::backdrop {
   font-size: 10px;
   color: var(--muted);
   border: 1px solid var(--line-2);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 
 /* add-comment composer (inline) */
@@ -2513,7 +2513,7 @@ dialog.q-dialog::backdrop {
   overflow: hidden;
   background: var(--bg);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--r-lg);
   transition:
     border-color 120ms ease,
     box-shadow 120ms ease;
@@ -2550,7 +2550,7 @@ dialog.q-dialog::backdrop {
   font-size: 12px;
   background: var(--surface-2);
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: var(--r-sm);
 }
 .qa-editor-content pre {
   padding: 8px 10px;
@@ -2560,7 +2560,7 @@ dialog.q-dialog::backdrop {
   font-size: 12px;
   background: var(--surface-2);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--r-lg);
 }
 .qa-editor-content pre code {
   padding: 0;
@@ -2627,7 +2627,7 @@ dialog.q-dialog::backdrop {
   padding: 5px 9px;
   font-size: 12px;
   background: var(--bg);
-  border-radius: 6px;
+  border-radius: var(--r-md);
 }
 .qa-foot {
   display: flex;
@@ -2642,7 +2642,7 @@ dialog.q-dialog::backdrop {
   padding: 3px;
   background: var(--bg);
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--r-lg);
 }
 .qa-seg-btn {
   display: inline-flex;
@@ -2655,7 +2655,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: transparent;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--r-md);
   transition:
     color 120ms ease,
     background-color 120ms ease;
@@ -2697,7 +2697,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--r-md);
   transition:
     color 120ms ease,
     background-color 120ms ease;
@@ -2795,7 +2795,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: var(--surface-hi);
   border: 1px solid var(--line-2);
-  border-radius: 6px;
+  border-radius: var(--r-md);
 }
 .dir-quiet .qf-drawer-close:hover {
   color: var(--fg);
@@ -2815,7 +2815,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: var(--surface-hi);
   border: 1px solid var(--line-2);
-  border-radius: 6px;
+  border-radius: var(--r-md);
   transition:
     color 120ms ease,
     border-color 120ms ease,
@@ -2879,7 +2879,7 @@ dialog.q-dialog::backdrop {
   font-size: 10px;
   color: var(--accent);
   background: var(--accent-soft);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 /* Checks pill + host link — the header handoffs that used to crowd the top bar. */
 .dir-quiet .qf-drawer-links {
@@ -2899,7 +2899,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--r-md);
   transition:
     color 120ms ease,
     border-color 120ms ease,
@@ -2936,7 +2936,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: var(--bg);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--r-lg);
   transition:
     border-color 120ms ease,
     background-color 120ms ease;
@@ -2996,7 +2996,7 @@ dialog.q-dialog::backdrop {
   cursor: text;
   background: var(--bg);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--r-lg);
   transition:
     color 120ms ease,
     border-color 120ms ease;
@@ -3082,7 +3082,7 @@ dialog.q-dialog::backdrop {
   width: 16px;
   height: 16px;
   background: linear-gradient(135deg, #8b80ff, #6f63e6);
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   box-shadow: 0 0 12px -2px rgba(139, 128, 255, 0.5);
 }
 
@@ -3090,7 +3090,7 @@ dialog.q-dialog::backdrop {
   overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--line-2);
-  border-radius: 13px;
+  border-radius: var(--r-2xl);
 }
 .qg-row {
   position: relative;
@@ -3120,7 +3120,7 @@ dialog.q-dialog::backdrop {
   width: 2.5px;
   content: "";
   background: transparent;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   transition:
     background-color 120ms ease,
     box-shadow 120ms ease;
@@ -3146,7 +3146,7 @@ dialog.q-dialog::backdrop {
   font-weight: 500;
   color: var(--faint);
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 
 .qg-links {
@@ -3166,7 +3166,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--r-md);
   transition: color 120ms ease;
 }
 .qg-link:hover {
@@ -3272,7 +3272,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 7px;
+  border-radius: var(--r-md);
   transition:
     color 120ms ease,
     background-color 120ms ease,
@@ -3449,7 +3449,7 @@ dialog.q-dialog::backdrop {
   padding: 10px 12px 10px 14px;
   background: var(--surface-2);
   border: 1px solid var(--line-2);
-  border-radius: 11px;
+  border-radius: var(--r-xl);
   box-shadow: inset 3px 0 0 var(--accent);
 }
 .qb-banner-icon {
@@ -3488,7 +3488,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--r-md);
   transition:
     color 120ms ease,
     background-color 120ms ease;
@@ -3549,7 +3549,7 @@ dialog.q-dialog::backdrop {
   color: var(--fg);
   background: var(--surface-2);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--r-lg);
 }
 /* Search-in-flight indicator: a hairline accent sweep riding the input's own
    bottom border. Inset past the corner radius so it never breaks the shape. */
@@ -3561,7 +3561,7 @@ dialog.q-dialog::backdrop {
   height: 1px;
   overflow: hidden;
   pointer-events: none;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 .qw-scan::before {
   position: absolute;
@@ -3624,7 +3624,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: transparent;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--r-lg);
 }
 .qw-hit::before {
   position: absolute;
@@ -3634,7 +3634,7 @@ dialog.q-dialog::backdrop {
   width: 2px;
   content: "";
   background: transparent;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 .qw-hit-on {
   background: var(--accent-soft);
@@ -3701,7 +3701,7 @@ dialog.q-dialog::backdrop {
   overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--line-2);
-  border-radius: 13px;
+  border-radius: var(--r-2xl);
   box-shadow: 0 18px 48px -24px rgba(0, 0, 0, 0.7);
   animation: qb-rise 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
@@ -3716,7 +3716,7 @@ dialog.q-dialog::backdrop {
   left: 0;
   width: 3px;
   background: var(--accent);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   box-shadow: 0 0 12px 0 var(--accent-line);
 }
 .qb-toast-body {
@@ -3771,7 +3771,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: var(--accent);
   border: none;
-  border-radius: 7px;
+  border-radius: var(--r-md);
 }
 .qb-toast-open:hover {
   filter: brightness(1.08);
@@ -3800,7 +3800,7 @@ dialog.q-dialog::backdrop {
   padding: 13px 14px;
   background: var(--surface-2);
   border: 1px solid var(--line-2);
-  border-radius: 13px;
+  border-radius: var(--r-2xl);
   box-shadow: 0 18px 48px -24px rgba(0, 0, 0, 0.7);
   animation: qb-rise 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
@@ -3812,7 +3812,7 @@ dialog.q-dialog::backdrop {
   height: 32px;
   color: var(--accent);
   background: var(--accent-soft);
-  border-radius: 9px;
+  border-radius: var(--r-lg);
   box-shadow: inset 0 0 0 1px var(--accent-line);
 }
 .qb-update-body {
@@ -3987,7 +3987,7 @@ dialog.q-dialog::backdrop {
   font-size: 10px;
   color: var(--add);
   background: var(--add-bg);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 .qrh-date {
   margin-left: auto;
@@ -4081,7 +4081,7 @@ dialog.q-dialog::backdrop {
   padding: 10px 12px 10px 14px;
   color: var(--muted);
   cursor: pointer;
-  border-radius: 10px;
+  border-radius: var(--r-xl);
 }
 .qsp-rail {
   position: absolute;
@@ -4090,7 +4090,7 @@ dialog.q-dialog::backdrop {
   left: 3px;
   width: 2px;
   background: transparent;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 .qsp-row-on {
   color: var(--fg);
@@ -4145,7 +4145,7 @@ dialog.q-dialog::backdrop {
   margin: 0;
   color: inherit;
   background: var(--accent-soft);
-  border-radius: 2px;
+  border-radius: var(--r-xs);
   box-shadow: inset 0 -1.5px 0 var(--accent-line);
 }
 .qsp-row-on .q-hl {
@@ -4163,7 +4163,7 @@ dialog.q-dialog::backdrop {
   line-height: 1.6;
   background: var(--bg);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--r-lg);
 }
 .qsp-snip-line {
   display: flex;
@@ -4283,7 +4283,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: var(--surface-hi);
   border: 1px solid var(--line-2);
-  border-radius: 7px;
+  border-radius: var(--r-md);
   transition: color 120ms ease;
 }
 .qh-close:hover {
@@ -4310,7 +4310,7 @@ dialog.q-dialog::backdrop {
 .qh-scope {
   padding: 12px 14px;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: var(--r-xl);
 }
 .qh-scope-active {
   background: var(--accent-soft);
@@ -4338,7 +4338,7 @@ dialog.q-dialog::backdrop {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   background: var(--accent);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 .qh-scope-note {
   margin-left: auto;
@@ -4441,7 +4441,7 @@ dialog.q-dialog::backdrop {
   cursor: pointer;
   background: transparent;
   border: none;
-  border-radius: 9px;
+  border-radius: var(--r-lg);
 }
 .qc-rail {
   position: absolute;
@@ -4450,7 +4450,7 @@ dialog.q-dialog::backdrop {
   left: 3px;
   width: 2px;
   background: transparent;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 .qc-opt-on {
   color: var(--fg);
