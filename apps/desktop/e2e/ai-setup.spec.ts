@@ -178,3 +178,19 @@ test("command palette carries the AI settings entry everywhere", async ({
   ).toBeVisible();
   await expect(page.getByRole("button", { name: SAVE_KEY })).toBeVisible();
 });
+
+test("saving a replacement key hands the keyboard back to the picker", async ({
+  page,
+}) => {
+  await setupApp(page, CONFIGURED);
+  await openReview(page);
+  const dialog = await openSetupFromPalette(page);
+
+  await dialog.getByRole("button", { name: "Replace key" }).click();
+  await dialog.getByLabel("API key").fill("nexos-replacement");
+  await page.keyboard.press("Enter");
+
+  await expect(dialog.getByLabel("Model")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(dialog.getByRole("status")).toContainText("replace key");
+});

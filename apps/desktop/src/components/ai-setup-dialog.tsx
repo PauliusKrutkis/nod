@@ -107,9 +107,9 @@ function AiSetupDialogContent({
   const baseUrlRef = useRef<HTMLInputElement>(null);
   const keyRef = useRef<HTMLInputElement>(null);
   const modelRef = useRef<HTMLSelectElement>(null);
-  const initialBaseUrl = info.baseUrl ?? PRESETS[0].url;
+  const savedBaseUrl = info.baseUrl ?? PRESETS[0].url;
   const [editingKey, setEditingKey] = useState(!info.configured);
-  const [preset, setPreset] = useState(() => presetFor(initialBaseUrl));
+  const [preset, setPreset] = useState(() => presetFor(savedBaseUrl));
   const [model, setModel] = useState(info.model);
   const [removeArmed, setRemoveArmed] = useState(false);
   const { armed, cycle, setArmed } = useArmedRing<ArmedAction>(ARM_ORDER, null);
@@ -152,6 +152,7 @@ function AiSetupDialogContent({
       }
       setEditingKey(false);
       invalidateConfig();
+      requestAnimationFrame(() => modelRef.current?.focus());
     },
   });
 
@@ -159,7 +160,7 @@ function AiSetupDialogContent({
     mutationFn: (id: string) =>
       api.setAiConfig({
         apiKey: "",
-        baseUrl: baseUrlRef.current?.value ?? initialBaseUrl,
+        baseUrl: savedBaseUrl,
         model: id,
       }),
     onSuccess: () => invalidateConfig(),
@@ -254,7 +255,9 @@ function AiSetupDialogContent({
           Ask about code
         </h2>
         <p className="mt-0.5 text-muted text-xs">
-          Answers come from your provider, grounded in the PR you're reading.
+          {info.configured
+            ? "Answers come from your provider, grounded in the PR you're reading."
+            : "Bring your own key. Answers come from your provider, grounded in the PR you're reading."}
         </p>
       </div>
 
@@ -262,7 +265,7 @@ function AiSetupDialogContent({
         {showSaved ? (
           <SavedConnection
             armed={armed}
-            baseUrl={info.baseUrl ?? initialBaseUrl}
+            baseUrl={savedBaseUrl}
             onRemove={requestRemoveKey}
             onReplace={startReplacingKey}
             removeArmed={removeArmed}
@@ -272,13 +275,13 @@ function AiSetupDialogContent({
           <KeyFields
             baseUrlRef={baseUrlRef}
             configured={info.configured}
-            initialBaseUrl={initialBaseUrl}
             keyRef={keyRef}
             onKeyInputKeyDown={onKeyInputKeyDown}
             onPreset={applyPreset}
             onPresetChange={setPreset}
             preset={preset}
-            providerName={providerLabel(initialBaseUrl)}
+            providerName={providerLabel(savedBaseUrl)}
+            savedBaseUrl={savedBaseUrl}
           />
         )}
 
@@ -503,23 +506,23 @@ function modelHint(
 function KeyFields({
   baseUrlRef,
   configured,
-  initialBaseUrl,
   keyRef,
   onKeyInputKeyDown,
   onPreset,
   onPresetChange,
   preset,
   providerName,
+  savedBaseUrl,
 }: {
   baseUrlRef: React.Ref<HTMLInputElement>;
   configured: boolean;
-  initialBaseUrl: string;
   keyRef: React.Ref<HTMLInputElement>;
   onKeyInputKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void;
   onPreset: (id: string, url: string) => void;
   onPresetChange: (id: string) => void;
   preset: string;
   providerName: string;
+  savedBaseUrl: string;
 }) {
   return (
     <>
@@ -555,7 +558,7 @@ function KeyFields({
         aria-label="Provider base URL"
         autoComplete="off"
         className="q-input font-mono"
-        defaultValue={initialBaseUrl}
+        defaultValue={savedBaseUrl}
         onChange={(e) => onPresetChange(presetFor(e.target.value))}
         placeholder="https://api.nexos.ai"
         ref={baseUrlRef}
