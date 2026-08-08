@@ -28,6 +28,9 @@
     "Geist Mono", "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Monaco,
     monospace;
 
+  /* Tailwind's `rounded-card`. Kept as a literal because @theme is what
+     Tailwind reads to generate the utility; 0.5rem is `--r-lg` and the two
+     must move together. */
   --radius-card: 0.5rem;
 }
 
@@ -59,6 +62,24 @@
   --add-num: color-mix(in srgb, var(--color-success) 55%, transparent);
   --del-num: color-mix(in srgb, var(--color-danger) 55%, transparent);
   --font-ui: Inter, system-ui, sans-serif;
+
+  /* Corner radius scale. Every `border-radius` in quiet.css resolves to one of
+     these, so "rounder" or "tighter" everywhere is an edit to six numbers
+     rather than a hundred declarations. The steps are 2px apart on purpose:
+     one step is the smallest difference worth having, and the odd values that
+     used to sit between them (5, 7, 9, 11, 13) were drift, not intent.
+
+     Two radii are deliberately NOT on the scale, because they are proportional
+     to their element rather than to the system: `.qrh-dot` is a circle (50%)
+     and `.qz-glyph` rounds a 64px tile into a squircle (18px). Both would read
+     as a different shape, not a different radius, if they were snapped here. */
+  --r-xs: 2px;
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 8px;
+  --r-xl: 10px;
+  --r-2xl: 12px;
+  --r-pill: 999px;
 }
 
 html,
