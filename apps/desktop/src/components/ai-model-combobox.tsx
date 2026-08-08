@@ -25,7 +25,13 @@
  * lands here the moment the dialog opens, so opening with it would drop a
  * panel over the footer unasked and, worse, swallow every Enter — the parent
  * reads Enter to run whichever action Tab has armed, and a list that is always
- * open would answer it first.
+ * open would answer it first. Blur closes it, and the option rows cancel the
+ * mousedown that would otherwise move focus, so a click commits without the
+ * blur racing it.
+ *
+ * Keeping the highlight in view needs no effect: the ref callback is attached
+ * only to the active row, so changing which row is active detaches one and
+ * attaches the other, and the attach is where the scroll happens.
  */
 import { ChevronDown } from "lucide-react";
 import { type KeyboardEvent, useId, useState } from "react";
@@ -36,6 +42,14 @@ interface ModelRow {
   id: string;
   contextLength: number | null;
   freeText: boolean;
+}
+
+function revealRow(el: HTMLButtonElement | null) {
+  el?.scrollIntoView({ block: "nearest" });
+}
+
+function preventFocusLoss(e: React.MouseEvent) {
+  e.preventDefault();
 }
 
 function contextChip(contextLength: number | null): string {
@@ -145,6 +159,7 @@ export function AiModelCombobox({
           aria-label="Model"
           autoComplete="off"
           className="q-input pr-8 font-mono"
+          onBlur={() => setOpen(false)}
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);
@@ -181,7 +196,9 @@ export function AiModelCombobox({
               id={`${optionIdPrefix}-${row.id}`}
               key={row.id}
               onClick={() => commit(row)}
+              onMouseDown={preventFocusLoss}
               onMouseMove={() => setSel(i)}
+              ref={row === active ? revealRow : undefined}
               role="option"
               type="button"
             >

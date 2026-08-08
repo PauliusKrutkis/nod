@@ -284,3 +284,22 @@ test("escape closes the list before it closes the dialog", async ({ page }) => {
   await page.keyboard.press("Escape");
   await expect(dialog).not.toBeVisible();
 });
+
+test("clicking away closes the model list without committing", async ({
+  page,
+}) => {
+  await setupApp(page, CONFIGURED);
+  await openReview(page);
+  const dialog = await openSetupFromPalette(page);
+
+  await dialog.getByLabel("Model").fill("sonnet");
+  await expect(dialog.getByRole("option").first()).toBeVisible();
+
+  await dialog.getByText("Provider", { exact: true }).click();
+  await expect(dialog.getByRole("option")).toHaveCount(0);
+
+  const saved = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("e2e:aiConfig") ?? "null")
+  );
+  expect(saved).toBeNull();
+});
