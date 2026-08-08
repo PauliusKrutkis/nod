@@ -2835,3 +2835,49 @@ and `a` opens a surface the composer already almost is.
       names as one of the three primitives that legitimately reopen the shadcn
       question. Decide that before the index work, not after: it is the part
       that can turn into a second design language.
+- [ ] 🟡 **`shift+j` dead-ends at every side boundary, which reads as "ask can
+      only cover one line"** — reported as an ask-about-code bug ("`a` can only
+      ask about ONE line, you cannot grow a range with `shift+j`/`shift+k`").
+      *The ask path is not the bug.* Where a range exists, `a` ships all of it:
+      `selectionContext` in `src/lib/ask-context.ts` joins every row between
+      `fromItem` and `toItem`, `askTargetLabel` renders `src/lib/fuzzy.ts:2–4`,
+      and the `ai_ask` payload carries the joined lines. Pinned end to end by
+      "a shift+j range asks about every selected line" in
+      `apps/desktop/e2e/ai-ask.spec.ts` (PR opened with this entry).
+      *The real cause is the fat cursor.* `adjacentSelectableAnchor`
+      (`src/lib/review-items.ts`) steps over comment blocks but **stops dead**
+      on the first row whose `target.side` differs, so a deleted row is a wall
+      in both directions. On the standard replacement hunk —
+      `ctx` / `-old` / `+new` / `ctx` — that leaves exactly one row per hunk
+      from which `shift+j` does anything:
+
+      | cursor | `shift+j` | `shift+k` |
+      | --- | --- | --- |
+      | `ctx` above the deletion | nothing (next row is `LEFT`) | — |
+      | `-old` | nothing (next row is `RIGHT`) | nothing (prev row is `RIGHT`) |
+      | `+new` | grows into the trailing `ctx` | nothing (prev row is `LEFT`) |
+
+      Verified against the e2e fixture: from `RIGHT:1` and from `LEFT:2` in
+      `src/lib/fuzzy.ts`, repeated `shift+j`/`shift+k` leave `.qf-row-selected`
+      at 0. Nothing tells the user why, so the whole range feature reads as
+      broken, and `a` then falls back to the cursor row — one line, exactly as
+      reported.
+      *Why it is filed rather than fixed:* the one-side rule is deliberate
+      (§5 "one-side, hunk-contiguous fat cursor", and
+      `multiline.spec.ts` pins it as "extension never crosses a side
+      boundary"), and the range is shared with `c`, so relaxing it changes the
+      comment wire payload too. That is a product decision, not a test fix.
+      *Shape to decide:* let `adjacentSelectableAnchor` **skip** opposite-side
+      rows the way it already skips comment blocks — a deletion must not
+      dead-end a range any more than a comment does. The resulting range stays
+      contiguous in the side's own line numbers (`RIGHT:1`–`RIGHT:2` across a
+      deleted row is new-file lines 1–2), which is what GitHub's own
+      `start_line`/`line` pair means, so the payload stays legal. Open
+      question is the render: the skipped opposite-side row sits inside the
+      highlight and would either paint or leave a gap.
+      *Implementation opened as PR #232*, taking the shape proposed above:
+      opposite-side rows are stepped over, the range stays one-sided, and the
+      submitted payload for a range grown from the first context line is
+      `startLine: 1, line: 2, side: RIGHT`. The render question is answered
+      there by leaving the highlight continuous, matching how a skipped
+      comment block already behaves; tick this item when that merges.
