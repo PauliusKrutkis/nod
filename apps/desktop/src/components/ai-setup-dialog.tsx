@@ -30,6 +30,7 @@ import { api } from "../lib/api.ts";
 import { cn } from "../lib/cn.ts";
 import { queryKeys } from "../lib/query-client.ts";
 import type { AiInfo, AiModel } from "../types.ts";
+import { AiModelCombobox } from "./ai-model-combobox.tsx";
 
 const PRESETS = [
   { id: "nexos", label: "Nexos AI", url: "https://api.nexos.ai" },
@@ -54,13 +55,6 @@ function providerHost(baseUrl: string): string {
   } catch {
     return baseUrl;
   }
-}
-
-function contextLabel(model: AiModel): string {
-  if (!model.contextLength) {
-    return model.id;
-  }
-  return `${model.id} · ${Math.round(model.contextLength / 1000)}k context`;
 }
 
 function armedEnterLabel(armed: ArmedAction, removeArmed: boolean): string {
@@ -106,7 +100,7 @@ function AiSetupDialogContent({
   const queryClient = useQueryClient();
   const baseUrlRef = useRef<HTMLInputElement>(null);
   const keyRef = useRef<HTMLInputElement>(null);
-  const modelRef = useRef<HTMLSelectElement>(null);
+  const modelRef = useRef<HTMLInputElement>(null);
   const savedBaseUrl = info.baseUrl ?? PRESETS[0].url;
   const [editingKey, setEditingKey] = useState(!info.configured);
   const [preset, setPreset] = useState(() => presetFor(savedBaseUrl));
@@ -292,7 +286,7 @@ function AiSetupDialogContent({
             loading={models.isPending}
             model={model}
             models={models.data ?? []}
-            onKeyDown={onSavedKeyDown}
+            onKeyDownFallthrough={onSavedKeyDown}
             onPick={(id) => {
               setModel(id);
               saveModel.mutate(id);
@@ -447,7 +441,7 @@ function ModelField({
   loading,
   model,
   models,
-  onKeyDown,
+  onKeyDownFallthrough,
   onPick,
   ref,
 }: {
@@ -455,9 +449,9 @@ function ModelField({
   loading: boolean;
   model: string | null;
   models: AiModel[];
-  onKeyDown: (e: KeyboardEvent<HTMLElement>) => void;
+  onKeyDownFallthrough: (e: KeyboardEvent<HTMLElement>) => void;
   onPick: (id: string) => void;
-  ref: React.Ref<HTMLSelectElement>;
+  ref: React.Ref<HTMLInputElement>;
 }) {
   const selected = models.find((m) => m.id === model);
   return (
@@ -465,23 +459,14 @@ function ModelField({
       <span className="font-semibold text-[11px] text-faint uppercase tracking-wide">
         Model
       </span>
-      <select
-        aria-label="Model"
-        className="q-input font-mono"
-        onChange={(e) => onPick(e.target.value)}
-        onKeyDown={onKeyDown}
+      <AiModelCombobox
+        loading={loading}
+        models={models}
+        onCommit={onPick}
+        onKeyDownFallthrough={onKeyDownFallthrough}
         ref={ref}
-        value={model ?? ""}
-      >
-        <option disabled value="">
-          {loading ? "Loading models…" : "Choose a model…"}
-        </option>
-        {models.map((m) => (
-          <option key={m.id} value={m.id}>
-            {contextLabel(m)}
-          </option>
-        ))}
-      </select>
+        value={model}
+      />
       <span className="text-[11px] text-faint">
         {modelHint({ count: models.length, failed, loading, selected })}
       </span>
@@ -509,7 +494,7 @@ function modelHint({
   if (count === 0) {
     return "No chat models found for this key.";
   }
-  const available = `${count} available`;
+  const available = `${count} available · type to filter`;
   if (!selected?.contextLength) {
     return available;
   }
