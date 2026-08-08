@@ -6,7 +6,7 @@ design and [BACKLOG.md §11c](BACKLOG.md#11c-commercial-launch) for history).
 What remains is almost entirely **account work only the owner can do**, in
 dependency order below. Work top to bottom; each step says who acts.
 
-> **Gate first:** the [release gate](BACKLOG.md#release-gate) still applies —
+> **Gate first:** the [release gate](BACKLOG.md#product-position) still applies —
 > five external developers, one week, retention plausible. Steps 1–2 are
 > safe to do before the gate; don't create the production Polar account
 > (step 4) until it passes.
@@ -346,7 +346,7 @@ Code — unblocked once the OAuth app exists:
       against a preview URL rather than production — preview currently has
       only `GITHUB_TOKEN`.
 
-Deferred until the [release gate](BACKLOG.md#release-gate) passes:
+Deferred until the [release gate](BACKLOG.md#product-position) passes:
 
 - [ ] Apple Developer Program + `APPLE_*` secrets (step 2).
 - [ ] Register individuali veikla at VMI (income from Polar payouts).
