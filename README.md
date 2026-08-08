@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/banner.png" alt="Nod. Review PRs like an inbox, not a website." width="820">
+  <a href="https://nodreview.com"><img src="docs/assets/banner.png" alt="Nod. Review PRs like an inbox, not a website." width="820"></a>
 </p>
 
 <p align="center">
@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/PauliusKrutkis/nod/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/PauliusKrutkis/nod?style=flat-square&labelColor=0f0f17&color=8b80ff"></a>
+  <a href="https://nodreview.com/downloads"><img alt="Latest release" src="https://img.shields.io/github/v/release/PauliusKrutkis/nod?style=flat-square&labelColor=0f0f17&color=8b80ff"></a>
   <a href="LICENSE.md"><img alt="License" src="https://img.shields.io/badge/license-FSL--1.1--Apache--2.0-8b80ff?style=flat-square&labelColor=0f0f17"></a>
 </p>
 
