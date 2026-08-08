@@ -10,6 +10,12 @@
  * The footer's divider only appears once the body scrolls, which is measured
  * by observing the body *and its sections* — the body's own box is pinned by
  * the drawer, so growing conversation only ever resizes a section.
+ * Posting arms a one-shot reveal: the ref on the timeline's newest row fires
+ * when the optimistic comment mounts and scrolls it into view, so the comment
+ * you just wrote is never left below the fold. The scroll is instant (this is
+ * a reading surface, not an animated one) and the arm is consumed by that
+ * first mount, so a background refetch or your own later scrolling is never
+ * yanked back.
  */
 import {
   CheckCircle2,
@@ -152,6 +158,7 @@ export function RightPanel({
   const [draftEmpty, setDraftEmpty] = useState(true);
   const composerRef = useRef<AddCommentBoxHandle>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const justPostedRef = useRef(false);
   const [bodyScrolls, setBodyScrolls] = useState(false);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: re-scans el.children, which gains the "Code discussion" section once inlineComments goes non-empty
@@ -228,8 +235,17 @@ export function RightPanel({
   };
 
   const handleAddIssueComment = (text: string) => {
+    justPostedRef.current = true;
     onAddIssueComment(text).catch(() => undefined);
     collapseComposer();
+  };
+
+  const revealNewestComment = (el: HTMLDivElement | null) => {
+    if (!(el && justPostedRef.current)) {
+      return;
+    }
+    justPostedRef.current = false;
+    el.scrollIntoView({ behavior: "instant", block: "nearest" });
   };
 
   return (
@@ -298,6 +314,7 @@ export function RightPanel({
 
           <DrawerConversation
             editingId={editingId}
+            newestRef={revealNewestComment}
             onCancelEdit={cancelEdit}
             onDelete={onDeleteIssueComment}
             onStartEdit={startEdit}
@@ -435,6 +452,7 @@ function DrawerDescription({ body, owner, repo }: DrawerDescriptionProps) {
 
 interface DrawerConversationProps {
   editingId: number | null;
+  newestRef: (el: HTMLDivElement | null) => void;
   onCancelEdit: () => void;
   onDelete: (a: { commentId: number }) => Promise<void>;
   onStartEdit: (commentId: number) => void;
@@ -447,6 +465,7 @@ interface DrawerConversationProps {
 
 function DrawerConversation({
   editingId,
+  newestRef,
   onCancelEdit,
   onDelete,
   onStartEdit,
@@ -456,6 +475,8 @@ function DrawerConversation({
   repo,
   timeline,
 }: DrawerConversationProps) {
+  const newest = timeline.at(-1);
+
   return (
     <section className="qf-drawer-section">
       <h3 className="qf-drawer-h">
@@ -485,6 +506,7 @@ function DrawerConversation({
                 onSubmitEdit={onSubmitEdit}
                 own={entry.comment.id > 0 && entry.comment.user === ownLogin}
                 owner={owner}
+                ref={entry === newest ? newestRef : undefined}
                 repo={repo}
                 user={entry.comment.user}
               />
@@ -571,6 +593,7 @@ interface ConversationItemProps {
   onSubmitEdit?: (commentId: number, body: string) => void;
   own?: boolean;
   owner: string;
+  ref?: Ref<HTMLDivElement>;
   repo: string;
   state?: string;
   user: string;
@@ -591,6 +614,7 @@ function ConversationItem({
   onSubmitEdit,
   onDelete,
   owner,
+  ref,
   repo,
 }: ConversationItemProps) {
   const chip = state ? (REVIEW_STATES[state] ?? REVIEW_STATES.COMMENTED) : null;
@@ -606,7 +630,7 @@ function ConversationItem({
   };
 
   return (
-    <div className="qf-convo-item">
+    <div className="qf-convo-item" ref={ref}>
       <Avatar name={user} size={20} url={avatarUrl} />
       <div className="qf-convo-main">
         <div className="qf-convo-head">
