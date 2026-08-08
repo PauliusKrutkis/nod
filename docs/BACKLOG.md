@@ -2779,3 +2779,59 @@ and `a` opens a surface the composer already almost is.
       tab decision, cheap, and pair naturally with **canned comments on a key**
       in § feature-ideas — build them as one list mechanism with two sources,
       or they will diverge.
+
+### Code navigation
+
+- [ ] 🔴 **`mod`+click should go to the definition, VS Code style** — today it
+      steps to the next textual occurrence. The ask is the semantic version:
+      click a token, land on where it is *defined*; click the definition, get a
+      peek listing where it is *used*, with snippets. **This is
+      [§9 layer 3](#9-repo-snapshot--sync-layers-decided-2026-07-12) arriving
+      as a user request rather than a hypothesis** — that item already specs
+      "go-to-definition from the diff (peek popover → full-file modal at line),
+      find references for a changed symbol" and gates it on "only build if beta
+      users live in `shift+v` / repo search". Treat this as the demand signal
+      that gate was waiting for, and build the two as one thing.
+
+      *Borrow, do not build.* Parsing is the easy half and tree-sitter already
+      covers it. The expensive half is **resolution** — deciding which `foo` a
+      given `foo` refers to — which is per-language, effectively endless, and
+      exactly where a from-scratch attempt dies. Three borrowable stacks, in
+      ascending cost:
+
+      1. **tree-sitter tag queries (`tags.scm`)** — ships with most grammars
+         and yields definitions and references by name. Search-based rather
+         than semantic, so it will sometimes offer you two `handleClick`s and
+         make you pick. Runs in milliseconds over the already-extracted
+         snapshot and needs nothing installed on the user's machine.
+         **This is the stack GitHub's own code navigation runs on**, and its
+         imprecision is evidently tolerable at that scale.
+      2. **A precomputed SCIP / LSIF index** — exact, but produced by CI *in
+         the repo being reviewed*, so it exists only for projects that opted
+         in. Fine as an enhancement when present; a non-starter as the primary
+         path.
+      3. **Real language servers** (rust-analyzer, tsserver) driven over the
+         snapshot — exact, and zero per-language work for us. But it needs the
+         toolchain present on the user's machine, spends minutes and gigabytes
+         indexing a large repo, and puts a process supervisor in the Rust
+         backend. That contradicts "instant", and it would make Nod the first
+         thing in this product that requires you to install something else.
+
+      **Recommendation: (1), with (3) explicitly rejected for v1.** Revisit (2)
+      only if a real repo turns up with an index already published.
+
+      *The gesture is the contentious part, not the index.* `mod`+click meaning
+      "next occurrence" was a deliberate call
+      ([Inbox 2026-07-21](#inbox-2026-07-21)) reached after a plain click doing
+      two jobs proved to be the bug. Making it semantic changes a shipped
+      gesture, so: **definition wins when one is known, and occurrence
+      navigation stays the fallback** — unsupported languages, unresolved
+      symbols and plain prose then degrade to exactly today's behaviour instead
+      of dead-ending. `n`/`p` keep meaning occurrences either way.
+
+      *Note the peek surface is the blocker nobody has costed.* There is no
+      floating primitive in the app, and a references peek with snippets is a
+      popover — which [§8](#8-shadcnui--closed-decided-against-2026-08-05)
+      names as one of the three primitives that legitimately reopen the shadcn
+      question. Decide that before the index work, not after: it is the part
+      that can turn into a second design language.
