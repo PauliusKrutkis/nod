@@ -173,7 +173,7 @@ describe("GET /activate", () => {
     expect(ttls.has("checkout:checkout_1")).toBe(false);
   });
 
-  it("answers an unknown checkout id with a retrying page, not a 404", async () => {
+  it("answers an unknown checkout id with a waiting page, not a 404", async () => {
     const response = await activate(
       licensedKv().kv,
       "https://x.test/activate?checkout_id=checkout_nope"
@@ -182,34 +182,50 @@ describe("GET /activate", () => {
     expect(response.status).toBe(200);
     const html = await response.text();
     expect(html).toContain("Preparing your activation");
-    expect(html).toContain("url=/activate?checkout_id=checkout_nope&retry=1");
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
-  it("counts retries up instead of refreshing forever", async () => {
+  it("waits by polling in the background, never by reloading itself", async () => {
     const response = await activate(
       licensedKv().kv,
-      "https://x.test/activate?checkout_id=checkout_nope&retry=7"
+      "https://x.test/activate?checkout_id=checkout_nope"
     );
+    const html = await response.text();
 
-    expect(await response.text()).toContain("retry=8");
+    expect(html).not.toContain('http-equiv="refresh"');
+    expect(html).not.toContain("retry=");
+    expect(html).toContain("/activate?checkout_id=checkout_nope&poll=1");
   });
 
-  it("gives up with a 404 once the retry budget is spent", async () => {
+  it("reports not-ready as json while the license is still missing", async () => {
     const response = await activate(
       licensedKv().kv,
-      "https://x.test/activate?checkout_id=checkout_nope&retry=24"
-    );
-    expect(response.status).toBe(404);
-  });
-
-  it("serves the token as soon as the index resolves, whatever the retry count", async () => {
-    const response = await activate(
-      licensedKv().kv,
-      "https://x.test/activate?checkout_id=checkout_1&retry=9"
+      "https://x.test/activate?checkout_id=checkout_nope&poll=1"
     );
 
     expect(response.status).toBe(200);
-    expect(await tokenFromPage(response)).not.toBeNull();
+    expect(response.headers.get("content-type")).toContain("application/json");
+    expect(await response.json()).toEqual({ ready: false });
+  });
+
+  it("reports ready as json once the license resolves", async () => {
+    const response = await activate(
+      licensedKv().kv,
+      "https://x.test/activate?checkout_id=checkout_1&poll=1"
+    );
+
+    expect(await response.json()).toEqual({ ready: true });
+  });
+
+  it("never signs a token or extends the window while polling", async () => {
+    const { kv, ttls } = licensedKv();
+
+    const response = await activate(
+      kv,
+      "https://x.test/activate?checkout_id=checkout_1&poll=1"
+    );
+
+    expect(Object.keys((await response.json()) as object)).toEqual(["ready"]);
+    expect(ttls.has("checkout:checkout_1")).toBe(false);
   });
 });

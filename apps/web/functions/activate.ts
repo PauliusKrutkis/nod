@@ -22,10 +22,23 @@
  * consistency (writes can take up to a minute to reach the buyer's colo —
  * observed live 2026-08-05, when a stored license read as absent for
  * minutes). So a miss serves a 200 "preparing your activation" page that
- * meta-refreshes with a retry counter, and only after the retry budget
- * (about two minutes) does the invalid-link 404 appear. A garbage
- * checkout_id costs an attacker nothing either way — the page carries no
- * token until the index resolves.
+ * waits for the write instead of failing.
+ *
+ * That page polls rather than reloading itself. It used to meta-refresh every
+ * five seconds with a retry counter in the URL, which meant a buyer watched
+ * their browser reload up to twenty-four times, each one repainting the page
+ * and flickering the tab through a load. Now it renders once, shows a
+ * spinner, and asks `?poll=1` for a small JSON answer in the background; only
+ * when that answer says the license is ready does it navigate, once, to the
+ * real activation screen. The retry budget moved with it, from the URL into
+ * the page's own script.
+ *
+ * `?poll=1` is deliberately read-only: it reports whether the license
+ * resolves and nothing else. It signs no token and does not extend the
+ * checkout index's TTL, both of which stay on the render path, so polling can
+ * never hand out a credential or quietly lengthen the activation window. A
+ * garbage checkout_id costs an attacker nothing either way — it just answers
+ * "not ready" forever.
  */
 import {
   activationHtmlResponse,
@@ -38,29 +51,78 @@ import { signLicenseToken } from "./lib/license-token";
 import { withErrorReporting } from "./lib/report";
 
 const ACTIVATION_WINDOW_SECONDS = 48 * 60 * 60;
-const RETRY_INTERVAL_SECONDS = 5;
-const MAX_RETRIES = 24;
+const POLL_INTERVAL_MS = 2000;
+const POLL_BUDGET_MS = 2 * 60 * 1000;
 
-function preparingPage(checkoutId: string, retry: number): string {
-  const nextUrl = `/activate?checkout_id=${encodeURIComponent(checkoutId)}&retry=${retry + 1}`;
+function preparingPage(checkoutId: string): string {
+  const pollUrl = `/activate?checkout_id=${encodeURIComponent(checkoutId)}&poll=1`;
+  const pageUrl = `/activate?checkout_id=${encodeURIComponent(checkoutId)}`;
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<meta http-equiv="refresh" content="${RETRY_INTERVAL_SECONDS}; url=${nextUrl}">
 <title>Nod · preparing your activation</title>
 <style>${PAGE_STYLE}</style>
 </head>
 <body>
 <main>
+  <div class="spin" id="spin"></div>
   <h1>Payment received</h1>
-  <p>Preparing your activation. This page refreshes by itself and usually
-  takes a few seconds.</p>
+  <p id="status">Preparing your activation. This usually takes a few
+  seconds.</p>
+  <p class="alt" id="slow" hidden>Still preparing. You can leave this page
+  open, or <a href="/buy">sign in to activate</a> instead.</p>
 </main>
+<script>
+(function () {
+  var pollUrl = ${JSON.stringify(pollUrl)};
+  var pageUrl = ${JSON.stringify(pageUrl)};
+  var deadline = Date.now() + ${POLL_BUDGET_MS};
+
+  function giveUp() {
+    document.getElementById("spin").hidden = true;
+    document.getElementById("status").textContent =
+      "This is taking longer than it should. Your payment went through, so nothing is lost.";
+    document.getElementById("slow").hidden = false;
+  }
+
+  function poll() {
+    fetch(pollUrl, { headers: { accept: "application/json" } })
+      .then(function (r) { return r.ok ? r.json() : { ready: false }; })
+      .then(function (data) {
+        if (data && data.ready) {
+          location.replace(pageUrl);
+          return;
+        }
+        schedule();
+      })
+      .catch(schedule);
+  }
+
+  function schedule() {
+    if (Date.now() >= deadline) {
+      giveUp();
+      return;
+    }
+    setTimeout(poll, ${POLL_INTERVAL_MS});
+  }
+
+  poll();
+})();
+</script>
 </body>
 </html>`;
+}
+
+function readyJson(ready: boolean): Response {
+  return new Response(JSON.stringify({ ready }), {
+    headers: {
+      "cache-control": "no-store",
+      "content-type": "application/json",
+    },
+  });
 }
 
 export const onRequestGet: PagesFunction<Env> = withErrorReporting(
@@ -70,27 +132,19 @@ export const onRequestGet: PagesFunction<Env> = withErrorReporting(
     if (!checkoutId) {
       return new Response("missing checkout_id", { status: 400 });
     }
-    const retry =
-      Number.parseInt(url.searchParams.get("retry") ?? "0", 10) || 0;
+    const polling = url.searchParams.get("poll") === "1";
 
     const subject = await getCheckoutIndex(context.env.LICENSES, checkoutId);
-    if (subject === null) {
-      if (retry < MAX_RETRIES) {
-        return activationHtmlResponse(preparingPage(checkoutId, retry));
-      }
-      return new Response("activation link is invalid or already used", {
-        status: 404,
-      });
-    }
+    const record =
+      subject === null ? null : await getLicense(context.env.LICENSES, subject);
 
-    const record = await getLicense(context.env.LICENSES, subject);
-    if (record === null) {
-      if (retry < MAX_RETRIES) {
-        return activationHtmlResponse(preparingPage(checkoutId, retry));
-      }
-      return new Response("no license found for this account", {
-        status: 404,
-      });
+    if (subject === null || record === null) {
+      return polling
+        ? readyJson(false)
+        : activationHtmlResponse(preparingPage(checkoutId));
+    }
+    if (polling) {
+      return readyJson(true);
     }
 
     const token = await signLicenseToken(
