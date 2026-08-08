@@ -3674,8 +3674,6 @@ dialog.q-dialog::backdrop {
   color: var(--accent);
   background: var(--surface);
   border: 1px solid var(--line-2);
-  /* Off the radius scale on purpose: this rounds a 64px tile into a squircle,
-     so the value is proportional to the element, not to the system. */
   border-radius: 18px;
   box-shadow:
     0 0 40px -8px var(--accent-soft),
@@ -3965,7 +3963,6 @@ dialog.q-dialog::backdrop {
   height: 9px;
   background: var(--surface);
   border: 1px solid var(--line-2);
-  /* A circle, not a rounded rectangle — off the radius scale on purpose. */
   border-radius: 50%;
 }
 .qrh-item-on .qrh-dot {

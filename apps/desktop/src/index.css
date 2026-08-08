@@ -1,13 +1,33 @@
+/* Nod's design tokens.
+
+   Colour lives once in the @theme block: Tailwind reads it to generate
+   utilities like bg-surface / text-muted / border-line, and the short-named
+   Quiet vars on :root are pure aliases of it, which is what the ported q- and
+   qf- CSS in quiet.css consumes. So a palette change in @theme propagates to
+   both. Never hardcode a hex on :root; the translucent variants (soft washes,
+   gutter tints) are derived with color-mix so they follow the palette too.
+
+   Corner radius is a 2px-step scale (--r-xs through --r-2xl, plus --r-pill).
+   Every border-radius in quiet.css resolves to one of those steps, so making
+   the app rounder or tighter is an edit to six numbers rather than a hundred
+   declarations. The steps are 2px apart because one step is the smallest
+   difference worth having; the odd values that used to sit between them
+   (5, 7, 9, 11, 13px) were drift, not intent.
+
+   Two radii stay off the scale on purpose, because they are proportional to
+   their element rather than to the system: .qrh-dot is a circle (50%) and
+   .qz-glyph rounds a 64px tile into a squircle (18px). Snapping either would
+   change the shape, not the radius.
+
+   Tailwind's rounded-card utility is generated from --radius-card, which has
+   to stay a literal because @theme is what Tailwind reads. It is 0.5rem, which
+   is --r-lg, and the two must move together. Do not move the --r-* scale into
+   @theme: the --radius-* namespace there would override Tailwind's own
+   rounded-sm / rounded-md / rounded-lg. */
+
 @import "tailwindcss" source("../src");
 @import "./quiet.css";
 
-/* Nod theme — the "Quiet" palette (deep indigo canvas, one iris accent).
-   Tailwind v4 reads these CSS variables and
-   generates utilities like `bg-surface`, `text-muted`, `border-line`, etc.
-   This @theme block is the SINGLE source of truth for colors: the short-named
-   Quiet vars on `:root` below alias these `--color-*` custom properties, so a
-   palette change here propagates to both the Tailwind utilities and the ported
-   q-/qf- CSS in quiet.css. */
 @theme {
   --color-bg: #0f0f17;
   --color-surface: #15151f;
@@ -28,16 +48,9 @@
     "Geist Mono", "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Monaco,
     monospace;
 
-  /* Tailwind's `rounded-card`. Kept as a literal because @theme is what
-     Tailwind reads to generate the utility; 0.5rem is `--r-lg` and the two
-     must move together. */
   --radius-card: 0.5rem;
 }
 
-/* Short-named Quiet tokens for the ported q- and qf- classes (see quiet.css).
-   Pure aliases of the @theme vars above — never hardcode a hex here. The
-   translucent variants (soft washes, gutter tints) are derived with color-mix
-   so they follow the palette too. */
 :root {
   --bg: var(--color-bg);
   --surface: var(--color-surface);
@@ -63,16 +76,6 @@
   --del-num: color-mix(in srgb, var(--color-danger) 55%, transparent);
   --font-ui: Inter, system-ui, sans-serif;
 
-  /* Corner radius scale. Every `border-radius` in quiet.css resolves to one of
-     these, so "rounder" or "tighter" everywhere is an edit to six numbers
-     rather than a hundred declarations. The steps are 2px apart on purpose:
-     one step is the smallest difference worth having, and the odd values that
-     used to sit between them (5, 7, 9, 11, 13) were drift, not intent.
-
-     Two radii are deliberately NOT on the scale, because they are proportional
-     to their element rather than to the system: `.qrh-dot` is a circle (50%)
-     and `.qz-glyph` rounds a 64px tile into a squircle (18px). Both would read
-     as a different shape, not a different radius, if they were snapped here. */
   --r-xs: 2px;
   --r-sm: 4px;
   --r-md: 6px;
