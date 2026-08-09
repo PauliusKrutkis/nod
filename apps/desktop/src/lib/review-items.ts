@@ -76,12 +76,21 @@ export function anchorLine(anchor: string): number {
 }
 
 /**
- * The neighboring row anchor a line selection may extend to: the immediately
- * adjacent nav row in the same file, same hunk, on the same comment side.
- * Anything else (hunk header, side flip, file boundary) ends the range —
- * multi-line comments are one-side, hunk-contiguous runs. Comment blocks are
- * cursor stops but not selectable lines, so the walk steps over them; a
- * commented line must not dead-end a range.
+ * The neighboring row anchor a line selection may extend to: the next nav row
+ * in the same file and hunk that carries the range's own comment side.
+ * A hunk header, a file boundary, or a row with no comment target at all (the
+ * synthesized context `shift+v` fills in, which the hosts will not accept a
+ * comment on) ends the range.
+ *
+ * Two kinds of row are stepped *over* rather than treated as the end. Comment
+ * blocks, because they are cursor stops but not lines, and a commented line
+ * must not dead-end a range. And rows belonging to the opposite side, because
+ * on the ordinary replacement hunk (context, deletions, additions, context)
+ * they sit directly between the rows a range wants to join: stopping there
+ * meant that on most hunks `shift+j` selected nothing at all and never
+ * explained why. Stepping over them keeps the range one-sided, which is what
+ * the hosts require, and the surviving line numbers stay contiguous on that
+ * side precisely because the skipped rows have no number on it.
  */
 export function adjacentSelectableAnchor(
   m: ReviewListModel,
@@ -96,21 +105,28 @@ export function adjacentSelectableAnchor(
     return null;
   }
   let at = idx + delta;
-  while (m.nav[at]?.kind === "comments") {
-    at += delta;
+  for (;;) {
+    const entry = m.nav[at];
+    if (!entry || entry.fileIndex !== fileIndex) {
+      return null;
+    }
+    if (entry.kind === "comments") {
+      at += delta;
+      continue;
+    }
+    const item = m.items[entry.itemIndex];
+    if (item.kind !== "row" || item.hunkIndex !== hunkIndex) {
+      return null;
+    }
+    if (item.target === null) {
+      return null;
+    }
+    if (item.target.side !== side) {
+      at += delta;
+      continue;
+    }
+    return entry.anchor;
   }
-  const next = m.nav[at];
-  if (!next || next.fileIndex !== fileIndex) {
-    return null;
-  }
-  const item = m.items[next.itemIndex];
-  if (item.kind !== "row" || item.hunkIndex !== hunkIndex) {
-    return null;
-  }
-  if (item.target === null || item.target.side !== side) {
-    return null;
-  }
-  return next.anchor;
 }
 
 /**
