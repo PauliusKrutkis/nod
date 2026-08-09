@@ -2177,8 +2177,21 @@ each carries an unresolved design question of its own, noted below.
         mixed, show badged. Content-based, so robust to squash merges
         (commit-ancestry checks are not). Hunk-level precision inside mixed
         files: not worth it.
+      *Designed 2026-08-09:* [stale base](https://claude.ai/code/artifact/7b2faae5-9a4c-40b7-af7b-fe04c6df43da) draws both tiers. The banner
+      leads with the consequence and ends with the action, because "the merge
+      base is stale" is accurate and useless: the reviewer's question is
+      whether they can trust what they are reading, and their move is to ask
+      the author to update the branch. Tier 2 **collapses, never hides**, the
+      same rule noise files follow, because the classification is a heuristic
+      over two API responses and a file wrongly marked as backwash would
+      silently remove real work from a review. Already-merged files still
+      count toward viewed progress, for the same reason noise files do.
+      Fetching happens **in the background after first paint**, never blocking:
+      a late banner is fine, a late diff is not.
       Caveat: compare API caps the file list at 300 — fall back to
-      banner-only on monster diffs. Orthogonal to §9 repo snapshot (file
+      banner-only on monster diffs, **and say so in the banner**, since
+      silently dropping the labels would let their absence read as the absence
+      of backwash. Orthogonal to §9 repo snapshot (file
       trees at one SHA; no diffs/merge-bases) — no dependency either way.
 
 ## Inbox (2026-07-30)
