@@ -1,6 +1,7 @@
 import { Check, Eye, Search, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useArmedRing } from "../../hooks/use-armed-ring.ts";
+import { useLatest } from "../../hooks/use-latest.ts";
 import { useModalDialog } from "../../hooks/use-modal-dialog.ts";
 import { useWatchedRepos } from "../../hooks/use-subscribed.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
@@ -11,6 +12,7 @@ import type { RepoHit } from "../../types.ts";
 import { Kbd } from "../ui/kbd.tsx";
 
 const REPO_URL_PREFIX = /^https?:\/\/[^/]+\//;
+const WRITE_DEBOUNCE_MS = 400;
 const TRAILING_SLASHES = /\/+$/;
 
 function armedActionLabel(armed: number | "done" | null): string {
@@ -96,7 +98,15 @@ function handleWatchDialogKey(
  * Manage the watched repositories behind the "Watching" tab. Typing searches
  * the provider live (private repos included, scoped to what the token sees);
  * arrows + Enter watch a result. Pasting an exact `owner/repo` or a repo URL
- * still works when search comes up empty. Saves are optimistic write-through.
+ * still works when search comes up empty.
+ *
+ * Saves are optimistic, and the write behind them is coalesced. The list is a
+ * whole-array replace, so a burst of toggles produced a burst of writes that
+ * each superseded the last, and each one also invalidated the subscribed
+ * query and refetched an inbox nobody had finished editing. Only the final
+ * list matters, so the write is debounced and the invalidation happens once
+ * with it. The dialog flushes on unmount, because closing it straight after a
+ * toggle must not be the one input that loses the edit.
  */
 export function WatchReposDialog({
   open,
@@ -137,6 +147,9 @@ function WatchReposDialogContent({ onClose }: { onClose: () => void }) {
   const listRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<number | null>(null);
   const requestSeq = useRef(0);
+  const pendingWriteRef = useRef<string[] | null>(null);
+  const writeTimerRef = useRef<number | null>(null);
+  const mountedRef = useRef(true);
 
   const trimmedInput = input.trim();
   const searchActive = trimmedInput.length >= 2;
@@ -149,17 +162,39 @@ function WatchReposDialogContent({ onClose }: { onClose: () => void }) {
     (searchResult?.forQuery !== trimmedInput || searchResult.searching);
   const repoSet = new Set(repos);
 
-  const syncWatchedRepos = (updatedRepos: string[]) => {
+  const flushWatchedRepos = () => {
+    const updatedRepos = pendingWriteRef.current;
+    if (updatedRepos === null) {
+      return;
+    }
+    pendingWriteRef.current = null;
     api
       .setWatchedRepos(updatedRepos)
       .then(() => {
         queryClient.setQueryData(queryKeys.watchedRepos, updatedRepos);
         queryClient.invalidateQueries({ queryKey: queryKeys.subscribed });
-        setOptimisticRepos(null);
       })
       .catch(() => {
-        setOptimisticRepos(null);
+        /* ignore */
+      })
+      .finally(() => {
+        if (mountedRef.current && pendingWriteRef.current === null) {
+          setOptimisticRepos(null);
+        }
       });
+  };
+
+  const flushWatchedReposRef = useLatest(flushWatchedRepos);
+
+  const syncWatchedRepos = (updatedRepos: string[]) => {
+    pendingWriteRef.current = updatedRepos;
+    if (writeTimerRef.current) {
+      window.clearTimeout(writeTimerRef.current);
+    }
+    writeTimerRef.current = window.setTimeout(
+      flushWatchedRepos,
+      WRITE_DEBOUNCE_MS
+    );
   };
 
   const stopWatching = (repo: string) => {
@@ -208,6 +243,17 @@ function WatchReposDialogContent({ onClose }: { onClose: () => void }) {
       watch,
     });
   };
+
+  useEffect(
+    () => () => {
+      mountedRef.current = false;
+      if (writeTimerRef.current) {
+        window.clearTimeout(writeTimerRef.current);
+      }
+      flushWatchedReposRef.current();
+    },
+    [flushWatchedReposRef]
+  );
 
   useEffect(() => {
     if (armed === null) {
