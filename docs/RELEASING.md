@@ -412,7 +412,7 @@ binaries, auto-updates, and licenses — not the code.
 
 **Sublime-style unlimited evaluation — there is no trial.** Nod is free to
 evaluate with every feature and no time limit, and nothing licensing-related
-is even visible for the first 14 days (first-launch timestamp in the config
+is even visible for the first 30 days (first-launch timestamp in the config
 dir, no countdown anywhere). After that grace window, two gentle levers and
 only two: a dismissable once-per-launch purchase card ("Enjoying Nod?"), and
 updates pause until a license exists. The app itself never blocks. A **$59
@@ -420,6 +420,12 @@ one-time license buys a year of updates** (webhook writes `updatesUntil`;
 the updater compares release dates against it client-side, `latest.json`
 stays static). Character themes join the paid side when theming ships — the
 entitlement check arrives with that feature, not before.
+
+The window was 14 days until 2026-08-05, when it widened to 30. Review tools
+get used in bursts, so someone who installs Nod, uses it for one sprint and
+then gets pulled onto something else has barely started evaluating by day 14.
+Nothing else about the model moves with it: the app still never locks, and
+`TRIAL_DAYS` in `license.rs` remains the only place the length is set.
 
 Why this over a trial: an earlier same-day draft was a "14-day trial" with a
 countdown badge — but nothing turned off at day 14, so it was nagware worded
@@ -542,7 +548,7 @@ All of this exists now (`apps/desktop/src-tauri/src/license.rs` +
   a cross-stack fixture test proves Rust's canonical bytes match the web
   signer's `JSON.stringify` byte-for-byte (unicode subjects included).
 - **Evaluation:** first-launch timestamp in the config dir; nothing
-  licensing-related renders for 14 days, then a dismissable purchase card —
+  licensing-related renders for 30 days, then a dismissable purchase card —
   the app never blocks.
 - **Activation:** `activate_license` opens checkout and waits on
   `127.0.0.1:8766` (read-timeout hardened, PNA preflight answered);

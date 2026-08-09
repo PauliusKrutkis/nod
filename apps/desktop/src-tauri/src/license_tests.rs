@@ -84,16 +84,16 @@ fn rejects_a_bad_public_key() {
 }
 
 #[test]
-fn trial_counts_whole_days_down_from_fourteen() {
-    assert_eq!(trial_days_left(1000, 1000), 14);
-    assert_eq!(trial_days_left(1000, 1000 + DAY - 1), 14);
-    assert_eq!(trial_days_left(1000, 1000 + DAY), 13);
-    assert_eq!(trial_days_left(1000, 1000 + 13 * DAY), 1);
-    assert_eq!(trial_days_left(1000, 1000 + 14 * DAY), 0);
+fn trial_counts_whole_days_down_from_thirty() {
+    assert_eq!(trial_days_left(1000, 1000), 30);
+    assert_eq!(trial_days_left(1000, 1000 + DAY - 1), 30);
+    assert_eq!(trial_days_left(1000, 1000 + DAY), 29);
+    assert_eq!(trial_days_left(1000, 1000 + 29 * DAY), 1);
+    assert_eq!(trial_days_left(1000, 1000 + 30 * DAY), 0);
     assert_eq!(trial_days_left(1000, 1000 + 400 * DAY), 0);
 }
 
 #[test]
 fn future_first_launch_clamps_to_a_full_trial() {
-    assert_eq!(trial_days_left(5000, 1000), 14);
+    assert_eq!(trial_days_left(5000, 1000), 30);
 }

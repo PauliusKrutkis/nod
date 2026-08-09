@@ -757,7 +757,7 @@ an open item: production-build perf e2e). Landing page (§0) and MoR account
 push (port 8766, PNA preflight handled) and a `nod://purchase` deep
 link the app registers; the desktop app verifies tokens offline
 (`ed25519-dalek`, cross-stack fixture tests), runs the free unlimited
-evaluation (nothing licensing-visible for 14 days, then a dismissable
+evaluation (nothing licensing-visible for 30 days, then a dismissable
 purchase card; reframed same day from a "trial" — countdown badge removed),
 and gates updates on `updates_until`; the landing page states $39 / a year
 of updates with the buy button env-gated until checkout exists. Licensing:
@@ -876,8 +876,8 @@ an exception carved. The one thing a license legitimately controls stays
 #### Evaluation and the update gate (audited 2026-08-05)
 
 *What ships on `main` today, verified in code — none of it released yet
-(v0.4.0 predates the licensing PRs, so no user has reached day 15).*
-`get_license_state` returns `Trial{days_left}` for 14 days, then
+(v0.4.0 predates the licensing PRs, so no user has reached day 31).*
+`get_license_state` returns `Trial{days_left}` for 30 days, then
 `TrialExpired`; `PurchasePrompt` renders **nothing** until expiry, then a
 dismissable card once per launch. The app never locks — correct, and
 on-position.
@@ -894,7 +894,7 @@ in *how* it does it:
       browser, and `PurchasePrompt` renders regardless of whether checkout
       exists — the user only discovers this **after** clicking Buy. Harmless
       today because it is unreleased; the moment a release is cut, every
-      install starts a 14-day fuse ending in a dead button. **Fix before
+      install starts a 30-day fuse ending in a dead button. **Fix before
       tagging:** set `NOD_CHECKOUT_URL` (needs the Polar product — the gating
       item above), *and* have the card not render when checkout is
       unconfigured, so a half-configured build stays quiet instead of nagging
@@ -918,8 +918,9 @@ in *how* it does it:
       pressure at all. Once patches flow, have `PurchasePrompt` name the
       version it is holding back ("0.5.0 is out — a license unlocks it")
       instead of adding a second card.
-- [ ] 🟢 **Evaluation window 14 → 30 days** — *decided 2026-08-05 (owner).*
-      `TRIAL_DAYS` (`license.rs:36`). Review tools are used in bursts: someone
+- [x] 🟢 **Evaluation window 14 → 30 days** — *decided 2026-08-05 (owner),
+      shipped 2026-08-09.* `TRIAL_DAYS` (`license.rs`) is now 30, and the
+      docs that quoted 14 days say 30. Review tools are used in bursts: someone
       who installs, uses Nod for one sprint and then gets pulled elsewhere has
       barely started evaluating by day 14. 30 days covers at least two review
       cycles and costs nothing, since the app never locks either way.
@@ -2556,8 +2557,8 @@ wanted instead of a quick win.
 - [ ] 🟡 **No in-app way to say "I already bought this"** — the only licensing
       surface in the app is `PurchasePrompt`, and it returns `null` unless the
       state is exactly `trialExpired`. A fresh install is `Trial { days_left:
-      14 }`, so a customer who **bought on the website and then downloaded the
-      app** sees nothing about licensing at all for two weeks, and `mod+k` has
+      30 }`, so a customer who **bought on the website and then downloaded the
+      app** sees nothing about licensing at all for a month, and `mod+k` has
       no license command of any kind — not "activate", not "check my license",
       nothing. They have paid and the product offers them no way to say so.
       Their receipt link is not a fallback either: `/activate` is keyed by a

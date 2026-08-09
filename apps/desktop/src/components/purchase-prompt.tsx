@@ -10,7 +10,7 @@ import { api } from "../lib/api.ts";
  * The purchase card, and the only licensing surface an evaluator ever sees:
  * evaluation is free and time-unlimited (Sublime-style — no countdown, no
  * lock), so nothing licensing-related renders at all until the backend's
- * 14-day grace window ends, after which this dismissable card asks once per
+ * 30-day grace window ends, after which this dismissable card asks once per
  * launch and updates pause until a license exists. Buy opens checkout in
  * the browser and the backend command stays pending until the activation
  * listener receives a verified token, so success lands here as the resolved
