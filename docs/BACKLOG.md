@@ -2499,6 +2499,22 @@ wanted instead of a quick win.
       couldn't be posted" review. *Recommendation: surface them*, always; a
       review tool that loses your writing is worse than one that cannot work
       offline.
+      *Designed 2026-08-09:* [offline review](https://claude.ai/code/artifact/35fed196-5934-481a-bd3f-77a2e003adad) draws the offline bar, the
+      queue typed by verb, and the reconnect state where two of five items do
+      not land. Three things it commits to. Every failed item **keeps its
+      text** and offers place-again, copy or discard, so no outcome is "lost".
+      The app names *why* — the line moved, the thread was already resolved —
+      because a specific reason is the difference between a conflict you can
+      resolve and an error you cannot. And an item whose intent already holds
+      (someone else resolved the thread first) is reported as nothing to do
+      rather than as a failure, because over-reporting teaches people to
+      ignore the surface.
+      *Also decided in the mock:* offline is detected from **request failures
+      in the Rust backend**, never `navigator.onLine`, which reports true on a
+      captive portal or a dead VPN. The existing 60-second poll is a free
+      heartbeat. And replay is automatic for comments, replies and viewed
+      marks, but the staged **review submission** waits for a press, because
+      submitting is a deliberate act with a verdict attached.
 - [ ] 🟢 **"Author responded" notifications** — `review-notifier.tsx` fires
       only on `reviewRequested` (`data.reviewRequested.prs`), so the app
       announces work arriving but never announces **your** review being
