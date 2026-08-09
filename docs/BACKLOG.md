@@ -1653,6 +1653,16 @@ wanted instead of a quick win.
       a generated file **is** sometimes the bug, so the row must stay present
       and countable. Pairs with cost-to-review below, which is misleading
       until this exists.
+      *Design mocked 2026-08-09, awaiting a decision before any code:*
+      [noise files, collapse never hide](https://claude.ai/code/artifact/34f6ca62-506e-4500-888a-d27fdae8bd30)
+      draws the collapsed row against a real diff, tabulates the three
+      detection rules by how much each can be trusted, and carries four open
+      calls: whether to build the content heuristic at all, whether collapse
+      memory survives a restart, whether it takes a key, and whether comment
+      threads stay visible on a collapsed file. It also settles one thing this
+      entry left implicit: **viewed progress must not be discounted**, because
+      coverage is a promise about what you looked at, and excusing you from two
+      files would make `8 / 8` mean less than it does today.
 - [ ] 🔴 **Offline review** — write comments, mark files viewed and stage a
       review with no network, then sync on reconnect. **The widest moat on
       this list: github.com fundamentally cannot do this**, and it is the
