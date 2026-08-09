@@ -1283,6 +1283,12 @@ only format the in-app updater touches.
       ref-callback, so a row inside a collapsed folder never fires it; arriving
       at a hidden file **must** expand its folder or the selection lands
       nowhere.
+      *Designed 2026-08-09:* [moving through a review](https://claude.ai/code/artifact/95af1d62-e8f6-4035-80ed-147e52626e69) draws the arriving
+      case and tabulates the keys. Arrows drive the tree **only while it holds
+      focus**, entered with `b` and left with Escape, so the diff's own line
+      cursor keeps them everywhere else; `→` opens a file or expands a folder,
+      `←` collapses or steps to the parent, and `r`/`t`/`e` are unchanged and
+      expand whatever they land in.
 - [ ] 🟡 **P16** — Faster inbox via conditional polling
       (ETag/304 → ~15 s interval); optional activity-aware detail refresh (see
       also §7 GitHub notifications gate).
@@ -1322,6 +1328,13 @@ only format the in-app updater touches.
       rows it covers, so the same drag copies text and arms `c`. That answers
       the discoverability concern the original deferral traded down to, since
       there is no new affordance to learn.
+      *Designed 2026-08-09:* [moving through a review](https://claude.ai/code/artifact/95af1d62-e8f6-4035-80ed-147e52626e69) shows the two
+      highlights coexisting on purpose. The browser's selection paints
+      characters and the row range paints lines: one is what `mod+c` copies,
+      the other is what `c` comments on, so collapsing them into a single
+      visual would lie about one of the two. A drag ending mid-line rounds the
+      **range** out to whole lines, because comment ranges are line-based on
+      both hosts, and leaves the text selection exactly as the browser made it.
       *Why it's now cheap:* the gesture is unclaimed. A cross-line selection
       already fails `specFromDomSelection` (its `commonAncestorContainer`
       escapes `.qf-code` the moment two rows are involved), so occurrence
@@ -1424,6 +1437,13 @@ only format the in-app updater touches.
 - [ ] 🟡 **Comment-now vs add-to-review UX** — remember last choice between
       "comment now" and "add to review", or replace tabs with two explicit
       buttons if that reads clearer.
+      *Designed 2026-08-09:* [moving through a review](https://claude.ai/code/artifact/95af1d62-e8f6-4035-80ed-147e52626e69) recommends
+      **keeping the segmented control and persisting the choice**, not swapping
+      it for two buttons. The control is the only thing on screen saying the
+      two outcomes differ, and two equal buttons would make an irreversible
+      send as easy to hit as a draft. Store it **per user, globally**: the
+      habit belongs to the person, and a per-repo memory would change the mode
+      under you for no visible reason.
 - [ ] 🟡 **Hover cursors** — cursor should change over interactive regions
       (gutter, threads, links); audit against editor-like affordances elsewhere
       in the app.
@@ -2540,6 +2560,14 @@ wanted instead of a quick win.
       limitation — a link outside your inbox is invisible, so the stack view
       must degrade to "the part of the chain I can see" rather than claiming
       completeness. Build after the indicator ships and gets used.
+      *Designed 2026-08-09:* [moving through a review](https://claude.ai/code/artifact/95af1d62-e8f6-4035-80ed-147e52626e69) makes the boundary
+      band carry the PR number, because every row belongs to exactly one pull
+      request and a comment written on it posts there, so the reader must know
+      which one they are in at all times. The footer states the limit plainly
+      rather than letting a short chain look complete.
+      **Recommendation: ship the indicator, then wait.** If nobody reaches for
+      the chain after seeing it flagged, this is a large surface answering a
+      question nobody asked.
 - [ ] 🟡 **Side-by-side diff** — the app is unified-only. Not a killer
       feature, and deliberately listed last: it is **table stakes** whose
       absence is a live objection, especially for renames and refactors where
