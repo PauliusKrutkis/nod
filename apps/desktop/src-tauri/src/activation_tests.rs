@@ -53,8 +53,7 @@ fn a_missing_token_keeps_waiting() {
 
 #[test]
 fn preflight_gets_the_private_network_opt_in() {
-    let (token, response) =
-        roundtrip("OPTIONS /callback HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
+    let (token, response) = roundtrip("OPTIONS /callback HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
     assert_eq!(token, None);
     assert!(response.starts_with("HTTP/1.1 204"));
     assert!(response.contains("Access-Control-Allow-Private-Network: true"));

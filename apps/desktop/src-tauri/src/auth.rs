@@ -84,8 +84,8 @@ pub async fn login_with_github(app: AppHandle) -> Result<GitHubUser, String> {
         format!("Couldn't start the local sign-in listener on port {OAUTH_PORT}: {e}")
     })?;
 
-    let mut authorize = url::Url::parse("https://github.com/login/oauth/authorize")
-        .map_err(|e| e.to_string())?;
+    let mut authorize =
+        url::Url::parse("https://github.com/login/oauth/authorize").map_err(|e| e.to_string())?;
     authorize
         .query_pairs_mut()
         .append_pair("client_id", &client_id)
@@ -214,8 +214,8 @@ pub async fn login_with_gitlab(
         format!("Couldn't start the local sign-in listener on port {OAUTH_PORT}: {e}")
     })?;
 
-    let mut authorize = url::Url::parse(&format!("{host}/oauth/authorize"))
-        .map_err(|e| e.to_string())?;
+    let mut authorize =
+        url::Url::parse(&format!("{host}/oauth/authorize")).map_err(|e| e.to_string())?;
     authorize
         .query_pairs_mut()
         .append_pair("client_id", &client_id)
@@ -394,8 +394,14 @@ fn handle_connection(
         return Err(format!("GitHub sign-in error: {e}"));
     }
     if got_state.as_deref() != Some(expected_state) {
-        write_response(stream, "400 Bad Request", &page("Sign-in failed: state mismatch."));
-        return Err("Sign-in failed: state mismatch (possible CSRF). Please try again.".to_string());
+        write_response(
+            stream,
+            "400 Bad Request",
+            &page("Sign-in failed: state mismatch."),
+        );
+        return Err(
+            "Sign-in failed: state mismatch (possible CSRF). Please try again.".to_string(),
+        );
     }
     match code {
         Some(c) => {
@@ -407,7 +413,11 @@ fn handle_connection(
             Ok(Some(c))
         }
         None => {
-            write_response(stream, "400 Bad Request", &page("Sign-in failed: no code returned."));
+            write_response(
+                stream,
+                "400 Bad Request",
+                &page("Sign-in failed: no code returned."),
+            );
             Err("GitHub did not return an authorization code.".to_string())
         }
     }

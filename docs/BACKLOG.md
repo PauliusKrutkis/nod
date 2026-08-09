@@ -1303,8 +1303,15 @@ only format the in-app updater touches.
 
 ### Anytime — hygiene & design
 
-- [ ] 🟢 **P19** — Rust line-comment sweep (~25 `//` in
-      `src-tauri/src/`).
+- [x] 🟢 ~~**P19** — Rust line-comment sweep~~ — done, and the count in this
+      item was long stale: four `//` prose comments remained, not ~25, the
+      rest having gone with the modules they lived in. Three labelled the
+      library-path candidates in `lib.rs` and moved into that function's `///`
+      doc, which names the three distro layouts in probe order. The fourth
+      explained an assertion in `gitlab_tests.rs` and became the assertion's
+      own failure message, so it now reads out of a failing test rather than
+      only out of the source. The only `//` left in the backend is inside a
+      string literal.
 - [ ] 🟡 **P20** — Rich text editor design polish
       (composer + info-drawer form; visual-only). *Partially shipped with the
       composer cleanup PR: suggestion tool only renders with line context,

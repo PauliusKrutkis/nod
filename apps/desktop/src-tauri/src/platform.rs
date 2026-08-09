@@ -121,7 +121,8 @@ impl AnyPlatform {
         match self {
             AnyPlatform::GitHub(p) => p.resolve_thread(thread_id, resolved).await,
             AnyPlatform::GitLab(p) => {
-                p.resolve_thread(owner, repo, number, thread_id, resolved).await
+                p.resolve_thread(owner, repo, number, thread_id, resolved)
+                    .await
             }
         }
     }
@@ -205,9 +206,7 @@ impl AnyPlatform {
         filename: &str,
     ) -> Result<FileBlob, String> {
         match self {
-            AnyPlatform::GitHub(_) => {
-                Err("upload_blob is not supported for GitHub".to_string())
-            }
+            AnyPlatform::GitHub(_) => Err("upload_blob is not supported for GitHub".to_string()),
             AnyPlatform::GitLab(p) => p.upload_blob(owner, repo, secret, filename).await,
         }
     }

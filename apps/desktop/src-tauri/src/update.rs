@@ -32,7 +32,12 @@ pub struct UpdateInfo {
 fn iso_date(date: Option<time::OffsetDateTime>) -> Option<String> {
     date.map(|d| {
         let utc = d.to_offset(time::UtcOffset::UTC);
-        format!("{:04}-{:02}-{:02}", utc.year(), u8::from(utc.month()), utc.day())
+        format!(
+            "{:04}-{:02}-{:02}",
+            utc.year(),
+            u8::from(utc.month()),
+            utc.day()
+        )
     })
 }
 

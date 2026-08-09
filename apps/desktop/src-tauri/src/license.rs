@@ -71,9 +71,13 @@ struct SignedToken {
 #[serde(tag = "status", rename_all = "camelCase")]
 pub enum LicenseState {
     #[serde(rename_all = "camelCase")]
-    Licensed { updates_until: String },
+    Licensed {
+        updates_until: String,
+    },
     #[serde(rename_all = "camelCase")]
-    Trial { days_left: u64 },
+    Trial {
+        days_left: u64,
+    },
     TrialExpired,
 }
 
@@ -106,9 +110,12 @@ pub fn verify_license_token(token: &str, pubkey_hex: &str) -> Option<LicensePayl
     let signature_bytes: [u8; 64] = decode_hex(&signed.signature)?.try_into().ok()?;
     let key = VerifyingKey::from_bytes(&pubkey_bytes).ok()?;
 
-    key.verify(canonical.as_bytes(), &Signature::from_bytes(&signature_bytes))
-        .ok()
-        .map(|_| payload)
+    key.verify(
+        canonical.as_bytes(),
+        &Signature::from_bytes(&signature_bytes),
+    )
+    .ok()
+    .map(|_| payload)
 }
 
 pub fn trial_days_left(first_launch_secs: u64, now_secs: u64) -> u64 {

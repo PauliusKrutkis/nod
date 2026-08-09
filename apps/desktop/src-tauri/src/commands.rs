@@ -462,7 +462,9 @@ pub async fn get_upload_blob(
     filename: String,
 ) -> Result<FileBlob, String> {
     let (_, platform) = accounts::active_platform(&app).await?;
-    platform.upload_blob(&owner, &repo, &secret, &filename).await
+    platform
+        .upload_blob(&owner, &repo, &secret, &filename)
+        .await
 }
 
 #[tauri::command]

@@ -46,8 +46,8 @@ const READ_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[tauri::command]
 pub async fn activate_license(app: AppHandle) -> Result<LicenseState, String> {
-    let checkout_url = CHECKOUT_URL
-        .ok_or_else(|| "Purchasing isn't configured in this build.".to_string())?;
+    let checkout_url =
+        CHECKOUT_URL.ok_or_else(|| "Purchasing isn't configured in this build.".to_string())?;
     let pubkey = license::configured_pubkey()
         .ok_or_else(|| "License verification isn't configured in this build.".to_string())?;
 
@@ -142,7 +142,11 @@ fn handle_connection(stream: &mut TcpStream, pubkey: &str) -> Option<String> {
             None
         }
         None => {
-            write_response(stream, "400 Bad Request", &page("Missing activation token."));
+            write_response(
+                stream,
+                "400 Bad Request",
+                &page("Missing activation token."),
+            );
             None
         }
     }
