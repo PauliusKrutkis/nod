@@ -209,21 +209,27 @@ test("never runs more than one loop at a time down the whole page", async ({
   // page, so the sweep has to be fine enough to land inside it.
   await page.goto("/");
 
+  const playingCount = () =>
+    page.evaluate(
+      () =>
+        [...document.querySelectorAll<HTMLVideoElement>(".show video")].filter(
+          (v) => !v.paused
+        ).length
+    );
+
+  // Establish that playback happens at all before asserting a cap on it: a
+  // cap is satisfied trivially by a page where nothing ever plays, which is
+  // how the first version of this spec passed against the bug.
+  await page.locator(".show video").first().scrollIntoViewIfNeeded();
+  await expect.poll(playingCount).toBe(1);
+
   let mostAtOnce = 0;
   for (let percent = 0; percent <= 100; percent += 4) {
     await page.evaluate((p) => {
       scrollTo(0, (document.body.scrollHeight - innerHeight) * (p / 100));
     }, percent);
-    await page.waitForTimeout(60);
-    mostAtOnce = Math.max(
-      mostAtOnce,
-      await page.evaluate(
-        () =>
-          [
-            ...document.querySelectorAll<HTMLVideoElement>(".show video"),
-          ].filter((v) => !v.paused).length
-      )
-    );
+    await page.waitForTimeout(150);
+    mostAtOnce = Math.max(mostAtOnce, await playingCount());
   }
 
   expect(mostAtOnce).toBe(1);
