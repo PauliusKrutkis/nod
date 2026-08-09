@@ -464,10 +464,20 @@ Inline → Code view. PR-level → Info tab + badge. ⏸ Conversation mode.
       something is hidden (a count in the file header or the PR header is
       enough). Hidden must mean "I chose to hide 4 threads", never "this file
       has no discussion".
-      *Also decide when building:* whether the toggle hides **all** threads or
-      **resolved only**. Resolved-only is the safer default reading of the
-      complaint (resolved threads are noise by definition), but the request as
-      given is about the stub line itself, which both kinds leave.
+      *Decided 2026-08-09 (owner): **resolved only**.* Resolved threads are
+      noise by definition, so hiding them cannot cost a live conversation,
+      which is the failure this item already names. Hiding unresolved threads
+      would delete exactly the affordance the cursor-stop decision protects.
+      *Designed 2026-08-09, four calls open:*
+      [comment surfaces](https://claude.ai/code/artifact/40fb52af-e475-42bd-b06d-1e4ec27ec587)
+      draws the diff with three resolved stubs and without them, and puts the
+      standing signal in the **file** header as a count in the warning colour,
+      so "3 resolved hidden" is always on screen while anything is. Open:
+      where the toggle lives (recommend `shift+z` plus a palette entry, reading
+      as the plural of `z`), whether the state survives a restart (recommend
+      session only, matching noise files), whether the drawer hides them too
+      (recommend no, the drawer becomes the index of record), and whether a
+      restyled drawer row still only jumps (recommend yes).
 
 - [x] 🟢 Thread hotkeys — `r` reply / `x` resolve on the hovered or
       `q`-focused thread; hints fade in on the thread's own action buttons.
@@ -2284,6 +2294,19 @@ each carries an unresolved design question of its own, noted below.
       timestamp, and sit in a separate list from PR-level comments. Make
       them look like comments, and consider merging the two lists into one
       chronological feed.
+      *Decided 2026-08-09 (owner): **restyle the jump list, do not merge the
+      feeds.*** The complaint is that threads do not read as comments, and both
+      types already carry `user`, `userAvatarUrl` and `createdAt`, so this is a
+      rendering change with no data work. Merging would spend the
+      Conversation-mode decision, still deliberately deferred, on a styling
+      problem.
+      *Designed 2026-08-09:*
+      [comment surfaces](https://claude.ai/code/artifact/40fb52af-e475-42bd-b06d-1e4ec27ec587)
+      shows the row before and after: same data, same click target, same job,
+      but the person and what they said lead and the location becomes a chip
+      rather than a headline, picking up the avatar and timestamp treatment the
+      Conversation section directly above already uses. Reply and resolve stay
+      inline in the diff, per §5d.
       - **Not a data gap — a rendering choice.** Both `ReviewComment`
         (`types.ts:73`) and `IssueComment` (`types.ts:89`) already carry
         `user`, `userAvatarUrl` and `createdAt`, and `review-screen.tsx`
