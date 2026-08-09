@@ -2597,6 +2597,13 @@ quietly fixed.
       composer to and what plain `j` collapses back to.
       *Fix is visual, not behavioural:* give the cursor row one distinguishing
       mark that survives being inside the selection.
+      *Designed 2026-08-09:* [selection and ask](https://claude.ai/code/artifact/747ee589-888f-49d8-9cef-792fb9004046) puts the mark on the
+      **line number**, not the row: the row background is spoken for seven
+      times over (added, removed, selected, commented-on, find marks,
+      occurrence marks, intraline emphasis) and the number column carries
+      nothing but the number, which is already where the eye goes to answer
+      "which line". Accent colour plus weight on the number, and a glow on the
+      left edge the other selected rows do not get.
 - [ ] 🟡 **Code selection chips, usable by both the ask and the composer** —
       Cursor-style chips naming the code a request carries, attached to the
       input rather than implied by where it opened. Today the ask note has a
@@ -2609,6 +2616,14 @@ quietly fixed.
       given a comment can only ever post to **one** contiguous range on one
       side. Chips make sense immediately for the ask; for the composer they
       may promise something the hosts cannot accept.
+      *Designed 2026-08-09:* [selection and ask](https://claude.ai/code/artifact/747ee589-888f-49d8-9cef-792fb9004046) answers it — **the
+      chip's look on both surfaces, the chip's behaviour only on the ask.**
+      A comment posts to exactly one contiguous range on one side, which is
+      what `start_line`/`line` and GitLab's `line_range` express and why the
+      fat cursor is one-side in the first place, so a plus button on a comment
+      box would offer something neither host accepts and would fail at submit
+      time. The composer keeps a single non-removable chip; the ask gets
+      several, capped, with the cap visible.
 - [ ] 🟡 ❓ **Revisit: should the ask and the comment composer be one surface?**
       — decided *no* on 2026-08-08 on the grounds that posted threads, pending
       comments and AI answers are three deliberately distinct materials, and
@@ -2620,6 +2635,17 @@ quietly fixed.
       (#232), so the strongest practical argument for merging is gone. What
       remains is the ergonomic one, which is real: two inputs, two hotkeys and
       two skins for "write something about these lines".
+      *Designed 2026-08-09:* [selection and ask](https://claude.ai/code/artifact/747ee589-888f-49d8-9cef-792fb9004046) draws both options.
+      **Recommendation: stay separate, and close most of the gap with chips.**
+      The cost of merging, stated concretely rather than as principle: an AI
+      answer and a box whose primary button posts to the host would share one
+      frame, one border and one input, so the failure is pressing `⌘↵` out of
+      habit while the Ask tab holds a paragraph you have not read properly, or
+      reading a draft back tomorrow unsure which half you wrote. Once both
+      inputs name their context the same way they already feel like one family
+      without sharing a frame. If the ergonomic complaint survives chips
+      landing, that is real evidence for merging and the tabbed frame is drawn
+      — but it is the one change here that cannot be undone quietly.
 - [ ] 🟡 **Commercial use — say plainly what a company may do** — the licence
       is FSL-1.1-Apache-2.0 and the README explains it correctly ("read it,
       build it, change it, use it internally… the one thing you may not do is
