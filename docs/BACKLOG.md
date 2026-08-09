@@ -1772,14 +1772,19 @@ wanted instead of a quick win.
       couldn't be posted" review. *Recommendation: surface them*, always; a
       review tool that loses your writing is worse than one that cannot work
       offline.
-- [ ] 🟢 **"Author responded" notifications** — `review-notifier.tsx` fires
+- [x] 🟢 **"Author responded" notifications** — `review-notifier.tsx` fired
       only on `reviewRequested` (`data.reviewRequested.prs`), so the app
-      announces work arriving but never announces **your** review being
-      addressed: the author pushed after you requested changes, or replied to
-      your thread. That is the higher-signal event and the one most likely to
-      be dropped, because nothing pulls you back. Cheapest item here that
-      changes daily behaviour — the polling, the toast and the seen-set
-      persistence all exist; this adds a second source to the same notifier.
+      announced work arriving but never announced **your** review being
+      addressed. It now has a second source: a PR you did not write whose
+      newest `lastComment` is from its own author, deduped on that comment's
+      `createdAt` so a second reply announces again and a repeat poll does not.
+      **Partial by data limit** — the inbox payload cannot show a push (list
+      items carry no `headSha`) or a reply inside a review thread
+      (`lastComment` is conversation comments only), and GitLab never fills
+      `lastComment` at all. Covering those needs the list query to carry
+      `headSha` plus the newest review-thread comment (author + timestamp);
+      `updatedAt` is not a substitute, since labels, CI and your own actions
+      all move it.
 - [ ] 🟡 **Cost-to-review estimate in the inbox** — a quiet "~4 min" / "~40
       min" on each row, from changed lines, file count, test-vs-source ratio
       and generated share. Reviewers procrastinate partly because they cannot

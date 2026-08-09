@@ -4,7 +4,9 @@
  * to be small: an unbreakable token, a machine account's name, and a PR
  * number long past six digits. The "+N more" line has its own boundary —
  * absent at 0, singular at 1, plural above — and each is pinned, because the
- * pluralisation is the kind of thing a refactor silently inverts.
+ * pluralisation is the kind of thing a refactor silently inverts. The reply
+ * face repeats that boundary on its own noun ("reply"/"replies"), since it
+ * pluralises separately from "review request".
  */
 import { defineEntry } from "../fixtures/fixtures.ts";
 import { type ReviewRequest, ReviewToast } from "./review-toast.tsx";
@@ -86,6 +88,32 @@ export const reviewToastEntry = defineEntry(ReviewToast, {
         author: "a-very-long-machine-account-name-for-continuous-delivery",
         title: `Bump ${UNBREAKABLE}`,
       }),
+    },
+  },
+  reply: {
+    props: {
+      kind: "response" as const,
+      onDismiss: noop,
+      onOpen: noop,
+      request: request({ author: "alice", title: "Tighten the retry backoff" }),
+    },
+  },
+  "reply-many": {
+    props: {
+      extraCount: 9,
+      kind: "response" as const,
+      onDismiss: noop,
+      onOpen: noop,
+      request: request({ author: "alice", title: "Tighten the retry backoff" }),
+    },
+  },
+  "reply-one-more": {
+    props: {
+      extraCount: 1,
+      kind: "response" as const,
+      onDismiss: noop,
+      onOpen: noop,
+      request: request({ author: "alice", title: "Tighten the retry backoff" }),
     },
   },
   rtl: {

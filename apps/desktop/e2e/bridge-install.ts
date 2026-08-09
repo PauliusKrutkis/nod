@@ -281,6 +281,7 @@ export function installBridge(cfg: BridgeConfig) {
         ? { accounts: [cfg.account], activeId: cfg.account.id }
         : { accounts: [], activeId: null },
     list_inbox: () => {
+      countCall("list_inbox");
       const result = seq(cfg.inboxByCall, inboxCalls, cfg.inbox);
       inboxCalls += 1;
       return result;

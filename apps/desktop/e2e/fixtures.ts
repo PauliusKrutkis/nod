@@ -521,6 +521,35 @@ export const INBOX_UPDATED = {
 };
 
 /**
+ * INBOX plus one Involved PR that alice wrote and someone has just commented
+ * on. `commentAuthor` decides whether that comment is the author answering a
+ * review ("alice") or the viewer's own reply ("me"), and `createdAt` is what
+ * the notifier dedupes on, so serving two of these with different timestamps
+ * models a second reply on the same PR.
+ */
+export const inboxWithReply = (
+  commentAuthor: string,
+  createdAt: string
+): InboxFixture => ({
+  ...INBOX,
+  involved: {
+    count: 1,
+    prs: [
+      {
+        ...makePr(5, "Tighten the retry backoff", "alice", createdAt),
+        commentsCount: 3,
+        lastComment: {
+          author: commentAuthor,
+          authorAvatarUrl: "",
+          body: "Pushed the change you asked for.",
+          createdAt,
+        },
+      },
+    ],
+  },
+});
+
+/**
  * A synthetic large PR for the performance specs: `fileCount` files of one
  * `lines`-row hunk each, row text supplied by `lineAt` so each spec controls
  * where its needle tokens land. Kept in fixtures so every perf test measures
