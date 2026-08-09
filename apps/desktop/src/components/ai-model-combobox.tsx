@@ -62,13 +62,16 @@ function contextChip(contextLength: number | null): string {
 function buildRows(models: AiModel[], query: string): ModelRow[] {
   const trimmed = query.trim();
   const needle = trimmed.toLowerCase();
-  const matches = models
-    .filter((m) => m.id.toLowerCase().includes(needle))
-    .map((m) => ({
-      contextLength: m.contextLength,
-      freeText: false,
-      id: m.id,
-    }));
+  const matches: ModelRow[] = [];
+  for (const m of models) {
+    if (m.id.toLowerCase().includes(needle)) {
+      matches.push({
+        contextLength: m.contextLength,
+        freeText: false,
+        id: m.id,
+      });
+    }
+  }
   if (!trimmed || models.some((m) => m.id === trimmed)) {
     return matches;
   }
