@@ -27,6 +27,10 @@
  * suggestion card and serialized to the ```suggestion fence both hosts apply
  * natively. The caret lands at the end of the prefilled line — nothing
  * pre-selected, it edits like code.
+ *
+ * Taking focus also announces this editor to the composer registry, so a host
+ * picker can insert into the box the reviewer was last writing in even after
+ * the dialog has taken DOM focus away from it.
  */
 import { type Editor, Extension, type Extensions } from "@tiptap/core";
 import { Placeholder } from "@tiptap/extensions";
@@ -44,11 +48,16 @@ import {
   type ChangeEvent,
   type KeyboardEvent,
   type Ref,
+  useEffect,
   useImperativeHandle,
   useInsertionEffect,
   useState,
 } from "react";
 import { cn } from "../cn/cn.ts";
+import {
+  forgetComposer,
+  rememberComposer,
+} from "../composer-registry/composer-registry.ts";
 import { Tooltip } from "../tooltip/tooltip.tsx";
 import "./composer-editor.css";
 
@@ -278,8 +287,11 @@ export function ComposerEditor({
       ComposerKeys,
       ...(extensions ?? []),
     ],
+    onFocus: ({ editor: e }) => rememberComposer(e),
     onUpdate: ({ editor: e }) => HANDLERS.get(e)?.emptyChange(e.isEmpty),
   });
+
+  useEffect(() => () => forgetComposer(editor), [editor]);
 
   const insertSuggestion = () => {
     const line = suggestionText ?? "";

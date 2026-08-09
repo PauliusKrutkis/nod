@@ -855,6 +855,49 @@ textarea.q-input {
   }
 }
 
+/* canned comments dialog */
+.q-dialog.qn-panel {
+  width: min(480px, calc(100vw - 32px));
+  padding: 0;
+}
+.qn-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  color: var(--fg);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+.qn-row-on {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+.qn-row-armed {
+  background: var(--surface-hi);
+  border-color: var(--line-2);
+}
+.qn-pick {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+.qn-pick:disabled {
+  cursor: default;
+}
+.q-btn.qn-done-armed {
+  color: var(--fg);
+  background: var(--surface-hi);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+
 .qb-toast {
   position: relative;
   display: flex;

@@ -4,6 +4,7 @@ import {
   Command as CommandIcon,
   HelpCircle,
   History,
+  MessageSquareQuote,
   Search,
   Sparkles,
   Ticket,
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AiSetupLoader } from "./components/ai-setup-loader.tsx";
+import { CannedCommentsDialog } from "./components/canned-comments-dialog.tsx";
 import { CommandPaletteCommands } from "./components/command-palette-commands.tsx";
 import { GlobalSearch } from "./components/global-search.tsx";
 
@@ -50,6 +52,7 @@ export default function App() {
   const closeAiSetup = useAppStore((s) => s.closeAiSetup);
   const [trackerOpen, setTrackerOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [cannedOpen, setCannedOpen] = useState(false);
 
   const dismissToast = () => {
     setToast(null);
@@ -62,6 +65,9 @@ export default function App() {
   };
   const closeHistory = () => {
     setHistoryOpen(false);
+  };
+  const closeCanned = () => {
+    setCannedOpen(false);
   };
   const runToastAction = () => {
     toast?.action?.();
@@ -161,6 +167,14 @@ export default function App() {
         icon: HelpCircle,
         keys: "?",
         run: () => useAppStore.getState().toggleHelp(),
+      },
+      {
+        description: "Canned comments…",
+        global: true,
+        group: "Comments",
+        icon: MessageSquareQuote,
+        keys: "mod+;",
+        run: () => setCannedOpen(true),
       },
       {
         description: "Search pull requests",
@@ -302,6 +316,7 @@ export default function App() {
         )}
       </div>
 
+      <CannedCommentsDialog onClose={closeCanned} open={cannedOpen} />
       <IssueTrackerSettings onClose={closeTracker} open={trackerOpen} />
       <AiSetupLoader onClose={closeAiSetup} open={aiSetupOpen} />
       <ReleaseHistoryLoader onClose={closeHistory} open={historyOpen} />

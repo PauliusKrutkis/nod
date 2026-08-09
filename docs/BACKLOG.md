@@ -1790,13 +1790,16 @@ wanted instead of a quick win.
       would be actively misleading. Keep the unit honest (a range, or a
       three-step small/medium/large) — a false precise minute count invites
       exactly one complaint, that it was wrong.
-- [ ] 🟢 **Canned comments on a key** — reviewers type the same sentences
+- [x] 🟢 **Canned comments on a key** — reviewers type the same sentences
       forever ("nit: naming", "needs a test", "prefer an early return").
       A short user-editable list, insertable into the composer from a key or
       the palette. Trivial to build, maximally on-brand for a keyboard-first
       app, and it compounds with the rich composer already shipped.
       *Scope note:* store per-user, not per-repo, and keep them plain text —
       the moment they take variables they become a template language.
+      *Shipped:* `mod+;` (and the palette) opens one dialog that both picks
+      and edits; the list lives in localStorage under `nod:cannedComments:v1`,
+      seeded with six defaults you can delete.
 - [ ] 🟢 **Mark a hunk for follow-up** — "I'll come back to this" is a thought
       reviewers have constantly and no tool captures. A personal flag on a row
       that survives the session, listed in the info drawer and steppable from

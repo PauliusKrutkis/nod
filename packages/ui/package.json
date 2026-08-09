@@ -20,6 +20,7 @@
     "./comment-thread": "./src/comment-thread/comment-thread.tsx",
     "./comment-tools": "./src/comment-tools/comment-tools.tsx",
     "./composer-editor": "./src/composer-editor/composer-editor.tsx",
+    "./composer-registry": "./src/composer-registry/composer-registry.ts",
     "./diff-row": "./src/diff-row/diff-row.tsx",
     "./file-section-header": "./src/file-section-header/file-section-header.tsx",
     "./file-sidebar": "./src/file-sidebar/file-sidebar.tsx",

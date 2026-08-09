@@ -71,4 +71,4 @@ export const CONTAINERS: Record<string, string> = {
     "detail-query payloads, the comment mutations, store reads for trackerBase and ownLogin, the app's Markdown pipeline, the Tauri opener and jump-to-thread routing; its view is pr-drawer, catalogued in @nod/ui",
 };
 
-export const PENDING: string[] = [];
+export const PENDING = ["canned-comments-dialog"];
