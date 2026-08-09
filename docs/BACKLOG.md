@@ -1765,6 +1765,11 @@ revisited. See [AI.md § Position](./AI.md#position-2026-08-05). They stay parke
 for ordinary product reasons: ask-about-this-code should prove itself first, and
 each carries an unresolved design question of its own, noted below.
 
+*Designed 2026-08-09 — [AI surfaces beyond ask](https://claude.ai/code/artifact/0f96527d-d944-47fd-a273-3f7c5d3503c9).* The open questions were
+answerable on paper, so they are answered there and summarised per item below.
+Designing them commits to nothing; it makes the decision cheap when
+ask-about-code has proved itself.
+
 - [ ] ❓ **Review-by-prompt → inline comments** — point the AI at the PR with a
       prompt (or one of the repo's skills, e.g. `pr-validity`) and have it
       produce findings **as the same inline comment objects you write by hand**,
@@ -1779,7 +1784,15 @@ each carries an unresolved design question of its own, noted below.
       visually distinct *after* you accept them (once posted they carry your
       name and your credibility, not the model's), what happens to the ones you
       ignore, and whether a bad batch is cheap enough to discard that the
-      feature stays worth invoking. Answer those before scoping.
+      feature stays worth invoking.
+      *Answered 2026-08-09 in the mock:* suggestions are a **fourth comment
+      material** (dashed, warning-edged, "not yours yet") and become
+      **indistinguishable the moment you accept** — accepting is vouching, and
+      a permanent AI badge would let you post something you did not stand
+      behind while pointing the author's reply at a model rather than at you.
+      Anything neither accepted nor edited **does not persist** past leaving
+      the PR, and "discard all" is one action, because a lingering batch is a
+      second inbox nobody asked for.
 - [ ] ❓ **Code diff layers — grouped changes with a summary** — group related
       hunks across files into labelled layers ("auth wiring", "test fixtures",
       "formatting") with a one-line summary each, so a 40-file PR can be read
@@ -1790,6 +1803,13 @@ each carries an unresolved design question of its own, noted below.
       key off file order today, so a second ordering is a real architectural
       commitment, not a view toggle. An annotate-only first cut (badges + a
       drawer index) tests the idea for a fraction of the cost.
+      *Answered 2026-08-09 in the mock:* **annotate only.** File order is
+      load-bearing in four places at once — the review list, the viewed map,
+      `e`/`r`/`t` ordering and resume-scroll — so a second ordering means a
+      second answer to "which file is next" everywhere, and yesterday's resume
+      position would point somewhere else. The drawer index is where 40 files
+      become five intentions and costs nothing structurally; people living in
+      it is the evidence that reordering is worth the bill.
 - [ ] ❓ **Change heat map — rank hunks by importance** — tint or badge hunks
       by how much they matter, so attention lands on the risky change rather
       than the 200-line lockfile.
@@ -1803,6 +1823,16 @@ each carries an unresolved design question of its own, noted below.
       and the comment iris already compete for the same pixels (see the
       three-layer constraint in **Theme selection**), so "just tint it" has no
       free channel left.
+      *Answered 2026-08-09 in the mock:* heat **adds emphasis and never
+      subtracts it** — nothing is tinted down, greyed, collapsed or reordered
+      by heat, because the failure mode is not "the wrong hunk was highlighted"
+      but "the right hunk was dimmed", and only the first is recoverable. With
+      no free colour channel it takes a **gutter bar**, which now collides with
+      the follow-up flag wanting the same column; whichever ships second
+      inherits that. The non-AI baseline should be tried as the whole feature
+      rather than a stepping stone: it can print *why* a hunk is hot, and if
+      the arithmetic version is not trusted, a model will not fix that, it will
+      make the wrongness harder to argue with.
 
 ---
 
