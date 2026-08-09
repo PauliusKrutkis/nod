@@ -2114,10 +2114,18 @@ each carries an unresolved design question of its own, noted below.
       the review header already renders them as two `BranchChip`s either side
       of a `←`. That header is the natural home — the stack fact is *about*
       the base branch, so it belongs next to the base chip.
-      *The blocker is data, not UI.* `pr_from_graphql` hardcodes
-      `head_ref`/`base_ref` to empty strings and `FRAGMENT_P` never requests
-      them, so **GitHub inbox PRs carry no refs at all** and the
-      "A.baseRef === B.headRef" join is impossible there. GitLab's
+      *The data blocker is gone (verified 2026-08-09).* This item used to say
+      `pr_from_graphql` hardcoded `head_ref`/`base_ref` to empty strings and
+      `FRAGMENT_P` never requested them. Both are fixed: the fragment asks for
+      `headRefName baseRefName` and `pr_from_graphql` maps them, which landed
+      with the branch-in-search work in §6. The
+      "A.baseRef === B.headRef" join works on GitHub today, so this is a UI
+      item now.
+      *Designed 2026-08-09:* [inbox signals](https://claude.ai/code/artifact/07c84893-b1f5-4b38-b087-5dc84e076ce7) puts the chip beside the
+      **base** chip in the review header, since the stack fact is about the
+      base branch, and names the one base it found rather than a position in a
+      chain, because a count would be a completeness claim the data cannot
+      make. Historical note follows. GitLab's
       `mr_to_pr` already fills both. Fix is ~3 lines: add
       `headRefName baseRefName` to the fragment and stop blanking them. Do
       this first — it is cheap, needs no extra request, and also unblocks
@@ -2417,7 +2425,12 @@ each carries an unresolved design question of its own, noted below.
       is a query change plus a result-source merge, not new plumbing. Keep open
       PRs ranked above closed ones so the common case doesn't get diluted, and
       mark closed/merged hits visibly in the row — opening one should not feel
-      like the app lost track of state. Pairs with **branch name in search**
+      like the app lost track of state.
+      *Designed 2026-08-09:* [inbox signals](https://claude.ai/code/artifact/07c84893-b1f5-4b38-b087-5dc84e076ce7) groups the results under an
+      **open** heading and a **merged and closed** heading rather than relying
+      on a per-row chip alone. The grouping is what protects the common case,
+      so no search qualifier is needed and the archive stays discoverable; the
+      chip still rides each row for when the list is scrolled out of context. Pairs with **branch name in search**
       (§6), which already landed the extra match field.
 - [ ] 🟢 **Scroll to a just-added Info-tab comment** — posting a PR-level
       comment from the drawer leaves it below the fold, so the comment you just
@@ -2517,6 +2530,12 @@ wanted instead of a quick win.
       would be actively misleading. Keep the unit honest (a range, or a
       three-step small/medium/large) — a false precise minute count invites
       exactly one complaint, that it was wrong.
+      *Designed 2026-08-09:* [inbox signals](https://claude.ai/code/artifact/07c84893-b1f5-4b38-b087-5dc84e076ce7) draws the row with and
+      without the estimate, and commits to **words on a three-step scale**
+      rather than minutes, because a coarse word cannot be wrong the way a
+      number can. It also makes the sequencing argument visible: the mock's
+      dependency-bump row reads as the largest review in the queue today and
+      is actually the smallest, 43 real lines against 1,604 generated.
 - [ ] 🟢 **Canned comments on a key** — reviewers type the same sentences
       forever ("nit: naming", "needs a test", "prefer an early return").
       A short user-editable list, insertable into the composer from a key or
