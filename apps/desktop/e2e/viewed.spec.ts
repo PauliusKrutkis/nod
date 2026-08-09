@@ -181,6 +181,64 @@ test("e wraps back to unviewed files left behind, then stops when none are left"
   await page.screenshot({ path: "evidence/eskip-all-viewed-stays-put.png" });
 });
 
+test("e on the last file wraps past viewed files to the first unviewed one", async ({
+  page,
+}) => {
+  await setupApp(page);
+  await expect(page.getByRole("option").first()).toBeVisible();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
+
+  await page.keyboard.press("v");
+  await expect(page.locator(".qf-side-count")).toHaveText("1/3 viewed");
+
+  await page.keyboard.press("r");
+  await page.keyboard.press("r");
+  await expect(page.locator(".qf-file-active")).toHaveAttribute(
+    "data-file-index",
+    "2"
+  );
+
+  await page.keyboard.press("e");
+  await expect(page.locator(".qf-side-count")).toHaveText("2/3 viewed");
+  await expect(page.locator(".qf-file-active")).toHaveAttribute(
+    "data-file-index",
+    "1"
+  );
+  await expect(page.locator(".qf-row-active")).toHaveAttribute(
+    "data-file-index",
+    "1"
+  );
+});
+
+test("v marks the last file viewed and stays on it", async ({ page }) => {
+  await setupApp(page);
+  await expect(page.getByRole("option").first()).toBeVisible();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
+
+  await page.keyboard.press("r");
+  await page.keyboard.press("r");
+  await expect(page.locator(".qf-file-active")).toHaveAttribute(
+    "data-file-index",
+    "2"
+  );
+
+  await page.keyboard.press("v");
+  await expect(page.locator(".qf-side-count")).toHaveText("1/3 viewed");
+  await expect(page.locator(".qf-file-active")).toHaveAttribute(
+    "data-file-index",
+    "2"
+  );
+
+  await page.keyboard.press("v");
+  await expect(page.locator(".qf-side-count")).toHaveText("0/3 viewed");
+  await expect(page.locator(".qf-file-active")).toHaveAttribute(
+    "data-file-index",
+    "2"
+  );
+});
+
 test.describe("path copy", () => {
   test.use({ permissions: ["clipboard-read", "clipboard-write"] });
 

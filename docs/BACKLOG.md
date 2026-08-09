@@ -2183,12 +2183,19 @@ each carries an unresolved design question of its own, noted below.
 
 ## Inbox (2026-07-30)
 
-- [ ] 🟢 **Viewing the last file should jump to the first unviewed one** —
-      marking the final file in order as viewed leaves you parked at the end
-      of the PR; it should wrap to the first still-unviewed file so the
-      review keeps flowing. The `e` entry in Wave 2 claims this wrap already
-      ships — reproduce first and decide whether this is a regression in `e`
-      or the same gap on `v` (toggle viewed), which never wrapped.
+- [x] 🟢 **Viewing the last file should jump to the first unviewed one** —
+      **done**; no code change, `e` was the wrong suspect and is not
+      regressed. Marking the final file with `e` already walks forward, wraps
+      past the end and lands on the first file still unviewed, skipping any
+      it has already ticked; it only stays put when every file is viewed,
+      which is the Wave 2 decision (parking on a viewed file would let the
+      next `e` silently unmark it). Now pinned by a spec that views file 0,
+      moves to the last file and presses `e`, so the wrap has to step over a
+      viewed file to land on file 1. The gap on `v` is real and stays: `v` is
+      the plain toggle, so a second `v` undoes the first, and that undo is
+      impossible if the key carries you off to another file. `e` is the key
+      that keeps the review flowing, `v` is the key that marks one file. A
+      second spec pins that too.
 - [x] 🟢 **Inbox `1`/`2`/`3` should address the visible tabs** — **done**;
       the digits are now positional over the *visible* tabs, so `1` is the
       leftmost tab on the bar and a digit can never summon an empty tab out
