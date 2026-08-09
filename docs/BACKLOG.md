@@ -2627,10 +2627,27 @@ quietly fixed.
       a company actually asks before expensing anything: *may we use this at
       work, and do we need a licence per person?* Today that answer exists only
       in a licence file and in the team-tier email line.
+      *Designed 2026-08-09:* [what the site does not answer](https://claude.ai/code/artifact/d1ee88fd-f91d-4b96-b451-f94254f09031) drafts five
+      plain answers as a section on the **about page**, not a new route, since
+      about already carries the privacy answer and that is half the same
+      conversation. Each row answers directly and then points at
+      `LICENSE.md` rather than paraphrasing terms that could drift from the
+      text. The one to be careful with is per-person licensing: it is a real
+      commitment about how the product is sold, so it states what is true
+      today and links to the team route rather than inventing terms in a FAQ.
 - [ ] 🟢 **Feature catalog** — the landing page argues a thesis and shows three
       loops; there is no page that simply lists what the app does. That is the
       page people link to, search, and check before downloading, and it is also
       what a "what's changed since I last looked" visitor wants.
+      *Designed 2026-08-09:* [what the site does not answer](https://claude.ai/code/artifact/d1ee88fd-f91d-4b96-b451-f94254f09031) drafts
+      `/features` grouped by the loop — triage, read, comment, trust it —
+      because that is the order a reviewer moves through and the order the
+      landing page already argues in; a list organised by subsystem would be a
+      changelog with headings. **The anti-staleness rule is the important
+      part:** nothing on the page that cannot be verified by opening the app.
+      No counts, no version numbers, no "new" badges, nothing roadmap-shaped.
+      The shortcut table stays out deliberately — the app owns it behind `?`,
+      it changes most often, and duplicating it guarantees the two disagree.
 
 ---
 
