@@ -1,7 +1,7 @@
 import { Check, Eye, Search, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useArmedRing } from "../../hooks/use-armed-ring.ts";
-import { useLatest } from "../../hooks/use-latest.ts";
+import { useCoalescedWrite } from "../../hooks/use-coalesced-write.ts";
 import { useModalDialog } from "../../hooks/use-modal-dialog.ts";
 import { useWatchedRepos } from "../../hooks/use-subscribed.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
@@ -147,9 +147,6 @@ function WatchReposDialogContent({ onClose }: { onClose: () => void }) {
   const listRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<number | null>(null);
   const requestSeq = useRef(0);
-  const pendingWriteRef = useRef<string[] | null>(null);
-  const writeTimerRef = useRef<number | null>(null);
-  const mountedRef = useRef(true);
 
   const trimmedInput = input.trim();
   const searchActive = trimmedInput.length >= 2;
@@ -162,40 +159,15 @@ function WatchReposDialogContent({ onClose }: { onClose: () => void }) {
     (searchResult?.forQuery !== trimmedInput || searchResult.searching);
   const repoSet = new Set(repos);
 
-  const flushWatchedRepos = () => {
-    const updatedRepos = pendingWriteRef.current;
-    if (updatedRepos === null) {
-      return;
-    }
-    pendingWriteRef.current = null;
-    api
-      .setWatchedRepos(updatedRepos)
-      .then(() => {
+  const syncWatchedRepos = useCoalescedWrite<string[]>({
+    delayMs: WRITE_DEBOUNCE_MS,
+    onSettled: () => setOptimisticRepos(null),
+    write: (updatedRepos) =>
+      api.setWatchedRepos(updatedRepos).then(() => {
         queryClient.setQueryData(queryKeys.watchedRepos, updatedRepos);
         queryClient.invalidateQueries({ queryKey: queryKeys.subscribed });
-      })
-      .catch(() => {
-        /* ignore */
-      })
-      .finally(() => {
-        if (mountedRef.current && pendingWriteRef.current === null) {
-          setOptimisticRepos(null);
-        }
-      });
-  };
-
-  const flushWatchedReposRef = useLatest(flushWatchedRepos);
-
-  const syncWatchedRepos = (updatedRepos: string[]) => {
-    pendingWriteRef.current = updatedRepos;
-    if (writeTimerRef.current) {
-      window.clearTimeout(writeTimerRef.current);
-    }
-    writeTimerRef.current = window.setTimeout(
-      flushWatchedRepos,
-      WRITE_DEBOUNCE_MS
-    );
-  };
+      }),
+  });
 
   const stopWatching = (repo: string) => {
     const next = repos.filter((x) => x !== repo);
@@ -243,17 +215,6 @@ function WatchReposDialogContent({ onClose }: { onClose: () => void }) {
       watch,
     });
   };
-
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      if (writeTimerRef.current) {
-        window.clearTimeout(writeTimerRef.current);
-      }
-      flushWatchedReposRef.current();
-    };
-  }, [flushWatchedReposRef]);
 
   useEffect(() => {
     if (armed === null) {
