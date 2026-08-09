@@ -1083,7 +1083,16 @@ only format the in-app updater touches.
       was the *larger* value, so tall windows now cap lower (640px vs 840px
       at 1200px tall). That is the point — parity with the palette — but it
       is a reduction there, not a pure gain.
-- [ ] 🟢 **GitHub org OAuth restrictions** — `[nod] API error 403` when an org
+- [ ] 🟢 **GitHub org OAuth restrictions** — *designed 2026-08-09:*
+      [account states](https://claude.ai/code/artifact/55396e44-27c2-4877-b1bb-ebf25acb4277) rewrites the surface from a raw 403 into a named
+      sentence: "acme has not approved Nod yet", what an admin has to do, and
+      a link. It also recommends **parsing the org name out of GitHub's own
+      text with a fallback to the generic sentence**, since a named org turns
+      "something is blocked" into an action a person can take, and the fallback
+      means a reword on their side degrades rather than breaks. Note this item
+      shares a root cause with "private repos don't show up" below, which is
+      the same restriction with no error at all.
+      Original: `[nod] API error 403` when an org
       (e.g. Decodo) enables OAuth App access restrictions; surface a clear
       in-app message with the GitHub docs link and what the admin must allow.
       *Diagnosis (2026-07-30).* The message is built in `http.rs` as
@@ -1604,6 +1613,11 @@ shared `useAutoFocus(ref)` hook, or the native `autoFocus` attribute where no
       the pricing card and README both invite team buyers to email
       hello@nodreview.com, which doubles as the demand signal for whether to
       build it at all.
+      *Designed 2026-08-09:* [account states](https://claude.ai/code/artifact/55396e44-27c2-4877-b1bb-ebf25acb4277) draws the team card so the
+      shape is ready, and says plainly **not to build it before the mailbox
+      says to**. The email path is the cheapest possible experiment: if nobody
+      writes, a team tier is a checkout integration plus an org-subject model
+      built for an audience that does not exist.
 
 - [ ] 🟢 **Launch discount, $59 → $39.** Polar discount code, time- or
       count-limited, announced in the launch posts. Anchors the real price
@@ -1983,6 +1997,15 @@ each carries an unresolved design question of its own, noted below.
 
 - [ ] **Private repos don't show up** — on certain setups (org restrictions,
       token scopes, etc.) private repos may be missing from the list.
+      *Designed 2026-08-09:* [account states](https://claude.ai/code/artifact/55396e44-27c2-4877-b1bb-ebf25acb4277) treats this as the **silent
+      half of the 403 above**, and the dangerous one: with `repo` granted but
+      the app unapproved, GitHub omits that org's private repos with no error
+      to catch, so the app cannot detect it and cannot raise one. The design
+      therefore puts the explanation **where the confusion happens** rather
+      than where an error would go: a quiet hint at the end of a short inbox,
+      and in the watch dialog's empty search state. It is a hint, never an
+      alert, because most short inboxes are simply short and an alert would cry
+      wolf for everyone with two open reviews.
       *Investigation (2026-07-30) — ruled OUT:* the OAuth scope is already
       `repo read:org` (`auth.rs`), the GraphQL searches carry **no**
       visibility qualifier or owner filter, and there is no client-side
@@ -2571,7 +2594,16 @@ wanted instead of a quick win.
       *Shape:* a `mod+k` command ("Activate my license" / "Check my license")
       that works in **every** license state, not just expired, wired to the
       existing `activate_license` command — the loopback listener and the
-      token verification are already built and need no changes. Consider also
+      token verification are already built and need no changes.
+      *Designed 2026-08-09:* [account states](https://claude.ai/code/artifact/55396e44-27c2-4877-b1bb-ebf25acb4277) puts **two** palette
+      entries against one destination — "Activate my licence" and "Check my
+      licence" — because two searchable phrasings cost nothing and catch both
+      mental models, which is exactly what a single gated surface fails at.
+      The in-panel action reads **"I already bought this"**, which is what the
+      person actually thinks, where "Activate" assumes they know there is
+      something to activate. Recommendation on the card: leave it silent during
+      evaluation. Prompting to buy and answering a question the user already
+      has are different jobs, and only the second belongs in that window. Consider also
       showing licence state somewhere permanent so "check my license" has an
       answer, and revisit whether `PurchasePrompt`'s `trialExpired`-only gate
       is still right once a palette entry exists.
