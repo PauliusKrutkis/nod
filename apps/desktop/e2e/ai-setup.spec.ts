@@ -194,3 +194,21 @@ test("saving a replacement key hands the keyboard back to the picker", async ({
   await page.keyboard.press("Tab");
   await expect(dialog.getByRole("status")).toContainText("replace key");
 });
+
+test("a provider that will not list models says so, not that there are none", async ({
+  page,
+}) => {
+  await setupApp(page, {
+    ...CONFIGURED,
+    aiModelsError: "provider unreachable",
+  });
+  await openReview(page);
+  const dialog = await openSetupFromPalette(page);
+
+  await expect(
+    dialog.getByText("Could not reach the provider to list models.", {
+      exact: false,
+    })
+  ).toBeVisible();
+  await expect(dialog.getByText("No chat models found")).toHaveCount(0);
+});

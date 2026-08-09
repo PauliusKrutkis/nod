@@ -238,7 +238,8 @@ function AiSetupDialogContent({
     requestAnimationFrame(() => modelRef.current?.focus());
   };
 
-  const error = saveKey.error ?? saveModel.error ?? removeKey.error ?? null;
+  const error =
+    saveKey.error ?? saveModel.error ?? removeKey.error ?? models.error ?? null;
   const enterLabel = armedEnterLabel(armed, removeArmed);
 
   return (
@@ -287,6 +288,7 @@ function AiSetupDialogContent({
 
         {showSaved && (
           <ModelField
+            failed={models.isError}
             loading={models.isPending}
             model={model}
             models={models.data ?? []}
@@ -441,6 +443,7 @@ function SavedConnection({
 }
 
 function ModelField({
+  failed,
   loading,
   model,
   models,
@@ -448,6 +451,7 @@ function ModelField({
   onPick,
   ref,
 }: {
+  failed: boolean;
   loading: boolean;
   model: string | null;
   models: AiModel[];
@@ -479,19 +483,28 @@ function ModelField({
         ))}
       </select>
       <span className="text-[11px] text-faint">
-        {modelHint(loading, models.length, selected)}
+        {modelHint({ count: models.length, failed, loading, selected })}
       </span>
     </div>
   );
 }
 
-function modelHint(
-  loading: boolean,
-  count: number,
-  selected: AiModel | undefined
-): string {
+function modelHint({
+  count,
+  failed,
+  loading,
+  selected,
+}: {
+  count: number;
+  failed: boolean;
+  loading: boolean;
+  selected: AiModel | undefined;
+}): string {
   if (loading) {
     return "Loading the models this key can reach.";
+  }
+  if (failed) {
+    return "Could not reach the provider to list models. You can still type a model id.";
   }
   if (count === 0) {
     return "No chat models found for this key.";

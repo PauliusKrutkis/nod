@@ -24,6 +24,7 @@ export interface AppOptions {
   };
   aiAnswer?: string | "error";
   aiModels?: { id: string; contextLength: number | null }[];
+  aiModelsError?: string;
   detailByCall?: unknown[];
   detailByLoad?: unknown[];
   detailByNumber?: Record<number, unknown>;
@@ -65,6 +66,7 @@ function aiDefaults(opts: AppOptions) {
     aiAnswer:
       opts.aiAnswer ?? "It renames the retry knob — see `src/retry.ts:2`.",
     aiInfo: opts.aiInfo ?? { baseUrl: null, configured: false, model: null },
+    aiModelsError: opts.aiModelsError ?? null,
     aiModels: opts.aiModels ?? [
       { contextLength: 128_000, id: "gpt-4o" },
       { contextLength: 200_000, id: "claude-sonnet" },
@@ -143,6 +145,9 @@ export function installBridge(cfg: BridgeConfig) {
     },
     ai_list_models: () => {
       countCall("ai_list_models");
+      if (cfg.aiModelsError) {
+        throw new Error(cfg.aiModelsError);
+      }
       return cfg.aiModels;
     },
     clear_ai_config: () => {
