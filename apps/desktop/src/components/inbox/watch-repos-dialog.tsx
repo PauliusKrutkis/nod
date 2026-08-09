@@ -244,16 +244,16 @@ function WatchReposDialogContent({ onClose }: { onClose: () => void }) {
     });
   };
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
       mountedRef.current = false;
       if (writeTimerRef.current) {
         window.clearTimeout(writeTimerRef.current);
       }
       flushWatchedReposRef.current();
-    },
-    [flushWatchedReposRef]
-  );
+    };
+  }, [flushWatchedReposRef]);
 
   useEffect(() => {
     if (armed === null) {
