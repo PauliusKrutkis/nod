@@ -105,6 +105,11 @@ that keeps getting re-asked. Anything not listed was implementation detail;
 - **The motion budget is near zero.** File-tree toggle transitions were removed
   deliberately and folder collapse is instant; hover feedback on a row is not
   "the tree animating" and is kept.
+- **Reusable lists have one mechanism** (2026-08-09). Canned comments on a
+  key and the ask note's prompt suggestions are the same shape, so they share
+  one implementation with two sources: a localStorage-backed list, a Tab-armed
+  editor dialog, and a palette entry. Two parallel implementations would
+  drift, which is what the feature-ideas entry warned about.
 - **The ask note stays its own surface** (2026-08-08). Posted threads, pending
   comments and AI answers are three deliberately distinct materials so nothing
   machine-written can be mistaken for something published.
@@ -165,6 +170,44 @@ of incrementally reinvented virtual list: mounted-section set + IO mounting +
 height estimates + idle pre-mounter + input yielding + manual scroll
 anchoring + section-offset resume + viewport-scoped find marks.
 
+- [ ] 🟡 **CPU and memory budgets in the perf e2e** (2026-08-09) — every perf
+      spec today measures *time*: `scroll-perf` counts frame gaps and stalls,
+      `find-perf` counts repainted rows per keystroke, `open-perf` takes warm
+      wall clock. Nothing measures what the app **costs while it sits there**,
+      and the two complaints a desktop review tool earns are exactly those:
+      a fan that spins up on a big PR, and a process that grows all afternoon.
+      *What to measure, in order of value:*
+      - **Heap after a soak.** Open PR, scroll it end to end, switch files,
+        open and close the drawer, return to the inbox, repeat N times, then
+        read `performance.measureUserAgentSpecificMemory()` (Chromium, needs
+        crossOriginIsolated) or fall back to CDP `Runtime.getHeapUsage`.
+        The assertion that matters is not an absolute number but that the
+        curve **flattens**: heap after 10 cycles must not exceed heap after 3
+        by more than a margin. That catches the listener and cache leaks a
+        virtualized list invites, and it is the class of bug no existing spec
+        can see.
+      - **Idle CPU.** With the app open and untouched for ~10s, cumulative
+        `Performance.getMetrics` `TaskDuration` must be near zero. Guards
+        against a stray interval, a rAF loop nobody cancelled, or a poll that
+        forgot to back off, all of which are invisible to frame-timing specs
+        because they cost nothing while you are already scrolling.
+      - **DOM node ceiling.** `document.querySelectorAll("*").length` after
+        scrolling a large PR. `scroll-perf` already caps rendered rows; a node
+        ceiling catches growth outside the row stream.
+      *Where it belongs:* a new `resource-perf.spec.ts` beside the existing
+      three, **Chromium-only** and gated the way `chromium-perf-prod` already
+      is. Memory APIs are engine-specific and WebKit exposes nothing
+      comparable, so pretending to measure it on both would be theatre.
+      *Two warnings from the existing suite's own history.* Numbers on a dev
+      server are ~2x inflated by React's dev runtime and GC noise, which is
+      why the production-build project exists; run these there or the budgets
+      are fiction. And a resource budget is far noisier than a frame budget,
+      so it must be tuned to fail on a **trend**, not a single sample, or it
+      becomes the flaky spec everyone reruns until it passes. Prefer few
+      assertions with real headroom over many tight ones.
+      *Pairs with* **real-app perf telemetry** below: this catches regressions
+      in CI on fixtures we thought of, that one catches them on the user's
+      machine on PRs we did not.
 - [ ] 🟡 **Real-app perf telemetry** — PerformanceObserver (long tasks +
       event timing) feeding the existing perf overlay/store, so regressions
       show up as numbers from the user's machine instead of bug reports that
@@ -1652,7 +1695,8 @@ wanted instead of a quick win.
       *Decide when building:* whether the delta is a filter over the existing
       row stream (cheap, keeps every hotkey working) or a separate fetch of
       `compare/{lastReviewedSha}...{head}` (accurate across force-pushes and
-      rebases, but a second diff source). **Recommendation: start as a filter**
+      rebases, but a second diff source). **Decided 2026-08-09 (owner):
+      start as a filter**
       — it reuses the whole review pipeline, and the compare call can be added
       later for the force-push case without changing the surface. Note the
       stale-base work already introduces `/compare`, so the second half is
@@ -1746,14 +1790,16 @@ wanted instead of a quick win.
       limitation — a link outside your inbox is invisible, so the stack view
       must degrade to "the part of the chain I can see" rather than claiming
       completeness. Build after the indicator ships and gets used.
-- [ ] 🟡 **Side-by-side diff** — the app is unified-only. Not a killer
-      feature, and deliberately listed last: it is **table stakes** whose
-      absence is a live objection, especially for renames and refactors where
-      unified genuinely reads worse. Worth knowing it costs a real
-      architectural conversation — the row stream, cursor, find marks,
-      occurrence marks, fat-cursor ranges and comment anchoring are all built
-      around one row per line — so this is much bigger than it looks and
-      should not be picked up as a quick win.
+- [ ] ⏸ **Side-by-side diff** — **parked 2026-08-09 (owner), with the reason
+      written down so it stops being re-proposed as a quick win.** The app is
+      unified-only, and this is **table stakes** whose absence is a live
+      objection, especially for renames and refactors where unified genuinely
+      reads worse. That is precisely why the parking needs recording rather
+      than being left as silence. It costs a real architectural conversation:
+      the row stream, cursor, find marks, occurrence marks, fat-cursor ranges
+      and comment anchoring are every one of them built around **one row per
+      line**. Reopen it as an architecture decision with its own spike, never
+      as a feature ticket.
 
 ---
 
