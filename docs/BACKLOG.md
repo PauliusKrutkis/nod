@@ -677,11 +677,15 @@ in *how* it does it:
       *Considered and not taken:* counting **active** days rather than calendar
       days — fairer still, but it needs a launch counter instead of the single
       first-launch timestamp. Revisit if 30 calendar days proves too short.
-- [ ] 🟢 **Fix the "Sublime-style" comment** — `purchase-prompt.tsx` describes
-      the model as *"Sublime-style — no countdown, no lock"*, but Sublime nags
-      forever and never stops unlicensed users updating. The comment names a
-      model the code does not implement; reword it to describe the actual
-      deal (unlimited use, patches always, features on a license).
+- [x] 🟢 ~~**Fix the "Sublime-style" comment**~~ — reworded to describe what
+      the code does: never gated, never locks, and a licence buys updates.
+      *One correction to this item's own wording:* it proposed "patches
+      always, features on a license", but the updater gates **every** release
+      on `updates_until`, patches included (`update.rs`), and nothing is ever
+      gated on a licence. Writing that would have made the comment wrong in
+      the other direction, so the new text says the gate is currently total
+      and points at the still-open patch-release item above rather than
+      claiming it.
 
 ### 11d. Linux install & update path (2026-07-25)
 
