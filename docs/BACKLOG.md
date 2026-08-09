@@ -1188,6 +1188,10 @@ only format the in-app updater touches.
 - [ ] 🟢 **File tooltip positioning** — the file-path tooltip is centered on
       the row; consider anchoring it near the filename's end instead (keep
       the large click target).
+      *Designed 2026-08-09:* [small affordances](https://claude.ai/code/artifact/7956879f-0d1e-4133-a096-db17f1a18627) anchors it at the name so
+      the full path appears under the truncated text it completes rather than
+      under whitespace. Only the anchor moves; the click target stays the whole
+      row, as this item requires.
 - [x] 🟢 **Info drawer author avatars** — **done**; discussion rows render
       `<Avatar>` per comment author (`right-panel.tsx`).
 - [x] 🟢 **Copy comment text** — **done**; `CommentTools` grew a Copy
@@ -1296,6 +1300,12 @@ only format the in-app updater touches.
       SHA that may have moved), and is a far bigger promise than the app's
       write surface has ever made. Ship the honest half; re-open the GitHub
       path only if users actually ask, and treat it as its own 🔴 decision.
+      *Designed 2026-08-09:* [small affordances](https://claude.ai/code/artifact/7956879f-0d1e-4133-a096-db17f1a18627) shows both hosts, and
+      on GitHub the apply action is **absent rather than disabled**, with a
+      quiet "apply on the host" line. A greyed-out button reads as a bug or a
+      permissions problem when the truth is the platform has no such
+      operation. Same rule as the merge design: never render an action that
+      cannot work.
       *Downgraded 🔴 → 🟡:* the GitLab-only scope is one endpoint plus a
       confirm, not the two-host build the original sizing assumed.
 - [x] 🟢 **P18** — Info drawer wide mode — **done**; `shift+i` widens the
@@ -1427,8 +1437,25 @@ only format the in-app updater touches.
 - [ ] 🟡 **Hover cursors** — cursor should change over interactive regions
       (gutter, threads, links); audit against editor-like affordances elsewhere
       in the app.
-- [ ] 🟡 **Reply in Info tab** — thread reply from the info drawer, not just
+      *Designed 2026-08-09:* [small affordances](https://claude.ai/code/artifact/7956879f-0d1e-4133-a096-db17f1a18627) tabulates every region.
+      The answer is not "pointer on everything clickable": this is a code
+      surface, so `text` on code and comment bodies (both are copied from, and
+      selecting code also builds a comment range) and `pointer` only on real
+      controls. **The interesting row is line numbers, which stay `default`** —
+      they sit inside the gutter and look pressable but do nothing, and leaving
+      them alone is what stops the whole gutter reading as one button.
+- [ ] 🟡 ❓ **Reply in Info tab** — thread reply from the info drawer, not just
       read-only PR-level comments there today.
+      *Reframed 2026-08-09: this is a request to reverse a decision, not a
+      missing feature.* §5d records that **reply and resolve stay inline by
+      design**; the drawer deliberately carries only add, edit and delete of
+      PR-level comments. [small affordances](https://claude.ai/code/artifact/7956879f-0d1e-4133-a096-db17f1a18627) draws both options and
+      **recommends keeping jump-only**: a reply written without the line in
+      front of you is how you answer the wrong question, and a repliable drawer
+      edges toward the Conversation mode that is still deferred. The argument
+      to reverse does get stronger once the code-discussion list renders as
+      real comments, because a surface that looks repliable and is not is its
+      own bug. Treat people trying to reply there as the evidence.
 
 ### Inbox & activity semantics
 
