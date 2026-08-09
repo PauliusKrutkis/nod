@@ -866,6 +866,13 @@ app, and doesn't rot if the license lapses.
       settings/about. Deliberately cosmetic and deliberately *additive*: it
       must never read as "unlicensed users are missing something", which is the
       gate this decision refused wearing a different hat.
+      *Designed 2026-08-09:* [shell and chrome](https://claude.ai/code/artifact/6026f7e2-8c72-435c-bfad-8502c141f5a0) draws both states, and the
+      unlicensed one has **no empty slot** — the row is absent rather than
+      reading "Licence: none" with a Buy link, because a labelled blank is
+      exactly the missing-something reading this decision refused.
+      **Recommendation on where it lives:** in the licence state the palette
+      command already surfaces, rather than building an about panel for one
+      chip.
 
 *Consequence for the roadmap:* any future item proposing a licensed-only
 feature is off-position by default and needs this decision reversed first, not
@@ -1224,6 +1231,14 @@ only format the in-app updater touches.
 
 - [ ] 🔴 **P13** — Custom title bar for Linux & Windows
       (frameless + Quiet drag region + window controls).
+      *Designed 2026-08-09:* [shell and chrome](https://claude.ai/code/artifact/6026f7e2-8c72-435c-bfad-8502c141f5a0) draws it, and does not
+      hide why it is 🔴. Frameless means owning the drag region, double-click
+      to maximise, edge resize handles, snap, the Windows control order and
+      hover treatment versus the Linux one, and whatever the desktop
+      environment thinks buttons look like. It buys 34 pixels and visual
+      coherence, and costs a class of platform bug the app does not have
+      today. **Recommendation: not yet** — nobody has reported the system bar
+      as a problem.
 - [x] 🟡 **P14** — Responsive / small-window / zoomed
       layout — **done**; the PR header sheds its branch chips below 1100px
       (`.qf-branch` in `quiet.css`), the inbox detail pane drops out below
@@ -1314,6 +1329,11 @@ only format the in-app updater touches.
       Tooltip + Kbd language — after "our hint-bar reads unfamiliar" feedback;
       Suggestion keeps its text label. Remaining: typography/spacing polish of
       the editor surface itself.*
+      *Designed 2026-08-09:* [shell and chrome](https://claude.ai/code/artifact/6026f7e2-8c72-435c-bfad-8502c141f5a0) shows the remaining half:
+      line height to the reading value the rest of the app uses, real paragraph
+      spacing rather than a single break, and room inside the box. Nothing
+      structural moves. This is the one item in that mock where "visual only"
+      is accurate.
 - [ ] 🟡 **P21** — Drag over code expands the fat cursor
       (*was: "multi-line selection box via drag", deferred as a second gesture
       duplicating gutter-drag; re-scoped 2026-07-27*). Don't build a selection
@@ -2238,6 +2258,15 @@ each carries an unresolved design question of its own, noted below.
         a long line is clipped away — you get a result row whose match you
         cannot see, and no way to scroll to it. Fix that before cosmetics:
         scroll each snippet so the match is in frame, or wrap the hit line.
+        *Designed 2026-08-09:* [shell and chrome](https://claude.ai/code/artifact/6026f7e2-8c72-435c-bfad-8502c141f5a0) chooses **scroll, not
+        wrap** — a wrapped 300-character line eats the result list and destroys
+        the one-line-per-line rhythm that makes a snippet scannable, and search
+        results are exactly where such a line turns up. Ellipses mark that
+        there is more in both directions.
+        **This half should be split out and fixed on its own:** it is a
+        correctness bug filed inside a cosmetics item, which is why it has not
+        been done. A search that shows a result and hides the reason it matched
+        is not a polish problem.
       - **Only 5 lines of context.** `SNIPPET_RADIUS = 2` (`pr-search.tsx:44`)
         → ±2 around the hit. Raising it to 3–4 is a one-line change and is
         what "increase the lines visible" asks for.
