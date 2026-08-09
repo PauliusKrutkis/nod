@@ -1969,10 +1969,20 @@ each carries an unresolved design question of its own, noted below.
 - [ ] **Theming: CSS file vs Tailwind variables** — is theming really a CSS file
       rather than Tailwind variables? Consider using TW everywhere for better
       optimization.
-- [ ] **Command palette "Add comment" item** — add an "Add comment" action to
-      the existing `mod+k` command palette (only in PR context). It opens a small
-      dialog to quickly scribble a note — skipping the need to comment inline in
-      code or open the info drawer and scroll to the comment area.
+- [x] ~~**Command palette "Add comment" item**~~ — **already there, and the
+      other half is declined.** The palette builds its entries from the
+      registered hotkey bindings, so `shift+c` "Comment on the pull request"
+      has been a PR-context palette command all along; running it opens the
+      drawer composer with focus already in it. Pinned by "the palette reaches
+      PR-level commenting from inside a review" in `palette.spec.ts`, which is
+      the only thing this item was missing.
+      *Declined:* the "small dialog to quickly scribble a note" the item also
+      proposed. That would be a second PR-comment surface beside the drawer
+      composer, and the app deliberately keeps comment surfaces few and
+      distinct (see the three-materials argument under § ask about code). The
+      complaint it answers, "scroll to the comment area", is already answered
+      by the composer taking focus on arrival, and by the drawer's own
+      collapse-to-a-prompt behaviour.
 - [x] **Hide empty tabs** — **done**; `inbox.tsx` derives `visibleTabs` by
       dropping buckets with no PRs (archived rows discounted from the count),
       and the `1`/`2`/`3` digits address those visible slots — see the
