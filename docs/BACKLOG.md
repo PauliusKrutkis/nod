@@ -1185,6 +1185,12 @@ only format the in-app updater touches.
       `aria-label`.
 - [ ] 🟡 **Per-check list in the drawer** — P09 follow-up: `CiPill` links out
       to the host's checks page; list the individual checks inline instead.
+      The pill knows the state and the count, and the one thing you want,
+      *which* check failed, is the thing it does not say.
+      *Designed 2026-08-09:* [review flow](https://claude.ai/code/artifact/63f20f95-2249-40bf-9934-4ae6f7fbc776) sorts failures first, then
+      running, then passes, so the answer is at the top. Passing checks stay
+      listed rather than hidden, because "everything else is green" is itself
+      information, and every row keeps its link out to the full log.
 - [ ] 🟢 **File tooltip positioning** — the file-path tooltip is centered on
       the row; consider anchoring it near the filename's end instead (keep
       the large click target).
@@ -2088,6 +2094,14 @@ each carries an unresolved design question of its own, noted below.
       finishes the job you just approved. A full merge box (squash / merge /
       rebase + message editing) is a second product surface and the message
       editor is where the cost lives — not worth it in a review tool.
+      *Designed 2026-08-09:* [review flow](https://claude.ai/code/artifact/63f20f95-2249-40bf-9934-4ae6f7fbc776) draws the action, the confirm
+      and the two rules that matter. The failure state must repeat the host's
+      own reason rather than inventing one, and must not imply the merge
+      half-happened. And the button must not render enabled when it cannot
+      work: failing checks, missing approvals, conflicts or a policy block
+      should show the reason in place of the action. An enabled control that
+      fails on press is exactly the mistake the Linux updater's install CTA
+      made (§11b).
       *Build notes:* this is the **first non-comment write** Nod performs, so
       it needs a real confirm and honest failure copy — merges fail for
       reasons the app doesn't model (branch protection, required checks still
@@ -2465,7 +2479,12 @@ wanted instead of a quick win.
       *Decide when building:* whether the delta is a filter over the existing
       row stream (cheap, keeps every hotkey working) or a separate fetch of
       `compare/{lastReviewedSha}...{head}` (accurate across force-pushes and
-      rebases, but a second diff source). **Recommendation: start as a filter**
+      rebases, but a second diff source). *Designed 2026-08-09:*
+      [review flow](https://claude.ai/code/artifact/63f20f95-2249-40bf-9934-4ae6f7fbc776) dims unchanged rows rather than deleting them, since a
+      diff of a diff with no surrounding code is unreadable, and collapses only
+      whole files that did not move, counted and one click from expanding. The
+      mode announces itself in the file header so you cannot forget you are
+      looking at a subset. **Recommendation: start as a filter**
       — it reuses the whole review pipeline, and the compare call can be added
       later for the force-push case without changing the surface. Note the
       stale-base work already introduces `/compare`, so the second half is
@@ -2531,6 +2550,12 @@ wanted instead of a quick win.
       every follow-up becomes a comment) and from viewed state (which is about
       coverage, not attention). Reuses the anchor + persistence pattern the
       viewed map already established.
+      *Designed 2026-08-09:* [review flow](https://claude.ai/code/artifact/63f20f95-2249-40bf-9934-4ae6f7fbc776) gives the flag its own gutter
+      column with a diamond glyph and a hairline edge, rather than a row wash.
+      The row already uses background to mean added, removed, selected and
+      commented-on; a fifth wash would compete with all four. Open: whether
+      flags persist across a restart (recommend yes, like viewed state) and
+      whether submitting clears them (recommend no, offer to clear instead).
 - [ ] 🟡 **Review a whole stack as one continuous diff** — the natural payoff
       of [stacked-PR detection](#stacked-prs-2026-07-30): read the chain
       top-to-bottom as a single diff, with each comment routed to the PR that
