@@ -10,6 +10,8 @@
  * ViewedFileMap maps filename → content fingerprint ("?" = legacy mark).
  * LicenseState.updatesUntil bounds update eligibility, not app function —
  * a licensed app never stops working, it stops receiving newer releases.
+ * UpdateInfo.selfInstallable is false on a Linux .deb/.rpm install, where the
+ * new release comes from the package manager and the app cannot install it.
  */
 
 export interface GitHubUser {
@@ -206,6 +208,7 @@ export interface UpdateInfo {
   currentVersion: string;
   eligible: boolean;
   notes: string | null;
+  selfInstallable: boolean;
   version: string;
 }
 

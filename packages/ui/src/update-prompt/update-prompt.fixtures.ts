@@ -1,7 +1,8 @@
 /**
- * Both faces of the card, and every way each of them can be mid-flight:
- * offered, installing, offered-but-unlicensed, waiting on the browser, and
- * failed. There is deliberately no "downloading, 43%" fixture — the install
+ * Every face of the card, and every way each of them can be mid-flight:
+ * offered, installing, offered-but-unlicensed, waiting on the browser, failed,
+ * and packaged — the .deb/.rpm build that has no install button at all. There
+ * is deliberately no "downloading, 43%" fixture — the install
  * is a single backend command that ends in a relaunch and reports no
  * progress, so a progress bar here would be a picture of something the app
  * does not know.
@@ -26,8 +27,10 @@ const base = {
   onBuyLicense: noop,
   onDismiss: noop,
   onInstall: noop,
+  onOpenDownloads: noop,
   price: "$59",
   purchasing: false,
+  selfInstallable: true,
   version: "1.4.0",
 };
 
@@ -53,6 +56,7 @@ export const updatePromptEntry = defineEntry(UpdatePrompt, {
     provenance:
       "caught the version chip pushing straight through the card's right edge — it had no ellipsis floor",
   },
+  packaged: { props: { ...base, selfInstallable: false } },
   "ready-to-restart": { props: base },
   "with-notes": {
     props: {

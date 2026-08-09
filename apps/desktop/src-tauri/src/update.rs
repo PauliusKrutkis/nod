@@ -13,8 +13,22 @@
 //! gating, not DRM: the app itself never stops working. That re-check can
 //! see a different release than the card showed (latest-only feed); an
 //! ineligible one fails closed, an eligible one installs.
+//!
+//! Eligibility is not the only reason an update can't be installed from the
+//! card. A second gate is the install format: `check_for_update` compares
+//! `latest.json` against the running version and knows nothing about how the
+//! app got onto the machine, so on a Linux `.deb`/`.rpm` it happily reports a
+//! newer release the app cannot put in place. Those trees belong to the
+//! package manager: the plugin's Linux install path shells out to
+//! `pkexec dpkg -i` / `rpm -U` and fails with "Failed to install package"
+//! when no privilege prompt answers. `self_installable` carries that fact to
+//! the card so it can drop the install button, and `install_update` refuses
+//! the same case rather than trusting the UI.
+
+use std::ffi::{OsStr, OsString};
 
 use serde::Serialize;
+use tauri::utils::platform::Target;
 use tauri::AppHandle;
 use tauri_plugin_updater::UpdaterExt;
 
@@ -27,6 +41,9 @@ pub struct UpdateInfo {
     pub current_version: String,
     pub notes: Option<String>,
     pub eligible: bool,
+    /// False on a Linux `.deb`/`.rpm` install, where the card must show a
+    /// passive notice instead of an install button.
+    pub self_installable: bool,
 }
 
 fn iso_date(date: Option<time::OffsetDateTime>) -> Option<String> {
@@ -52,6 +69,30 @@ fn update_allowed(state: &LicenseState, release_date: Option<&str>) -> bool {
     }
 }
 
+#[cfg(target_os = "linux")]
+fn appimage_path(app: &AppHandle) -> Option<OsString> {
+    use tauri::Manager;
+    app.env().appimage
+}
+
+#[cfg(not(target_os = "linux"))]
+fn appimage_path(_app: &AppHandle) -> Option<OsString> {
+    None
+}
+
+/// Whether this build can put a downloaded release in place itself. macOS and
+/// Windows always can. On Linux only the AppImage can, and the signal for that
+/// is the `APPIMAGE` variable its runtime exports on every launch: it holds
+/// the path to the running image, which is the exact file the updater
+/// rewrites. Absent, there is nothing the app may overwrite, and the release
+/// has to come from the package manager instead.
+fn can_self_install(target: Target, appimage: Option<&OsStr>) -> bool {
+    match target {
+        Target::Linux => appimage.is_some_and(|path| !path.is_empty()),
+        _ => true,
+    }
+}
+
 /// Check the configured endpoint for a newer signed release. Returns `None`
 /// when already up to date — or when the updater isn't configured / the feed
 /// is unreachable, so a half-set-up scaffold never nags the user with errors.
@@ -70,6 +111,10 @@ pub async fn check_for_update(app: AppHandle) -> Result<Option<UpdateInfo>, Stri
                 current_version: update.current_version.clone(),
                 notes: update.body.clone(),
                 eligible: update_allowed(&state, release_date.as_deref()),
+                self_installable: can_self_install(
+                    Target::current(),
+                    appimage_path(&app).as_deref(),
+                ),
             }))
         }
         Ok(None) => Ok(None),
@@ -152,6 +197,12 @@ pub async fn list_releases() -> Result<Option<Vec<ReleaseInfo>>, String> {
 /// errors here because the user explicitly opted in by pressing "Install".
 #[tauri::command]
 pub async fn install_update(app: AppHandle) -> Result<(), String> {
+    if !can_self_install(Target::current(), appimage_path(&app).as_deref()) {
+        return Err(
+            "Your package manager installed Nod, so it installs the update too. Get the newest package from https://nodreview.com/downloads."
+                .to_string(),
+        );
+    }
     let updater = app.updater().map_err(|e| e.to_string())?;
     let update = updater
         .check()
