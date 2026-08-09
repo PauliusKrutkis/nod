@@ -1414,9 +1414,11 @@ dialog.q-dialog::backdrop {
 
 /* ============ FILE HEADERS (virtualized continuous scroll) ============ */
 /* One sticky header per file group — react-virtuoso owns the stickiness (its
-   grouped list pins the current group's header), so the class carries only
-   the visuals. */
+   grouped list pins the current group's header), so the class carries the
+   visuals and the lead strip sticky-header-push.ts measures the handoff
+   against. */
 .dir-quiet .qf-fsec-head {
+  position: relative;
   display: flex;
   gap: 10px;
   align-items: center;
@@ -1430,6 +1432,14 @@ dialog.q-dialog::backdrop {
 }
 .dir-quiet .qf-fsec-head.qf-fsec-active {
   box-shadow: inset 2px 0 0 var(--accent);
+}
+.dir-quiet .qf-fsec-lead {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  width: 1px;
+  height: 72px;
+  pointer-events: none;
 }
 /* The virtualized list fills the review pane. */
 .dir-quiet .qf-review-list {

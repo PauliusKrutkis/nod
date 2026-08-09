@@ -5,6 +5,7 @@ import {
   type MouseEvent,
   type PointerEvent,
   type Ref,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useRef,
@@ -35,6 +36,10 @@ import {
   type ReviewNoteItem,
   type ReviewRowItem,
 } from "../../lib/review-items.ts";
+import {
+  createStickyHeaderPush,
+  type StickyHeaderPush,
+} from "../../lib/sticky-header-push.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type { AccountInfo, ChangedFile, PendingComment } from "../../types.ts";
 import { Markdown } from "../markdown.tsx";
@@ -166,6 +171,7 @@ interface ReviewListProps {
 interface ListContext {
   colW: number | null;
   props: ReviewListProps;
+  push: StickyHeaderPush;
 }
 
 /**
@@ -705,6 +711,19 @@ function GroupHeader({
     expandingFiles,
     callbacks,
   } = ctx.props;
+  const { push } = ctx;
+  const setLead = useCallback(
+    (el: HTMLElement | null) => {
+      if (!el) {
+        return;
+      }
+      push.attach(groupIndex, el);
+      return () => {
+        push.detach(el);
+      };
+    },
+    [push, groupIndex]
+  );
   const file = files[groupIndex];
   const handleCopyPath = () => {
     callbacks.onCopyPath(groupIndex);
@@ -735,6 +754,7 @@ function GroupHeader({
       )}
       data-file-index={groupIndex}
     >
+      <span aria-hidden className="qf-fsec-lead" ref={setLead} />
       <span className={cn("qf-file-glyph", glyph.cls)}>{glyph.letter}</span>
       <Tooltip
         anchorClassName="flex-1 min-w-0"
@@ -1060,7 +1080,14 @@ export function ReviewList({
 }: ReviewListProps & { ref?: Ref<ReviewListHandle> }) {
   const vRef = useRef<GroupedVirtuosoHandle>(null);
   const scrollerRef = useRef<HTMLElement | null>(null);
+  const [push] = useState(createStickyHeaderPush);
   const { model } = props;
+
+  useEffect(() => {
+    return () => {
+      push.dispose();
+    };
+  }, [push]);
 
   const modelRef = useLatest(model);
 
@@ -1238,6 +1265,7 @@ export function ReviewList({
 
   const handleScrollerRef = (el: HTMLElement | Window | null) => {
     scrollerRef.current = (el as HTMLElement) ?? null;
+    push.setScroller(scrollerRef.current);
   };
 
   const virtuosoInitialIndex =
@@ -1257,7 +1285,7 @@ export function ReviewList({
     >
       <GroupedVirtuoso<unknown, ListContext>
         computeItemKey={virtuosoComputeItemKey}
-        context={{ colW, props }}
+        context={{ colW, props, push }}
         defaultItemHeight={26}
         groupContent={virtuosoGroupContent}
         groupCounts={model.groupCounts}
