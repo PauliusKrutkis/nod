@@ -2551,6 +2551,64 @@ wanted instead of a quick win.
 
 ---
 
+## Inbox (2026-08-09)
+
+Five items raised by the owner. Checked against the code before writing, and
+where the check changed the diagnosis that is recorded here rather than
+quietly fixed.
+
+- [ ] 🟢 **The cursor is invisible inside a multi-line selection** — reported
+      as "cursor follows multi-line selection". *It already does.*
+      `extendExistingSelection` (`src/lib/review-cursor.ts:50`) calls
+      `setCursor` with the growing edge on every `shift+j`/`shift+k`, so the
+      cursor genuinely tracks the end of the range.
+      *The real defect is that you cannot see it.* `.qf-row-active` and
+      `.qf-row-selected` are styled **identically** — both
+      `background: var(--accent-soft)` with `border-left-color: var(--accent)`
+      — and quiet.css says so out loud: the selection is "the cursor's iris
+      treatment stretched over the run". So every selected row looks exactly
+      like the cursor row, and the cursor's position within the range is
+      unreadable. That matters because the cursor is what `c` anchors the
+      composer to and what plain `j` collapses back to.
+      *Fix is visual, not behavioural:* give the cursor row one distinguishing
+      mark that survives being inside the selection.
+- [ ] 🟡 **Code selection chips, usable by both the ask and the composer** —
+      Cursor-style chips naming the code a request carries, attached to the
+      input rather than implied by where it opened. Today the ask note has a
+      one-line context chip (`askTargetLabel`, e.g. `fuzzy.ts:12–15`) and the
+      composer has a range header (`Lines 12–15`); neither is removable, and
+      neither can carry more than one region.
+      *What chips would add:* several regions in one request, dropping one you
+      did not mean, and the same vocabulary in both surfaces.
+      *What to decide:* whether multi-region is real scope or feature creep,
+      given a comment can only ever post to **one** contiguous range on one
+      side. Chips make sense immediately for the ask; for the composer they
+      may promise something the hosts cannot accept.
+- [ ] 🟡 ❓ **Revisit: should the ask and the comment composer be one surface?**
+      — decided *no* on 2026-08-08 on the grounds that posted threads, pending
+      comments and AI answers are three deliberately distinct materials, and
+      putting a machine answer one tab away from a button that posts to the
+      host spends that separation. The owner is asking again, so it is reopened
+      rather than treated as settled.
+      *What has changed since:* the multi-line selection bug that motivated the
+      original proposal turned out to be in the selection walk and is fixed
+      (#232), so the strongest practical argument for merging is gone. What
+      remains is the ergonomic one, which is real: two inputs, two hotkeys and
+      two skins for "write something about these lines".
+- [ ] 🟡 **Commercial use — say plainly what a company may do** — the licence
+      is FSL-1.1-Apache-2.0 and the README explains it correctly ("read it,
+      build it, change it, use it internally… the one thing you may not do is
+      ship a competing product"), but nothing on the site answers the question
+      a company actually asks before expensing anything: *may we use this at
+      work, and do we need a licence per person?* Today that answer exists only
+      in a licence file and in the team-tier email line.
+- [ ] 🟢 **Feature catalog** — the landing page argues a thesis and shows three
+      loops; there is no page that simply lists what the app does. That is the
+      page people link to, search, and check before downloading, and it is also
+      what a "what's changed since I last looked" visitor wants.
+
+---
+
 ## Inbox (2026-08-07)
 
 - [ ] 🟡 **No in-app way to say "I already bought this"** — the only licensing
