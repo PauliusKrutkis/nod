@@ -296,10 +296,13 @@ Inline → Code view. PR-level → Info tab + badge. ⏸ Conversation mode.
       something is hidden (a count in the file header or the PR header is
       enough). Hidden must mean "I chose to hide 4 threads", never "this file
       has no discussion".
-      *Also decide when building:* whether the toggle hides **all** threads or
-      **resolved only**. Resolved-only is the safer default reading of the
-      complaint (resolved threads are noise by definition), but the request as
-      given is about the stub line itself, which both kinds leave.
+      *Decided 2026-08-09 (owner): **resolved only**.* Resolved threads are
+      noise by definition, so hiding them cannot cost you a live conversation,
+      which is the failure this item already names. Hiding unresolved threads
+      would delete exactly the affordance the cursor-stop decision was built to
+      protect, and the standing "something is hidden" signal is easier to make
+      honest when the hidden set has a single, obvious meaning. If the stub
+      line still grates once resolved ones are gone, revisit then.
 
 ### 5d. Comment-management follow-ups (post-comment-feature)
 
@@ -1454,6 +1457,13 @@ each carries an unresolved design question of its own, noted below.
       timestamp, and sit in a separate list from PR-level comments. Make
       them look like comments, and consider merging the two lists into one
       chronological feed.
+      *Decided 2026-08-09 (owner): **restyle the jump list, do not merge the
+      feeds.*** The complaint is that threads do not read as comments, and both
+      types already carry `user`, `userAvatarUrl` and `createdAt`, so that is a
+      rendering change with no data work behind it. Merging would spend the
+      Conversation-mode decision, which is still deliberately deferred, on a
+      styling problem. Revisit the merge only if Conversation mode is taken up
+      on its own terms.
       - **Not a data gap — a rendering choice.** Both `ReviewComment`
         (`types.ts:73`) and `IssueComment` (`types.ts:89`) already carry
         `user`, `userAvatarUrl` and `createdAt`, and `review-screen.tsx`
@@ -1514,6 +1524,14 @@ each carries an unresolved design question of its own, noted below.
         would leak the first theme's colours. Tokenising those is the bulk of
         the work and is worth doing regardless of whether themes ship — it is
         also the whole of the "mechanism" question, now answered below.
+      - **Sequencing — decided 2026-08-09 (owner): tokenise the ~59 literals
+        now, as a standalone refactor, and do not ship a theme picker yet.**
+        It is the bulk of the work, it is worth doing whether or not a second
+        theme ever exists, and it has the same shape as the radius scale that
+        landed in #224: a pure refactor with no visual change, verifiable by
+        screenshot diff. Shipping the picker separately also keeps the "author
+        three palettes" problem (UI, diff colours, highlight.js) out of a
+        refactor that should change nothing on screen.
       - **Mechanism — decided 2026-08-05 (owner): tokenise onto the layer that
         already exists. There is no CSS-vs-Tailwind choice to make.** The
         question in [Inbox (2026-07-15)](#inbox-2026-07-15) assumed the two
@@ -1653,7 +1671,16 @@ wanted instead of a quick win.
       a generated file **is** sometimes the bug, so the row must stay present
       and countable. Pairs with cost-to-review below, which is misleading
       until this exists.
-      *Design mocked 2026-08-09, awaiting a decision before any code:*
+      *Decided 2026-08-09 (owner), all four calls as recommended:* ship
+      detection rules 1 and 2 only (`.gitattributes` `linguist-generated`, then
+      name globs) and **leave the content heuristic unbuilt** until a real PR
+      is mis-collapsed, because it is the only rule that guesses from shape
+      rather than stating a fact; collapse memory lasts the **session** and
+      resets on restart, so no new persisted state; **no new key**, since
+      expanding is rare by construction and the key space is nearly full; and
+      **comment threads stay visible on a collapsed file, always**. Viewed
+      progress is **not** discounted.
+      *Design mocked 2026-08-09:*
       [noise files, collapse never hide](https://claude.ai/code/artifact/34f6ca62-506e-4500-888a-d27fdae8bd30)
       draws the collapsed row against a real diff, tabulates the three
       detection rules by how much each can be trusted, and carries four open
