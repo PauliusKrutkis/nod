@@ -5,7 +5,6 @@ import {
   type MouseEvent,
   type PointerEvent,
   type Ref,
-  useCallback,
   useEffect,
   useImperativeHandle,
   useRef,
@@ -712,18 +711,15 @@ function GroupHeader({
     callbacks,
   } = ctx.props;
   const { push } = ctx;
-  const setLead = useCallback(
-    (el: HTMLElement | null) => {
-      if (!el) {
-        return;
-      }
-      push.attach(groupIndex, el);
-      return () => {
-        push.detach(el);
-      };
-    },
-    [push, groupIndex]
-  );
+  const setLead = (el: HTMLElement | null) => {
+    if (!el) {
+      return;
+    }
+    push.attach(groupIndex, el);
+    return () => {
+      push.detach(el);
+    };
+  };
   const file = files[groupIndex];
   const handleCopyPath = () => {
     callbacks.onCopyPath(groupIndex);
