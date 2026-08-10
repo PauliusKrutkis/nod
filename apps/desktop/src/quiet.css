@@ -331,7 +331,7 @@ textarea.q-input {
   padding: 1px 5px;
   font-family: var(--font-mono);
   font-size: 11.5px;
-  color: var(--syn-keyword); /* inline code shares the keyword lavender */
+  color: var(--syn-keyword);
   background: var(--surface-hi);
   border: 1px solid var(--line);
   border-radius: var(--r-sm);

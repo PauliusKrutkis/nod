@@ -7,6 +7,13 @@
    both. Never hardcode a hex on :root; the translucent variants (soft washes,
    gutter tints) are derived with color-mix so they follow the palette too.
 
+   The --color-syn-* block is the syntax palette, named by grammatical role.
+   Both code renderers in quiet.css (the highlight.js .hljs-* output and the
+   lab tokenizer's .tk-* classes) draw from these same tokens, so a theme
+   supplies the palette once. The comment slot is --faint, aliased as
+   --syn-comment on :root, and inline code (.md code) deliberately shares
+   --syn-keyword.
+
    Corner radius is a 2px-step scale (--r-xs through --r-2xl, plus --r-pill).
    Every border-radius in quiet.css resolves to one of those steps, so making
    the app rounder or tighter is an edit to six numbers rather than a hundred
@@ -48,10 +55,6 @@
   --color-fg-bright: #d6d6e6;
   --color-avatar-fg: #fff;
 
-  /* Syntax palette, named by grammatical role. Both code renderers in
-     quiet.css (the highlight.js .hljs-* output and the lab tokenizer's .tk-*
-     classes) draw from these same tokens, so a theme supplies the palette
-     once. The comment slot is --faint, aliased as --syn-comment on :root. */
   --color-syn-keyword: #c4b6ff;
   --color-syn-string: #8fe3b0;
   --color-syn-number: #ffc48a;
@@ -93,7 +96,6 @@
   /* diff gutter number tints (qf-only) */
   --add-num: color-mix(in srgb, var(--color-success) 55%, transparent);
   --del-num: color-mix(in srgb, var(--color-danger) 55%, transparent);
-  /* syntax palette */
   --syn-keyword: var(--color-syn-keyword);
   --syn-string: var(--color-syn-string);
   --syn-number: var(--color-syn-number);
