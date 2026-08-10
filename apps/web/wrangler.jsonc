@@ -55,7 +55,8 @@
     "GH_WEB_CLIENT_ID": "Ov23lie6iqyqKu2DdlG9",
     "POLAR_API_BASE": "https://api.polar.sh",
     "POLAR_PRODUCT_ID": "be9fff0c-8001-4ecc-9ab3-4e642c069563",
-    "PUBLIC_CF_ANALYTICS_TOKEN": "92b8fbe9e1ea409484577a3fbc472727"
+    "PUBLIC_CF_ANALYTICS_TOKEN": "92b8fbe9e1ea409484577a3fbc472727",
+    "PUBLIC_CHECKOUT_URL": "https://nodreview.com/buy"
   },
   "env": {
     "preview": {
