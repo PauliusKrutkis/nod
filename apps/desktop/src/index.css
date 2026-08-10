@@ -44,6 +44,21 @@
   --color-success: #5fd08a;
   --color-danger: #ff7088;
   --color-warning: #e7c56a;
+  --color-accent-deep: #6f63e6;
+  --color-fg-bright: #d6d6e6;
+  --color-avatar-fg: #fff;
+
+  /* Syntax palette, named by grammatical role. Both code renderers in
+     quiet.css (the highlight.js .hljs-* output and the lab tokenizer's .tk-*
+     classes) draw from these same tokens, so a theme supplies the palette
+     once. The comment slot is --faint, aliased as --syn-comment on :root. */
+  --color-syn-keyword: #c4b6ff;
+  --color-syn-string: #8fe3b0;
+  --color-syn-number: #ffc48a;
+  --color-syn-func: #7fc8ff;
+  --color-syn-type: #ffd9a0;
+  --color-syn-variable: #d6d6e6;
+  --color-syn-punct: #b6b6cf;
 
   --font-mono:
     "Geist Mono", "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Monaco,
@@ -60,9 +75,12 @@
   --line: var(--color-line);
   --line-2: var(--color-line-strong);
   --fg: var(--color-fg);
+  --fg-bright: var(--color-fg-bright);
   --muted: var(--color-muted);
   --faint: var(--color-faint);
+  --avatar-fg: var(--color-avatar-fg);
   --accent: var(--color-accent);
+  --accent-deep: var(--color-accent-deep);
   --accent-soft: color-mix(in srgb, var(--color-accent) 16%, transparent);
   --accent-line: color-mix(in srgb, var(--color-accent) 40%, transparent);
   --accent-ink: var(--color-accent-fg);
@@ -75,6 +93,15 @@
   /* diff gutter number tints (qf-only) */
   --add-num: color-mix(in srgb, var(--color-success) 55%, transparent);
   --del-num: color-mix(in srgb, var(--color-danger) 55%, transparent);
+  /* syntax palette */
+  --syn-keyword: var(--color-syn-keyword);
+  --syn-string: var(--color-syn-string);
+  --syn-number: var(--color-syn-number);
+  --syn-func: var(--color-syn-func);
+  --syn-type: var(--color-syn-type);
+  --syn-variable: var(--color-syn-variable);
+  --syn-punct: var(--color-syn-punct);
+  --syn-comment: var(--color-faint);
   --font-ui: Inter, system-ui, sans-serif;
 
   --r-xs: 2px;

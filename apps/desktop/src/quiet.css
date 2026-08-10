@@ -251,7 +251,7 @@ textarea.q-input {
   font-family: var(--font-ui);
   font-size: 13px;
   line-height: 1.6;
-  color: #d6d6e6;
+  color: var(--fg-bright);
 }
 .md > *:first-child {
   margin-top: 0;
@@ -331,7 +331,7 @@ textarea.q-input {
   padding: 1px 5px;
   font-family: var(--font-mono);
   font-size: 11.5px;
-  color: #c4b6ff;
+  color: var(--syn-keyword); /* inline code shares the keyword lavender */
   background: var(--surface-hi);
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
@@ -449,26 +449,26 @@ textarea.q-input {
 
 /* ---- syntax tokens (lab tokenizer; harmless if unused by hljs) ---- */
 .tk-kw {
-  color: #c4b6ff;
+  color: var(--syn-keyword);
 }
 .tk-str {
-  color: #8fe3b0;
+  color: var(--syn-string);
 }
 .tk-num {
-  color: #ffc48a;
+  color: var(--syn-number);
 }
 .tk-com {
   font-style: italic;
-  color: var(--faint);
+  color: var(--syn-comment);
 }
 .tk-fn {
-  color: #7fc8ff;
+  color: var(--syn-func);
 }
 .tk-type {
-  color: #ffd9a0;
+  color: var(--syn-type);
 }
 .tk-punct {
-  color: #b6b6cf;
+  color: var(--syn-punct);
 }
 .tk-plain {
   color: var(--fg);
@@ -498,36 +498,36 @@ textarea.q-input {
 .hljs-literal,
 .hljs-meta,
 .hljs-meta .hljs-keyword {
-  color: #c4b6ff;
+  color: var(--syn-keyword);
 }
 .hljs-string,
 .hljs-regexp,
 .hljs-addition {
-  color: #8fe3b0;
+  color: var(--syn-string);
 }
 .hljs-number,
 .hljs-symbol,
 .hljs-bullet {
-  color: #ffc48a;
+  color: var(--syn-number);
 }
 .hljs-title,
 .hljs-title.function_,
 .hljs-section,
 .hljs-name {
-  color: #7fc8ff;
+  color: var(--syn-func);
 }
 .hljs-type,
 .hljs-class .hljs-title,
 .hljs-title.class_,
 .hljs-built_in {
-  color: #ffd9a0;
+  color: var(--syn-type);
 }
 .hljs-attr,
 .hljs-attribute,
 .hljs-property,
 .hljs-variable,
 .hljs-template-variable {
-  color: #d6d6e6;
+  color: var(--syn-variable);
 }
 /* comments read as one quiet gray block — including JSDoc tags (@param) and
    anything hljs nests inside a comment */
@@ -538,12 +538,12 @@ textarea.q-input {
 .hljs-comment .hljs-type,
 .hljs-comment .hljs-variable {
   font-style: italic;
-  color: var(--faint);
+  color: var(--syn-comment);
 }
 .hljs-tag,
 .hljs-punctuation,
 .hljs-operator {
-  color: #b6b6cf;
+  color: var(--syn-punct);
 }
 .hljs-params {
   color: var(--fg);
@@ -726,8 +726,8 @@ textarea.q-input {
   background: var(--add-bg);
 }
 .dir-quiet .qf-st-mod {
-  color: #d9c46a;
-  background: rgba(217, 196, 106, 0.1);
+  color: var(--warn);
+  background: var(--warn-bg);
 }
 .dir-quiet .qf-st-del {
   color: var(--del);
@@ -1134,7 +1134,7 @@ textarea.q-input {
   padding: 6px 8px 6px 13px;
   font-size: 13px;
   font-weight: 600;
-  color: #14111f;
+  color: var(--accent-ink);
   cursor: pointer;
   background: var(--accent);
   border: 1px solid var(--accent);
@@ -1145,7 +1145,7 @@ textarea.q-input {
   filter: brightness(1.08);
 }
 .dir-quiet .qf-submit .qf-kbd {
-  color: #14111f;
+  color: var(--accent-ink);
   background: rgba(20, 17, 31, 0.16);
   border-color: rgba(20, 17, 31, 0.22);
   box-shadow: none;
@@ -1157,7 +1157,7 @@ textarea.q-input {
   font-weight: 700;
   line-height: 1.5;
   color: var(--accent);
-  background: #14111f;
+  background: var(--accent-ink);
   border-radius: var(--r-pill);
 }
 
@@ -1903,7 +1903,7 @@ textarea.q-input {
 }
 .dir-quiet .qf-comment-body {
   font-size: 13px;
-  color: #d6d6e6;
+  color: var(--fg-bright);
 }
 
 .dir-quiet .qf-comment-tools {
@@ -2845,7 +2845,7 @@ textarea.q-input {
 .qg-logo {
   width: 16px;
   height: 16px;
-  background: linear-gradient(135deg, #8b80ff, #6f63e6);
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
   border-radius: var(--r-sm);
   box-shadow: 0 0 12px -2px rgba(139, 128, 255, 0.5);
 }
