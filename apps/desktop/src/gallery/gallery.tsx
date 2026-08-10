@@ -21,7 +21,7 @@
  * shows how to bring it in.
  */
 import { catalog, Kbd } from "@nod/ui";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   captureName,
   cycle,
@@ -178,9 +178,8 @@ export function Gallery() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [route]);
 
-  const visibleNames = useMemo(
-    () => allNames.filter((name) => name.includes(filter.trim().toLowerCase())),
-    [filter]
+  const visibleNames = allNames.filter((name) =>
+    name.includes(filter.trim().toLowerCase())
   );
 
   const select = (component: string) => {
