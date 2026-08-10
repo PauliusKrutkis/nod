@@ -2,7 +2,6 @@
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteNav from "../components/SiteNav.astro";
 import Base from "../layouts/Base.astro";
-import { CONTACT_EMAIL } from "../lib/site";
 
 const PURCHASE_STEPS = [
   {
@@ -62,17 +61,10 @@ const PURCHASE_STEPS = [
         No subscription. No telemetry. Your token stays on your machine.
       </p>
 
-      <div class="purchase__notes">
-        <p>
-          Payment is handled by Polar, the merchant of record. The free
-          evaluation stays free, no account needed.
-        </p>
-        <p>
-          Buying for GitLab? Email{" "}
-          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> and I'll set
-          your license up by hand until GitLab checkout lands.
-        </p>
-      </div>
+      <p class="purchase__notes">
+        Buying for a team, on GitLab, or wondering what your company is
+        allowed to do? <a href="/faq">Straight answers on the FAQ</a>.
+      </p>
     </section>
   </main>
 
@@ -203,15 +195,9 @@ const PURCHASE_STEPS = [
   }
 
   .purchase__notes {
-    margin-top: 28px;
-    display: grid;
-    gap: 10px;
+    margin: 28px 0 0;
     font-size: 0.875rem;
     color: var(--muted);
-  }
-
-  .purchase__notes p {
-    margin: 0;
   }
 
   .purchase__notes a {
