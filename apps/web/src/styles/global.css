@@ -446,12 +446,19 @@ a {
   color: var(--muted);
 }
 
-.pricing__copy {
+.pricing__more {
   margin: 0;
-  max-width: 36ch;
-  font-size: 0.90625rem;
-  line-height: 1.6;
+  font-size: 0.8125rem;
+  color: var(--faint);
+}
+
+.pricing__more a {
   color: var(--muted);
+  text-underline-offset: 3px;
+}
+
+.pricing__more a:hover {
+  color: var(--fg);
 }
 
 .pricing__note {
