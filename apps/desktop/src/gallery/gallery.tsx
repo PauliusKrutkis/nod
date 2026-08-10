@@ -40,6 +40,7 @@ const THEME_LABELS = { day: "Daylight", quiet: "Quiet" } as const;
 const MODE_LABELS = { matrix: "Matrix", specimen: "Specimen" } as const;
 
 const componentNames = Object.keys(catalog);
+const cataloguedNames = new Set(componentNames);
 const allNames = [...componentNames, ...RETROFIT_QUEUE];
 
 const fixturesOf = (component: string): readonly string[] =>
@@ -90,6 +91,33 @@ function EmptyCatalogNotice({ name }: { name: string }) {
         into packages/ui, and add a fixtures file next to it. The
         quiet-component skill walks every step, hostile checklist included.
       </p>
+    </div>
+  );
+}
+
+function StageContent({ route }: { route: GalleryRoute }) {
+  if (!catalog[route.component]) {
+    return <EmptyCatalogNotice name={route.component} />;
+  }
+  if (route.mode === "specimen") {
+    return <Frame route={route} />;
+  }
+  return (
+    <div className="qg-matrix">
+      {GALLERY_THEMES.map((theme) => (
+        <div className="qg-matrix-head" key={theme}>
+          {THEME_LABELS[theme]}
+        </div>
+      ))}
+      {fixturesOf(route.component).flatMap((fixture) =>
+        GALLERY_THEMES.map((theme) => (
+          <Frame
+            key={`${fixture}-${theme}`}
+            route={{ ...route, fixture, theme }}
+            small
+          />
+        ))
+      )}
     </div>
   );
 }
@@ -177,7 +205,7 @@ export function Gallery() {
         </div>
         <nav aria-label="Components" className="qg-rail-list">
           {visibleNames.map((name) => {
-            const catalogued = componentNames.includes(name);
+            const catalogued = cataloguedNames.has(name);
             return (
               <button
                 className={[
@@ -215,7 +243,7 @@ export function Gallery() {
           </div>
           {entry ? (
             <div className="qg-controls">
-              <div aria-label="Fixture" className="qg-ctl" role="group">
+              <div className="qg-ctl">
                 <span className="qg-ctl-label">fixture</span>
                 {fixtureNames.map((name) => (
                   <button
@@ -290,30 +318,7 @@ export function Gallery() {
         </header>
 
         <main className="qg-stage">
-          {entry ? (
-            route.mode === "specimen" ? (
-              <Frame route={route} />
-            ) : (
-              <div className="qg-matrix">
-                {GALLERY_THEMES.map((theme) => (
-                  <div className="qg-matrix-head" key={theme}>
-                    {THEME_LABELS[theme]}
-                  </div>
-                ))}
-                {fixtureNames.flatMap((fixture) =>
-                  GALLERY_THEMES.map((theme) => (
-                    <Frame
-                      key={`${fixture}-${theme}`}
-                      route={{ ...route, fixture, theme }}
-                      small
-                    />
-                  ))
-                )}
-              </div>
-            )
-          ) : (
-            <EmptyCatalogNotice name={route.component} />
-          )}
+          <StageContent route={route} />
         </main>
 
         <footer className="qg-helpbar">

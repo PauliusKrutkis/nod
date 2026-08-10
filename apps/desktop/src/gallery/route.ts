@@ -60,14 +60,16 @@ export function parseGalleryHash(
   const theme = GALLERY_THEMES.includes(parts[2] as GalleryTheme)
     ? (parts[2] as GalleryTheme)
     : "quiet";
-  const width =
-    parts[3] === "fluid"
-      ? 0
-      : GALLERY_WIDTHS.includes(Number(parts[3]) as GalleryWidth)
-        ? (Number(parts[3]) as GalleryWidth)
-        : 420;
   const mode = GALLERY_MODES.includes(parts[4] as GalleryMode)
     ? (parts[4] as GalleryMode)
     : "specimen";
-  return { component, fixture, mode, theme, width };
+  return { component, fixture, mode, theme, width: parseWidth(parts[3]) };
+}
+
+function parseWidth(segment: string | undefined): GalleryWidth {
+  if (segment === "fluid") {
+    return 0;
+  }
+  const width = Number(segment) as GalleryWidth;
+  return GALLERY_WIDTHS.includes(width) ? width : 420;
 }

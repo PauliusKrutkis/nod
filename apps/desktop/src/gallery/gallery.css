@@ -87,6 +87,18 @@
     color 120ms;
 }
 
+.qg-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--line);
+  flex: none;
+}
+
+.qg-bare {
+  color: var(--faint);
+}
+
 .qg-rail-item:hover {
   background: var(--surface-2);
   color: var(--fg);
@@ -99,18 +111,6 @@
 
 .qg-rail-item.qg-sel .qg-dot {
   background: var(--accent);
-}
-
-.qg-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: var(--r-pill);
-  background: var(--line);
-  flex: none;
-}
-
-.qg-bare {
-  color: var(--faint);
 }
 
 .qg-bare .qg-dot {
