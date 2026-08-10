@@ -14,8 +14,8 @@ export const GALLERY_THEMES = ["quiet", "day"] as const;
 export const GALLERY_WIDTHS = [280, 420, 720, 0] as const;
 export const GALLERY_MODES = ["specimen", "matrix"] as const;
 
-export type GalleryTheme = (typeof GALLERY_THEMES)[number];
-export type GalleryWidth = (typeof GALLERY_WIDTHS)[number];
+type GalleryTheme = (typeof GALLERY_THEMES)[number];
+type GalleryWidth = (typeof GALLERY_WIDTHS)[number];
 type GalleryMode = (typeof GALLERY_MODES)[number];
 
 export interface GalleryRoute {
@@ -26,7 +26,7 @@ export interface GalleryRoute {
   mode: GalleryMode;
 }
 
-export const GALLERY_HASH_PREFIX = "#/gallery";
+const GALLERY_HASH_PREFIX = "#/gallery";
 
 export function cycle<T>(list: readonly T[], current: T, step: 1 | -1): T {
   const at = list.indexOf(current);
