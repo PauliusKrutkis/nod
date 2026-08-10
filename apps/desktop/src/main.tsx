@@ -20,18 +20,37 @@ import "./index.css";
  * Hydrate persisted viewed-file state into the store once, at startup, before
  * React mounts. The Rust side persists opaque JSON, so older installs may hold
  * the legacy `prKey -> string[]` shape — normalizeViewedMap migrates either.
+ *
+ * #/gallery mounts the component gallery instead of the app, dev builds
+ * only: the import.meta.env.DEV guard is statically false in production, so
+ * the dynamic import (and the whole gallery chunk) is tree-shaken out of
+ * release bundles. The gallery is store-free, so hydration is skipped too.
  */
-api
-  .getViewedMap()
-  .then((map) => useAppStore.getState().setViewed(normalizeViewedMap(map)))
-  .catch(() => undefined);
-
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <KeyboardProvider>
-        <App />
-      </KeyboardProvider>
-    </QueryClientProvider>
-  </React.StrictMode>
+const root = ReactDOM.createRoot(
+  document.getElementById("root") as HTMLElement
 );
+
+if (import.meta.env.DEV && window.location.hash.startsWith("#/gallery")) {
+  import("./gallery/gallery.tsx").then(({ Gallery }) => {
+    root.render(
+      <React.StrictMode>
+        <Gallery />
+      </React.StrictMode>
+    );
+  });
+} else {
+  api
+    .getViewedMap()
+    .then((map) => useAppStore.getState().setViewed(normalizeViewedMap(map)))
+    .catch(() => undefined);
+
+  root.render(
+    <React.StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <KeyboardProvider>
+          <App />
+        </KeyboardProvider>
+      </QueryClientProvider>
+    </React.StrictMode>
+  );
+}
