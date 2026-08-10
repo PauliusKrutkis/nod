@@ -125,7 +125,8 @@ const GROUPS = [
                 <p class="faq__a">{item.a}</p>
                 {item.link && (
                   <p class="mono faq__link">
-                    → <a href={item.link.href}>{item.link.label}</a>
+                    <span aria-hidden="true">→</span>{" "}
+                    <a href={item.link.href}>{item.link.label}</a>
                   </p>
                 )}
               </article>
