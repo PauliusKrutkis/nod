@@ -17,6 +17,11 @@
  * keeps "authored" honest. Fonts are deliberately absent: the site loads
  * variable fonts, the app static ones, so a shared font token would lie to
  * one of them.
+ *
+ * `cssVars` carries the short Quiet names the ported q-/qf- CSS consumes in
+ * both apps. The translucent washes are derived with color-mix rather than
+ * baked rgba so they follow a palette change — the same recipes as the
+ * desktop :root block.
  */
 
 export const palette = {
@@ -41,11 +46,6 @@ export type Palette = typeof palette;
 const mix = (color: string, pct: number) =>
   `color-mix(in srgb, ${color} ${pct}%, transparent)`;
 
-/**
- * The short Quiet names the ported q-/qf- CSS consumes, in both apps.
- * The translucent washes are derived with color-mix rather than baked rgba
- * so they follow a palette change — same recipes as the desktop :root block.
- */
 export const cssVars: ReadonlyArray<readonly [string, string]> = [
   ["--bg", palette.bg],
   ["--surface", palette.surface],
