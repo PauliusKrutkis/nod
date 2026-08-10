@@ -1,7 +1,8 @@
 /* ===========================================================================
    Nod landing page — "Quiet" design language, lifted from the desktop app so
    the site reads as a calm extension of the product (dark, iris accent, mono
-   keyboard cues). Palette + type are copied verbatim from the app's tokens.
+   keyboard cues). The palette arrives from @nod/tokens (imported in
+   Base.astro before this file); :root here holds only what is site-specific.
 
    Two container widths, on purpose: prose lives in .wrap (a readable 940px
    column) while app surfaces — the hero demo, feature footage, the locals
@@ -13,21 +14,6 @@
    =========================================================================== */
 
 :root {
-  --bg: #0f0f17;
-  --surface: #15151f;
-  --surface-2: #191924;
-  --surface-hi: #1c1c2a;
-  --line: #232334;
-  --line-2: #2c2c40;
-  --fg: #e8e8f3;
-  --muted: #9a9ab2;
-  --faint: #5f5f78;
-  --accent: #8b80ff;
-  --accent-soft: rgba(139, 128, 255, 0.16);
-  --accent-line: rgba(139, 128, 255, 0.4);
-  --add: #5fd08a;
-  --del: #ff7088;
-  --warn: #e7c56a;
   --font-ui: "Inter Variable", Inter, system-ui, sans-serif;
   --font-mono: "Geist Mono Variable", "Geist Mono", ui-monospace, monospace;
 
@@ -82,7 +68,7 @@ body {
   text-rendering: optimizeLegibility;
   background-image: radial-gradient(
     1100px 560px at 50% -8%,
-    rgba(139, 128, 255, 0.08),
+    color-mix(in srgb, var(--accent) 8%, transparent),
     transparent 62%
   );
   background-attachment: fixed;
@@ -351,7 +337,7 @@ a {
 
 .btn--primary {
   background: var(--accent);
-  color: #14111f;
+  color: var(--accent-ink);
 }
 
 .btn--primary:hover {
