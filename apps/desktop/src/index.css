@@ -27,6 +27,7 @@
 
 @import "tailwindcss" source("../src");
 @import "./quiet.css";
+@source "../../../packages/ui/src";
 
 @theme {
   --color-bg: #0f0f17;

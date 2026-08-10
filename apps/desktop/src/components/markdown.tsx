@@ -1,3 +1,4 @@
+import { Spinner } from "@nod/ui";
 import { useQuery } from "@tanstack/react-query";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { Check, Copy } from "lucide-react";
@@ -21,7 +22,6 @@ import {
   parseGitlabUploadPath,
   stripImageAttributeLists,
 } from "../lib/provider.ts";
-import { Spinner } from "./ui/spinner.tsx";
 
 /**
  * GitHub PR/issue bodies routinely contain raw HTML (Dependabot's <details>

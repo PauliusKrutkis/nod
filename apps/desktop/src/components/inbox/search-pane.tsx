@@ -1,3 +1,4 @@
+import { Avatar, Badge, Kbd } from "@nod/ui";
 import { Clock, CornerDownLeft, GitBranch, Search } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useModalDialog } from "../../hooks/use-modal-dialog.ts";
@@ -5,10 +6,7 @@ import { cn } from "../../lib/cn.ts";
 import { fuzzyMatchFields } from "../../lib/fuzzy.ts";
 import { formatRelativeTime } from "../../lib/time.ts";
 import { type PullRequest, prKey } from "../../types.ts";
-import { Avatar } from "../ui/avatar.tsx";
-import { Badge } from "../ui/badge.tsx";
 import { HighlightIndices } from "../ui/highlight.tsx";
-import { Kbd } from "../ui/kbd.tsx";
 
 interface SearchResult {
   hl: Record<string, number[]>;

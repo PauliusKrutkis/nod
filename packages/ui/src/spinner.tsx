@@ -1,4 +1,4 @@
-import { cn } from "../../lib/cn.ts";
+import { cn } from "./cn.ts";
 
 export function Spinner({
   label,

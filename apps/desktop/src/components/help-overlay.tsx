@@ -1,3 +1,4 @@
+import { Kbd } from "@nod/ui";
 import { Command, X } from "lucide-react";
 import { useModalDialog } from "../hooks/use-modal-dialog.ts";
 import { useKeyboard } from "../keyboard/keyboard-provider.tsx";
@@ -5,7 +6,6 @@ import type { KeyboardContextValue } from "../keyboard/types.ts";
 import { useHotkeys } from "../keyboard/use-hotkeys.ts";
 import { cn } from "../lib/cn.ts";
 import { useAppStore } from "../store/app-store.ts";
-import { Kbd } from "./ui/kbd.tsx";
 
 function firstKey(keys: string | string[]): string | undefined {
   return Array.isArray(keys) ? keys[0] : keys;

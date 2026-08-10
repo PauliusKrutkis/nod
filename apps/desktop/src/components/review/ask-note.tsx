@@ -16,11 +16,12 @@
  * focus back the moment it re-enables so the follow-up can be typed
  * immediately.
  */
+
+import { Spinner } from "@nod/ui";
 import { CornerDownLeft, Sparkles, X } from "lucide-react";
 import { type KeyboardEvent, useEffect, useRef } from "react";
 import type { AskExchange } from "../../hooks/use-ask-note.ts";
 import { Markdown } from "../markdown.tsx";
-import { Spinner } from "../ui/spinner.tsx";
 
 export interface AskNoteProps {
   exchanges: AskExchange[];

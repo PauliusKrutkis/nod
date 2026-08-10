@@ -1,3 +1,4 @@
+import { Spinner } from "@nod/ui";
 import { useQuery } from "@tanstack/react-query";
 import { History, X } from "lucide-react";
 import { useEffect } from "react";
@@ -8,7 +9,6 @@ import { api } from "../lib/api.ts";
 import { cn } from "../lib/cn.ts";
 import { compareVersions, releasesQuery } from "../lib/releases.ts";
 import { Markdown } from "./markdown.tsx";
-import { Spinner } from "./ui/spinner.tsx";
 
 function formatDate(iso: string): string {
   const d = new Date(iso);

@@ -11,6 +11,8 @@
  * by observing the body *and its sections* — the body's own box is pinned by
  * the drawer, so growing conversation only ever resizes a section.
  */
+
+import { Avatar, Kbd } from "@nod/ui";
 import {
   CheckCircle2,
   ExternalLink,
@@ -37,8 +39,6 @@ import type {
   ReviewSummary,
 } from "../../types.ts";
 import { Markdown } from "../markdown.tsx";
-import { Avatar } from "../ui/avatar.tsx";
-import { Kbd } from "../ui/kbd.tsx";
 import { TicketTitle } from "../ui/ticket-title.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
 import { AddCommentBox, type AddCommentBoxHandle } from "./add-comment-box.tsx";

@@ -1,3 +1,4 @@
+import { Kbd } from "@nod/ui";
 import { CornerDownLeft, FileCode, Search } from "lucide-react";
 import {
   type KeyboardEvent,
@@ -14,7 +15,6 @@ import { fuzzyMatch } from "../../lib/fuzzy.ts";
 import { highlightLineWithMatch } from "../../lib/highlight.ts";
 import type { ChangedFile } from "../../types.ts";
 import { HighlightIndices } from "../ui/highlight.tsx";
-import { Kbd } from "../ui/kbd.tsx";
 
 type Mode = "files" | "text";
 

@@ -1,3 +1,4 @@
+import { Kbd } from "@nod/ui";
 import { Search } from "lucide-react";
 import {
   type KeyboardEvent,
@@ -14,7 +15,6 @@ import { cn } from "../lib/cn.ts";
 import { fuzzyMatch } from "../lib/fuzzy.ts";
 import { useAppStore } from "../store/app-store.ts";
 import { HighlightIndices } from "./ui/highlight.tsx";
-import { Kbd } from "./ui/kbd.tsx";
 
 interface Entry {
   group?: string;

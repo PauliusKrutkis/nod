@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { cn } from "../../lib/cn.ts";
+import { cn } from "./cn.ts";
 
 type Tone = "default" | "accent" | "success" | "danger" | "warning" | "muted";
 

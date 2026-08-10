@@ -1,3 +1,4 @@
+import { Spinner } from "@nod/ui";
 import { ArrowLeft, KeyRound, Server } from "lucide-react";
 import { type ChangeEvent, type KeyboardEvent, useEffect, useRef } from "react";
 import {
@@ -8,7 +9,6 @@ import {
   useTokenGate,
 } from "../hooks/use-token-gate.ts";
 import { cn } from "../lib/cn.ts";
-import { Spinner } from "./ui/spinner.tsx";
 
 function GitHubMark() {
   return (

@@ -17,6 +17,8 @@
  * visit and re-running the correction on each remount would boomerang a
  * deliberate visit to an empty tab back to whichever tab has content.
  */
+
+import { Avatar, Kbd, Spinner } from "@nod/ui";
 import {
   Archive,
   ArchiveRestore,
@@ -39,9 +41,6 @@ import { useAppStore } from "../../store/app-store.ts";
 import type { InboxData, InboxTabKey, PullRequest } from "../../types.ts";
 import { prKey } from "../../types.ts";
 import { Markdown } from "../markdown.tsx";
-import { Avatar } from "../ui/avatar.tsx";
-import { Kbd } from "../ui/kbd.tsx";
-import { Spinner } from "../ui/spinner.tsx";
 import { TicketTitle } from "../ui/ticket-title.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
 import { PRListItem } from "./pr-list-item.tsx";

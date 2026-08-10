@@ -8,6 +8,8 @@
  * while a text input has focus, so showing them would advertise dead
  * shortcuts.
  */
+
+import { Avatar, Kbd } from "@nod/ui";
 import { CheckCircle2, MessageSquare } from "lucide-react";
 import { useState } from "react";
 import { cn } from "../../lib/cn.ts";
@@ -15,8 +17,6 @@ import { firstLine } from "../../lib/comment-format.ts";
 import { formatAbsolute, formatRelativeTime } from "../../lib/time.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type { ReviewComment } from "../../types.ts";
-import { Avatar } from "../ui/avatar.tsx";
-import { Kbd } from "../ui/kbd.tsx";
 import { AddCommentBox } from "./add-comment-box.tsx";
 import { CommentBody, CommentTools } from "./comment-item.tsx";
 

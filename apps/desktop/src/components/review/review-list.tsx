@@ -1,3 +1,4 @@
+import { Avatar, Kbd } from "@nod/ui";
 import { Check, FoldVertical, UnfoldVertical } from "lucide-react";
 import {
   type CSSProperties,
@@ -38,8 +39,6 @@ import {
 import { useAppStore } from "../../store/app-store.ts";
 import type { AccountInfo, ChangedFile, PendingComment } from "../../types.ts";
 import { Markdown } from "../markdown.tsx";
-import { Avatar } from "../ui/avatar.tsx";
-import { Kbd } from "../ui/kbd.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
 import { AddCommentBox } from "./add-comment-box.tsx";
 import { AskNote, type AskNoteProps } from "./ask-note.tsx";

@@ -1,3 +1,4 @@
+import { Kbd } from "@nod/ui";
 import { Check, Eye, Search, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useArmedRing } from "../../hooks/use-armed-ring.ts";
@@ -8,7 +9,6 @@ import { api } from "../../lib/api.ts";
 import { cn } from "../../lib/cn.ts";
 import { queryClient, queryKeys } from "../../lib/query-client.ts";
 import type { RepoHit } from "../../types.ts";
-import { Kbd } from "../ui/kbd.tsx";
 
 const REPO_URL_PREFIX = /^https?:\/\/[^/]+\//;
 const TRAILING_SLASHES = /\/+$/;

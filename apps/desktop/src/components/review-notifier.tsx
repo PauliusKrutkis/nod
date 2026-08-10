@@ -1,11 +1,10 @@
+import { Avatar, Kbd } from "@nod/ui";
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useInbox } from "../hooks/use-inbox.ts";
 import { useHotkeys } from "../keyboard/use-hotkeys.ts";
 import { useAppStore } from "../store/app-store.ts";
 import { type PullRequest, prKey } from "../types.ts";
-import { Avatar } from "./ui/avatar.tsx";
-import { Kbd } from "./ui/kbd.tsx";
 
 /**
  * In-app "new review requested" notification (backlog: stronger than link
