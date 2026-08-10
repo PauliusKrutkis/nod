@@ -117,6 +117,7 @@ export function Gallery() {
       }
       const move = (patch: Partial<GalleryRoute>) =>
         setRoute((r) => normalize({ ...r, ...patch }));
+      const routeFixtures = fixturesOf(route.component);
       switch (event.key) {
         case "j":
           move({ component: cycle(allNames, route.component, 1) });
@@ -125,8 +126,8 @@ export function Gallery() {
           move({ component: cycle(allNames, route.component, -1) });
           break;
         case "f":
-          if (fixtureNames.length > 0) {
-            move({ fixture: cycle(fixtureNames, route.fixture, 1) });
+          if (routeFixtures.length > 0) {
+            move({ fixture: cycle(routeFixtures, route.fixture, 1) });
           }
           break;
         case "t":
@@ -147,7 +148,7 @@ export function Gallery() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [route, fixtureNames]);
+  }, [route]);
 
   const visibleNames = useMemo(
     () => allNames.filter((name) => name.includes(filter.trim().toLowerCase())),
