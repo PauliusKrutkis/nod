@@ -1,0 +1,213 @@
+---
+import SiteFooter from "../components/SiteFooter.astro";
+import SiteNav from "../components/SiteNav.astro";
+import Base from "../layouts/Base.astro";
+import { CONTACT_EMAIL, REPO_URL } from "../lib/site";
+
+/**
+ * Answers live here; terms do not. Every answer that rests on the license or
+ * the privacy statement points at the authority instead of paraphrasing it,
+ * so this page cannot drift from the text it summarises. Same rule for
+ * numbers: the evaluation length is stated nowhere on the site, because the
+ * app owns it and a stale number here would be a small lie.
+ *
+ * Plain document, no accordions: find-in-page has to work, and every
+ * question carries an id so /buy and support replies can deep-link the exact
+ * answer.
+ */
+
+const GROUPS = [
+  {
+    label: "Buying",
+    items: [
+      {
+        id: "what-you-get",
+        q: "What does $59 buy?",
+        a: "A permanent license and a year of updates. When the year ends, Nod keeps working exactly as it is. You stop receiving updates, nothing else.",
+      },
+      {
+        id: "evaluation",
+        q: "Do I have to buy to keep using Nod?",
+        a: "No. The evaluation is free, every feature, no time limit. Buying removes the purchase reminder and keeps updates coming.",
+      },
+      {
+        id: "payment",
+        q: "Who takes my card?",
+        a: "Polar, the merchant of record. Your payment details never reach Nod, and the receipt comes from Polar.",
+      },
+      {
+        id: "team",
+        q: "Buying for a team?",
+        a: "Email me and I will sort out invoicing.",
+        link: { href: `mailto:${CONTACT_EMAIL}`, label: CONTACT_EMAIL },
+      },
+      {
+        id: "gitlab",
+        q: "I review on GitLab. Can I buy?",
+        a: "Yes. Checkout signs in with GitHub for now, so email me and I will set your license up by hand until GitLab checkout lands.",
+        link: { href: `mailto:${CONTACT_EMAIL}`, label: CONTACT_EMAIL },
+      },
+    ],
+  },
+  {
+    label: "At work",
+    items: [
+      {
+        id: "commercial-use",
+        q: "Can we use Nod at work?",
+        a: "Yes. The license permits internal use at any company, commercial or not. What it forbids is building a competing product from the source.",
+        link: {
+          href: `${REPO_URL}/blob/main/LICENSE.md`,
+          label: "LICENSE.md",
+        },
+      },
+      {
+        id: "per-person",
+        q: "Is the license per person or per machine?",
+        a: "Per person. Your GitHub account is the license, and Nod activates on any machine you sign in on. Machines are not counted.",
+      },
+      {
+        id: "source",
+        q: "Is the source available?",
+        a: "Yes, under the Functional Source License, and each version becomes Apache 2.0 two years after its release.",
+        link: {
+          href: `${REPO_URL}/blob/main/LICENSE.md`,
+          label: "LICENSE.md",
+        },
+      },
+    ],
+  },
+  {
+    label: "Trust",
+    items: [
+      {
+        id: "your-code",
+        q: "Does Nod see my code?",
+        a: "No. The app talks to GitHub or GitLab directly from your machine and your token never leaves it. Buying asks for read:user only, to know who you are.",
+        link: { href: "/about#privacy", label: "Privacy statement" },
+      },
+    ],
+  },
+];
+---
+
+<Base
+  title="Nod · FAQ"
+  description="Straight answers about buying Nod, using it at work, and what the app can and cannot see."
+>
+  <SiteNav cta={{ href: "/downloads", label: "Download" }} />
+
+  <main>
+    <section class="wrap faq">
+      <p class="eyebrow">FAQ</p>
+      <h1 class="faq__title">Straight answers.</h1>
+      <p class="faq__sub">
+        Anything unanswered here is an email away:{" "}
+        <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+      </p>
+
+      {
+        GROUPS.map((group) => (
+          <section class="faq__group">
+            <h2 class="eyebrow faq__label">{group.label}</h2>
+            {group.items.map((item) => (
+              <article class="faq__item" id={item.id}>
+                <h3 class="faq__q">
+                  <a class="faq__anchor" href={`#${item.id}`}>
+                    {item.q}
+                  </a>
+                </h3>
+                <p class="faq__a">{item.a}</p>
+                {item.link && (
+                  <p class="mono faq__link">
+                    → <a href={item.link.href}>{item.link.label}</a>
+                  </p>
+                )}
+              </article>
+            ))}
+          </section>
+        ))
+      }
+    </section>
+  </main>
+
+  <SiteFooter />
+</Base>
+
+<style>
+  .faq {
+    max-width: 560px;
+    padding-top: clamp(48px, 9vh, 96px);
+    padding-bottom: 96px;
+  }
+
+  .faq__title {
+    margin-top: 18px;
+    font-size: clamp(1.9rem, 4.4vw, 2.9rem);
+    font-weight: 640;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+  }
+
+  .faq__sub {
+    margin: 14px 0 0;
+    color: var(--muted);
+  }
+
+  .faq__sub a {
+    color: var(--fg);
+  }
+
+  .faq__group {
+    margin-top: 52px;
+  }
+
+  .faq__label {
+    margin: 0;
+  }
+
+  .faq__item {
+    margin-top: 26px;
+  }
+
+  .faq__item:target .faq__q {
+    color: var(--accent);
+  }
+
+  .faq__q {
+    margin: 0;
+    font-size: 1.0625rem;
+    font-weight: 620;
+    letter-spacing: -0.01em;
+  }
+
+  .faq__anchor {
+    color: inherit;
+  }
+
+  .faq__anchor:hover::after {
+    content: " #";
+    color: var(--faint);
+  }
+
+  .faq__a {
+    margin: 6px 0 0;
+    font-size: 0.9375rem;
+    color: var(--muted);
+  }
+
+  .faq__link {
+    margin: 8px 0 0;
+    font-size: 0.8125rem;
+    color: var(--faint);
+  }
+
+  .faq__link a {
+    color: var(--muted);
+    text-underline-offset: 3px;
+  }
+
+  .faq__link a:hover {
+    color: var(--fg);
+  }
+</style>
