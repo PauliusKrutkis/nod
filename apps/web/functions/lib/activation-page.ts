@@ -50,7 +50,6 @@ export const PAGE_STYLE = `
   p.alt { margin-top: 1.5rem; margin-bottom: 0; font-size: 0.8125rem;
     color: #5f5f78; }
   p.alt a { color: #9a9ab2; text-underline-offset: 3px; }
-  button.open { font: inherit; border: 0; cursor: pointer; }
   .spin { width: 18px; height: 18px; margin: 0 auto 1.25rem;
     border-radius: 999px; border: 2px solid #2c2c40; border-top-color: #8b80ff;
     animation: spin 700ms linear infinite; }

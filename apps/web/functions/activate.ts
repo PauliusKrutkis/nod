@@ -31,7 +31,9 @@
  * spinner, and asks `?poll=1` for a small JSON answer in the background; only
  * when that answer says the license is ready does it navigate, once, to the
  * real activation screen. The retry budget moved with it, from the URL into
- * the page's own script.
+ * the page's own script. Without JavaScript a noscript meta-refresh keeps the
+ * old reload behaviour, since the script is otherwise the only thing that
+ * ever advances the page.
  *
  * The interval backs off from two seconds towards eight, because the common
  * case resolves almost immediately and the slow case can run for minutes; a
@@ -71,6 +73,7 @@ function preparingPage(checkoutId: string): string {
 <meta name="robots" content="noindex">
 <title>Nod · preparing your activation</title>
 <style>${PAGE_STYLE}</style>
+<noscript><meta http-equiv="refresh" content="5"></noscript>
 </head>
 <body>
 <main>
@@ -91,7 +94,7 @@ function preparingPage(checkoutId: string): string {
   function giveUp() {
     document.getElementById("spin").hidden = true;
     document.getElementById("status").textContent =
-      "This is taking longer than it should. Your payment went through, so nothing is lost.";
+      "This is taking longer than it should. If your payment went through, nothing is lost.";
     document.getElementById("slow").hidden = false;
   }
 

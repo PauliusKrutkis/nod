@@ -192,7 +192,11 @@ describe("GET /activate", () => {
     );
     const html = await response.text();
 
-    expect(html).not.toContain('http-equiv="refresh"');
+    const refreshOutsideNoscript = html
+      .replace(/<noscript>[\s\S]*?<\/noscript>/g, "")
+      .includes('http-equiv="refresh"');
+    expect(refreshOutsideNoscript).toBe(false);
+    expect(html).toContain("<noscript>");
     expect(html).not.toContain("retry=");
     expect(html).toContain("/activate?checkout_id=checkout_nope&poll=1");
   });
