@@ -11,6 +11,7 @@ What exists today, and what runs it:
 | --- | --- | --- |
 | App unit | `apps/desktop/src/**/*.test.ts` | `pnpm test` |
 | App e2e (vite + mocked Tauri bridge) | `apps/desktop/e2e/` | `pnpm e2e` |
+| Gallery screenshots (webkit) | `apps/desktop/e2e/gallery/` | `pnpm --filter @nod/desktop shots` |
 | Rust unit | `apps/desktop/src-tauri/` | `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml` |
 | Site unit, types, e2e | `apps/web/` | see [Marketing site](#marketing-site-appsweb) |
 
@@ -94,6 +95,25 @@ path-independent logic or inject the config dir.
 
 `wait_for_code` / `handle_connection` request parsing (state mismatch, error
 params, non-callback paths) against a loopback `TcpStream`.
+
+## Gallery screenshots (webkit)
+
+The layer that catches layout: one screenshot per catalog cell of the
+`#/gallery` route, enumerated from the `@nod/ui` fixtures export, so adding a
+fixture adds a screenshot with no new test code. Webkit only — Nod ships on
+WebKitGTK, and chromium-only checks have hidden engine-shaped regressions
+before. jsdom cannot see truncation, overflow, or z-order; this suite is
+where those regressions fail.
+
+Baselines are platform-suffixed and only comparable within one platform:
+
+- Locally: `pnpm --filter @nod/desktop shots` compares against your
+  platform's committed baselines; `shots:update` regenerates them, and the
+  diff you commit is the reviewable record of the visual change.
+- CI (`gallery-shots.yml`, pinned ubuntu image): compares against `-linux`
+  baselines. Until those are committed the job bootstraps them and uploads
+  the set as an artifact to review and commit — after that, a visual change
+  only merges through an explicit baseline update.
 
 ## Marketing site (`apps/web`)
 

@@ -17,7 +17,11 @@
     // playwright plugin does not auto-detect (it only knows
     // playwright.config.ts).
     "apps/desktop": {
-      "entry": ["playwright.capture.config.ts", "e2e/capture/*.capture.ts"]
+      "entry": [
+        "playwright.capture.config.ts",
+        "e2e/capture/*.capture.ts",
+        "e2e/gallery/*.shots.ts"
+      ]
     },
     "apps/web": {
       // scripts/: operator-run one-offs (docs/LAUNCH.md), not imported.

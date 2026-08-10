@@ -1,0 +1,56 @@
+# Compares gallery screenshots against linux baselines when they exist; until
+# someone commits them, the job bootstraps by generating the linux set and
+# publishing it as an artifact to be reviewed and committed. Baselines are
+# platform-suffixed, so the darwin files in the repo never stand in for this
+# image — comparing across font-rendering stacks is pure noise. A visual
+# change therefore only merges via an explicit baseline update, never by
+# drifting silently.
+
+name: Gallery shots
+
+on:
+  pull_request:
+    paths:
+      - "packages/ui/**"
+      - "packages/tokens/**"
+      - "apps/desktop/src/gallery/**"
+      - "apps/desktop/src/index.css"
+      - "apps/desktop/src/quiet.css"
+      - "apps/desktop/e2e/gallery/**"
+      - "apps/desktop/playwright.gallery.config.ts"
+  workflow_dispatch:
+
+jobs:
+  shots:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --trust-lockfile
+      - name: Install Playwright webkit
+        run: pnpm exec playwright install --with-deps webkit
+      - name: Compare against linux baselines (or bootstrap them)
+        id: shots
+        run: |
+          if ls apps/desktop/e2e/gallery/gallery.shots.ts-snapshots/*-linux.png >/dev/null 2>&1; then
+            pnpm --filter @nod/desktop shots
+          else
+            echo "bootstrap=true" >> "$GITHUB_OUTPUT"
+            pnpm --filter @nod/desktop shots:update
+          fi
+      - name: Publish bootstrapped linux baselines
+        if: steps.shots.outputs.bootstrap == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: gallery-linux-baselines
+          path: apps/desktop/e2e/gallery/gallery.shots.ts-snapshots/*-linux.png
+      - name: Publish diffs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gallery-shot-diffs
+          path: apps/desktop/test-results
