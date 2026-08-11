@@ -20,6 +20,7 @@
 
 import { Avatar } from "@nod/ui/avatar";
 import { CiPill } from "@nod/ui/ci-pill";
+import { CommentTools } from "@nod/ui/comment-tools";
 import { Kbd } from "@nod/ui/kbd";
 import { TicketTitle } from "@nod/ui/ticket-title";
 import { formatAbsolute, formatRelativeTime } from "@nod/ui/time";
@@ -51,7 +52,7 @@ import type {
 } from "../../types.ts";
 import { Markdown } from "../markdown.tsx";
 import { AddCommentBox, type AddCommentBoxHandle } from "./add-comment-box.tsx";
-import { CommentBody, CommentTools } from "./comment-item.tsx";
+import { CommentBody } from "./comment-item.tsx";
 
 export interface RightPanelHandle {
   openComposer: () => void;

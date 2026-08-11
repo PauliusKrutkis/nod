@@ -11,21 +11,6 @@ export interface ManifestEntry {
 }
 
 export const catalogManifest: Record<string, ManifestEntry> = {
-  "ask-note": {
-    fixtures: [
-      "answer",
-      "answer-with-code",
-      "conversation",
-      "error",
-      "idle",
-      "long-answer",
-      "markup-as-text",
-      "overflow",
-      "streaming",
-      "thinking",
-      "unicode",
-    ],
-  },
   avatar: {
     fixtures: [
       "cjk-name",
@@ -76,50 +61,20 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "success",
     ],
   },
-  "code-cell": {
+  "comment-tools": {
     fixtures: [
-      "empty",
-      "indent-guides",
-      "markup-as-text",
-      "overflow",
-      "raw-markup",
-      "tabs",
-      "typical",
-      "unicode",
-      "whitespace",
-    ],
-  },
-  "find-bar": {
-    fixtures: [
-      "case-sensitive",
-      "closed",
-      "count-4-digit",
-      "empty-query",
-      "markup-as-text",
-      "no-matches",
-      "one-match",
-      "overflow",
-      "typical",
-      "unicode",
+      "chord",
+      "copy-only",
+      "delete-only",
+      "edit-only",
+      "markup-body",
+      "own",
+      "own-with-kbd",
+      "unknown-key",
     ],
   },
   "highlight-indices": {
     fixtures: ["cjk", "empty-text", "every", "none", "out-of-range", "typical"],
-  },
-  "image-diff": {
-    fixtures: [
-      "added-only",
-      "both-sides",
-      "broken",
-      "deleted-only",
-      "loading",
-      "markup-as-text",
-      "no-source",
-      "overflow",
-      "tall",
-      "tiny",
-      "wide",
-    ],
   },
   kbd: {
     fixtures: [
@@ -132,29 +87,23 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "unknown-word",
     ],
   },
-  "overview-ruler": {
+  "pr-list-item": {
     fixtures: [
-      "all-unmeasured",
-      "crowd-500",
-      "current-out-of-range",
-      "edges",
-      "empty",
-      "occurrence",
-      "single",
-      "typical",
-      "unmeasured",
-    ],
-  },
-  "review-verdicts": {
-    fixtures: [
-      "crowd-12",
-      "empty",
+      "ancient",
+      "cjk",
+      "draft",
+      "future",
+      "huge-counts",
       "markup-as-text",
-      "mixed",
+      "merged",
+      "minimal",
       "no-avatar",
-      "one-approval",
       "overflow",
-      "unicode",
+      "read",
+      "rtl",
+      "selected",
+      "unread",
+      "zero-counts",
     ],
   },
   "search-pane": {

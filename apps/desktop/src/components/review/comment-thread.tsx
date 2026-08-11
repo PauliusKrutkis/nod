@@ -10,6 +10,7 @@
  */
 
 import { Avatar } from "@nod/ui/avatar";
+import { CommentTools } from "@nod/ui/comment-tools";
 import { Kbd } from "@nod/ui/kbd";
 import { formatAbsolute, formatRelativeTime } from "@nod/ui/time";
 import { CheckCircle2, MessageSquare } from "lucide-react";
@@ -19,7 +20,7 @@ import { firstLine } from "../../lib/comment-format.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type { ReviewComment } from "../../types.ts";
 import { AddCommentBox } from "./add-comment-box.tsx";
-import { CommentBody, CommentTools } from "./comment-item.tsx";
+import { CommentBody } from "./comment-item.tsx";
 
 export interface ReplyRequest {
   nonce: number;
