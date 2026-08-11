@@ -9,6 +9,7 @@
 }
 
 .qsp-title > :first-child {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -131,8 +132,11 @@
   display: flex;
   gap: 6px;
   align-items: center;
+  min-width: 0;
+  overflow: hidden;
   font-size: 12px;
   color: var(--muted);
+  white-space: nowrap;
 }
 
 .qsp-time {
@@ -150,6 +154,7 @@
   gap: 4px;
   align-items: center;
   min-width: 0;
+  overflow: hidden;
   color: var(--faint);
 }
 

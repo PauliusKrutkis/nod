@@ -10,8 +10,10 @@
   display: inline-block;
   min-width: 16px;
   padding: 3px 5px;
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   font-size: 10px;
+  font-weight: 550;
+  letter-spacing: 0.02em;
   line-height: 1;
   color: var(--muted);
   text-align: center;
