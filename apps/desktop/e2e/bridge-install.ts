@@ -302,7 +302,10 @@ export function installBridge(cfg: BridgeConfig) {
       localStorage.setItem("e2e:viewed", JSON.stringify(args.map));
       return null;
     },
-    set_watched_repos: () => null,
+    set_watched_repos: () => {
+      countCall("set_watched_repos");
+      return null;
+    },
     submit_review: (args) => {
       localStorage.setItem("e2e:lastReview", JSON.stringify(args));
       return null;

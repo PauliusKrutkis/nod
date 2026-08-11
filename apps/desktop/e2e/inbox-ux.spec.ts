@@ -206,6 +206,62 @@ test("watch dialog: Tab arms remove and Done without moving focus", async ({
   ).toHaveCount(0);
 });
 
+test("watch dialog: a burst of removals writes the list once", async ({
+  page,
+}) => {
+  await setupApp(page, {
+    watchedRepos: ["acme/rocket", "acme/comet", "acme/probe"],
+  });
+  await expect(page.getByRole("option").first()).toBeVisible();
+
+  await page.keyboard.press("w");
+  await expect(page.locator(".qw-row")).toHaveCount(3);
+
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".qw-row")).toHaveCount(0);
+
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as { __calls?: Record<string, number> }).__calls
+            ?.set_watched_repos ?? 0
+      )
+    )
+    .toBe(1);
+});
+
+test("watch dialog: closing straight after a change still saves it", async ({
+  page,
+}) => {
+  await setupApp(page, { watchedRepos: ["acme/rocket", "acme/comet"] });
+  await expect(page.getByRole("option").first()).toBeVisible();
+
+  await page.keyboard.press("w");
+  await expect(page.locator(".qw-row")).toHaveCount(2);
+
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".qw-row")).toHaveCount(1);
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("dialog", { name: "Watched repositories" })
+  ).toHaveCount(0);
+
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as { __calls?: Record<string, number> }).__calls
+            ?.set_watched_repos ?? 0
+      )
+    )
+    .toBe(1);
+});
+
 test("watch dialog search shows a border sweep in flight, no empty box", async ({
   page,
 }) => {
