@@ -44,6 +44,7 @@
     "zustand": "^5.0.2"
   },
   "devDependencies": {
+    "@nod/tokens": "workspace:*",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/vite": "^4.0.0",
     "@tauri-apps/cli": "^2",

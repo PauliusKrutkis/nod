@@ -23,9 +23,12 @@
  * strings, so they cannot import src/styles/global.css (its filename is
  * content-hashed at build time) — but they are the last screens of a
  * purchase, and a buyer arriving from checkout should not feel handed to a
- * different product. Values copy :root in global.css; the font stack degrades
- * to system-ui because no @font-face travels with this page.
+ * different product. The colours interpolate from @nod/tokens — the string
+ * shape exists for exactly this consumer; the font stack degrades to
+ * system-ui because no @font-face travels with this page.
  */
+
+import { palette as p } from "@nod/tokens";
 
 const DEEP_LINK_BASE = "nod://purchase";
 const PURCHASE_LISTENER_BASE = "http://127.0.0.1:8766/callback";
@@ -33,25 +36,26 @@ const PURCHASE_LISTENER_BASE = "http://127.0.0.1:8766/callback";
 export const PAGE_STYLE = `
   :root { color-scheme: dark; }
   body { margin: 0; display: grid; place-items: center; min-height: 100vh;
-    background: #0f0f17; color: #e8e8f3;
+    background: ${p.bg}; color: ${p.fg};
     font-family: "Inter Variable", Inter, system-ui, sans-serif;
     font-size: 16px; line-height: 1.6; letter-spacing: -0.006em;
     -webkit-font-smoothing: antialiased;
     background-image: radial-gradient(1100px 560px at 50% -8%,
-      rgba(139, 128, 255, 0.08), transparent 62%); }
+      color-mix(in srgb, ${p.accent} 8%, transparent), transparent 62%); }
   main { max-width: 26rem; padding: 2rem; text-align: center; }
   h1 { font-size: 1.35rem; font-weight: 640; letter-spacing: -0.02em;
     margin: 0 0 0.5rem; }
-  p { margin: 0.5rem 0 1.5rem; color: #9a9ab2; }
+  p { margin: 0.5rem 0 1.5rem; color: ${p.muted}; }
   a.open { display: inline-block; padding: 11px 18px; border-radius: 10px;
-    background: #8b80ff; color: #14111f; text-decoration: none;
+    background: ${p.accent}; color: ${p.accentInk}; text-decoration: none;
     font-weight: 500; font-size: 0.90625rem; }
-  a.open:focus-visible { outline: 2px solid #8b80ff; outline-offset: 3px; }
+  a.open:focus-visible { outline: 2px solid ${p.accent}; outline-offset: 3px; }
   p.alt { margin-top: 1.5rem; margin-bottom: 0; font-size: 0.8125rem;
-    color: #5f5f78; }
-  p.alt a { color: #9a9ab2; text-underline-offset: 3px; }
+    color: ${p.faint}; }
+  p.alt a { color: ${p.muted}; text-underline-offset: 3px; }
   .spin { width: 18px; height: 18px; margin: 0 auto 1.25rem;
-    border-radius: 999px; border: 2px solid #2c2c40; border-top-color: #8b80ff;
+    border-radius: 999px; border: 2px solid ${p.lineStrong};
+    border-top-color: ${p.accent};
     animation: spin 700ms linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) {

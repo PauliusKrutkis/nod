@@ -1,0 +1,33 @@
+/* Generated shape, authored file: must byte-match `tokensCss` in
+   src/index.ts — index.test.ts fails on any drift. Edit the palette there,
+   then mirror it here. */
+:root {
+  --bg: #0f0f17;
+  --surface: #15151f;
+  --surface-2: #191924;
+  --surface-hi: #1c1c2a;
+  --line: #232334;
+  --line-2: #2c2c40;
+  --fg: #e8e8f3;
+  --muted: #9a9ab2;
+  --faint: #5f5f78;
+  --accent: #8b80ff;
+  --accent-ink: #14111f;
+  --accent-soft: color-mix(in srgb, #8b80ff 16%, transparent);
+  --accent-line: color-mix(in srgb, #8b80ff 40%, transparent);
+  --add: #5fd08a;
+  --del: #ff7088;
+  --warn: #e7c56a;
+  --add-bg: color-mix(in srgb, #5fd08a 10%, transparent);
+  --del-bg: color-mix(in srgb, #ff7088 10%, transparent);
+  --warn-bg: color-mix(in srgb, #e7c56a 12%, transparent);
+  --add-num: color-mix(in srgb, #5fd08a 55%, transparent);
+  --del-num: color-mix(in srgb, #ff7088 55%, transparent);
+  --r-xs: 2px;
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 8px;
+  --r-xl: 10px;
+  --r-2xl: 12px;
+  --r-pill: 999px;
+}
