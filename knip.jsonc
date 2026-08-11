@@ -19,9 +19,11 @@
     "apps/desktop": {
       "entry": [
         "playwright.capture.config.ts",
-        "e2e/capture/*.capture.ts",
-        "e2e/gallery/*.shots.ts"
+        "e2e/capture/*.capture.ts"
       ]
+    },
+    "apps/gallery": {
+      "entry": ["e2e/*.shots.ts"]
     },
     "apps/web": {
       // scripts/: operator-run one-offs (docs/LAUNCH.md), not imported.

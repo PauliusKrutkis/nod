@@ -13,11 +13,9 @@ on:
     paths:
       - "packages/ui/**"
       - "packages/tokens/**"
-      - "apps/desktop/src/gallery/**"
+      - "apps/gallery/**"
       - "apps/desktop/src/index.css"
       - "apps/desktop/src/quiet.css"
-      - "apps/desktop/e2e/gallery/**"
-      - "apps/desktop/playwright.gallery.config.ts"
   workflow_dispatch:
 
 jobs:
@@ -36,21 +34,21 @@ jobs:
       - name: Compare against linux baselines (or bootstrap them)
         id: shots
         run: |
-          if ls apps/desktop/e2e/gallery/gallery.shots.ts-snapshots/*-linux.png >/dev/null 2>&1; then
-            pnpm --filter @nod/desktop shots
+          if ls apps/gallery/e2e/gallery.shots.ts-snapshots/*-linux.png >/dev/null 2>&1; then
+            pnpm --filter @nod/gallery shots
           else
             echo "bootstrap=true" >> "$GITHUB_OUTPUT"
-            pnpm --filter @nod/desktop shots:update
+            pnpm --filter @nod/gallery shots:update
           fi
       - name: Publish bootstrapped linux baselines
         if: steps.shots.outputs.bootstrap == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: gallery-linux-baselines
-          path: apps/desktop/e2e/gallery/gallery.shots.ts-snapshots/*-linux.png
+          path: apps/gallery/e2e/gallery.shots.ts-snapshots/*-linux.png
       - name: Publish diffs on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: gallery-shot-diffs
-          path: apps/desktop/test-results
+          path: apps/gallery/test-results

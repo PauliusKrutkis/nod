@@ -13,14 +13,14 @@
  * their cells capture the viewport instead of [data-frame] and skip the
  * narrow width — a modal's width is its own CSS, not the stage's.
  */
-import { catalog } from "@nod/ui";
+import { catalog } from "@nod/ui/catalog";
 import { expect, test } from "@playwright/test";
 import {
   captureName,
   formatGalleryHash,
   GALLERY_THEMES,
   type GalleryRoute,
-} from "../../src/gallery/route.ts";
+} from "../src/route.ts";
 
 const NARROW_WORTHY = /overflow|crowd|chord/;
 

@@ -11,7 +11,7 @@ What exists today, and what runs it:
 | --- | --- | --- |
 | App unit | `apps/desktop/src/**/*.test.ts` | `pnpm test` |
 | App e2e (vite + mocked Tauri bridge) | `apps/desktop/e2e/` | `pnpm e2e` |
-| Gallery screenshots (webkit) | `apps/desktop/e2e/gallery/` | `pnpm --filter @nod/desktop shots` |
+| Gallery screenshots (webkit) | `apps/gallery/e2e/` | `pnpm --filter @nod/gallery shots` |
 | Rust unit | `apps/desktop/src-tauri/` | `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml` |
 | Site unit, types, e2e | `apps/web/` | see [Marketing site](#marketing-site-appsweb) |
 
@@ -107,7 +107,7 @@ where those regressions fail.
 
 Baselines are platform-suffixed and only comparable within one platform:
 
-- Locally: `pnpm --filter @nod/desktop shots` compares against your
+- Locally: `pnpm --filter @nod/gallery shots` compares against your
   platform's committed baselines; `shots:update` regenerates them, and the
   diff you commit is the reviewable record of the visual change.
 - CI (`gallery-shots.yml`, pinned ubuntu image): compares against `-linux`

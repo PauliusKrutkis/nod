@@ -1,10 +1,11 @@
 import { defineConfig } from "@playwright/test";
 
 /**
- * Screenshot suite over the #/gallery route — webkit ONLY, never chromium:
- * Nod ships on WebKitGTK and Chromium-only checks have hidden engine-shaped
- * regressions here before (docs/BACKLOG.md § performance). Playwright's
- * webkit is the everyday proxy; the real Tauri window stays the ground truth.
+ * Screenshot suite over the gallery app — webkit ONLY, never chromium: Nod
+ * ships on WebKitGTK and Chromium-only checks have hidden engine-shaped
+ * regressions before (docs/BACKLOG.md § performance). Playwright's webkit is
+ * the everyday proxy; the real Tauri window (gallery:desktop) stays the
+ * ground truth.
  *
  * Determinism: reducedMotion pauses the stage animations (gallery.css honors
  * it), the spec awaits document.fonts.ready, and snapshot files carry the
@@ -12,13 +13,14 @@ import { defineConfig } from "@playwright/test";
  * image. Compare only against baselines produced on the same platform —
  * cross-OS font antialiasing turns any other comparison into noise.
  *
- * Own port, same no-borrowed-server guarantee as the other configs.
+ * Own port (the app's dev port +1), same no-borrowed-server guarantee as the
+ * desktop configs.
  */
 
-const port = Number(process.env.GALLERY_PORT ?? 14_209);
+const port = Number(process.env.GALLERY_SHOTS_PORT ?? 1431);
 
 export default defineConfig({
-  testDir: "./e2e/gallery",
+  testDir: "./e2e",
   testMatch: /\.shots\.ts/,
   timeout: 30_000,
   use: {
