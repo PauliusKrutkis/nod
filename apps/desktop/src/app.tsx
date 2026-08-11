@@ -14,7 +14,7 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { AiSetupDialog } from "./components/ai-setup-dialog.tsx";
+import { AiSetupLoader } from "./components/ai-setup-loader.tsx";
 import { CommandPaletteCommands } from "./components/command-palette-commands.tsx";
 import { GlobalSearch } from "./components/global-search.tsx";
 
@@ -303,7 +303,7 @@ export default function App() {
       </div>
 
       <IssueTrackerSettings onClose={closeTracker} open={trackerOpen} />
-      <AiSetupDialog onClose={closeAiSetup} open={aiSetupOpen} />
+      <AiSetupLoader onClose={closeAiSetup} open={aiSetupOpen} />
       <ReleaseHistoryLoader onClose={closeHistory} open={historyOpen} />
       <CommandPaletteCommands baseScope={baseScope} />
       <KeyboardHelp baseScope={baseScope} />

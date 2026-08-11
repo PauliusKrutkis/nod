@@ -1,6 +1,6 @@
 import { ReleaseHistory as ReleaseHistoryView } from "@nod/ui/release-history";
+import { useArmedRing } from "@nod/ui/use-armed-ring";
 import { useQuery } from "@tanstack/react-query";
-import { useArmedRing } from "../hooks/use-armed-ring.ts";
 import { useHotkeys } from "../keyboard/use-hotkeys.ts";
 import { api } from "../lib/api.ts";
 import { compareVersions, releasesQuery } from "../lib/releases.ts";

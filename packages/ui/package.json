@@ -5,6 +5,7 @@
   "license": "FSL-1.1-Apache-2.0",
   "type": "module",
   "exports": {
+    "./ai-setup-dialog": "./src/ai-setup-dialog/ai-setup-dialog.tsx",
     "./ask-note": "./src/ask-note/ask-note.tsx",
     "./avatar": "./src/avatar/avatar.tsx",
     "./badge": "./src/badge/badge.tsx",
@@ -40,8 +41,10 @@
     "./token-gate": "./src/token-gate/token-gate.tsx",
     "./tooltip": "./src/tooltip/tooltip.tsx",
     "./update-prompt": "./src/update-prompt/update-prompt.tsx",
+    "./use-armed-ring": "./src/use-armed-ring/use-armed-ring.ts",
     "./use-latest": "./src/use-latest/use-latest.ts",
     "./use-modal-dialog": "./src/use-modal-dialog/use-modal-dialog.ts",
+    "./watch-repos-dialog": "./src/watch-repos-dialog/watch-repos-dialog.tsx",
     "./whats-new": "./src/whats-new/whats-new.tsx"
   },
   "scripts": {

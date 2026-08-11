@@ -11,6 +11,24 @@ export interface ManifestEntry {
 }
 
 export const catalogManifest: Record<string, ManifestEntry> = {
+  "ai-setup-dialog": {
+    dialog: true,
+    fixtures: [
+      "crowd-120",
+      "loading-models",
+      "markup-as-text",
+      "no-models",
+      "overflow",
+      "removing",
+      "replacing-key",
+      "saved-key",
+      "saving",
+      "unconfigured",
+      "unicode",
+      "unreachable",
+      "validation-error",
+    ],
+  },
   "ask-note": {
     fixtures: [
       "answer",
@@ -390,6 +408,25 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "overflow",
       "ready-to-restart",
       "with-notes",
+    ],
+  },
+  "watch-repos-dialog": {
+    dialog: true,
+    fixtures: [
+      "crowd-60",
+      "empty",
+      "failed",
+      "loading",
+      "markup-as-text",
+      "no-matches",
+      "no-matches-plain",
+      "overflow",
+      "saving",
+      "search-results",
+      "searching",
+      "single",
+      "unicode",
+      "write-failed",
     ],
   },
   "whats-new": {

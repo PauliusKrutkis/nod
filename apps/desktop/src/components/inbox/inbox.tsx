@@ -47,7 +47,7 @@ import { useAppStore } from "../../store/app-store.ts";
 import type { InboxData, InboxTabKey, PullRequest } from "../../types.ts";
 import { prKey } from "../../types.ts";
 import { Markdown } from "../markdown-loader.tsx";
-import { WatchReposDialog } from "./watch-repos-dialog.tsx";
+import { WatchReposLoader } from "./watch-repos-loader.tsx";
 
 const TABS: { key: InboxTabKey; label: string; hint: string }[] = [
   {
@@ -393,7 +393,7 @@ export function Inbox() {
         )}
       />
 
-      <WatchReposDialog onClose={closeWatchDialog} open={watchOpen} />
+      <WatchReposLoader onClose={closeWatchDialog} open={watchOpen} />
     </div>
   );
 }
