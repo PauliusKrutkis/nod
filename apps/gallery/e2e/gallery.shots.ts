@@ -13,7 +13,7 @@
  * their cells capture the viewport instead of [data-frame] and skip the
  * narrow width — a modal's width is its own CSS, not the stage's.
  */
-import { catalog } from "@nod/ui/catalog";
+import { catalogManifest } from "@nod/ui/manifest";
 import { expect, test } from "@playwright/test";
 import {
   captureName,
@@ -25,8 +25,8 @@ import {
 const NARROW_WORTHY = /overflow|crowd|chord/;
 
 const cells: GalleryRoute[] = [];
-for (const [component, entry] of Object.entries(catalog)) {
-  for (const fixture of Object.keys(entry.fixtures)) {
+for (const [component, entry] of Object.entries(catalogManifest)) {
+  for (const fixture of entry.fixtures) {
     for (const theme of GALLERY_THEMES) {
       cells.push({ component, fixture, mode: "specimen", theme, width: 420 });
       if (!entry.dialog && NARROW_WORTHY.test(fixture)) {
@@ -40,7 +40,7 @@ for (const cell of cells) {
   test(captureName(cell), async ({ page }) => {
     await page.goto(`/${formatGalleryHash(cell)}`);
     await page.evaluate(() => document.fonts.ready);
-    if (catalog[cell.component]?.dialog) {
+    if (catalogManifest[cell.component]?.dialog) {
       await page.locator("dialog[open]").waitFor();
       await expect(page).toHaveScreenshot(captureName(cell), {
         animations: "disabled",
