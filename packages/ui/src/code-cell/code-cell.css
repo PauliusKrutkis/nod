@@ -23,7 +23,14 @@
    the row's 1.5px vertical padding so consecutive rows' columns touch. At
    8% fg they're furniture: visible when you look for them, silent when you
    don't. The 1px inset keeps the innermost boundary (where the text starts)
-   unpainted. */
+   unpainted.
+
+   The mark layers the cell hosts: intraline word-diff (transparent here, the
+   diff row tints it with its own side), find (the current occurrence inverts
+   so stepping is followable in a dense screen), and the quieter
+   selection-occurrence wash. No padding or margin on any of them — a mark
+   that changed the box would shift the glyphs after it every time the query
+   grew a character. */
 
 .qf-code {
   position: relative;
@@ -52,4 +59,34 @@
     color-mix(in srgb, var(--fg) 8%, transparent) 0 1px,
     transparent 1px var(--qf-indent, 2ch)
   );
+}
+
+mark.qf-find-mark {
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  background: var(--accent-soft);
+  border-radius: var(--r-xs);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+
+mark.qf-find-current {
+  color: var(--accent-ink);
+  background: var(--accent);
+  box-shadow: none;
+}
+
+mark.qf-occ-mark {
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  background: color-mix(in srgb, var(--fg) 26%, transparent);
+}
+
+mark.qf-intra-mark {
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  background: transparent;
+  border-radius: var(--r-xs);
 }

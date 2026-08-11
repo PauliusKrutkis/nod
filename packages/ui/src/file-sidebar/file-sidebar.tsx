@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { type CSSProperties, type MouseEvent, useRef, useState } from "react";
 import { cn } from "../cn/cn.ts";
+import { FileStatusGlyph } from "../file-status-glyph/file-status-glyph.tsx";
 import { Tooltip } from "../tooltip/tooltip.tsx";
 import { buildFileTree, dirPathsForIndex, flattenTree } from "./file-tree.ts";
 import "./file-sidebar.css";
@@ -41,30 +42,6 @@ export interface SidebarFile {
   deletions: number;
   filename: string;
   status: string;
-}
-
-interface Glyph {
-  cls: string;
-  letter: string;
-  title: string;
-}
-
-/** Unknown statuses read as modified: the provider grows states we haven't
- *  seen, and a file with an unrenderable glyph would be worse than a wrong
- *  one. */
-function glyphFor(status: string): Glyph {
-  switch (status) {
-    case "added":
-      return { cls: "qf-st-add", letter: "A", title: "Added" };
-    case "removed":
-      return { cls: "qf-st-del", letter: "D", title: "Removed" };
-    case "renamed":
-      return { cls: "qf-st-ren", letter: "R", title: "Renamed" };
-    case "copied":
-      return { cls: "qf-st-ren", letter: "C", title: "Copied" };
-    default:
-      return { cls: "qf-st-mod", letter: "M", title: "Modified" };
-  }
 }
 
 function splitPath(filename: string): { dir: string; base: string } {
@@ -224,7 +201,6 @@ export function FileSidebar({
             );
           }
           const { file, index } = node;
-          const glyph = glyphFor(file.status);
           const { dir } = splitPath(file.filename);
           const on = index === selectedIndex;
           const isViewed = viewedSet.has(file.filename);
@@ -246,12 +222,7 @@ export function FileSidebar({
               title={file.filename}
               type="button"
             >
-              <span
-                className={cn("qf-file-glyph", glyph.cls)}
-                title={glyph.title}
-              >
-                {glyph.letter}
-              </span>
+              <FileStatusGlyph status={file.status} />
               <span className="qf-file-name">
                 {!treeMode && <span className="qf-file-dir">{dir}</span>}
                 <span className="qf-file-base">{node.name}</span>

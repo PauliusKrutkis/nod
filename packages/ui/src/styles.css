@@ -14,7 +14,12 @@
    copy. The background stays transparent so a diff row's tint shows through,
    and comments read as one quiet gray block: JSDoc tags (@param) and
    anything hljs nests inside a comment take the comment colour rather than
-   speckling it. */
+   speckling it.
+
+   The churn pair and the dimmed directory are here rather than beside a
+   component because three surfaces write them (the diff's file band, the
+   file sidebar, the PR drawer) — one definition beats a copy per
+   component. */
 
 .q-focus:focus-visible {
   outline: none;
@@ -30,6 +35,21 @@
 
 .q-mono {
   font-family: var(--font-mono);
+}
+
+.qf-file-dir {
+  flex-shrink: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--faint);
+}
+
+.qf-add {
+  color: var(--add);
+}
+
+.qf-del {
+  color: var(--del);
 }
 
 @keyframes q-rot {

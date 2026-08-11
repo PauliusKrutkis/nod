@@ -1,0 +1,38 @@
+/* The status tile, moved out of the app's quiet.css unchanged apart from the
+   .dir-quiet scope the package does not need. A fixed 17px square so a column
+   of them is a column, whatever letter each one holds, and mono at 10px so the
+   letters sit on one optical weight. Each status borrows the pair its meaning
+   already owns elsewhere in the app: added green, removed red, modified amber,
+   renamed and copied iris — a rename is a move, not a change. */
+
+.qf-file-glyph {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: var(--r-sm);
+}
+
+.qf-st-add {
+  color: var(--add);
+  background: var(--add-bg);
+}
+
+.qf-st-mod {
+  color: var(--warn);
+  background: var(--warn-bg);
+}
+
+.qf-st-del {
+  color: var(--del);
+  background: var(--del-bg);
+}
+
+.qf-st-ren {
+  color: var(--accent);
+  background: var(--accent-soft);
+}

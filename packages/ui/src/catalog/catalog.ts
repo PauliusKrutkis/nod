@@ -11,11 +11,15 @@ import { commentItemEntry } from "../comment-item/comment-item.fixtures.ts";
 import { commentThreadEntry } from "../comment-thread/comment-thread.fixtures.ts";
 import { commentToolsEntry } from "../comment-tools/comment-tools.fixtures.ts";
 import { composerEditorEntry } from "../composer-editor/composer-editor.fixtures.ts";
+import { diffRowEntry } from "../diff-row/diff-row.fixtures.ts";
+import { fileSectionHeaderEntry } from "../file-section-header/file-section-header.fixtures.ts";
 import { fileSidebarEntry } from "../file-sidebar/file-sidebar.fixtures.ts";
+import { fileStatusGlyphEntry } from "../file-status-glyph/file-status-glyph.fixtures.ts";
 import { findBarEntry } from "../find-bar/find-bar.fixtures.ts";
 import type { CatalogEntry } from "../fixtures/fixtures.ts";
 import { helpOverlayEntry } from "../help-overlay/help-overlay.fixtures.ts";
 import { highlightIndicesEntry } from "../highlight-indices/highlight-indices.fixtures.ts";
+import { hunkRowEntry } from "../hunk-row/hunk-row.fixtures.ts";
 import { imageDiffEntry } from "../image-diff/image-diff.fixtures.ts";
 import { inboxDetailEntry } from "../inbox-detail/inbox-detail.fixtures.ts";
 import { inboxTabsEntry } from "../inbox-tabs/inbox-tabs.fixtures.ts";
@@ -59,10 +63,14 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   "comment-thread": commentThreadEntry,
   "comment-tools": commentToolsEntry,
   "composer-editor": composerEditorEntry,
+  "diff-row": diffRowEntry,
+  "file-section-header": fileSectionHeaderEntry,
   "file-sidebar": fileSidebarEntry,
+  "file-status-glyph": fileStatusGlyphEntry,
   "find-bar": findBarEntry,
   "help-overlay": helpOverlayEntry,
   "highlight-indices": highlightIndicesEntry,
+  "hunk-row": hunkRowEntry,
   "image-diff": imageDiffEntry,
   "inbox-detail": inboxDetailEntry,
   "inbox-tabs": inboxTabsEntry,
