@@ -14,7 +14,7 @@
   white-space: nowrap;
 }
 
-.qsp-panel {
+.q-dialog.qsp-panel {
   width: min(680px, calc(100vw - 32px));
   min-height: min(440px, 60vh);
   padding: 0;
