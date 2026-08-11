@@ -1,5 +1,5 @@
+import { useLatest } from "@nod/ui";
 import { useEffect } from "react";
-import { useLatest } from "../hooks/use-latest.ts";
 import { useKeyboard } from "./keyboard-provider.tsx";
 import type { Binding } from "./types.ts";
 

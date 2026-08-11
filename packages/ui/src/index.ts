@@ -15,7 +15,14 @@
 // biome-ignore-all lint/performance/noBarrelFile: the package entry is its public API
 export { Avatar } from "./avatar.tsx";
 export { Badge } from "./badge.tsx";
+export { Button } from "./button.tsx";
 export { catalog } from "./catalog.ts";
 export type { CatalogEntry, Fixture } from "./fixtures.ts";
+export { type FuzzyResult, fuzzyMatch, fuzzyMatchFields } from "./fuzzy.ts";
+export { HighlightIndices } from "./highlight.tsx";
 export { Kbd } from "./kbd.tsx";
+export { type SearchablePr, SearchPane } from "./search-pane.tsx";
 export { Spinner } from "./spinner.tsx";
+export { formatAbsolute, formatRelativeTime } from "./time.ts";
+export { useLatest } from "./use-latest.ts";
+export { useModalDialog } from "./use-modal-dialog.ts";

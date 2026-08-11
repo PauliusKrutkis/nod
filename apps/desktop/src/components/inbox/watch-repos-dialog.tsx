@@ -1,8 +1,7 @@
-import { Kbd } from "@nod/ui";
+import { Kbd, useModalDialog } from "@nod/ui";
 import { Check, Eye, Search, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useArmedRing } from "../../hooks/use-armed-ring.ts";
-import { useModalDialog } from "../../hooks/use-modal-dialog.ts";
 import { useWatchedRepos } from "../../hooks/use-subscribed.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
 import { api } from "../../lib/api.ts";

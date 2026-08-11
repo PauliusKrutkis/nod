@@ -6,6 +6,8 @@
  * model that contains it has rebuilt — same instant, no-animation easing
  * keyboard row navigation already uses via `nudgeItemIntoView`.
  */
+
+import { useLatest } from "@nod/ui";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
@@ -20,7 +22,6 @@ import {
   useFileExpansion,
 } from "../../hooks/use-file-expansion.ts";
 import { useInboxDetailNudge } from "../../hooks/use-inbox-detail-nudge.ts";
-import { useLatest } from "../../hooks/use-latest.ts";
 import { useOccLinkAffordance } from "../../hooks/use-occ-link-affordance.ts";
 import { useOccurrenceTracking } from "../../hooks/use-occurrence-tracking.ts";
 import { usePullRequestDetail } from "../../hooks/use-pull-request-detail.ts";

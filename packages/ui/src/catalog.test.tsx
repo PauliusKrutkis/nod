@@ -25,11 +25,14 @@ const componentExports = Object.entries(pkg).filter(
   ([name, value]) => COMPONENT_NAME.test(name) && typeof value === "function"
 );
 
+const kebab = (name: string) =>
+  name.replace(/(?<=[a-z0-9])(?=[A-Z])/g, "-").toLowerCase();
+
 describe("catalog coverage", () => {
   it.each(componentExports.map(([name]) => name))(
     "exported component %s is catalogued with fixtures",
     (name) => {
-      const entry = catalog[name.toLowerCase()];
+      const entry = catalog[kebab(name)];
       expect(entry).toBeDefined();
       expect(Object.keys(entry.fixtures).length).toBeGreaterThan(0);
     }

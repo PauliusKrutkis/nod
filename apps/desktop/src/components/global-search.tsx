@@ -1,8 +1,8 @@
+import { SearchPane } from "@nod/ui";
 import { useInbox } from "../hooks/use-inbox.ts";
 import { useSubscribed } from "../hooks/use-subscribed.ts";
 import { useAppStore } from "../store/app-store.ts";
 import { type PullRequest, prKey } from "../types.ts";
-import { SearchPane } from "./inbox/search-pane.tsx";
 
 /**
  * The global "/" PR search — jump to any pull request from any screen. Reads the

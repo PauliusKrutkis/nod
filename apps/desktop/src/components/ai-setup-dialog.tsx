@@ -7,10 +7,11 @@
  * the consent act; the disclosure line under the key input is the one place
  * that promise is made, per the 2026-08-01 privacy decision.
  */
+
+import { useModalDialog } from "@nod/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
 import { type KeyboardEvent, useRef, useState } from "react";
-import { useModalDialog } from "../hooks/use-modal-dialog.ts";
 import { useHotkeys } from "../keyboard/use-hotkeys.ts";
 import { api } from "../lib/api.ts";
 import { cn } from "../lib/cn.ts";

@@ -18,7 +18,13 @@
  * deliberate visit to an empty tab back to whichever tab has content.
  */
 
-import { Avatar, Kbd, Spinner } from "@nod/ui";
+import {
+  Avatar,
+  formatAbsolute,
+  formatRelativeTime,
+  Kbd,
+  Spinner,
+} from "@nod/ui";
 import {
   Archive,
   ArchiveRestore,
@@ -36,7 +42,6 @@ import { prefetchPullRequest } from "../../hooks/use-pull-request-detail.ts";
 import { useSubscribed } from "../../hooks/use-subscribed.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
 import { cn } from "../../lib/cn.ts";
-import { formatAbsolute, formatRelativeTime } from "../../lib/time.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type { InboxData, InboxTabKey, PullRequest } from "../../types.ts";
 import { prKey } from "../../types.ts";

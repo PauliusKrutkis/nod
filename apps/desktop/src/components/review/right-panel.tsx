@@ -12,7 +12,7 @@
  * the drawer, so growing conversation only ever resizes a section.
  */
 
-import { Avatar, Kbd } from "@nod/ui";
+import { Avatar, formatAbsolute, formatRelativeTime, Kbd } from "@nod/ui";
 import {
   CheckCircle2,
   ExternalLink,
@@ -29,7 +29,6 @@ import {
 import { cn } from "../../lib/cn.ts";
 import { firstLine } from "../../lib/comment-format.ts";
 import { openOnProviderLabel } from "../../lib/provider.ts";
-import { formatAbsolute, formatRelativeTime } from "../../lib/time.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type {
   CiStatus,

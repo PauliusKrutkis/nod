@@ -9,12 +9,11 @@
  * shortcuts.
  */
 
-import { Avatar, Kbd } from "@nod/ui";
+import { Avatar, formatAbsolute, formatRelativeTime, Kbd } from "@nod/ui";
 import { CheckCircle2, MessageSquare } from "lucide-react";
 import { useState } from "react";
 import { cn } from "../../lib/cn.ts";
 import { firstLine } from "../../lib/comment-format.ts";
-import { formatAbsolute, formatRelativeTime } from "../../lib/time.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type { ReviewComment } from "../../types.ts";
 import { AddCommentBox } from "./add-comment-box.tsx";

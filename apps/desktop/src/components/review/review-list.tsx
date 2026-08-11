@@ -1,4 +1,4 @@
-import { Avatar, Kbd } from "@nod/ui";
+import { Avatar, Kbd, useLatest } from "@nod/ui";
 import { Check, FoldVertical, UnfoldVertical } from "lucide-react";
 import {
   type CSSProperties,
@@ -17,7 +17,6 @@ import {
   type GroupedVirtuosoHandle,
   type StateSnapshot,
 } from "react-virtuoso";
-import { useLatest } from "../../hooks/use-latest.ts";
 import { cn } from "../../lib/cn.ts";
 import { canExpandFile } from "../../lib/expand-file.ts";
 import { findMatchRangesInLine } from "../../lib/find-in-diff.ts";

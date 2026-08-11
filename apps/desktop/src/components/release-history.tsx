@@ -1,9 +1,8 @@
-import { Spinner } from "@nod/ui";
+import { Spinner, useModalDialog } from "@nod/ui";
 import { useQuery } from "@tanstack/react-query";
 import { History, X } from "lucide-react";
 import { useEffect } from "react";
 import { useArmedRing } from "../hooks/use-armed-ring.ts";
-import { useModalDialog } from "../hooks/use-modal-dialog.ts";
 import { useHotkeys } from "../keyboard/use-hotkeys.ts";
 import { api } from "../lib/api.ts";
 import { cn } from "../lib/cn.ts";

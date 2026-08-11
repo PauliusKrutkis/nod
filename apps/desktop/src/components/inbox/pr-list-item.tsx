@@ -1,7 +1,6 @@
-import { Avatar, Badge } from "@nod/ui";
+import { Avatar, Badge, formatAbsolute, formatRelativeTime } from "@nod/ui";
 import { GitBranch, MessageSquare } from "lucide-react";
 import { cn } from "../../lib/cn.ts";
-import { formatAbsolute, formatRelativeTime } from "../../lib/time.ts";
 import type { PullRequest } from "../../types.ts";
 
 interface PRListItemProps {

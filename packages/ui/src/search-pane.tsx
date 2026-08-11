@@ -1,16 +1,29 @@
-import { Avatar, Badge, Kbd } from "@nod/ui";
 import { Clock, CornerDownLeft, GitBranch, Search } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
-import { useModalDialog } from "../../hooks/use-modal-dialog.ts";
-import { cn } from "../../lib/cn.ts";
-import { fuzzyMatchFields } from "../../lib/fuzzy.ts";
-import { formatRelativeTime } from "../../lib/time.ts";
-import { type PullRequest, prKey } from "../../types.ts";
-import { HighlightIndices } from "../ui/highlight.tsx";
+import { Avatar } from "./avatar.tsx";
+import { Badge } from "./badge.tsx";
+import { cn } from "./cn.ts";
+import { fuzzyMatchFields } from "./fuzzy.ts";
+import { HighlightIndices } from "./highlight.tsx";
+import { Kbd } from "./kbd.tsx";
+import { formatRelativeTime } from "./time.ts";
+import { useModalDialog } from "./use-modal-dialog.ts";
 
-interface SearchResult {
+export interface SearchablePr {
+  number: number;
+  title: string;
+  author: string;
+  authorAvatarUrl?: string | null;
+  repo: string;
+  headRef?: string | null;
+  draft?: boolean;
+  merged?: boolean;
+  updatedAt: string;
+}
+
+interface SearchResult<T extends SearchablePr> {
   hl: Record<string, number[]>;
-  pr: PullRequest;
+  pr: T;
 }
 
 /**
@@ -19,7 +32,7 @@ interface SearchResult {
  * author, or repo. Empty, it offers the current PRs so reopening is one
  * keystroke away. Arrows walk results, Enter opens, Esc closes.
  */
-export function SearchPane({
+export function SearchPane<T extends SearchablePr>({
   open,
   onOpenChange,
   prs,
@@ -27,8 +40,8 @@ export function SearchPane({
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  prs: PullRequest[];
-  onOpen: (pr: PullRequest) => void;
+  prs: T[];
+  onOpen: (pr: T) => void;
 }) {
   if (!open) {
     return null;
@@ -38,14 +51,14 @@ export function SearchPane({
   );
 }
 
-function SearchPaneContent({
+function SearchPaneContent<T extends SearchablePr>({
   onOpenChange,
   prs,
   onOpen,
 }: {
   onOpenChange: (v: boolean) => void;
-  prs: PullRequest[];
-  onOpen: (pr: PullRequest) => void;
+  prs: T[];
+  onOpen: (pr: T) => void;
 }) {
   const listId = useId();
   const { dialogRef, onDialogCancel, onDialogClose } = useModalDialog(() => {
@@ -57,13 +70,13 @@ function SearchPaneContent({
   const listRef = useRef<HTMLDivElement>(null);
 
   const q = query.trim();
-  const results: SearchResult[] = q
+  const results: SearchResult<T>[] = q
     ? (() => {
-        const out: (SearchResult & { score: number })[] = [];
+        const out: (SearchResult<T> & { score: number })[] = [];
         for (const pr of prs) {
           const m = fuzzyMatchFields(q, {
             author: pr.author,
-            headRef: pr.headRef,
+            headRef: pr.headRef ?? "",
             number: `#${pr.number}`,
             repo: pr.repo,
             title: pr.title,
@@ -81,7 +94,7 @@ function SearchPaneContent({
     onOpenChange(false);
   };
 
-  const openResult = (pr: PullRequest) => {
+  const openResult = (pr: T) => {
     onOpen(pr);
     onOpenChange(false);
   };
@@ -164,7 +177,7 @@ function SearchPaneContent({
           <SearchResultRow
             hl={hl}
             index={i}
-            key={prKey(pr)}
+            key={`${pr.repo}#${pr.number}`}
             onOpen={openResult}
             onSelect={setSel}
             pr={pr}
@@ -194,7 +207,7 @@ function SearchPaneContent({
   );
 }
 
-function SearchResultRow({
+function SearchResultRow<T extends SearchablePr>({
   pr,
   hl,
   index,
@@ -202,11 +215,11 @@ function SearchResultRow({
   onOpen,
   onSelect,
 }: {
-  pr: PullRequest;
+  pr: T;
   hl: Record<string, number[]>;
   index: number;
   selected: boolean;
-  onOpen: (pr: PullRequest) => void;
+  onOpen: (pr: T) => void;
   onSelect: (index: number) => void;
 }) {
   const handleClick = () => {

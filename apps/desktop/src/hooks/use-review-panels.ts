@@ -5,8 +5,9 @@
  * matchMedia via useSyncExternalStore; crossing the breakpoint resets the
  * sidebar to its default for that mode during render.
  */
+
+import { useLatest } from "@nod/ui";
 import { useState, useSyncExternalStore } from "react";
-import { useLatest } from "./use-latest.ts";
 
 /** Below this viewport width the 300px file tree stops being a push column and
  *  becomes an overlay drawer, so the diff keeps its full width on small windows

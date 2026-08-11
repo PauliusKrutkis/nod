@@ -267,6 +267,27 @@
   background: rgba(255, 112, 136, 0.16);
   border-color: var(--del);
 }
+.q-btn.q-focus:focus-visible {
+  border-radius: var(--r-lg);
+}
+.q-btn-spin {
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid transparent;
+  border-top-color: currentcolor;
+  border-radius: var(--r-pill);
+  animation: q-btn-rot 700ms linear infinite;
+}
+@keyframes q-btn-rot {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .q-btn-spin {
+    animation-duration: 2400ms;
+  }
+}
 
 .q-btn-badge {
   padding: 1px 7px;
