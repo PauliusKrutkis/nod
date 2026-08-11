@@ -9,9 +9,9 @@
  * The snapshot filename is captureName(route) — exactly the string the
  * gallery prints under the frame, so a red diff names the cell to open.
  *
- * Dialog entries mount a real modal in the top layer, outside any frame, so
- * their cells capture the viewport instead of [data-frame] and skip the
- * narrow width — a modal's width is its own CSS, not the stage's.
+ * Dialog entries render inline in the frame like everything else, so every
+ * cell is a frame shot and the narrow rule applies uniformly; the modal
+ * variant is a gallery interaction, not a capture target.
  */
 import { catalogManifest } from "@nod/ui/manifest";
 import { expect, test } from "@playwright/test";
@@ -29,7 +29,7 @@ for (const [component, entry] of Object.entries(catalogManifest)) {
   for (const fixture of entry.fixtures) {
     for (const theme of GALLERY_THEMES) {
       cells.push({ component, fixture, mode: "specimen", theme, width: 420 });
-      if (!entry.dialog && NARROW_WORTHY.test(fixture)) {
+      if (NARROW_WORTHY.test(fixture)) {
         cells.push({ component, fixture, mode: "specimen", theme, width: 280 });
       }
     }
@@ -40,16 +40,9 @@ for (const cell of cells) {
   test(captureName(cell), async ({ page }) => {
     await page.goto(`/${formatGalleryHash(cell)}`);
     await page.evaluate(() => document.fonts.ready);
-    if (catalogManifest[cell.component]?.dialog) {
-      await page.locator("dialog[open]").waitFor();
-      await expect(page).toHaveScreenshot(captureName(cell), {
-        animations: "disabled",
-      });
-    } else {
-      await expect(page.locator("[data-frame]")).toHaveScreenshot(
-        captureName(cell),
-        { animations: "disabled" }
-      );
-    }
+    await expect(page.locator("[data-frame]")).toHaveScreenshot(
+      captureName(cell),
+      { animations: "disabled" }
+    );
   });
 }
