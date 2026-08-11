@@ -196,6 +196,22 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "unicode",
     ],
   },
+  "file-sidebar": {
+    fixtures: [
+      "collapsed",
+      "crowd-300",
+      "deep",
+      "empty",
+      "every-status",
+      "flat",
+      "none-viewed",
+      "overflow",
+      "single",
+      "typical",
+      "unicode",
+      "viewed-all",
+    ],
+  },
   "find-bar": {
     fixtures: [
       "case-sensitive",
@@ -344,6 +360,20 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "unicode",
     ],
   },
+  "pr-summary": {
+    fixtures: [
+      "ancient",
+      "ci-failing",
+      "ci-none",
+      "huge-diff",
+      "just-now",
+      "markup-as-text",
+      "no-date",
+      "overflow",
+      "typical",
+      "unicode",
+    ],
+  },
   "purchase-prompt": {
     fixtures: [
       "already-licensed",
@@ -367,6 +397,21 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "overflow",
       "single",
       "unicode",
+    ],
+  },
+  "review-header": {
+    fixtures: [
+      "ci-failure",
+      "ci-none",
+      "ci-unknown",
+      "everything",
+      "huge-counts",
+      "markup-as-text",
+      "merged",
+      "minimal",
+      "overflow",
+      "unicode",
+      "unknown-state",
     ],
   },
   "review-screen-pending": {
@@ -419,6 +464,20 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "pending-many",
       "pending-one",
       "request-changes",
+      "unicode",
+    ],
+  },
+  "thread-index": {
+    fixtures: [
+      "crowd-40",
+      "empty",
+      "markup-as-text",
+      "newline-snippet",
+      "outdated",
+      "overflow",
+      "resolved",
+      "single",
+      "typical",
       "unicode",
     ],
   },

@@ -1,0 +1,104 @@
+/* The thread rows moved out of the app's quiet.css keeping their class names —
+   the desktop's end-to-end specs locate threads by .qf-thread-row and its
+   resolved tick. The section heading and its count are new names under this
+   component's own prefix, because the drawer's other headings (.qf-drawer-h,
+   .qf-drawer-count) still belong to sections that have not moved: one class,
+   one owner.
+
+   The section carries no bottom margin: it is always the drawer's last
+   section, and the space above it comes from the section before. */
+
+.qf-threadindex-h {
+  display: flex;
+  align-items: center;
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--faint);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.qf-threadindex-count {
+  padding: 1px 7px;
+  margin-left: 7px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: var(--r-pill);
+}
+
+.qf-threadindex-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.qf-thread-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 11px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.qf-thread-row:hover {
+  background: var(--surface-hi);
+  border-color: var(--accent-line);
+}
+
+.qf-thread-loc {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* rtl so the ellipsis eats the directory prefix, not the file name */
+.qf-thread-path {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+  white-space: nowrap;
+  direction: rtl;
+}
+
+.qf-thread-line {
+  flex-shrink: 0;
+  color: var(--faint);
+}
+
+.qf-thread-check {
+  flex-shrink: 0;
+  color: var(--add);
+}
+
+.qf-thread-replies {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--accent);
+}
+
+.qf-thread-snip {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12.5px;
+  color: var(--fg);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

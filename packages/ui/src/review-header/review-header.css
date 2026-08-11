@@ -1,0 +1,352 @@
+/* The qf-header family, moved out of the app's quiet.css. The utility classes
+   the app got from Tailwind are real declarations here (the package has no
+   utility build), buttons and the h1 reset their own box, and the separators
+   use the system layer's .q-dot instead of the app's private .qf-dot.
+
+   The container query travelled with the header, not with review-verdicts:
+   the header is what declares the container and what hides the pills inside
+   it, so the rule is meaningless anywhere else. Verdict pills disappear under
+   440px of HEADER width — which is a narrow window with the file column open,
+   and is also every 280/420px specimen in the gallery.
+
+   The keycap inside the submit button is .q-kbd (the Kbd component's class);
+   the app's stylesheet still carried a .qf-kbd selector from before that
+   component existed, which matched nothing and left the cap muted on the
+   accent fill. */
+
+.qf-header {
+  display: flex;
+  flex-shrink: 0;
+  gap: 16px;
+  align-items: center;
+  padding: 12px 24px;
+  background: linear-gradient(180deg, var(--surface-2), var(--bg));
+  border-bottom: 1px solid var(--line);
+  /* Container so the header can respond to its own width (main - sidebar),
+     not the viewport — matters at minWidth 900 and under webview zoom, where
+     900px @ 1.5x behaves like ~600px. WebKitGTK >= 2.40 supports this. */
+  container: qf-header / inline-size;
+}
+
+/* The identity column (title + meta) must be free to shrink to its floor so the
+   right-hand actions never get clipped past the header edge. */
+.qf-header-id {
+  flex: 1;
+  min-width: 0;
+}
+
+.qf-header-title-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.qf-header-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 16px;
+  align-items: center;
+  min-width: 0;
+}
+
+/* Tighter still: drop the review-verdict pills and shrink the action gap. */
+@container qf-header (width < 440px) {
+  .qf-header .qf-header-actions {
+    gap: 12px;
+  }
+
+  .qf-header .qf-header-actions .qf-verdicts {
+    display: none;
+  }
+}
+
+.qf-pr-title {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fg);
+  text-overflow: ellipsis;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.qf-pr-sub {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+  /* Clip the meta row (repo / author / branch chips) to the identity column
+     rather than letting long branch names force the header wider. */
+  overflow: hidden;
+}
+
+.qf-pr-sub > * {
+  flex-shrink: 0;
+}
+
+.qf-pr-num {
+  font-family: var(--font-mono);
+  color: var(--faint);
+}
+
+.qf-header-author {
+  color: var(--muted);
+}
+
+/* The branch group is the one part of the meta row allowed to shrink: branch
+   names are unbounded, and an ellipsis inside the chip reads better than the
+   row's hard clip. Ellipsis needs all three — the shrinkable group, the chip
+   capped at the group, and a min-width: 0 text child. */
+.qf-branch {
+  display: inline-flex;
+  flex-shrink: 1;
+  gap: 5px;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.qf-arrow {
+  flex-shrink: 0;
+  color: var(--faint);
+}
+
+/* branch names as copyable chips — click copies the name to the clipboard */
+.qf-branch-chip {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  padding: 3px 7px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--fg);
+  cursor: pointer;
+  background: var(--surface-hi);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  transition:
+    color 120ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+/* The chip sits inside the tooltip's anchor span, which is the real flex item
+   of the branch group — the chip's own shrinking rules stop at it, so the
+   anchor has to be told it may shrink too or the chip is clipped by the meta
+   row instead of ellipsizing. */
+.qf-branch-anchor {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.qf-branch-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qf-branch-chip svg {
+  flex-shrink: 0;
+  color: var(--faint);
+}
+
+.qf-branch-chip:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+
+.qf-branch-chip:hover svg {
+  color: var(--accent);
+}
+
+.qf-branch-copied,
+.qf-branch-copied:hover {
+  color: var(--accent);
+  border-color: var(--accent-line);
+}
+
+.qf-branch-copied svg,
+.qf-branch-copied:hover svg {
+  color: var(--add);
+}
+
+.qf-state {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 5px;
+  align-items: center;
+  padding: 2px 8px 2px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border-radius: var(--r-pill);
+}
+
+.qf-state-dot {
+  width: 6px;
+  height: 6px;
+  background: currentcolor;
+  border-radius: var(--r-pill);
+}
+
+.qf-state-open {
+  color: var(--add);
+  background: var(--add-bg);
+  box-shadow: inset 0 0 0 1px rgba(95, 208, 138, 0.25);
+}
+
+.qf-state-draft {
+  color: var(--muted);
+  background: var(--surface-hi);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+
+.qf-state-merged {
+  color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+
+/* Header affordance that reveals the file column when it isn't a visible one. */
+.qf-files-toggle {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  color: var(--muted);
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  transition:
+    color 120ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.qf-files-toggle:hover {
+  color: var(--fg);
+  background: var(--surface-2);
+  border-color: var(--line-2);
+}
+
+.qf-info-btn {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-style: italic;
+  color: var(--muted);
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  transition:
+    color 120ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.qf-info-btn:hover,
+.qf-info-btn[aria-pressed="true"] {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+
+/* how much conversation the drawer holds — a quiet PR still advertises it */
+.qf-info-count {
+  position: absolute;
+  top: -7px;
+  right: -8px;
+  padding: 2px 5px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--accent);
+  background: var(--surface);
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r-pill);
+}
+
+/* CI health, distilled to a corner dot — the full pill lives in the info drawer.
+   Ringed in the button's own background so it reads on rest and pressed states. */
+.qf-ci-dot {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 9px;
+  height: 9px;
+  border-radius: var(--r-pill);
+  box-shadow: 0 0 0 2px var(--bg);
+}
+
+.qf-ci-dot-success {
+  background: var(--add);
+}
+
+.qf-ci-dot-failure {
+  background: var(--del);
+}
+
+.qf-ci-dot-pending {
+  background: var(--warn);
+}
+
+.qf-submit {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px 6px 13px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-ink);
+  white-space: nowrap;
+  cursor: pointer;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-lg);
+  transition: filter 120ms ease;
+}
+
+.qf-submit:hover {
+  filter: brightness(1.08);
+}
+
+.qf-submit .q-kbd {
+  color: var(--accent-ink);
+  background: rgba(20, 17, 31, 0.16);
+  border-color: rgba(20, 17, 31, 0.22);
+  box-shadow: none;
+}
+
+.qf-submit-badge {
+  padding: 1px 7px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--accent);
+  background: var(--accent-ink);
+  border-radius: var(--r-pill);
+}

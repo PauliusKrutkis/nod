@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { ChangedFile } from "../types.ts";
+import type { SidebarFile } from "./file-sidebar.tsx";
 import { buildFileTree, dirPathsForIndex, flattenTree } from "./file-tree.ts";
 
-const file = (filename: string): ChangedFile =>
-  ({ filename }) as unknown as ChangedFile;
+const file = (filename: string): SidebarFile =>
+  ({ filename }) as unknown as SidebarFile;
 
 describe("buildFileTree", () => {
   it("groups files under their directories and keeps original indices", () => {

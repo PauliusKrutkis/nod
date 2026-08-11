@@ -16,6 +16,11 @@
  * a reading surface, not an animated one) and the arm is consumed by that
  * first mount, so a background refetch or your own later scrolling is never
  * yanked back.
+ *
+ * Two of its sections are catalogued views now — pr-summary (identity, stats,
+ * CI, the link out) and thread-index (the inline-thread list) — and this file
+ * reduces the payloads they take. The rest stays app-side because it renders
+ * Markdown and the comment composer, neither of which is portable yet.
  */
 
 import {
@@ -23,19 +28,14 @@ import {
   type AddCommentBoxHandle,
 } from "@nod/ui/add-comment-box";
 import { Avatar } from "@nod/ui/avatar";
-import { CiPill } from "@nod/ui/ci-pill";
 import { CommentBody } from "@nod/ui/comment-item";
 import { CommentTools } from "@nod/ui/comment-tools";
 import { Kbd } from "@nod/ui/kbd";
-import { TicketTitle } from "@nod/ui/ticket-title";
+import { PrSummary } from "@nod/ui/pr-summary";
+import { ThreadIndex, type ThreadIndexRow } from "@nod/ui/thread-index";
 import { formatAbsolute, formatRelativeTime } from "@nod/ui/time";
 import { Tooltip } from "@nod/ui/tooltip";
-import {
-  CheckCircle2,
-  ExternalLink,
-  PanelRightClose,
-  PanelRightOpen,
-} from "lucide-react";
+import { PanelRightClose, PanelRightOpen } from "lucide-react";
 import {
   type Ref,
   useEffect,
@@ -228,17 +228,16 @@ export function RightPanel({
       replyCounts.set(c.inReplyToId, (replyCounts.get(c.inReplyToId) ?? 0) + 1);
     }
   }
-  const threads = inlineComments
+  const threads: ThreadIndexRow[] = inlineComments
     .filter((c) => c.inReplyToId === null)
-    .map((root) => ({ replyCount: replyCounts.get(root.id) ?? 0, root }));
-
-  const handleJumpToThread = (e: React.MouseEvent<HTMLButtonElement>) => {
-    const path = e.currentTarget.dataset.threadPath;
-    const rootId = Number(e.currentTarget.dataset.threadRoot);
-    if (path && Number.isFinite(rootId)) {
-      onJumpToThread(path, rootId);
-    }
-  };
+    .map((root) => ({
+      id: root.id,
+      line: root.line,
+      path: root.path,
+      replyCount: replyCounts.get(root.id) ?? 0,
+      resolved: root.resolved,
+      snippet: firstLine(root.body),
+    }));
 
   const handleAddIssueComment = (text: string) => {
     justPostedRef.current = true;
@@ -308,10 +307,13 @@ export function RightPanel({
         </div>
 
         <div className="qf-drawer-body" ref={bodyRef}>
-          <DrawerMeta
+          <PrSummary
             ci={ci}
             fileCount={fileCount}
+            onOpenCiUrl={openExternal}
             onOpenPr={onOpenPr}
+            onOpenTicket={openExternal}
+            openLabel={openOnProviderLabel(pr.url)}
             pr={pr}
             trackerBase={trackerBase}
           />
@@ -331,12 +333,7 @@ export function RightPanel({
             timeline={timeline}
           />
 
-          {threads.length > 0 && (
-            <DrawerCodeDiscussion
-              onJumpToThread={handleJumpToThread}
-              threads={threads}
-            />
-          )}
+          <ThreadIndex onJump={onJumpToThread} threads={threads} />
         </div>
 
         <div
@@ -376,66 +373,6 @@ export function RightPanel({
         </div>
       </aside>
     </>
-  );
-}
-
-interface DrawerMetaProps {
-  ci: CiStatus | undefined;
-  fileCount: number;
-  onOpenPr: () => void;
-  pr: PullRequest;
-  trackerBase: string | undefined;
-}
-
-/** The drawer's header section: PR number/title, author, stats, CI, link. */
-function DrawerMeta({
-  ci,
-  fileCount,
-  onOpenPr,
-  pr,
-  trackerBase,
-}: DrawerMetaProps) {
-  return (
-    <section className="qf-drawer-section">
-      <div className="qf-drawer-pr">
-        <span className="qf-pr-num">#{pr.number}</span>
-        <span className="qf-drawer-pr-title">
-          <TicketTitle
-            onOpenTicket={openExternal}
-            title={pr.title}
-            trackerBase={trackerBase}
-          />
-        </span>
-      </div>
-      <div className="qf-drawer-meta">
-        <Avatar name={pr.author} size={15} url={pr.authorAvatarUrl} />
-        <span>{pr.author}</span>
-        <span className="qf-dot">·</span>
-        <span>
-          {fileCount} file{fileCount === 1 ? "" : "s"}
-        </span>
-        <span className="qf-dot">·</span>
-        <span className="qf-add">+{pr.additions}</span>
-        <span className="qf-del">−{pr.deletions}</span>
-        <span className="qf-dot">·</span>
-        <span className="qf-muted" title={formatAbsolute(pr.updatedAt)}>
-          {formatRelativeTime(pr.updatedAt)}
-        </span>
-      </div>
-      <div className="qf-drawer-links">
-        <CiPill ci={ci} onOpen={openExternal} />
-        <Tooltip label={pr.url}>
-          <button
-            className="qf-drawer-link qf-focusable"
-            onClick={onOpenPr}
-            type="button"
-          >
-            {openOnProviderLabel(pr.url)}
-            <ExternalLink aria-hidden size={13} />
-          </button>
-        </Tooltip>
-      </div>
-    </section>
   );
 }
 
@@ -535,58 +472,6 @@ function DrawerConversation({
           )}
         </div>
       )}
-    </section>
-  );
-}
-
-interface DrawerCodeDiscussionProps {
-  onJumpToThread: (e: React.MouseEvent<HTMLButtonElement>) => void;
-  threads: { replyCount: number; root: ReviewComment }[];
-}
-
-function DrawerCodeDiscussion({
-  onJumpToThread,
-  threads,
-}: DrawerCodeDiscussionProps) {
-  return (
-    <section className="qf-drawer-section">
-      <h3 className="qf-drawer-h">
-        Code discussion
-        <span className="qf-drawer-count">{threads.length}</span>
-      </h3>
-      <div className="qf-drawer-threads">
-        {threads.map(({ root, replyCount }) => (
-          <button
-            className="qf-thread-row qf-focusable"
-            data-thread-path={root.path}
-            data-thread-root={root.id}
-            key={root.id}
-            onClick={onJumpToThread}
-            title="Jump to this thread in the diff"
-            type="button"
-          >
-            <span className="qf-thread-loc">
-              {!!root.resolved && (
-                <CheckCircle2
-                  aria-label="Resolved"
-                  className="qf-thread-check"
-                  size={12}
-                />
-              )}
-              <span className="qf-thread-path">{root.path}</span>
-              <span className="qf-thread-line">
-                {root.line === null ? " · outdated" : `:${root.line}`}
-              </span>
-              {replyCount > 0 && (
-                <span className="qf-thread-replies">
-                  {replyCount} {replyCount === 1 ? "reply" : "replies"}
-                </span>
-              )}
-            </span>
-            <span className="qf-thread-snip">{firstLine(root.body)}</span>
-          </button>
-        ))}
-      </div>
     </section>
   );
 }

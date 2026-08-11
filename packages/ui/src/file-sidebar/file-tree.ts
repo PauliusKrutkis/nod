@@ -11,13 +11,13 @@
  * few deep paths, and the un-collapsed version is mostly indentation.
  */
 
-import type { ChangedFile } from "../types.ts";
+import type { SidebarFile } from "./file-sidebar.tsx";
 
 interface FileTreeFileNode {
   kind: "file";
   index: number;
   name: string;
-  file: ChangedFile;
+  file: SidebarFile;
 }
 
 interface FileTreeDirNode {
@@ -68,7 +68,7 @@ function collapseChain(
   return { children: toNodes(current, path), kind: "dir", name, path };
 }
 
-export function buildFileTree(files: readonly ChangedFile[]): FileTreeNode[] {
+export function buildFileTree(files: readonly SidebarFile[]): FileTreeNode[] {
   const root = emptyDir();
   for (const [index, file] of files.entries()) {
     const parts = file.filename.split("/");

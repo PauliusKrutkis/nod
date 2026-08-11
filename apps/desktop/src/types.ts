@@ -52,7 +52,7 @@ interface LastComment {
   createdAt: string;
 }
 
-export type FileStatus =
+type FileStatus =
   | "added"
   | "modified"
   | "removed"
