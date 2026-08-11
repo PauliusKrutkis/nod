@@ -20,6 +20,7 @@
 
 import { Avatar } from "@nod/ui/avatar";
 import { Kbd } from "@nod/ui/kbd";
+import { PRListItem } from "@nod/ui/pr-list-item";
 import { Spinner } from "@nod/ui/spinner";
 import { TicketTitle } from "@nod/ui/ticket-title";
 import { formatAbsolute, formatRelativeTime } from "@nod/ui/time";
@@ -46,7 +47,6 @@ import { useAppStore } from "../../store/app-store.ts";
 import type { InboxData, InboxTabKey, PullRequest } from "../../types.ts";
 import { prKey } from "../../types.ts";
 import { Markdown } from "../markdown.tsx";
-import { PRListItem } from "./pr-list-item.tsx";
 import { WatchReposDialog } from "./watch-repos-dialog.tsx";
 
 const TABS: { key: InboxTabKey; label: string; hint: string }[] = [

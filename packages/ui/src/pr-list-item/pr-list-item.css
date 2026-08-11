@@ -1,0 +1,136 @@
+/* The inbox row. Ported off the Tailwind utilities it used inside the app —
+   the package has no utility build, so the metrics are spelled out here: a
+   12px row gap, 10px/16px/12px padding, a 2px selection rail, a 14px title
+   over a 12px metadata line, and an 11px mono timestamp. The selected wash is
+   the same 15% accent mix the utility produced, in the same colour space.
+
+   Truncation is this row's entire layout problem. Title, repo, author and
+   branch are all unbounded strings sharing two lines, so each is an
+   overflow-hidden, min-width:0 flex child of a min-width:0 column — a flex
+   item's automatic minimum size is its content otherwise, and the row grows
+   past the pane instead of ellipsizing. The trailing timestamp and the
+   pills never shrink: they are short, and losing them costs more than losing
+   characters of a title that is already elided. */
+
+.q-pr {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  max-width: 100%;
+  padding: 10px 16px 10px 12px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition:
+    color 150ms ease,
+    background-color 150ms ease,
+    border-color 150ms ease;
+}
+
+.q-pr:hover {
+  background: var(--surface-2);
+}
+
+.q-pr-selected,
+.q-pr-selected:hover {
+  background: color-mix(in oklab, var(--accent) 15%, transparent);
+  border-left-color: var(--accent);
+}
+
+.q-pr-dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  background: transparent;
+  border-radius: var(--r-pill);
+}
+
+.q-pr-dot-unread {
+  background: var(--accent);
+  box-shadow: 0 0 8px -1px var(--accent);
+}
+
+.q-pr-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.q-pr-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  max-width: 100%;
+}
+
+.q-pr-head > .q-pill {
+  flex-shrink: 0;
+}
+
+.q-pr-title {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.q-pr-title-unread {
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.q-pr-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted);
+}
+
+.q-pr-num {
+  flex-shrink: 0;
+  color: var(--faint);
+}
+
+.q-pr-cell {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.q-pr-branch {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.q-pr-comments {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 4px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.q-pr-branch svg,
+.q-pr-comments svg {
+  flex-shrink: 0;
+}
+
+.q-pr-time {
+  flex-shrink: 0;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--faint);
+  white-space: nowrap;
+}

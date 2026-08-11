@@ -89,6 +89,18 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "whitespace",
     ],
   },
+  "comment-tools": {
+    fixtures: [
+      "chord",
+      "copy-only",
+      "delete-only",
+      "edit-only",
+      "markup-body",
+      "own",
+      "own-with-kbd",
+      "unknown-key",
+    ],
+  },
   "find-bar": {
     fixtures: [
       "case-sensitive",
@@ -143,6 +155,25 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "single",
       "typical",
       "unmeasured",
+    ],
+  },
+  "pr-list-item": {
+    fixtures: [
+      "ancient",
+      "cjk",
+      "draft",
+      "future",
+      "huge-counts",
+      "markup-as-text",
+      "merged",
+      "minimal",
+      "no-avatar",
+      "overflow",
+      "read",
+      "rtl",
+      "selected",
+      "unread",
+      "zero-counts",
     ],
   },
   "review-verdicts": {
