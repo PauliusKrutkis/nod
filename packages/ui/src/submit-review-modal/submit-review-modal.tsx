@@ -1,9 +1,35 @@
-import { Button } from "@nod/ui/button";
-import { useModalDialog } from "@nod/ui/use-modal-dialog";
+/**
+ * Submitting a review: the verdict, an optional summary, and whatever pending
+ * inline comments the host is holding. The verdict is a three-way choice
+ * rather than a dropdown because it is the decision of the screen, and Tab
+ * cycles it from inside the textarea so the whole modal is reachable without
+ * leaving the caret.
+ *
+ * `ownPr` restricts the choice to Comment: the forges reject approving or
+ * blocking your own pull request, so the buttons are disabled with the reason
+ * on the title rather than the request being sent and failing. Submit stays
+ * disabled while a comment review would carry nothing at all — no verdict, no
+ * pending comments and an empty summary — and while `busy`, which is what
+ * keeps a double ⌘↵ from sending two reviews.
+ *
+ * `initialEvent`/`initialBody` seed the first paint so every state (each
+ * verdict, an empty or an enormous summary) is a fixture instead of a scripted
+ * interaction; the host leaves them alone. Esc and the backdrop close through
+ * `onOpenChange`, and hosts that also run a global hotkey layer register their
+ * own Esc at the call site — this component holds no app state. `inline` opens
+ * with show() instead of showModal() (see useModalDialog) and `.qsr-inline`
+ * returns the panel to normal flow for embedding hosts; it also skips the
+ * initial focus, since an inline specimen would otherwise paint its focus ring
+ * into every capture of the summary field.
+ */
+
 import { type KeyboardEvent, useRef, useState } from "react";
-import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
-import { cn } from "../../lib/cn.ts";
-import type { ReviewEvent } from "../../types.ts";
+import { Button } from "../button/button.tsx";
+import { cn } from "../cn/cn.ts";
+import { useModalDialog } from "../use-modal-dialog/use-modal-dialog.ts";
+import "./submit-review-modal.css";
+
+export type ReviewEvent = "APPROVE" | "COMMENT" | "REQUEST_CHANGES";
 
 const EVENTS: { value: ReviewEvent; label: string; hint: string }[] = [
   {
@@ -28,7 +54,10 @@ const PLACEHOLDERS: Record<ReviewEvent, string> = {
 interface Props {
   busy: boolean;
   error?: string | null;
-  onClose: () => void;
+  initialBody?: string;
+  initialEvent?: ReviewEvent;
+  inline?: boolean;
+  onOpenChange: (v: boolean) => void;
   onSubmit: (event: ReviewEvent, body: string) => void;
   open: boolean;
   ownPr?: boolean;
@@ -41,7 +70,10 @@ export function SubmitReviewModal({
   pendingCount,
   busy,
   error,
-  onClose,
+  initialBody = "",
+  initialEvent = "COMMENT",
+  inline = false,
+  onOpenChange,
   onSubmit,
 }: Props) {
   if (!open) {
@@ -51,7 +83,10 @@ export function SubmitReviewModal({
     <SubmitReviewModalContent
       busy={busy}
       error={error}
-      onClose={onClose}
+      initialBody={initialBody}
+      initialEvent={initialEvent}
+      inline={inline}
+      onOpenChange={onOpenChange}
       onSubmit={onSubmit}
       ownPr={ownPr}
       pendingCount={pendingCount}
@@ -64,21 +99,22 @@ function SubmitReviewModalContent({
   pendingCount,
   busy,
   error,
-  onClose,
+  initialBody,
+  initialEvent,
+  inline,
+  onOpenChange,
   onSubmit,
 }: Omit<Props, "open">) {
-  const [event, setEvent] = useState<ReviewEvent>("COMMENT");
-  const [body, setBody] = useState("");
+  const [event, setEvent] = useState<ReviewEvent>(initialEvent ?? "COMMENT");
+  const [body, setBody] = useState(initialBody ?? "");
   const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const close = () => {
+    onOpenChange(false);
+  };
   const { dialogRef, onDialogCancel, onDialogClose } = useModalDialog(
-    onClose,
-    bodyRef
-  );
-
-  useHotkeys(
-    "submit",
-    [{ description: "Close", hidden: true, keys: "esc", run: onClose }],
-    { enabled: true }
+    close,
+    inline ? undefined : bodyRef,
+    { modal: !inline }
   );
 
   const disabledEvent = (value: ReviewEvent) => ownPr && value !== "COMMENT";
@@ -119,7 +155,7 @@ function SubmitReviewModalContent({
       cycleEvent(e.shiftKey ? -1 : 1);
     } else if (e.key === "Escape") {
       e.preventDefault();
-      onClose();
+      close();
     }
   };
 
@@ -134,38 +170,34 @@ function SubmitReviewModalContent({
   return (
     <dialog
       aria-label="Submit review"
-      className="q-dialog q-dialog-top"
+      className={cn("q-dialog q-dialog-top qsr-panel", inline && "qsr-inline")}
       onCancel={onDialogCancel}
       onClose={onDialogClose}
       ref={dialogRef}
     >
-      <div className="border-line border-b px-5 py-3.5">
-        <h2 className="font-semibold text-fg text-sm">Submit review</h2>
-        <p className="mt-0.5 text-muted text-xs">
+      <div className="qsr-head">
+        <h2 className="qsr-title">Submit review</h2>
+        <p className="qsr-sub">
           {pendingCount > 0
             ? `${pendingCount} pending comment${pendingCount === 1 ? "" : "s"} will be included.`
             : "No pending comments. Submits the verdict and summary only."}
         </p>
       </div>
 
-      <div className="px-5 py-4">
+      <div className="qsr-body">
         {!!ownPr && (
-          <p className="mb-2.5 text-faint text-xs">
+          <p className="qsr-note">
             This is your own PR. Only a comment review can be submitted.
           </p>
         )}
-        <div className="flex gap-2">
+        <div className="qsr-verdicts">
           {EVENTS.map((opt) => {
             const disabled = disabledEvent(opt.value);
             return (
               <button
                 className={cn(
-                  "flex-1 rounded-lg border px-2 py-2 font-semibold text-xs transition-colors",
-                  event === opt.value
-                    ? "border-accent bg-accent/15 text-fg"
-                    : "border-line text-muted hover:bg-surface-2 hover:text-fg",
-                  disabled &&
-                    "cursor-not-allowed opacity-40 hover:bg-transparent hover:text-muted"
+                  "qsr-verdict q-focus",
+                  event === opt.value && "qsr-verdict-on"
                 )}
                 disabled={disabled}
                 key={opt.value}
@@ -185,7 +217,7 @@ function SubmitReviewModalContent({
 
         <textarea
           aria-label="Review summary"
-          className="q-input mt-3"
+          className="qsr-input"
           onChange={handleBodyChange}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
@@ -194,17 +226,15 @@ function SubmitReviewModalContent({
           value={body}
         />
 
-        {error ? (
-          <p className="mt-2 break-words text-danger text-xs">{error}</p>
-        ) : null}
+        {error ? <p className="qsr-error">{error}</p> : null}
       </div>
 
-      <div className="flex items-center justify-between border-line border-t px-5 py-3.5">
-        <span className="text-faint text-xs">
+      <div className="qsr-foot">
+        <span className="qsr-hint">
           Tab switches verdict · ⌘↵ to submit · Esc to cancel
         </span>
-        <div className="flex items-center gap-2">
-          <Button onClick={onClose} variant="ghost">
+        <div className="qsr-actions">
+          <Button onClick={close} variant="ghost">
             Cancel
           </Button>
           <Button

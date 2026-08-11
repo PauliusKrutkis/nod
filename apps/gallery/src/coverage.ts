@@ -49,17 +49,19 @@ export const CONTAINERS: Record<string, string> = {
     "AI config query, the save/pick/remove commands and which face is showing; its view is ai-setup-dialog, catalogued in @nod/ui",
   "watch-repos-loader":
     "watched-list query, the coalesced write and the debounced provider search; its view is watch-repos-dialog, catalogued in @nod/ui",
+  "diff-search":
+    "parses the PR's patches into search rows and lends the app's highlighter; its view is pr-search, catalogued in @nod/ui",
+  "submit-review":
+    "registers the hotkey scope that suspends the review bindings while the modal is open; its view is submit-review-modal, catalogued in @nod/ui",
 };
 
 export const PENDING = [
   "file-sidebar",
   "inbox",
-  "pr-search",
   "review-diff-pane",
   "review-header",
   "review-list",
   "review-notifier",
   "review-screen",
   "right-panel",
-  "submit-review-modal",
 ];
