@@ -1,0 +1,32 @@
+# Unit tests for the shared packages and the gallery app that catalogs them.
+# The gallery's screenshot suite is separate (gallery-shots.yml).
+name: Packages
+
+on:
+  pull_request:
+    paths:
+      - "packages/**"
+      - "apps/gallery/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/packages.yml"
+      - ".github/actions/setup/**"
+  push:
+    branches: [main]
+
+concurrency:
+  group: packages-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  unit:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Typecheck gallery
+        run: pnpm --filter @nod/gallery typecheck
+      - name: Unit tests
+        run: |
+          pnpm --filter @nod/tokens test
+          pnpm --filter @nod/ui test
+          pnpm --filter @nod/gallery test

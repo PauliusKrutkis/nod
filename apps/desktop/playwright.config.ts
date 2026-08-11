@@ -17,17 +17,23 @@ import { defineConfig } from "@playwright/test";
  * like. The chromium-perf-prod project below runs the same perf specs
  * against `vite build` + `vite preview` so budgets reflect real
  * user-perceived performance.
+ *
+ * Default runs (local and PR CI) are chromium-only for speed. E2E_WEBKIT
+ * opts in the webkit-perf project (the app ships on Tauri's WebKitGTK, and
+ * Chromium-only budgets can pass while the real engine lags) and
+ * E2E_PROD_PERF opts in chromium-perf-prod; push-to-main CI sets both, so
+ * every merge still pays the full bill exactly once.
  */
 
 const port = Number(process.env.E2E_PORT ?? 14_205);
 const prodPort = Number(process.env.E2E_PROD_PORT ?? 14_206);
 const perfSpecs = /(find|open|scroll)-perf\.spec\.ts/;
-const runProdPerf = process.env.CI || process.env.E2E_PROD_PERF;
+const runProdPerf = process.env.E2E_PROD_PERF;
 
 export default defineConfig({
   projects: [
     { name: "chromium", use: { browserName: "chromium" } },
-    ...(process.env.CI || process.env.E2E_WEBKIT
+    ...(process.env.E2E_WEBKIT
       ? [
           {
             name: "webkit-perf",

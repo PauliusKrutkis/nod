@@ -108,7 +108,7 @@ Softer placement recommendations (propose a target path and name the convention 
 - Correctness: broken edge cases, race conditions, unhandled errors (especially `invoke` rejections), wrong types papered over with `as`.
 - Dead code: unexported-but-unused, or exported-and-unwired (knip will catch it — say so).
 - Tests: does the PR carry the tests that prove its own change (see TESTING.md)?
-- Gate: note whether `pnpm check`, `pnpm typecheck`, `pnpm test`, `pnpm knip` (and `cargo test` if `apps/desktop/src-tauri/` changed) pass; run them if the working tree matches the reviewed diff.
+- Gate: note whether `pnpm check`, `pnpm typecheck`, `pnpm test`, `pnpm knip` (and `cargo test` if `apps/desktop/src-tauri/` changed) pass; run them if the working tree matches the reviewed diff. Never run the full e2e suite during review — when the diff adds or changes `apps/desktop/e2e/` specs, run just those with `pnpm --filter @nod/desktop exec playwright test <spec…> --project=chromium`; the full suite runs on push-to-main CI.
 
 ## Check 9 — User-facing copy reads as human-written
 

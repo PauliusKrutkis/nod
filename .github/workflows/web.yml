@@ -1,0 +1,52 @@
+# Marketing site checks: Astro typecheck, Pages Functions typecheck, unit
+# tests, and the site e2e. Path-filtered to the web workspace and its one
+# internal dependency (@nod/tokens); push to main runs regardless.
+name: Web
+
+on:
+  pull_request:
+    paths:
+      - "apps/web/**"
+      - "packages/tokens/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/web.yml"
+      - ".github/actions/setup/**"
+  push:
+    branches: [main]
+
+concurrency:
+  group: web-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  web:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Typecheck Pages Functions
+        run: pnpm --filter @nod/web run typecheck:functions
+      - name: Typecheck site
+        run: pnpm --filter @nod/web run check
+      - name: Unit tests
+        run: pnpm --filter @nod/web test
+
+  web-e2e:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          browsers: chromium
+      - name: Site e2e
+        run: pnpm e2e:web
+        env:
+          # The build reads GitHub Releases; the default token lifts the
+          # unauthenticated rate limit that shared CI IPs run into.
+          GITHUB_TOKEN: ${{ github.token }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: web-e2e-report
+          path: apps/web/playwright-report/
+          retention-days: 7

@@ -1,0 +1,44 @@
+# Shared job setup: pnpm + node (with the pnpm store cache), workspace
+# install, and — when `browsers` is set — Playwright browsers restored from a
+# cache keyed by the installed @playwright/test version. Reinstalling browsers
+# cost 40-65s on every run; a cache hit leaves only the apt system deps, which
+# is the one part a cache cannot carry across runner images.
+name: Setup
+description: pnpm, node, workspace install, and optionally cached Playwright browsers
+
+inputs:
+  browsers:
+    description: Space-separated Playwright browsers to install (empty skips Playwright entirely)
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: pnpm
+    - shell: bash
+      run: pnpm install --frozen-lockfile --trust-lockfile
+    - name: Resolve Playwright version
+      if: inputs.browsers != ''
+      id: playwright-version
+      shell: bash
+      run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+    - name: Restore Playwright browsers
+      if: inputs.browsers != ''
+      id: playwright-cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}-${{ inputs.browsers }}
+    - name: Install Playwright browsers
+      if: inputs.browsers != '' && steps.playwright-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: pnpm exec playwright install --with-deps ${{ inputs.browsers }}
+    - name: Install Playwright system deps
+      if: inputs.browsers != '' && steps.playwright-cache.outputs.cache-hit == 'true'
+      shell: bash
+      run: pnpm exec playwright install-deps ${{ inputs.browsers }}

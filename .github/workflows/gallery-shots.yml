@@ -6,7 +6,12 @@
 # the darwin files in the repo never stand in for this image — comparing
 # across font-rendering stacks is pure noise. A visual change therefore only
 # merges via an explicit baseline update, never by drifting silently.
-
+#
+# The suite runs 900+ cells on a single worker (parallel vite requests add
+# frame latency and shots flake — see apps/gallery/playwright.config.ts), so
+# it is sharded across machines instead: each shard keeps the one-worker
+# invariant and the wall clock divides by the shard count. Shard baseline
+# artifacts merge into one gallery-linux-baselines download at the end.
 name: Gallery shots
 
 on:
@@ -17,26 +22,31 @@ on:
       - "apps/gallery/**"
       - "apps/desktop/src/index.css"
       - "apps/desktop/src/quiet.css"
+      - ".github/workflows/gallery-shots.yml"
+      - ".github/actions/setup/**"
   workflow_dispatch:
+
+concurrency:
+  group: gallery-shots-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   shots:
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup
         with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile --trust-lockfile
-      - name: Install Playwright webkit
-        run: pnpm exec playwright install --with-deps webkit
+          browsers: webkit
       - name: Compare against linux baselines
         id: shots
         run: |
           set +e
-          pnpm --filter @nod/gallery shots 2>&1 | tee shots.log
+          pnpm --filter @nod/gallery shots --shard=${{ matrix.shard }}/4 2>&1 | tee shots.log
           echo "status=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
           exit 0
       - name: Generate the linux baselines new cells still lack
@@ -50,13 +60,13 @@ jobs:
           fi
           if grep -q "snapshot doesn't exist" shots.log; then
             echo "missing-only=true" >> "$GITHUB_OUTPUT"
-            pnpm --filter @nod/gallery shots:update
+            pnpm --filter @nod/gallery shots:update --shard=${{ matrix.shard }}/4
           fi
       - name: Publish the linux baselines to commit
         if: steps.fill.outputs.missing-only == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: gallery-linux-baselines
+          name: gallery-linux-baselines-shard-${{ matrix.shard }}
           path: apps/gallery/e2e/gallery.shots.ts-snapshots/*-linux.png
       - name: Fail when the comparison did not pass
         if: steps.shots.outputs.status != '0'
@@ -69,5 +79,21 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: gallery-shot-diffs
+          name: gallery-shot-diffs-shard-${{ matrix.shard }}
           path: apps/gallery/test-results
+
+  # Folds the per-shard baseline artifacts into the single download the shard
+  # jobs' error message names. continue-on-error because the merge action
+  # fails when no shard produced baselines, which is the common (green) case.
+  merge-baselines:
+    needs: shots
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Merge shard baselines
+        continue-on-error: true
+        uses: actions/upload-artifact/merge@v4
+        with:
+          name: gallery-linux-baselines
+          pattern: gallery-linux-baselines-shard-*
+          delete-merged: true
