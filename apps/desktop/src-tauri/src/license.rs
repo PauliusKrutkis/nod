@@ -33,7 +33,7 @@ use crate::storage;
 
 const LICENSE_FILE: &str = "license.json";
 const TRIAL_FILE: &str = "trial.json";
-const TRIAL_DAYS: u64 = 14;
+const TRIAL_DAYS: u64 = 30;
 const SECONDS_PER_DAY: u64 = 24 * 60 * 60;
 
 const LICENSE_PUBKEY_HEX: Option<&str> = option_env!("NOD_LICENSE_PUBKEY");
