@@ -17,10 +17,7 @@
     // playwright plugin does not auto-detect (it only knows
     // playwright.config.ts).
     "apps/desktop": {
-      "entry": [
-        "playwright.capture.config.ts",
-        "e2e/capture/*.capture.ts"
-      ]
+      "entry": ["playwright.capture.config.ts", "e2e/capture/*.capture.ts"]
     },
     "apps/gallery": {
       "entry": ["e2e/*.shots.ts"]
