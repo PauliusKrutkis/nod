@@ -109,6 +109,11 @@
   color: var(--fg);
 }
 
+.qg-rail-item.qg-cand {
+  color: var(--fg);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
 .qg-rail-item.qg-sel .qg-dot {
   background: var(--accent);
 }
@@ -269,6 +274,12 @@
   border: 1px solid var(--line);
   border-radius: var(--r-xl);
   overflow: hidden;
+}
+
+.qg-frame-fit {
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
 }
 
 .qg-stage-day {

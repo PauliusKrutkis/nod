@@ -12,7 +12,9 @@
  * the gallery is a screenshot target first and a showroom second.
  *
  * Interaction is keyboard-first like the rest of the app: j/k component,
- * f fixture, t theme, w width, m view, / find. The two effects synchronize
+ * f fixture, t theme, w width, m view, / find (arrows walk matches, Enter
+ * jumps), mod +/-/0 zoom (CSS zoom, persisted — the Tauri shell has no
+ * native browser zoom). The two effects synchronize
  * with things outside React (the URL hash, the window keydown listener).
  *
  * The "day" theme is a placeholder token set proving the switch mechanism —
@@ -102,7 +104,10 @@ function Frame({ route, small }: { route: GalleryRoute; small?: boolean }) {
   const Specimen = entry.component;
   return (
     <div className="qg-frame-wrap">
-      <div className={`qg-frame qg-stage-${route.theme}`} data-frame>
+      <div
+        className={`qg-frame qg-stage-${route.theme} ${route.width ? "qg-frame-fit" : ""}`}
+        data-frame
+      >
         <i className="qg-tick qg-tl" />
         <i className="qg-tick qg-tr" />
         <i className="qg-tick qg-bl" />
@@ -173,11 +178,58 @@ function StageContent({ route }: { route: GalleryRoute }) {
   );
 }
 
+const ZOOM_KEY = "nod-gallery:zoom";
+
+function applyGalleryZoom(factor: number) {
+  try {
+    localStorage.setItem(ZOOM_KEY, String(factor));
+  } catch {
+    /* ignore */
+  }
+  (
+    document.documentElement.style as CSSStyleDeclaration & { zoom: string }
+  ).zoom = factor === 1 ? "" : String(factor);
+}
+
+function loadGalleryZoom(): number {
+  try {
+    const v = Number(localStorage.getItem(ZOOM_KEY));
+    return Number.isFinite(v) && v >= 0.5 && v <= 2 ? v : 1;
+  } catch {
+    return 1;
+  }
+}
+
+function handleZoomKey(
+  key: string,
+  setZoom: React.Dispatch<React.SetStateAction<number>>
+): boolean {
+  if (key === "=" || key === "+") {
+    setZoom((z) => Math.min(2, Math.round((z + 0.1) * 10) / 10));
+    return true;
+  }
+  if (key === "-") {
+    setZoom((z) => Math.max(0.5, Math.round((z - 0.1) * 10) / 10));
+    return true;
+  }
+  if (key === "0") {
+    setZoom(1);
+    return true;
+  }
+  return false;
+}
+
 export function Gallery() {
   const [route, setRoute] = useState<GalleryRoute>(() =>
     parseGalleryHash(window.location.hash, allNames, fixturesOf)
   );
   const [filter, setFilter] = useState("");
+  const [findSel, setFindSel] = useState(0);
+  const [zoom, setZoom] = useState(loadGalleryZoom);
+
+  useEffect(() => {
+    applyGalleryZoom(zoom);
+  }, [zoom]);
 
   const entry = catalog[route.component];
   const fixtureNames = fixturesOf(route.component);
@@ -188,6 +240,14 @@ export function Gallery() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        !event.altKey &&
+        handleZoomKey(event.key, setZoom)
+      ) {
+        event.preventDefault();
+        return;
+      }
       if (event.metaKey || event.ctrlKey || event.altKey) {
         return;
       }
@@ -237,6 +297,35 @@ export function Gallery() {
     setRoute((r) => normalize({ ...r, component }));
   };
 
+  const onFindChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setFilter(event.target.value);
+    setFindSel(0);
+  };
+
+  const onFindKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setFindSel((s) => Math.min(s + 1, visibleNames.length - 1));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setFindSel((s) => Math.max(s - 1, 0));
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      const hit = visibleNames[findSel] ?? visibleNames[0];
+      if (hit) {
+        select(hit);
+        setFilter("");
+        setFindSel(0);
+        event.currentTarget.blur();
+      }
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      setFilter("");
+      setFindSel(0);
+      event.currentTarget.blur();
+    }
+  };
+
   return (
     <div className="qg-root">
       <aside className="qg-rail">
@@ -247,14 +336,15 @@ export function Gallery() {
         <div className="qg-find">
           <input
             aria-label="Find a component"
-            onChange={(event) => setFilter(event.target.value)}
+            onChange={onFindChange}
+            onKeyDown={onFindKeyDown}
             placeholder="Find a component  /"
             type="text"
             value={filter}
           />
         </div>
         <nav aria-label="Components" className="qg-rail-list">
-          {visibleNames.map((name) => {
+          {visibleNames.map((name, index) => {
             const catalogued = cataloguedNames.has(name);
             return (
               <button
@@ -262,6 +352,7 @@ export function Gallery() {
                   "qg-rail-item",
                   catalogued ? "" : "qg-bare",
                   name === route.component ? "qg-sel" : "",
+                  filter && index === findSel ? "qg-cand" : "",
                 ].join(" ")}
                 key={name}
                 onClick={() => select(name)}
@@ -378,6 +469,7 @@ export function Gallery() {
           <span>w width</span>
           <span>m view</span>
           <span>/ find</span>
+          <span>mod ± zoom</span>
           <span className="qg-hash">{formatGalleryHash(route)}</span>
         </footer>
       </div>

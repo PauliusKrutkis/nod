@@ -103,6 +103,24 @@ describe("gallery", () => {
     );
   });
 
+  it("find selects the highlighted match on Enter", () => {
+    render(<Gallery />);
+    const find = screen.getByLabelText("Find a component");
+    fireEvent.change(find, { target: { value: "badge" } });
+    fireEvent.keyDown(find, { key: "Enter" });
+    expect(window.location.hash).toContain("/badge/");
+    expect((find as HTMLInputElement).value).toBe("");
+  });
+
+  it("find walks matches with the arrows", () => {
+    render(<Gallery />);
+    const find = screen.getByLabelText("Find a component");
+    fireEvent.change(find, { target: { value: "b" } });
+    fireEvent.keyDown(find, { key: "ArrowDown" });
+    fireEvent.keyDown(find, { key: "Enter" });
+    expect(window.location.hash).toContain("/button/");
+  });
+
   it("shows the retrofit notice for an uncatalogued component", () => {
     window.location.hash = "#/gallery/ci-pill";
     render(<Gallery />);
