@@ -13,12 +13,13 @@
     "./fuzzy": "./src/fuzzy.ts",
     "./highlight-indices": "./src/highlight-indices/highlight-indices.tsx",
     "./kbd": "./src/kbd/kbd.tsx",
+    "./manifest": "./src/manifest.ts",
     "./search-pane": "./src/search-pane/search-pane.tsx",
     "./spinner": "./src/spinner/spinner.tsx",
+    "./styles.css": "./src/styles.css",
     "./time": "./src/time.ts",
     "./use-latest": "./src/use-latest.ts",
-    "./use-modal-dialog": "./src/use-modal-dialog.ts",
-    "./styles.css": "./src/styles.css"
+    "./use-modal-dialog": "./src/use-modal-dialog.ts"
   },
   "scripts": {
     "test": "vitest run"

@@ -16,8 +16,26 @@ import { cleanup, render } from "@testing-library/react";
 import { createElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { catalog } from "./catalog.ts";
+import { catalogManifest } from "./manifest.ts";
 
 afterEach(cleanup);
+
+describe("manifest parity", () => {
+  it("lists exactly the catalogued components", () => {
+    expect(Object.keys(catalogManifest).sort()).toEqual(
+      Object.keys(catalog).sort()
+    );
+  });
+
+  it.each(Object.keys(catalog))("agrees on %s", (name) => {
+    expect(catalogManifest[name].fixtures.sort()).toEqual(
+      Object.keys(catalog[name].fixtures).sort()
+    );
+    expect(Boolean(catalogManifest[name].dialog)).toBe(
+      Boolean(catalog[name].dialog)
+    );
+  });
+});
 
 const componentFiles = Object.keys(import.meta.glob("./*/*.tsx")).map(
   (path) => path.split("/")[1] ?? ""
