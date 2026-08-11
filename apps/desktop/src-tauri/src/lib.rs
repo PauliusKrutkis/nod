@@ -19,6 +19,10 @@ mod update;
 /// leaving a blank window. Tauri's bundler has no way to exclude the library,
 /// so re-exec once with the host's libwayland-client preloaded ahead of it.
 /// Set NOD_NO_HOST_WAYLAND=1 to opt out.
+///
+/// The host library is probed across the three layouts in use: Debian and
+/// Ubuntu put it under a multiarch triplet, Fedora and openSUSE under lib64,
+/// and Arch under a plain lib.
 #[cfg(target_os = "linux")]
 fn preload_host_libwayland() {
     use std::os::unix::process::CommandExt;
@@ -38,10 +42,10 @@ fn preload_host_libwayland() {
         return;
     }
     let host_lib = [
-        "/usr/lib/x86_64-linux-gnu/libwayland-client.so.0", // Debian/Ubuntu
+        "/usr/lib/x86_64-linux-gnu/libwayland-client.so.0",
         "/usr/lib/aarch64-linux-gnu/libwayland-client.so.0",
-        "/usr/lib64/libwayland-client.so.0", // Fedora/openSUSE
-        "/usr/lib/libwayland-client.so.0",   // Arch
+        "/usr/lib64/libwayland-client.so.0",
+        "/usr/lib/libwayland-client.so.0",
     ]
     .into_iter()
     .find(|p| std::path::Path::new(p).exists());

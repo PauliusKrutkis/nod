@@ -126,7 +126,10 @@ fn file_statuses_map() {
     assert_eq!(added.status, "added");
     let removed = file_from_diff(&mk(serde_json::json!({"deleted_file": true})), "sha");
     assert_eq!(removed.status, "removed");
-    assert_eq!(removed.filename, "old.ts"); // deleted files keep the old path
+    assert_eq!(
+        removed.filename, "old.ts",
+        "deleted files keep the old path"
+    );
     let renamed = file_from_diff(&mk(serde_json::json!({"renamed_file": true})), "sha");
     assert_eq!(renamed.status, "renamed");
     assert_eq!(renamed.previous_filename.as_deref(), Some("old.ts"));

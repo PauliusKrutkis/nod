@@ -56,7 +56,7 @@ fn rejects_the_wrong_public_key() {
 
 #[test]
 fn ignores_extra_keys_without_trusting_them() {
-    let with_extra = rewrap(&token_json().replace("{", "{\"role\":\"admin\",", ));
+    let with_extra = rewrap(&token_json().replace("{", "{\"role\":\"admin\","));
     let payload = verify_license_token(&with_extra, PUBKEY).expect("extra keys must not break");
     assert_eq!(payload.updates_until, "2027-07-18");
 }
@@ -68,10 +68,18 @@ fn malformed_input_is_none_not_a_panic() {
         "not base64url!!",
         &rewrap("[]"),
         &rewrap("{\"orderId\":\"x\"}"),
-        &rewrap("{\"orderId\":\"x\",\"subject\":\"y\",\"updatesUntil\":\"z\",\"signature\":\"nothex\"}"),
-        &rewrap("{\"orderId\":\"x\",\"subject\":\"y\",\"updatesUntil\":\"z\",\"signature\":\"abcd\"}"),
-        &rewrap("{\"orderId\":\"x\",\"subject\":\"y\",\"updatesUntil\":\"z\",\"signature\":\"😀😀\"}"),
-        &rewrap("{\"orderId\":\"x\",\"subject\":\"y\",\"updatesUntil\":\"z\",\"signature\":\"+a\"}"),
+        &rewrap(
+            "{\"orderId\":\"x\",\"subject\":\"y\",\"updatesUntil\":\"z\",\"signature\":\"nothex\"}",
+        ),
+        &rewrap(
+            "{\"orderId\":\"x\",\"subject\":\"y\",\"updatesUntil\":\"z\",\"signature\":\"abcd\"}",
+        ),
+        &rewrap(
+            "{\"orderId\":\"x\",\"subject\":\"y\",\"updatesUntil\":\"z\",\"signature\":\"😀😀\"}",
+        ),
+        &rewrap(
+            "{\"orderId\":\"x\",\"subject\":\"y\",\"updatesUntil\":\"z\",\"signature\":\"+a\"}",
+        ),
     ] {
         assert_eq!(verify_license_token(garbage, PUBKEY), None);
     }

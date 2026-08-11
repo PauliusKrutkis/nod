@@ -8,7 +8,10 @@ use super::{update_allowed, LicenseState};
 fn trial_gets_every_update_and_expired_gets_none() {
     let trial = LicenseState::Trial { days_left: 3 };
     assert!(update_allowed(&trial, Some("2099-01-01")));
-    assert!(!update_allowed(&LicenseState::TrialExpired, Some("2020-01-01")));
+    assert!(!update_allowed(
+        &LicenseState::TrialExpired,
+        Some("2020-01-01")
+    ));
 }
 
 #[test]
