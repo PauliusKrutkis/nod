@@ -1,7 +1,14 @@
-/* App-level ground the packages deliberately do not provide: fonts are an
-   app choice (the gallery matches the desktop's static Inter + Geist Mono),
-   and the body paints the Quiet ground from @nod/tokens so specimens sit on
-   the same canvas as the app they describe. */
+/* App-level ground the packages deliberately do not provide: the border-box
+   reset the @nod/ui sheets assume (the desktop gets it from Tailwind's
+   preflight), fonts as an app choice (matching the desktop's static Inter +
+   Geist Mono), and the body painting the Quiet ground from @nod/tokens so
+   specimens sit on the same canvas as the app they describe. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
 
 :root {
   --font-ui: Inter, system-ui, sans-serif;

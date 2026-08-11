@@ -127,21 +127,41 @@ describe("gallery", () => {
     expect(screen.getByText("Not catalogued yet")).toBeDefined();
   });
 
-  it("mounts a dialog entry open and offers reopening once dismissed", () => {
+  it("renders dialog entries inline, inside the capture frame", () => {
     window.location.hash = "#/gallery/search-pane/typical/quiet/420/specimen";
-    render(<Gallery />);
-    const dialog = screen.getByRole("dialog", {
-      name: "Search pull requests",
-    });
-    fireEvent.keyDown(dialog.querySelector("input") as HTMLElement, {
-      key: "Escape",
-    });
-    expect(screen.getByRole("button", { name: "Reopen dialog" })).toBeDefined();
+    const { container } = render(<Gallery />);
+    expect(
+      container.querySelector("[data-frame] dialog.qsp-inline")
+    ).not.toBeNull();
   });
 
-  it("disables matrix view for dialog entries", () => {
+  it("opens the real modal on demand and closes it on Escape", () => {
+    window.location.hash = "#/gallery/search-pane/typical/quiet/420/specimen";
+    render(<Gallery />);
+    fireEvent.click(screen.getByRole("button", { name: "Open as modal" }));
+    expect(screen.getAllByRole("dialog").length).toBe(2);
+    const modal = screen
+      .getAllByRole("dialog")
+      .find((d) => !d.classList.contains("qsp-inline")) as HTMLElement;
+    fireEvent(modal, new Event("cancel", { cancelable: true }));
+    expect(screen.getAllByRole("dialog").length).toBe(1);
+  });
+
+  it("renders the matrix for dialog entries as inline frames", () => {
     window.location.hash = "#/gallery/search-pane/typical/quiet/420/matrix";
     const { container } = render(<Gallery />);
-    expect(container.querySelectorAll("[data-frame]").length).toBe(0);
+    expect(container.querySelectorAll("[data-frame]").length).toBe(
+      Object.keys(catalog["search-pane"].fixtures).length * 2
+    );
+  });
+
+  it("switches components with Tab and the arrows", () => {
+    render(<Gallery />);
+    fireEvent.keyDown(window, { key: "Tab" });
+    expect(window.location.hash).toContain("/badge/");
+    fireEvent.keyDown(window, { key: "ArrowDown" });
+    expect(window.location.hash).toContain("/button/");
+    fireEvent.keyDown(window, { key: "ArrowUp" });
+    expect(window.location.hash).toContain("/badge/");
   });
 });

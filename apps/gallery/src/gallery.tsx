@@ -11,18 +11,21 @@
  * printed filename is exactly what the webkit screenshot suite snapshots —
  * the gallery is a screenshot target first and a showroom second.
  *
- * Interaction is keyboard-first like the rest of the app: j/k component,
- * f fixture, t theme, w width, m view, / find (arrows walk matches, Enter
- * jumps), mod +/-/0 zoom (CSS zoom, persisted — the Tauri shell has no
- * native browser zoom). The two effects synchronize
- * with things outside React (the URL hash, the window keydown listener).
+ * Interaction is keyboard-first like the rest of the app: j/k, Tab, or the
+ * arrows switch component, f fixture, t theme, w width, m view, / find
+ * (arrows walk matches, Enter jumps), mod +/-/0 zoom. Zoom is a transform
+ * scale on #root with compensated dimensions — CSS `zoom` skips form
+ * controls in webkit, and the Tauri shell has no native browser zoom. The
+ * effects synchronize with things outside React (the URL hash, the window
+ * keydown listener, the zoom transform).
  *
  * The "day" theme is a placeholder token set proving the switch mechanism —
  * a real second theme needs the diff and syntax palettes too, and lives in
  * @nod/tokens when it exists. The "not catalogued yet" rail section derives
  * from coverage.ts, whose test gates new components — the list on screen is
- * the list that gates. Dialog entries mount a real modal <dialog> in the top
- * layer, so their frame manages open state and offers a reopen control.
+ * the list that gates. Dialog entries render INLINE in the frame (so width
+ * presets apply), with the real top-layer modal behind "Open as modal";
+ * keys pressed inside any specimen dialog stay the specimen's.
  */
 import { Button } from "@nod/ui/button";
 import { catalog } from "@nod/ui/catalog";
@@ -55,39 +58,31 @@ function widthLabel(width: number): string {
   return width === 0 ? "Fluid" : String(width);
 }
 
-function DialogFrame({ route }: { route: GalleryRoute }) {
+const noopOpenChange = () => {
+  return;
+};
+
+function ModalLauncher({ route }: { route: GalleryRoute }) {
   const entry = catalog[route.component];
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   if (!entry) {
     return null;
   }
   const fixture = entry.fixtures[route.fixture];
   const Specimen = entry.component;
   return (
-    <div className="qg-frame-wrap">
-      <div className={`qg-stage-${route.theme}`}>
-        {open ? (
-          <Specimen {...fixture.props} onOpenChange={setOpen} open />
-        ) : (
-          <div className="qg-dialog-closed">
-            <p>Dialog dismissed.</p>
-            <Button
-              onClick={() => {
-                setOpen(true);
-              }}
-            >
-              Reopen dialog
-            </Button>
-          </div>
-        )}
-      </div>
-      <div className="qg-meta">
-        <span>{captureName(route)}</span>
-        <span>captures the whole viewport</span>
-        {fixture.provenance ? (
-          <span className="qg-prov">{fixture.provenance}</span>
-        ) : null}
-      </div>
+    <div className={`qg-modal-launch qg-stage-${route.theme}`}>
+      <Button
+        onClick={() => {
+          setOpen(true);
+        }}
+        variant="quiet"
+      >
+        Open as modal
+      </Button>
+      {open ? (
+        <Specimen {...fixture.props} onOpenChange={setOpen} open />
+      ) : null}
     </div>
   );
 }
@@ -97,11 +92,11 @@ function Frame({ route, small }: { route: GalleryRoute; small?: boolean }) {
   if (!entry) {
     return null;
   }
-  if (entry.dialog) {
-    return <DialogFrame key={formatGalleryHash(route)} route={route} />;
-  }
   const fixture = entry.fixtures[route.fixture];
   const Specimen = entry.component;
+  const specimenProps = entry.dialog
+    ? { ...fixture.props, inline: true, onOpenChange: noopOpenChange }
+    : fixture.props;
   return (
     <div className="qg-frame-wrap">
       <div
@@ -116,7 +111,7 @@ function Frame({ route, small }: { route: GalleryRoute; small?: boolean }) {
           className="qg-viewport"
           style={route.width ? { width: route.width } : { flex: 1 }}
         >
-          <Specimen {...fixture.props} />
+          <Specimen {...specimenProps} />
         </div>
       </div>
       <div className="qg-meta">
@@ -125,6 +120,7 @@ function Frame({ route, small }: { route: GalleryRoute; small?: boolean }) {
           <span className="qg-prov">{fixture.provenance}</span>
         ) : null}
       </div>
+      {entry.dialog && !small ? <ModalLauncher route={route} /> : null}
     </div>
   );
 }
@@ -150,13 +146,6 @@ function StageContent({ route }: { route: GalleryRoute }) {
   }
   if (route.mode === "specimen") {
     return <Frame route={route} />;
-  }
-  if (entry.dialog) {
-    return (
-      <p className="qg-note">
-        Dialogs render one at a time. Use the fixture chips to walk the cases.
-      </p>
-    );
   }
   return (
     <div className="qg-matrix">
@@ -186,9 +175,21 @@ function applyGalleryZoom(factor: number) {
   } catch {
     /* ignore */
   }
-  (
-    document.documentElement.style as CSSStyleDeclaration & { zoom: string }
-  ).zoom = factor === 1 ? "" : String(factor);
+  const root = document.getElementById("root");
+  if (!root) {
+    return;
+  }
+  if (factor === 1) {
+    root.style.transform = "";
+    root.style.transformOrigin = "";
+    root.style.width = "";
+    root.style.height = "";
+    return;
+  }
+  root.style.transform = `scale(${factor})`;
+  root.style.transformOrigin = "0 0";
+  root.style.width = `${100 / factor}vw`;
+  root.style.height = `${100 / factor}vh`;
 }
 
 function loadGalleryZoom(): number {
@@ -198,6 +199,19 @@ function loadGalleryZoom(): number {
   } catch {
     return 1;
   }
+}
+
+function ignoreGalleryKeys(event: KeyboardEvent): boolean {
+  if (event.metaKey || event.ctrlKey || event.altKey) {
+    return true;
+  }
+  if (event.target instanceof HTMLInputElement) {
+    return true;
+  }
+  return (
+    event.target instanceof HTMLElement &&
+    event.target.closest("dialog") !== null
+  );
 }
 
 function handleZoomKey(
@@ -248,21 +262,25 @@ export function Gallery() {
         event.preventDefault();
         return;
       }
-      if (event.metaKey || event.ctrlKey || event.altKey) {
-        return;
-      }
-      if (event.target instanceof HTMLInputElement) {
+      if (ignoreGalleryKeys(event)) {
         return;
       }
       const move = (patch: Partial<GalleryRoute>) =>
         setRoute((r) => normalize({ ...r, ...patch }));
       const routeFixtures = fixturesOf(route.component);
+      const step = event.shiftKey ? -1 : 1;
       switch (event.key) {
         case "j":
+        case "ArrowDown":
           move({ component: cycle(allNames, route.component, 1) });
           break;
         case "k":
+        case "ArrowUp":
           move({ component: cycle(allNames, route.component, -1) });
+          break;
+        case "Tab":
+          event.preventDefault();
+          move({ component: cycle(allNames, route.component, step) });
           break;
         case "f":
           if (routeFixtures.length > 0) {
@@ -463,7 +481,7 @@ export function Gallery() {
         </main>
 
         <footer className="qg-helpbar">
-          <span>j/k component</span>
+          <span>j/k · tab · arrows component</span>
           <span>f fixture</span>
           <span>t theme</span>
           <span>w width</span>

@@ -8,7 +8,7 @@
 
 .qg-root {
   display: flex;
-  height: 100vh;
+  height: 100%;
   min-width: 720px;
   background: var(--bg);
   color: var(--fg);
@@ -61,6 +61,15 @@
 
 .qg-find input::placeholder {
   color: var(--faint);
+}
+
+.qg-find input:focus {
+  border-color: var(--accent-line);
+  outline: none;
+}
+
+.qg-root :focus {
+  outline: none;
 }
 
 .qg-rail-list {
@@ -385,17 +394,8 @@
   font-size: 12px;
 }
 
-.qg-dialog-closed {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-  color: var(--muted);
-  font-size: 12.5px;
-}
-
-.qg-dialog-closed p {
-  margin: 0;
+.qg-modal-launch {
+  margin-top: 14px;
 }
 
 .qg-empty {
