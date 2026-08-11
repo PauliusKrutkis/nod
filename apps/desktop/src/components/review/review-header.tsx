@@ -8,10 +8,13 @@
 
 import { Avatar } from "@nod/ui/avatar";
 import { Kbd } from "@nod/ui/kbd";
+import { TicketTitle } from "@nod/ui/ticket-title";
+import { Tooltip } from "@nod/ui/tooltip";
 import { Check, GitBranch, PanelLeft } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { copyTextToClipboard } from "../../lib/clipboard.ts";
 import { cn } from "../../lib/cn.ts";
+import { openExternal } from "../../lib/open-external.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type {
   CiStatus,
@@ -19,8 +22,6 @@ import type {
   PullRequestDetail,
   ReviewSummary,
 } from "../../types.ts";
-import { TicketTitle } from "../ui/ticket-title.tsx";
-import { Tooltip } from "../ui/tooltip.tsx";
 import { ReviewVerdicts } from "./review-verdicts.tsx";
 
 export function ReviewHeader({
@@ -85,7 +86,11 @@ export function ReviewHeader({
             {stateLabel}
           </span>
           <h1 className="qf-pr-title truncate" title={pr.title}>
-            <TicketTitle title={pr.title} trackerBase={trackerBase} />
+            <TicketTitle
+              onOpenTicket={openExternal}
+              title={pr.title}
+              trackerBase={trackerBase}
+            />
           </h1>
         </div>
         <div className="qf-pr-sub mt-1 flex min-w-0 items-center gap-2">

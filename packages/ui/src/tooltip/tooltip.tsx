@@ -1,4 +1,23 @@
-import { Kbd } from "@nod/ui/kbd";
+/**
+ * A hover/focus tooltip themed with the .q-tooltip tokens. Portals to the body
+ * so it is never clipped by the virtualized diff scroller, positions itself
+ * above the trigger and clamps to the viewport, and carries an optional
+ * keyboard hint in the slot .q-tooltip reserves. Opens on pointer and on
+ * keyboard focus, closes on leave, blur, or Escape — the label is wired to the
+ * child control with aria-describedby so it is announced, not just shown.
+ * The open/close handlers are cloned onto the child (always the interactive
+ * control — a button, in practice) rather than a wrapper span, so the wrapper
+ * stays a plain measurement anchor with no interaction handlers of its own.
+ * The wrapper still exists, instead of measuring the child directly, because
+ * cloning a ref onto an arbitrary child isn't guaranteed to work.
+ * When the wrapped control relies on flex sizing from its parent row (flex-1,
+ * margin-left: auto, …), that layout must be re-applied to the wrapper itself
+ * via anchorClassName — the child's own flex/margin rules no longer reach the
+ * row once the child is no longer the row's direct flex item.
+ * The trigger's handlers are method signatures on purpose: they are compared
+ * bivariantly, so a child typed to a concrete element (a Button, an <input>)
+ * is a legal trigger instead of failing on the event's target type.
+ */
 import {
   cloneElement,
   type ReactElement,
@@ -10,7 +29,9 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { cn } from "../../lib/cn.ts";
+import { cn } from "../cn/cn.ts";
+import { Kbd } from "../kbd/kbd.tsx";
+import "./tooltip.css";
 
 const OPEN_DELAY_MS = 260;
 const EDGE_GAP_PX = 8;
@@ -22,29 +43,12 @@ interface Coords {
 
 interface TriggerProps {
   "aria-describedby"?: string;
-  onBlur?: (e: React.FocusEvent) => void;
-  onFocus?: (e: React.FocusEvent) => void;
-  onPointerEnter?: (e: React.PointerEvent) => void;
-  onPointerLeave?: (e: React.PointerEvent) => void;
+  onBlur?(e: React.FocusEvent): void;
+  onFocus?(e: React.FocusEvent): void;
+  onPointerEnter?(e: React.PointerEvent): void;
+  onPointerLeave?(e: React.PointerEvent): void;
 }
 
-/**
- * A hover/focus tooltip themed with the existing .q-tooltip tokens. Portals to
- * the body so it is never clipped by the virtualized diff scroller, positions
- * itself above the trigger and clamps to the viewport, and carries an optional
- * keyboard hint in the slot .q-tooltip already reserves. Opens on pointer and
- * on keyboard focus, closes on leave, blur, or Escape — the label is wired to
- * the child control with aria-describedby so it is announced, not just shown.
- * The open/close handlers are cloned onto the child (always the interactive
- * control — a button, in practice) rather than a wrapper span, so the wrapper
- * stays a plain measurement anchor with no interaction handlers of its own.
- * The wrapper still exists, instead of measuring the child directly, because
- * cloning a ref onto an arbitrary child isn't guaranteed to work.
- * When the wrapped control relies on flex sizing from its parent row (flex-1,
- * margin-left: auto, …), that layout must be re-applied to the wrapper itself
- * via anchorClassName — the child's own flex/margin rules no longer reach the
- * row once the child is no longer the row's direct flex item.
- */
 export function Tooltip({
   children,
   label,

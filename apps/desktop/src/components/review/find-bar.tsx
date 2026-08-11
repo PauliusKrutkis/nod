@@ -1,7 +1,7 @@
+import { Tooltip } from "@nod/ui/tooltip";
 import { CaseSensitive, ChevronDown, ChevronUp, X } from "lucide-react";
 import { type ChangeEvent, type KeyboardEvent, useRef } from "react";
 import { cn } from "../../lib/cn.ts";
-import { Tooltip } from "../ui/tooltip.tsx";
 
 /**
  * Editor/browser-style find bar, floated over the diff's top-right corner

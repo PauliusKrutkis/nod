@@ -1,3 +1,4 @@
+import { Tooltip } from "@nod/ui/tooltip";
 import { type Editor, Extension } from "@tiptap/core";
 import { Placeholder } from "@tiptap/extensions";
 import { Markdown } from "@tiptap/markdown";
@@ -20,7 +21,6 @@ import {
 } from "react";
 import { cn } from "../../lib/cn.ts";
 import { suggestionHighlight } from "../../lib/suggestion-highlight.ts";
-import { Tooltip } from "../ui/tooltip.tsx";
 
 export interface ComposerEditorHandle {
   clear: () => void;

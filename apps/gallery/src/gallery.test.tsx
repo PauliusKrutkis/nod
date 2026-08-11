@@ -8,6 +8,7 @@
 import { catalog } from "@nod/ui/catalog";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { PENDING } from "./coverage.ts";
 import { Gallery } from "./gallery.tsx";
 import { captureName, formatGalleryHash, parseGalleryHash } from "./route.ts";
 
@@ -20,6 +21,7 @@ beforeEach(() => {
 const componentNames = Object.keys(catalog);
 const first = componentNames[0];
 const firstFixtures = Object.keys(catalog[first].fixtures);
+const firstPending = PENDING[0];
 
 describe("route", () => {
   it("round-trips every catalog cell through the hash", () => {
@@ -123,7 +125,7 @@ describe("gallery", () => {
   });
 
   it("shows the retrofit notice for an uncatalogued component", () => {
-    window.location.hash = "#/gallery/ci-pill";
+    window.location.hash = `#/gallery/${firstPending}`;
     render(<Gallery />);
     expect(screen.getByText("Not catalogued yet")).toBeDefined();
   });

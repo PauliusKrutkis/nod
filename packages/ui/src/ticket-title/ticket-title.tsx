@@ -1,12 +1,17 @@
-import { openUrl } from "@tauri-apps/plugin-opener";
-import { Tooltip } from "./tooltip.tsx";
-
 /**
  * Titles with issue-tracker links: ticket IDs (SCR-2891, ABC-42, …) become
  * links to the configured tracker — mirroring what GitLab's Jira integration
  * renders in its own UI (the API only hands us plain text, so the base URL is
  * configured once per account: ⌘K → "Issue tracker…").
+ *
+ * Without a trackerBase there is nothing to link to, so the title renders as
+ * plain text — the same fallback a title with no ticket-shaped run takes. The
+ * host opens the URL: onOpenTicket keeps this side of the boundary free of
+ * Tauri, and receives the resolved href rather than the raw id so the template
+ * rules stay in one place.
  */
+import { Tooltip } from "../tooltip/tooltip.tsx";
+import "./ticket-title.css";
 
 const TICKET_RE = /\b([A-Z][A-Z0-9]{1,9}-\d+)\b/g;
 const TRAILING_SLASH_RE = /\/$/;
@@ -41,12 +46,20 @@ function parseTitleSegments(title: string): TitleSegment[] {
   return segments;
 }
 
-function TicketLink({ id, trackerBase }: { id: string; trackerBase: string }) {
+function TicketLink({
+  id,
+  trackerBase,
+  onOpenTicket,
+}: {
+  id: string;
+  trackerBase: string;
+  onOpenTicket: (url: string) => void;
+}) {
   const href = ticketUrl(trackerBase, id);
   const onClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    openUrl(href).catch(() => undefined);
+    onOpenTicket(href);
   };
   return (
     <Tooltip label={href}>
@@ -60,9 +73,11 @@ function TicketLink({ id, trackerBase }: { id: string; trackerBase: string }) {
 export function TicketTitle({
   title,
   trackerBase,
+  onOpenTicket,
 }: {
   title: string;
   trackerBase?: string;
+  onOpenTicket: (url: string) => void;
 }) {
   if (!trackerBase) {
     return <>{title}</>;
@@ -78,6 +93,7 @@ export function TicketTitle({
           <TicketLink
             id={segment.value}
             key={`ticket-${segment.value}`}
+            onOpenTicket={onOpenTicket}
             trackerBase={trackerBase}
           />
         ) : (

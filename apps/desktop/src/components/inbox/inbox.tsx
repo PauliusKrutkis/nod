@@ -21,7 +21,9 @@
 import { Avatar } from "@nod/ui/avatar";
 import { Kbd } from "@nod/ui/kbd";
 import { Spinner } from "@nod/ui/spinner";
+import { TicketTitle } from "@nod/ui/ticket-title";
 import { formatAbsolute, formatRelativeTime } from "@nod/ui/time";
+import { Tooltip } from "@nod/ui/tooltip";
 import {
   Archive,
   ArchiveRestore,
@@ -39,12 +41,11 @@ import { prefetchPullRequest } from "../../hooks/use-pull-request-detail.ts";
 import { useSubscribed } from "../../hooks/use-subscribed.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
 import { cn } from "../../lib/cn.ts";
+import { openExternal } from "../../lib/open-external.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type { InboxData, InboxTabKey, PullRequest } from "../../types.ts";
 import { prKey } from "../../types.ts";
 import { Markdown } from "../markdown.tsx";
-import { TicketTitle } from "../ui/ticket-title.tsx";
-import { Tooltip } from "../ui/tooltip.tsx";
 import { PRListItem } from "./pr-list-item.tsx";
 import { WatchReposDialog } from "./watch-repos-dialog.tsx";
 
@@ -939,7 +940,11 @@ function InboxDetail({
           </span>
         </div>
         <h2 className="qi-detail-title">
-          <TicketTitle title={pr.title} trackerBase={trackerBase} />
+          <TicketTitle
+            onOpenTicket={openExternal}
+            title={pr.title}
+            trackerBase={trackerBase}
+          />
         </h2>
         <div className="qi-detail-author">
           <Avatar name={pr.author} size={20} url={pr.authorAvatarUrl} />

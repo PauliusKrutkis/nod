@@ -1,9 +1,9 @@
 import { Avatar } from "@nod/ui/avatar";
+import { Tooltip } from "@nod/ui/tooltip";
 import { Check, X } from "lucide-react";
 import { cn } from "../../lib/cn.ts";
 import { aggregateReviewVerdicts, type Reviewer } from "../../lib/reviews.ts";
 import type { ReviewSummary } from "../../types.ts";
-import { Tooltip } from "../ui/tooltip.tsx";
 
 const MAX_FACES = 3;
 

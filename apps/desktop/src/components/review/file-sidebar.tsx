@@ -1,3 +1,4 @@
+import { Tooltip } from "@nod/ui/tooltip";
 import {
   Check,
   ChevronDown,
@@ -19,7 +20,6 @@ import type {
   PendingComment,
   ReviewComment,
 } from "../../types.ts";
-import { Tooltip } from "../ui/tooltip.tsx";
 
 interface FileSidebarProps {
   changed: Set<string>;

@@ -56,17 +56,6 @@
   color: var(--faint);
 }
 
-/* ---- issue-tracker ticket link inside titles ---- */
-.q-ticket {
-  color: var(--accent);
-  text-decoration: none;
-  cursor: pointer;
-  border-bottom: 1px solid var(--accent-line);
-}
-.q-ticket:hover {
-  border-bottom-color: var(--accent);
-}
-
 /* ---- eyebrow / section micro-label ---- */
 .q-eyebrow {
   font-size: 11px;
@@ -210,40 +199,6 @@ textarea.q-input {
   color: var(--accent);
   background: var(--accent-soft);
   border-color: var(--accent-line);
-}
-
-.q-tooltip {
-  z-index: 60;
-  display: inline-flex;
-  align-items: center;
-  padding: 5px 9px;
-  font-family: var(--font-ui);
-  font-size: 11.5px;
-  color: var(--fg);
-  white-space: nowrap;
-  pointer-events: none;
-  background: var(--surface-hi);
-  border: 1px solid var(--line-2);
-  border-radius: var(--r-md);
-  box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.6);
-  animation: q-fade 100ms ease;
-}
-.q-tooltip .q-kbd {
-  margin-left: 5px;
-}
-.q-tooltip-anchor {
-  display: inline-flex;
-}
-.q-tooltip-measure {
-  position: fixed;
-  top: 0;
-  left: 0;
-  visibility: hidden;
-}
-@media (prefers-reduced-motion: reduce) {
-  .q-tooltip {
-    animation: none;
-  }
 }
 
 /* ---- markdown (global; the review drawer's scoped copy overrides inside .dir-quiet) ---- */
@@ -476,8 +431,7 @@ textarea.q-input {
 
 @media (prefers-reduced-motion: reduce) {
   .q-overlay,
-  .q-dialog,
-  .q-tooltip {
+  .q-dialog {
     transition-duration: 0ms !important;
     animation-duration: 0ms !important;
   }
@@ -1021,50 +975,6 @@ textarea.q-input {
   font-size: 11px;
   font-weight: 600;
   color: var(--muted);
-}
-
-/* CI / pipeline status — one glanceable pill, mirroring the verdict language.
-   Muted "none" never reaches here (the component renders nothing). */
-.dir-quiet .qf-ci {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 24px;
-  padding: 0 8px;
-  cursor: pointer;
-  background: transparent;
-  border: none;
-  border-radius: var(--r-pill);
-  box-shadow: inset 0 0 0 1px var(--line-2);
-  transition: filter 120ms ease;
-}
-.dir-quiet .qf-ci:hover {
-  filter: brightness(1.08);
-}
-.dir-quiet .qf-ci-count {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-}
-.dir-quiet .qf-ci-success {
-  color: var(--add);
-  background: var(--add-bg);
-}
-.dir-quiet .qf-ci-failure {
-  color: var(--del);
-  background: var(--del-bg);
-}
-.dir-quiet .qf-ci-pending {
-  color: var(--muted);
-  background: var(--surface-2);
-}
-.dir-quiet .qf-ci-pending svg {
-  animation: qf-ci-spin 900ms linear infinite;
-}
-@keyframes qf-ci-spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 .dir-quiet .qf-info-btn {

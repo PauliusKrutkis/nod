@@ -50,6 +50,17 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "quiet",
     ],
   },
+  "ci-pill": {
+    fixtures: [
+      "failure",
+      "failure-overflow",
+      "missing",
+      "none",
+      "pending",
+      "single-check",
+      "success",
+    ],
+  },
   "highlight-indices": {
     fixtures: ["cjk", "empty-text", "every", "none", "out-of-range", "typical"],
   },
@@ -77,5 +88,29 @@ export const catalogManifest: Record<string, ManifestEntry> = {
   },
   spinner: {
     fixtures: ["bare", "labelled", "overflow"],
+  },
+  "ticket-title": {
+    fixtures: [
+      "id-template",
+      "markup-as-text",
+      "multiple-tickets",
+      "near-miss",
+      "no-ticket",
+      "no-tracker",
+      "one-ticket",
+      "overflow",
+      "trailing-slash",
+      "unicode",
+    ],
+  },
+  tooltip: {
+    fixtures: [
+      "anchored",
+      "combo",
+      "markup-as-text",
+      "overflow",
+      "rtl",
+      "short",
+    ],
   },
 };

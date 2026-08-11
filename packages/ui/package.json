@@ -9,6 +9,7 @@
     "./badge": "./src/badge/badge.tsx",
     "./button": "./src/button/button.tsx",
     "./catalog": "./src/catalog/catalog.ts",
+    "./ci-pill": "./src/ci-pill/ci-pill.tsx",
     "./fixtures": "./src/fixtures/fixtures.ts",
     "./fuzzy": "./src/fuzzy/fuzzy.ts",
     "./highlight-indices": "./src/highlight-indices/highlight-indices.tsx",
@@ -17,7 +18,9 @@
     "./search-pane": "./src/search-pane/search-pane.tsx",
     "./spinner": "./src/spinner/spinner.tsx",
     "./styles.css": "./src/styles.css",
+    "./ticket-title": "./src/ticket-title/ticket-title.tsx",
     "./time": "./src/time/time.ts",
+    "./tooltip": "./src/tooltip/tooltip.tsx",
     "./use-latest": "./src/use-latest/use-latest.ts",
     "./use-modal-dialog": "./src/use-modal-dialog/use-modal-dialog.ts"
   },
@@ -29,11 +32,13 @@
     "lucide-react": "^1.22.0"
   },
   "peerDependencies": {
-    "react": "^19.1.0"
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
     "jsdom": "^29.1.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
