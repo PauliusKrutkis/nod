@@ -64,6 +64,7 @@ Flag with a plausible impact statement, not reflexively:
 - Missing keys or index-as-key on reorderable lists.
 - Large lists rendered without virtualization where the data is unbounded (files in a PR, comment threads).
 - TanStack Query misuse: `refetch` in effects, disabled caching, per-item queries in a loop (request waterfalls / N+1 `invoke` calls into the Rust backend).
+- Mutation triggers with no guard against repeat activation — a handler that fires `invoke`/`mutate` on every click or keypress with no `isPending` disable, no in-flight dedupe, and no idempotency on the Rust side. Weigh key-repeat first: this app binds single letters, so a held key fires the handler continuously (see the auto-repeat guard in `apps/web/src/components/HeroDemo.astro`). Flag the concrete spam path — N archive calls, N optimistic updates racing one another — not the theoretical one.
 - Subscribing a component to more Zustand state than it uses (whole-store selectors causing broad re-renders).
 - Rust side: cloning large payloads unnecessarily, serializing per-item instead of batching, blocking calls on the main thread.
 
