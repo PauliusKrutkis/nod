@@ -16,12 +16,14 @@
  *
  * The "day" theme is a placeholder token set proving the switch mechanism —
  * a real second theme needs the diff and syntax palettes too, and lives in
- * @nod/tokens when it exists. RETROFIT_QUEUE lists desktop components that
- * belong in the catalog once they render from props alone; selecting one
- * shows how to bring it in.
+ * @nod/tokens when it exists. The "not catalogued yet" rail section derives
+ * from coverage.ts, whose test gates new components — the list on screen is
+ * the list that gates. Dialog entries mount a real modal <dialog> in the top
+ * layer, so their frame manages open state and offers a reopen control.
  */
-import { catalog, Kbd } from "@nod/ui";
+import { Button, catalog, Kbd } from "@nod/ui";
 import { useEffect, useState } from "react";
+import { PENDING } from "./coverage.ts";
 import {
   captureName,
   cycle,
@@ -34,14 +36,12 @@ import {
 } from "./route.ts";
 import "./gallery.css";
 
-const RETROFIT_QUEUE = ["ci-pill", "highlight", "ticket-title", "tooltip"];
-
 const THEME_LABELS = { day: "Daylight", quiet: "Quiet" } as const;
 const MODE_LABELS = { matrix: "Matrix", specimen: "Specimen" } as const;
 
 const componentNames = Object.keys(catalog);
 const cataloguedNames = new Set(componentNames);
-const allNames = [...componentNames, ...RETROFIT_QUEUE];
+const allNames = [...componentNames, ...PENDING];
 
 const fixturesOf = (component: string): readonly string[] =>
   Object.keys(catalog[component]?.fixtures ?? {});
@@ -50,10 +50,50 @@ function widthLabel(width: number): string {
   return width === 0 ? "Fluid" : String(width);
 }
 
+function DialogFrame({ route }: { route: GalleryRoute }) {
+  const entry = catalog[route.component];
+  const [open, setOpen] = useState(true);
+  if (!entry) {
+    return null;
+  }
+  const fixture = entry.fixtures[route.fixture];
+  const Specimen = entry.component;
+  return (
+    <div className="qg-frame-wrap">
+      <div className={`qg-stage-${route.theme}`}>
+        {open ? (
+          <Specimen {...fixture.props} onOpenChange={setOpen} open />
+        ) : (
+          <div className="qg-dialog-closed">
+            <p>Dialog dismissed.</p>
+            <Button
+              onClick={() => {
+                setOpen(true);
+              }}
+            >
+              Reopen dialog
+            </Button>
+          </div>
+        )}
+      </div>
+      <div className="qg-meta">
+        <span>{captureName(route)}</span>
+        <span>captures the whole viewport</span>
+        {fixture.provenance ? (
+          <span className="qg-prov">{fixture.provenance}</span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function Frame({ route, small }: { route: GalleryRoute; small?: boolean }) {
   const entry = catalog[route.component];
   if (!entry) {
     return null;
+  }
+  if (entry.dialog) {
+    return <DialogFrame key={formatGalleryHash(route)} route={route} />;
   }
   const fixture = entry.fixtures[route.fixture];
   const Specimen = entry.component;
@@ -96,11 +136,19 @@ function EmptyCatalogNotice({ name }: { name: string }) {
 }
 
 function StageContent({ route }: { route: GalleryRoute }) {
-  if (!catalog[route.component]) {
+  const entry = catalog[route.component];
+  if (!entry) {
     return <EmptyCatalogNotice name={route.component} />;
   }
   if (route.mode === "specimen") {
     return <Frame route={route} />;
+  }
+  if (entry.dialog) {
+    return (
+      <p className="qg-note">
+        Dialogs render one at a time. Use the fixture chips to walk the cases.
+      </p>
+    );
   }
   return (
     <div className="qg-matrix">

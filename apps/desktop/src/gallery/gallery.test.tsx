@@ -108,4 +108,22 @@ describe("gallery", () => {
     render(<Gallery />);
     expect(screen.getByText("Not catalogued yet")).toBeDefined();
   });
+
+  it("mounts a dialog entry open and offers reopening once dismissed", () => {
+    window.location.hash = "#/gallery/search-pane/typical/quiet/420/specimen";
+    render(<Gallery />);
+    const dialog = screen.getByRole("dialog", {
+      name: "Search pull requests",
+    });
+    fireEvent.keyDown(dialog.querySelector("input") as HTMLElement, {
+      key: "Escape",
+    });
+    expect(screen.getByRole("button", { name: "Reopen dialog" })).toBeDefined();
+  });
+
+  it("disables matrix view for dialog entries", () => {
+    window.location.hash = "#/gallery/search-pane/typical/quiet/420/matrix";
+    const { container } = render(<Gallery />);
+    expect(container.querySelectorAll("[data-frame]").length).toBe(0);
+  });
 });

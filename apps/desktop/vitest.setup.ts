@@ -1,6 +1,10 @@
 /**
  * jsdom (v29) no longer ships localStorage; the store layer persists through
  * it at module load, so install a Map-backed stand-in before anything imports.
+ * It also lacks <dialog>'s modal machinery and scroll geometry, which the
+ * gallery's dialog-shaped catalog entries hit — the shims mirror only the
+ * observable contract: showModal opens, close closes and fires "close",
+ * scrollIntoView is a no-op.
  */
 
 if (typeof globalThis.localStorage?.clear !== "function") {
@@ -29,4 +33,27 @@ if (typeof globalThis.localStorage?.clear !== "function") {
       writable: true,
     });
   }
+}
+
+if (typeof HTMLDialogElement !== "undefined") {
+  if (typeof HTMLDialogElement.prototype.showModal !== "function") {
+    HTMLDialogElement.prototype.showModal = function showModal() {
+      this.setAttribute("open", "");
+    };
+  }
+  if (typeof HTMLDialogElement.prototype.close !== "function") {
+    HTMLDialogElement.prototype.close = function close() {
+      this.removeAttribute("open");
+      this.dispatchEvent(new Event("close"));
+    };
+  }
+}
+
+if (
+  typeof Element !== "undefined" &&
+  typeof Element.prototype.scrollIntoView !== "function"
+) {
+  Element.prototype.scrollIntoView = function scrollIntoView() {
+    return;
+  };
 }

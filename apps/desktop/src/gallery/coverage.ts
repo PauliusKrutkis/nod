@@ -1,0 +1,59 @@
+/**
+ * The coverage ratchet. Every component file under src/components must be
+ * exactly one of: catalogued in @nod/ui, a CONTAINER (wiring by design — the
+ * exemption carries its reason), or PENDING (real view, not yet catalogued).
+ * coverage.test.ts enforces the partition, so a new component fails CI by
+ * name until someone classifies it, and a catalogued one must leave PENDING.
+ * The gallery rail derives its "not catalogued yet" section from PENDING —
+ * the list on screen is the list that gates, never a hand-maintained copy.
+ */
+const componentModules = import.meta.glob("../components/**/*.tsx");
+
+export const desktopComponentNames = Object.keys(componentModules)
+  .filter((path) => !path.endsWith(".test.tsx"))
+  .map((path) => path.split("/").pop()?.replace(".tsx", "") ?? "")
+  .sort();
+
+export const CONTAINERS: Record<string, string> = {
+  "global-search":
+    "store and query wiring only; its view is search-pane, catalogued in @nod/ui",
+};
+
+export const PENDING = [
+  "add-comment-box",
+  "ai-setup-dialog",
+  "ask-note",
+  "ci-pill",
+  "code-cell",
+  "command-palette",
+  "comment-item",
+  "comment-thread",
+  "composer-editor",
+  "file-sidebar",
+  "find-bar",
+  "help-overlay",
+  "image-diff",
+  "inbox",
+  "issue-tracker-dialog",
+  "markdown",
+  "overview-ruler",
+  "pr-list-item",
+  "pr-search",
+  "purchase-prompt",
+  "release-history",
+  "review-diff-pane",
+  "review-header",
+  "review-list",
+  "review-notifier",
+  "review-screen",
+  "review-screen-pending",
+  "review-verdicts",
+  "right-panel",
+  "submit-review-modal",
+  "ticket-title",
+  "token-gate",
+  "tooltip",
+  "update-prompt",
+  "watch-repos-dialog",
+  "whats-new",
+];

@@ -16,7 +16,8 @@
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
     "doctor": "npx react-doctor@latest",
-    "build:demo": "vite build --config vite.demo.config.ts"
+    "build:demo": "vite build --config vite.demo.config.ts",
+    "gallery:desktop": "tauri dev --config '{\"build\":{\"devUrl\":\"http://localhost:1420/#/gallery\"}}'"
   },
   "dependencies": {
     "@fontsource-variable/geist-mono": "^5.2.8",
