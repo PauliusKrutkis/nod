@@ -851,10 +851,6 @@ textarea.q-input {
 .qg-link svg {
   color: var(--faint);
 }
-.qh-head-title svg {
-  flex-shrink: 0;
-  color: var(--accent);
-}
 /* branch names as copyable chips — click copies the name to the clipboard */
 .dir-quiet .qf-branch-chip {
   display: inline-flex;
@@ -1403,6 +1399,33 @@ textarea.q-input {
   font-family: var(--font-ui);
   color: var(--faint);
   text-align: center;
+}
+
+/* skeleton shimmer — cold-cache placeholders (never spinners) */
+.qf-skel {
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 25%,
+    var(--surface-hi) 50%,
+    var(--surface-2) 75%
+  );
+  background-size: 200% 100%;
+  border-radius: var(--r-md);
+  animation: qf-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes qf-shimmer {
+  from {
+    background-position: 180% 0;
+  }
+  to {
+    background-position: -20% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .qf-skel {
+    background: var(--surface-2);
+    animation: none;
+  }
 }
 
 /* ============ FIND IN DIFF (mod+f) ============ */
@@ -3050,114 +3073,122 @@ textarea.q-input {
   color: var(--fg);
 }
 
-.qrh-panel {
-  width: min(600px, calc(100vw - 32px));
-}
-.qrh-head {
+.qb-update {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--line);
-}
-.qrh-title {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--fg);
-}
-.qrh-title svg {
-  flex-shrink: 0;
-  color: var(--accent);
-}
-.qrh-list {
-  padding: 4px 20px 18px;
-  overflow-y: auto;
-}
-.qrh-note {
-  padding: 22px 0;
-  font-size: 12px;
-  color: var(--muted);
-}
-.qrh-item {
-  position: relative;
-  padding: 12px 0 4px 22px;
-}
-.qrh-item::before {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 4px;
-  width: 1px;
-  content: "";
-  background: var(--line-2);
-}
-.qrh-item:first-child::before {
-  top: 19px;
-}
-.qrh-item:last-child::before {
-  bottom: auto;
-  height: 19px;
-}
-.qrh-item:only-child::before {
-  display: none;
-}
-.qrh-dot {
-  position: absolute;
-  top: 15px;
-  left: 0;
-  width: 9px;
-  height: 9px;
-  background: var(--surface);
+  gap: 12px;
+  padding: 13px 14px;
+  background: var(--surface-2);
   border: 1px solid var(--line-2);
-  border-radius: 50%;
+  border-radius: var(--r-2xl);
+  box-shadow: 0 18px 48px -24px rgba(0, 0, 0, 0.7);
+  animation: qb-rise 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.qrh-item-on .qrh-dot {
-  background: var(--add);
-  border-color: var(--add);
-  box-shadow:
-    0 0 0 3px var(--add-bg),
-    0 0 6px var(--add-bg);
+.qb-update-icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: var(--r-lg);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
 }
-.qrh-item-head {
+.qb-update-body {
+  flex: 1;
+  min-width: 0;
+}
+.qb-update-head {
   display: flex;
   gap: 8px;
   align-items: baseline;
 }
-.qrh-tag {
-  font-size: 12px;
+.qb-update-title {
+  font-size: 13px;
   font-weight: 600;
   color: var(--fg);
 }
-.qrh-now {
-  padding: 1px 6px;
-  font-size: 10px;
-  color: var(--add);
-  background: var(--add-bg);
-  border-radius: var(--r-pill);
-}
-.qrh-date {
-  margin-left: auto;
+.qb-update-ver {
   font-size: 11px;
   color: var(--faint);
 }
-.qrh-notes {
+.qb-update-text {
+  max-height: 6rem;
+  margin-top: 3px;
+  overflow-y: auto;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+  white-space: pre-wrap;
+}
+.qb-update-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 11px;
+}
+.qb-update-primary {
+  padding: 6px 11px;
+  font-size: 12px;
+}
+.qb-update-later {
+  padding: 6px 4px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+}
+.qb-update-later:hover {
+  color: var(--fg);
+}
+.qb-update-err {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--del);
+}
+.qb-update-note {
+  margin-top: 9px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.qb-whatsnew .qb-update-icon {
+  color: var(--add);
+  background: var(--add-bg);
+  box-shadow: inset 0 0 0 1px rgba(95, 208, 138, 0.25);
+}
+.qb-whatsnew-notes {
+  max-height: 11rem;
   margin-top: 5px;
+  overflow-y: auto;
   font-size: 12px;
   line-height: 1.5;
   color: var(--muted);
 }
 /* biome-ignore lint/style/noDescendingSpecificity: different subtree from the drawer convo rules; file is organized by surface */
-.qrh-notes :first-child {
+.qb-whatsnew-notes :first-child {
   margin-top: 0;
 }
-.qrh-notes-none {
-  margin-top: 5px;
+.qb-whatsnew-tag {
+  margin-top: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.qb-whatsnew-notes section:first-child .qb-whatsnew-tag {
+  margin-top: 0;
+}
+
+/* The release timeline lives in @nod/ui/release-history and renders its notes
+   through whatever the host supplies; here that is <Markdown>, whose .md
+   block would otherwise re-assert its own 13px/bright body inside the
+   timeline. This is the only rule that bridges the two. */
+.qrh-notes .md {
   font-size: 12px;
-  font-style: italic;
-  color: var(--faint);
+  line-height: 1.5;
+  color: var(--muted);
 }
 
 @keyframes qb-rise {
@@ -3220,142 +3251,6 @@ textarea.q-input {
   text-overflow: clip;
   white-space: pre-wrap;
   word-break: break-word;
-}
-
-/* ===========================================================================
-   6. HELP / SHORTCUTS (from views/help-overlay.tsx) — scope-aware cheatsheet.
-   =========================================================================== */
-.qh-panel {
-  width: min(720px, calc(100vw - 32px));
-  padding: 0;
-}
-.qh-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--line);
-}
-.qh-head-title {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  min-width: 0;
-}
-.qh-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--fg);
-}
-.qh-head-note {
-  font-size: 12px;
-  color: var(--faint);
-}
-.qh-close {
-  display: grid;
-  flex-shrink: 0;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  color: var(--muted);
-  cursor: pointer;
-  background: var(--surface-hi);
-  border: 1px solid var(--line-2);
-  border-radius: var(--r-md);
-  transition: color 120ms ease;
-}
-.qh-close:hover {
-  color: var(--fg);
-}
-.qh-close[data-armed="true"] {
-  color: var(--accent);
-  border-color: var(--accent-line);
-}
-
-.qh-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 28px;
-  align-items: start;
-  padding: 20px;
-  overflow-y: auto;
-}
-.qh-col {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.qh-scope {
-  padding: 12px 14px;
-  border: 1px solid transparent;
-  border-radius: var(--r-xl);
-}
-.qh-scope-active {
-  background: var(--accent-soft);
-  border-color: var(--accent-line);
-}
-.qh-scope-head {
-  display: flex;
-  gap: 9px;
-  align-items: center;
-  margin-bottom: 10px;
-}
-.qh-scope-name {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--accent);
-  letter-spacing: 0.04em;
-}
-.qh-scope-tag {
-  padding: 2px 6px;
-  font-family: var(--font-mono);
-  font-size: 9px;
-  font-weight: 700;
-  color: var(--accent-ink);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  background: var(--accent);
-  border-radius: var(--r-pill);
-}
-.qh-scope-note {
-  margin-left: auto;
-  font-size: 11px;
-  color: var(--faint);
-}
-.qh-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-.qh-row {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  padding: 4px 0;
-}
-.qh-keys {
-  display: flex;
-  flex-shrink: 0;
-  gap: 4px;
-  min-width: 64px;
-}
-.qh-label {
-  font-size: 13px;
-  color: var(--fg);
-}
-.qh-foot {
-  padding: 12px 20px;
-  font-size: 12px;
-  color: var(--faint);
-  background: var(--surface-2);
-  border-top: 1px solid var(--line);
-}
-
-@media (max-width: 640px) {
-  .qh-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* ===========================================================================

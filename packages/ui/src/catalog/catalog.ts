@@ -7,12 +7,15 @@ import { codeCellEntry } from "../code-cell/code-cell.fixtures.ts";
 import { commentToolsEntry } from "../comment-tools/comment-tools.fixtures.ts";
 import { findBarEntry } from "../find-bar/find-bar.fixtures.ts";
 import type { CatalogEntry } from "../fixtures/fixtures.ts";
+import { helpOverlayEntry } from "../help-overlay/help-overlay.fixtures.ts";
 import { highlightIndicesEntry } from "../highlight-indices/highlight-indices.fixtures.ts";
 import { imageDiffEntry } from "../image-diff/image-diff.fixtures.ts";
+import { issueTrackerDialogEntry } from "../issue-tracker-dialog/issue-tracker-dialog.fixtures.ts";
 import { kbdEntry } from "../kbd/kbd.fixtures.ts";
 import { overviewRulerEntry } from "../overview-ruler/overview-ruler.fixtures.ts";
 import { prListItemEntry } from "../pr-list-item/pr-list-item.fixtures.ts";
 import { purchasePromptEntry } from "../purchase-prompt/purchase-prompt.fixtures.ts";
+import { releaseHistoryEntry } from "../release-history/release-history.fixtures.ts";
 import { reviewScreenPendingEntry } from "../review-screen-pending/review-screen-pending.fixtures.ts";
 import { reviewVerdictsEntry } from "../review-verdicts/review-verdicts.fixtures.ts";
 import { searchPaneEntry } from "../search-pane/search-pane.fixtures.ts";
@@ -30,16 +33,19 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   button: buttonEntry,
   "ci-pill": ciPillEntry,
   "code-cell": codeCellEntry,
-  "find-bar": findBarEntry,
   "comment-tools": commentToolsEntry,
+  "find-bar": findBarEntry,
+  "help-overlay": helpOverlayEntry,
   "highlight-indices": highlightIndicesEntry,
   "image-diff": imageDiffEntry,
+  "issue-tracker-dialog": issueTrackerDialogEntry,
   kbd: kbdEntry,
   "overview-ruler": overviewRulerEntry,
+  "pr-list-item": prListItemEntry,
   "purchase-prompt": purchasePromptEntry,
+  "release-history": releaseHistoryEntry,
   "review-screen-pending": reviewScreenPendingEntry,
   "review-verdicts": reviewVerdictsEntry,
-  "pr-list-item": prListItemEntry,
   "search-pane": searchPaneEntry,
   spinner: spinnerEntry,
   "ticket-title": ticketTitleEntry,

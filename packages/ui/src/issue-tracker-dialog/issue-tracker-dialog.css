@@ -1,0 +1,109 @@
+/* The qit family. The panel width and the input mirror the app's .qw-panel /
+   .q-input, which stay in the desktop sheet for the dialogs still living
+   there; owning them here is what lets this dialog render outside the app
+   with no Tailwind and no app stylesheet. Heading and paragraph margins are
+   declared rather than inherited from a preflight for the same reason. */
+
+.qit-panel {
+  width: min(480px, calc(100vw - 32px));
+  padding: 0;
+}
+
+.qit-head {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.qit-title {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.qit-title svg {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.qit-sub {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.qit-body {
+  padding: 16px 20px;
+}
+
+.qit-input {
+  width: 100%;
+  padding: 9px 12px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.qit-input::placeholder {
+  color: var(--faint);
+}
+
+.qit-input:focus {
+  outline: none;
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.qit-input[aria-invalid="true"] {
+  border-color: var(--del);
+}
+
+.qit-input[aria-invalid="true"]:focus {
+  box-shadow: 0 0 0 3px var(--del-bg);
+}
+
+.qit-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--faint);
+  overflow-wrap: anywhere;
+}
+
+.qit-error {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--del);
+  overflow-wrap: anywhere;
+}
+
+.qit-foot {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 12px 20px;
+  border-top: 1px solid var(--line);
+}
+
+.q-dialog.qit-panel.qit-inline {
+  position: static;
+  width: 100%;
+  margin: 0;
+  transform: none;
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qit-input {
+    transition: none;
+  }
+}
