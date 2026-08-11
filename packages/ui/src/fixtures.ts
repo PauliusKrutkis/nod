@@ -10,6 +10,10 @@
  * regressed. `rendersNothing` marks fixtures whose EMPTY render is the
  * contract (e.g. Kbd without a combo), so the derived non-empty assertion
  * inverts instead of being skipped.
+ *
+ * `dialog` marks entries that mount a modal <dialog>: they render in the top
+ * layer rather than inside any frame, so the gallery manages their open state
+ * and the screenshot suite captures the viewport instead of the frame.
  */
 import type { ComponentType } from "react";
 
@@ -22,11 +26,13 @@ export interface Fixture<P> {
 export interface CatalogEntry<P> {
   component: ComponentType<P>;
   fixtures: Record<string, Fixture<P>>;
+  dialog?: boolean;
 }
 
 export function defineEntry<P>(
   component: ComponentType<P>,
-  fixtures: Record<string, Fixture<P>>
+  fixtures: Record<string, Fixture<P>>,
+  options: { dialog?: boolean } = {}
 ): CatalogEntry<P> {
-  return { component, fixtures };
+  return { component, fixtures, ...options };
 }
