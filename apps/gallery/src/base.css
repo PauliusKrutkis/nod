@@ -1,0 +1,33 @@
+/* App-level ground the packages deliberately do not provide: the border-box
+   reset the @nod/ui sheets assume (the desktop gets it from Tailwind's
+   preflight), fonts as an app choice (matching the desktop's static Inter +
+   Geist Mono), and the body painting the Quiet ground from @nod/tokens so
+   specimens sit on the same canvas as the app they describe. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  --font-ui: Inter, system-ui, sans-serif;
+  --font-mono:
+    "Geist Mono", "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Monaco,
+    monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  color: var(--fg);
+  background: var(--bg);
+}
