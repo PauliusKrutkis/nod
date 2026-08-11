@@ -98,6 +98,26 @@ jobs:
           includeUpdaterJson: true
           args: ${{ matrix.args }}
 
+  # The site bakes GitHub release data at build time, and Cloudflare Pages
+  # only builds commits touching apps/web, packages/tokens or the lockfile
+  # (build watch paths) — a tag push touches none of them, so the release
+  # itself must ask for a rebuild. PAGES_RELEASE_DEPLOY_HOOK is a CF Pages
+  # deploy hook URL for the production branch; unset skips quietly.
+  refresh-site:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger a Pages rebuild
+        env:
+          HOOK: ${{ secrets.PAGES_RELEASE_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "PAGES_RELEASE_DEPLOY_HOOK not set — skipping site rebuild."
+            exit 0
+          fi
+          curl -fsS -X POST "$HOOK" > /dev/null
+          echo "Pages rebuild triggered."
+
   # Bumps the Homebrew tap so `brew install pauliuskrutkis/tap/nod`
   # serves the new version. Pushes over SSH with the TAP_DEPLOY_KEY secret —
   # a deploy key that can write ONLY to PauliusKrutkis/homebrew-tap.
