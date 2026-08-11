@@ -8,10 +8,15 @@
  * A side with no ref (the added or removed half of a diff) never queries; it
  * carries the reason as its error string instead, because the pane draws one
  * failure line either way.
+ *
+ * The data: URL is memoized because it is megabytes long and this component
+ * re-renders with the review list: holding one string keeps React's prop
+ * compare a pointer check instead of a full compare per keystroke.
  */
 
 import { ImageDiff, type ImageVersion } from "@nod/ui/image-diff";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { api } from "../../lib/api.ts";
 import { imageMimeFor } from "../../lib/mime.ts";
 import type { ChangedFile } from "../../types.ts";
@@ -33,6 +38,11 @@ function useImageVersion(args: {
   });
 
   const mime = imageMimeFor(path) ?? "application/octet-stream";
+  const src = useMemo(
+    () => (data ? `data:${mime};base64,${data.base64}` : null),
+    [data, mime]
+  );
+
   let failure: string | null = null;
   if (!gitRef) {
     failure = "No ref available for this side.";
@@ -46,7 +56,7 @@ function useImageVersion(args: {
     error: failure,
     label,
     loading: isLoading,
-    src: data ? `data:${mime};base64,${data.base64}` : null,
+    src,
   };
 }
 

@@ -17,12 +17,14 @@
  * contract.
  *
  * Dimensions are read off the decoded image rather than passed in: the
- * caption can only claim a size the engine actually produced. Panes are keyed
- * by src at the call below, so a new version resets that measurement and the
- * failure flag together. Measuring re-uses the previous state object when the
- * numbers are unchanged, and that is load-bearing: the ref callback is a new
- * function on every render, so React re-runs it on every render, and storing
- * an equal-but-fresh object there would re-render forever.
+ * caption can only claim a size the engine actually produced. A new src
+ * clears that measurement and the failure flag during render rather than
+ * through a key on the pane: for a real diff src is a data: URL megabytes
+ * long, and a key built from it costs a full string compare on every render
+ * of the surrounding list. Measuring re-uses the previous state object when
+ * the numbers are unchanged, and that is load-bearing: the ref callback is a
+ * new function on every render, so React re-runs it on every render, and
+ * storing an equal-but-fresh object there would re-render forever.
  */
 
 import { useState } from "react";
@@ -76,10 +78,17 @@ function ImagePane({
   tone: "new" | "old";
   version: ImageVersion;
 }) {
+  const { alt, bytes, error, label, loading = false, src } = version;
+
   const [dims, setDims] = useState<{ h: number; w: number } | null>(null);
   const [broken, setBroken] = useState(false);
+  const [measuredSrc, setMeasuredSrc] = useState(src);
 
-  const { alt, bytes, error, label, loading = false, src } = version;
+  if (measuredSrc !== src) {
+    setMeasuredSrc(src);
+    setDims(null);
+    setBroken(false);
+  }
 
   const bindImgRef = (img: HTMLImageElement | null) => {
     if (!img) {
@@ -151,12 +160,8 @@ export function ImageDiff({
 }) {
   return (
     <div className="qf-imgdiff">
-      {before ? (
-        <ImagePane key={`old-${before.src}`} tone="old" version={before} />
-      ) : null}
-      {after ? (
-        <ImagePane key={`new-${after.src}`} tone="new" version={after} />
-      ) : null}
+      {before ? <ImagePane tone="old" version={before} /> : null}
+      {after ? <ImagePane tone="new" version={after} /> : null}
     </div>
   );
 }
