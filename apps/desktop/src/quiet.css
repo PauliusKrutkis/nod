@@ -1405,33 +1405,6 @@ textarea.q-input {
   text-align: center;
 }
 
-/* skeleton shimmer — cold-cache placeholders (never spinners) */
-.qf-skel {
-  background: linear-gradient(
-    90deg,
-    var(--surface-2) 25%,
-    var(--surface-hi) 50%,
-    var(--surface-2) 75%
-  );
-  background-size: 200% 100%;
-  border-radius: var(--r-md);
-  animation: qf-shimmer 1.4s ease-in-out infinite;
-}
-@keyframes qf-shimmer {
-  from {
-    background-position: 180% 0;
-  }
-  to {
-    background-position: -20% 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .qf-skel {
-    background: var(--surface-2);
-    animation: none;
-  }
-}
-
 /* ============ FIND IN DIFF (mod+f) ============ */
 .dir-quiet mark.qf-find-mark {
   padding: 0;
