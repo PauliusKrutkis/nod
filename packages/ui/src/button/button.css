@@ -1,0 +1,96 @@
+/* The q-btn family, its busy spinner, and the r-lg focus-ring override
+   (#243's found defect). The .q-kbd override recolours the cap on a primary
+   fill. */
+
+.q-btn {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 13px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: var(--r-lg);
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease,
+    filter 120ms ease;
+}
+
+.q-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.q-btn-primary {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.q-btn-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.q-btn-primary .q-kbd {
+  color: var(--accent-ink);
+  background: rgba(20, 17, 31, 0.16);
+  border-color: rgba(20, 17, 31, 0.22);
+  box-shadow: none;
+}
+
+.q-btn-quiet {
+  color: var(--fg);
+  background: var(--surface);
+  border-color: var(--line);
+}
+
+.q-btn-quiet:hover:not(:disabled) {
+  background: var(--surface-hi);
+  border-color: var(--line-2);
+}
+
+.q-btn-ghost {
+  color: var(--muted);
+  background: transparent;
+}
+
+.q-btn-ghost:hover:not(:disabled) {
+  color: var(--fg);
+  background: var(--surface-2);
+}
+
+.q-btn-danger {
+  color: var(--del);
+  background: var(--del-bg);
+  border-color: rgba(255, 112, 136, 0.3);
+}
+
+.q-btn-danger:hover:not(:disabled) {
+  background: rgba(255, 112, 136, 0.16);
+  border-color: var(--del);
+}
+
+.q-btn.q-focus:focus-visible {
+  border-radius: var(--r-lg);
+}
+
+.q-btn-spin {
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid transparent;
+  border-top-color: currentcolor;
+  border-radius: var(--r-pill);
+  animation: q-rot 700ms linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .q-btn-spin {
+    animation-duration: 2400ms;
+  }
+}

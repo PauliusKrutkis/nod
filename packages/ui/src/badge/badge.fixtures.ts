@@ -3,8 +3,9 @@
  * hostile cases cover the real payloads a badge carries: an unbounded label
  * string, and content that looks like markup and must stay text.
  */
+
+import { defineEntry } from "../fixtures.ts";
 import { Badge } from "./badge.tsx";
-import { defineEntry } from "./fixtures.ts";
 
 const UNBROKEN_LABEL = "changed-".repeat(40);
 

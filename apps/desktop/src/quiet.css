@@ -3787,7 +3787,7 @@ textarea.q-input {
    5. SEARCH PANE extras — the shared qsp family lives in @nod/ui/styles.css;
    these are pr-search's code-mode panel width and text-search snippets.
    =========================================================================== */
-.qsp-panel-code {
+.qsp-panel.qsp-panel-code {
   width: min(920px, calc(100vw - 32px));
 }
 

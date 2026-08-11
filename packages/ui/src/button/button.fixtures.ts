@@ -4,8 +4,9 @@
  * unbreakable overflow label at sidebar width, and the combo cap dialogs
  * put on primary actions.
  */
+
+import { defineEntry } from "../fixtures.ts";
 import { Button } from "./button.tsx";
-import { defineEntry } from "./fixtures.ts";
 
 const UNBROKEN_LABEL = `Approve-${"and-merge-".repeat(24)}now`;
 

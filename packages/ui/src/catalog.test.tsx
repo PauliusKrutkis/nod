@@ -19,9 +19,9 @@ import { catalog } from "./catalog.ts";
 
 afterEach(cleanup);
 
-const componentFiles = Object.keys(import.meta.glob("./*.tsx"))
-  .filter((path) => !path.endsWith(".test.tsx"))
-  .map((path) => path.replace("./", "").replace(".tsx", ""));
+const componentFiles = Object.keys(import.meta.glob("./*/*.tsx")).map(
+  (path) => path.split("/")[1] ?? ""
+);
 
 describe("catalog coverage", () => {
   it.each(componentFiles)(

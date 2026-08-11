@@ -4,8 +4,9 @@
  * exercise what happens when GitHub gives us nothing usable — the surface
  * that actually breaks under real reviewer lists.
  */
+
+import { defineEntry } from "../fixtures.ts";
 import { Avatar } from "./avatar.tsx";
-import { defineEntry } from "./fixtures.ts";
 
 export const avatarEntry = defineEntry(Avatar, {
   "cjk-name": { props: { name: "藤本 さくら" } },

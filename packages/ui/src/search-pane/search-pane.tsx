@@ -1,13 +1,14 @@
 import { Clock, CornerDownLeft, GitBranch, Search } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
-import { Avatar } from "./avatar.tsx";
-import { Badge } from "./badge.tsx";
-import { cn } from "./cn.ts";
-import { fuzzyMatchFields } from "./fuzzy.ts";
-import { HighlightIndices } from "./highlight-indices.tsx";
-import { Kbd } from "./kbd.tsx";
-import { formatRelativeTime } from "./time.ts";
-import { useModalDialog } from "./use-modal-dialog.ts";
+import { Avatar } from "../avatar/avatar.tsx";
+import { Badge } from "../badge/badge.tsx";
+import { cn } from "../cn.ts";
+import { fuzzyMatchFields } from "../fuzzy.ts";
+import { HighlightIndices } from "../highlight-indices/highlight-indices.tsx";
+import { Kbd } from "../kbd/kbd.tsx";
+import { formatRelativeTime } from "../time.ts";
+import { useModalDialog } from "../use-modal-dialog.ts";
+import "./search-pane.css";
 
 export interface SearchablePr {
   number: number;

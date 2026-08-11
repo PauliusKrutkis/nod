@@ -1,0 +1,64 @@
+/* The Quiet pill family Badge maps its tones onto. */
+
+.q-pill {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  border-radius: var(--r-pill);
+}
+
+.q-pill-dot {
+  width: 6px;
+  height: 6px;
+  background: currentColor;
+  border-radius: var(--r-pill);
+}
+
+.q-pill-open {
+  color: var(--add);
+  background: var(--add-bg);
+  box-shadow: inset 0 0 0 1px rgba(95, 208, 138, 0.25);
+}
+
+.q-pill-draft {
+  color: var(--muted);
+  background: var(--surface-hi);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+
+.q-pill-merged {
+  color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+
+.q-pill-muted {
+  color: var(--muted);
+  background: var(--surface-hi);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+
+.q-pill-approved {
+  color: var(--add);
+  background: var(--add-bg);
+}
+
+.q-pill-changes {
+  color: var(--del);
+  background: var(--del-bg);
+}
+
+.q-pill-commented {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.q-pill-pending {
+  color: var(--muted);
+  background: var(--surface-hi);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}

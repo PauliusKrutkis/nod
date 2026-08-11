@@ -8,8 +8,9 @@
  * `combo` renders the shortcut cap the app's dialogs put on primary actions.
  */
 import type { ButtonHTMLAttributes } from "react";
-import { cn } from "./cn.ts";
-import { Kbd } from "./kbd.tsx";
+import { cn } from "../cn.ts";
+import { Kbd } from "../kbd/kbd.tsx";
+import "./button.css";
 
 type ButtonVariant = "primary" | "quiet" | "ghost" | "danger";
 

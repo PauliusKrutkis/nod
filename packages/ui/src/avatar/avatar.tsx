@@ -1,4 +1,5 @@
 import { useState } from "react";
+import "./avatar.css";
 
 /** Deterministic avatar background for the initials fallback. */
 const COLORS = [

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import "./highlight-indices.css";
 
 /** Render `text` with the given character indices highlighted. */
 export function HighlightIndices({
