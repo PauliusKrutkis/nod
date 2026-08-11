@@ -5,39 +5,67 @@
  * subject. The skin is the third comment material: posted threads are solid
  * cards on surface, pending comments are dashed with the accent wash, and the
  * AI note is a dotted hairline with no fill — ink on the page, not paper —
- * so nothing machine-written can be mistaken for something published. State
- * lives in use-ask-note.ts because this component is virtualized away when
- * scrolled out of frame. "Start comment from this" hands the answer to the
- * normal composer as plain editable text: ask is a drafting step inside
- * review, not a chat (onPromote is null on whole-PR asks — no line to
- * comment on). Focus follows two signals: focusSeq bumps per `a`
- * press (rAF, because the note mounts a frame after the model rebuild picks
- * its slot up), and the input — disabled while an ask is in flight — takes
- * focus back the moment it re-enables so the follow-up can be typed
- * immediately.
+ * so nothing machine-written can be mistaken for something published.
+ *
+ * Conversation state belongs to the caller, not here: the note renders inside
+ * a virtualized list, so scrolling it out of frame unmounts it and an answer
+ * must survive that. "Start comment from this" hands the answer to the normal
+ * composer as plain editable text: ask is a drafting step inside review, not a
+ * chat (onPromote is null on whole-PR asks — no line to comment on).
+ *
+ * `renderAnswer` is how a host with a markdown renderer supplies one; the
+ * built-in fallback renders the answer as literal paragraphs, which is also
+ * what guarantees an answer full of markup is read, never executed.
+ *
+ * Focus follows two signals: focusSeq bumps per `a` press (rAF, because the
+ * note mounts a frame after the model rebuild picks its slot up), and the
+ * input — disabled while an ask is in flight — takes focus back the moment it
+ * re-enables so the follow-up can be typed immediately.
  */
 
-import { Spinner } from "@nod/ui/spinner";
 import { CornerDownLeft, Sparkles, X } from "lucide-react";
-import { type KeyboardEvent, useEffect, useRef } from "react";
-import type { AskExchange } from "../../hooks/use-ask-note.ts";
-import { Markdown } from "../markdown.tsx";
+import { type KeyboardEvent, type ReactNode, useEffect, useRef } from "react";
+import { Spinner } from "../spinner/spinner.tsx";
+import "./ask-note.css";
+
+export interface AskNoteExchange {
+  answer: string | null;
+  error: string | null;
+  id: number;
+  partial: string;
+  question: string;
+}
 
 export interface AskNoteProps {
-  exchanges: AskExchange[];
+  exchanges: readonly AskNoteExchange[];
   focusSeq: number;
   label: string;
   onClose: () => void;
   onPromote: ((text: string) => void) | null;
   onSubmit: (question: string) => void;
   pending: boolean;
+  renderAnswer?: (text: string) => ReactNode;
+}
+
+function plainAnswer(text: string): ReactNode {
+  return <p className="qf-ask-para">{text}</p>;
+}
+
+function AskAnswer({
+  render,
+  text,
+}: {
+  render: (text: string) => ReactNode;
+  text: string;
+}) {
+  return <div className="qf-ask-a">{render(text)}</div>;
 }
 
 function AskActions({
   exchange,
   onPromote,
 }: {
-  exchange: AskExchange;
+  exchange: AskNoteExchange;
   onPromote: AskNoteProps["onPromote"];
 }) {
   const answer = exchange.answer;
@@ -52,18 +80,14 @@ function AskActions({
     <div className="qf-ask-actions">
       {onPromote && (
         <button
-          className="qf-ask-act qf-focusable"
+          className="qf-ask-act q-focus"
           onClick={handlePromote}
           type="button"
         >
           Start comment from this
         </button>
       )}
-      <button
-        className="qf-ask-act qf-focusable"
-        onClick={handleCopy}
-        type="button"
-      >
+      <button className="qf-ask-act q-focus" onClick={handleCopy} type="button">
         Copy
       </button>
     </div>
@@ -78,6 +102,7 @@ export function AskNote({
   onPromote,
   onSubmit,
   pending,
+  renderAnswer = plainAnswer,
 }: AskNoteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -122,7 +147,7 @@ export function AskNote({
         <span className="qf-ask-local">you · local</span>
         <button
           aria-label="Close ask"
-          className="qf-ask-close qf-focusable"
+          className="qf-ask-close q-focus"
           onClick={onClose}
           type="button"
         >
@@ -141,7 +166,7 @@ export function AskNote({
         <div className="qf-ask-x" key={exchange.id}>
           <p className="qf-ask-q">{exchange.question}</p>
           {exchange.answer !== null && (
-            <Markdown className="qf-ask-a">{exchange.answer}</Markdown>
+            <AskAnswer render={renderAnswer} text={exchange.answer} />
           )}
           {exchange.error !== null && (
             <p className="qf-ask-err" role="alert">
@@ -151,7 +176,7 @@ export function AskNote({
           {exchange.answer === null &&
             exchange.error === null &&
             (exchange.partial ? (
-              <Markdown className="qf-ask-a">{exchange.partial}</Markdown>
+              <AskAnswer render={renderAnswer} text={exchange.partial} />
             ) : (
               <Spinner />
             ))}
@@ -161,11 +186,11 @@ export function AskNote({
 
       <div className="qf-ask-foot">
         <span className="qf-ask-chip">{label}</span>
-        <div className="relative">
+        <div className="qf-ask-field">
           <input
             aria-label="Question"
             autoComplete="off"
-            className="q-input pr-8"
+            className="qf-ask-input"
             disabled={pending}
             onKeyDown={onInputKeyDown}
             placeholder={
@@ -174,11 +199,7 @@ export function AskNote({
             ref={inputRef}
             spellCheck={true}
           />
-          <CornerDownLeft
-            aria-hidden
-            className="absolute top-1/2 right-2.5 -translate-y-1/2 text-faint"
-            size={13}
-          />
+          <CornerDownLeft aria-hidden className="qf-ask-enter" size={13} />
         </div>
       </div>
     </aside>

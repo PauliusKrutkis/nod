@@ -11,6 +11,21 @@ export interface ManifestEntry {
 }
 
 export const catalogManifest: Record<string, ManifestEntry> = {
+  "ask-note": {
+    fixtures: [
+      "answer",
+      "answer-with-code",
+      "conversation",
+      "error",
+      "idle",
+      "long-answer",
+      "markup-as-text",
+      "overflow",
+      "streaming",
+      "thinking",
+      "unicode",
+    ],
+  },
   avatar: {
     fixtures: [
       "cjk-name",
@@ -61,8 +76,36 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "success",
     ],
   },
+  "code-cell": {
+    fixtures: [
+      "empty",
+      "indent-guides",
+      "markup-as-text",
+      "overflow",
+      "raw-markup",
+      "tabs",
+      "typical",
+      "unicode",
+      "whitespace",
+    ],
+  },
   "highlight-indices": {
     fixtures: ["cjk", "empty-text", "every", "none", "out-of-range", "typical"],
+  },
+  "image-diff": {
+    fixtures: [
+      "added-only",
+      "both-sides",
+      "broken",
+      "deleted-only",
+      "loading",
+      "markup-as-text",
+      "no-source",
+      "overflow",
+      "tall",
+      "tiny",
+      "wide",
+    ],
   },
   kbd: {
     fixtures: [

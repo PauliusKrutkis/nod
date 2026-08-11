@@ -23,13 +23,13 @@ export const desktopComponentNames = names.sort();
 export const CONTAINERS: Record<string, string> = {
   "global-search":
     "store and query wiring only; its view is search-pane, catalogued in @nod/ui",
+  "image-diff-loader":
+    "blob fetching only; its view is image-diff, catalogued in @nod/ui",
 };
 
 export const PENDING = [
   "add-comment-box",
   "ai-setup-dialog",
-  "ask-note",
-  "code-cell",
   "command-palette",
   "comment-item",
   "comment-thread",
@@ -37,7 +37,6 @@ export const PENDING = [
   "file-sidebar",
   "find-bar",
   "help-overlay",
-  "image-diff",
   "inbox",
   "issue-tracker-dialog",
   "markdown",
