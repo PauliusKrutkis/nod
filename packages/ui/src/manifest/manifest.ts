@@ -11,6 +11,21 @@ export interface ManifestEntry {
 }
 
 export const catalogManifest: Record<string, ManifestEntry> = {
+  "ask-note": {
+    fixtures: [
+      "answer",
+      "answer-with-code",
+      "conversation",
+      "error",
+      "idle",
+      "long-answer",
+      "markup-as-text",
+      "overflow",
+      "streaming",
+      "thinking",
+      "unicode",
+    ],
+  },
   avatar: {
     fixtures: [
       "cjk-name",
@@ -61,6 +76,19 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "success",
     ],
   },
+  "code-cell": {
+    fixtures: [
+      "empty",
+      "indent-guides",
+      "markup-as-text",
+      "overflow",
+      "raw-markup",
+      "tabs",
+      "typical",
+      "unicode",
+      "whitespace",
+    ],
+  },
   "comment-tools": {
     fixtures: [
       "chord",
@@ -73,8 +101,37 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "unknown-key",
     ],
   },
+  "find-bar": {
+    fixtures: [
+      "case-sensitive",
+      "closed",
+      "count-4-digit",
+      "empty-query",
+      "markup-as-text",
+      "no-matches",
+      "one-match",
+      "overflow",
+      "typical",
+      "unicode",
+    ],
+  },
   "highlight-indices": {
     fixtures: ["cjk", "empty-text", "every", "none", "out-of-range", "typical"],
+  },
+  "image-diff": {
+    fixtures: [
+      "added-only",
+      "both-sides",
+      "broken",
+      "deleted-only",
+      "loading",
+      "markup-as-text",
+      "no-source",
+      "overflow",
+      "tall",
+      "tiny",
+      "wide",
+    ],
   },
   kbd: {
     fixtures: [
@@ -85,6 +142,19 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "named",
       "single",
       "unknown-word",
+    ],
+  },
+  "overview-ruler": {
+    fixtures: [
+      "all-unmeasured",
+      "crowd-500",
+      "current-out-of-range",
+      "edges",
+      "empty",
+      "occurrence",
+      "single",
+      "typical",
+      "unmeasured",
     ],
   },
   "pr-list-item": {
@@ -104,6 +174,18 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "selected",
       "unread",
       "zero-counts",
+    ],
+  },
+  "review-verdicts": {
+    fixtures: [
+      "crowd-12",
+      "empty",
+      "markup-as-text",
+      "mixed",
+      "no-avatar",
+      "one-approval",
+      "overflow",
+      "unicode",
     ],
   },
   "search-pane": {

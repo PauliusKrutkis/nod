@@ -39,8 +39,6 @@ export const PENDING = [
   "inbox",
   "issue-tracker-dialog",
   "markdown",
-  "pr-list-item",
-  "overview-ruler",
   "pr-search",
   "purchase-prompt",
   "release-history",
