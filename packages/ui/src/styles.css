@@ -3,7 +3,8 @@
    keyframes several components share. Component-specific styles live next
    to each component and load with it — importing a component brings its
    look. Everything resolves through the host's tokens (@nod/tokens provides
-   palette and radii; the app provides fonts). No Tailwind anywhere in the
+   palette and radii; the app provides fonts and a border-box box-sizing
+   reset — every block here assumes it). No Tailwind anywhere in the
    package. */
 
 .q-focus:focus-visible {

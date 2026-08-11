@@ -198,3 +198,13 @@
   margin-left: auto;
   font-family: var(--font-mono);
 }
+
+.q-dialog.qsp-panel.qsp-inline {
+  position: static;
+  width: 100%;
+  min-height: 0;
+  max-height: 480px;
+  margin: 0;
+  transform: none;
+  animation: none;
+}

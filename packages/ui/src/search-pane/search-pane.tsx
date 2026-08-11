@@ -38,17 +38,24 @@ export function SearchPane<T extends SearchablePr>({
   onOpenChange,
   prs,
   onOpen,
+  inline = false,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   prs: T[];
   onOpen: (pr: T) => void;
+  inline?: boolean;
 }) {
   if (!open) {
     return null;
   }
   return (
-    <SearchPaneContent onOpen={onOpen} onOpenChange={onOpenChange} prs={prs} />
+    <SearchPaneContent
+      inline={inline}
+      onOpen={onOpen}
+      onOpenChange={onOpenChange}
+      prs={prs}
+    />
   );
 }
 
@@ -56,15 +63,21 @@ function SearchPaneContent<T extends SearchablePr>({
   onOpenChange,
   prs,
   onOpen,
+  inline,
 }: {
   onOpenChange: (v: boolean) => void;
   prs: T[];
   onOpen: (pr: T) => void;
+  inline?: boolean;
 }) {
   const listId = useId();
-  const { dialogRef, onDialogCancel, onDialogClose } = useModalDialog(() => {
-    onOpenChange(false);
-  });
+  const { dialogRef, onDialogCancel, onDialogClose } = useModalDialog(
+    () => {
+      onOpenChange(false);
+    },
+    undefined,
+    { modal: !inline }
+  );
   const [query, setQuery] = useState("");
   const [sel, setSel] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -144,7 +157,7 @@ function SearchPaneContent<T extends SearchablePr>({
   return (
     <dialog
       aria-label="Search pull requests"
-      className="q-dialog q-dialog-top qsp-panel"
+      className={cn("q-dialog q-dialog-top qsp-panel", inline && "qsp-inline")}
       onCancel={onDialogCancel}
       onClose={onDialogClose}
       ref={dialogRef}
