@@ -363,6 +363,22 @@ export const DETAIL_WITH_OWN_COMMENT = {
 };
 
 /**
+ * DETAIL with a conversation long enough to overflow the drawer body at the
+ * default viewport, so a freshly posted comment lands below the fold unless
+ * the drawer scrolls it into view.
+ */
+export const DETAIL_LONG_CONVERSATION = {
+  ...DETAIL,
+  issueComments: Array.from({ length: 14 }, (_, i) => ({
+    body: `Round ${i + 1} of the discussion, with enough text to take a couple of lines in the drawer.`,
+    createdAt: `2026-07-02T08:${String(i).padStart(2, "0")}:00Z`,
+    id: 400 + i,
+    user: i % 2 === 0 ? "carol" : "dave",
+    userAvatarUrl: "",
+  })),
+};
+
+/**
  * DETAIL's thread (root 100) with a reply from the signed-in fixture user
  * ("me", id 150) followed by another reply from a third party (id 151) — the
  * shift+e hint chip only shows on your comment when it is still the
@@ -401,6 +417,51 @@ export const DETAIL_OWN_REPLY_THEN_OTHERS = {
       threadId: "T100",
       user: "dave",
       userAvatarUrl: "",
+    },
+  ],
+};
+
+/**
+ * A hostile SVG, served as the blob for both sides of SVG_PATH in DETAIL_SVG.
+ * It carries every trick an attacker would put in an icon: a script element,
+ * an inline handler, and a reference to a remote file. Rendering it as an
+ * image must leave `window.__svgEscaped` unset and must fetch nothing from
+ * evil.example. ASCII only, because the bridge base64s blobs with btoa.
+ */
+export const HOSTILE_SVG = [
+  '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="120" height="120" viewBox="0 0 120 120">',
+  "  <script>window.__svgEscaped = true;</script>",
+  '  <circle cx="60" cy="60" r="50" fill="#5fd08a" />',
+  '  <animate attributeName="opacity" onbegin="window.__svgEscaped = true" />',
+  '  <image xlink:href="https://evil.example/beacon.png" x="0" y="0" width="10" height="10" onerror="window.__svgEscaped = true" />',
+  "</svg>",
+  "",
+].join("\n");
+
+export const SVG_PATH = "icons/logo.svg";
+
+/**
+ * A PR whose only file is an SVG. Unlike a bitmap it arrives with a patch, so
+ * the review pane shows the preview and the markup rows together.
+ */
+export const DETAIL_SVG = {
+  ...DETAIL,
+  files: [
+    {
+      additions: 3,
+      changes: 4,
+      deletions: 1,
+      filename: SVG_PATH,
+      patch: `@@ -1,3 +1,6 @@
+ <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="120" height="120" viewBox="0 0 120 120">
+-  <circle cx="60" cy="60" r="50" fill="#888888" />
++  <script>window.__svgEscaped = true;</script>
++  <circle cx="60" cy="60" r="50" fill="#5fd08a" />
++  <animate attributeName="opacity" onbegin="window.__svgEscaped = true" />
++  <image xlink:href="https://evil.example/beacon.png" x="0" y="0" width="10" height="10" onerror="window.__svgEscaped = true" />
+ </svg>`,
+      sha: "svg1",
+      status: "modified",
     },
   ],
 };

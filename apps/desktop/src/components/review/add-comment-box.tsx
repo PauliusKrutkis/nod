@@ -1,7 +1,7 @@
+import { Kbd } from "@nod/ui/kbd";
 import { Layers, Send } from "lucide-react";
 import { type Ref, useImperativeHandle, useRef, useState } from "react";
 import { cn } from "../../lib/cn.ts";
-import { Kbd } from "../ui/kbd.tsx";
 import {
   ComposerEditor,
   type ComposerEditorHandle,

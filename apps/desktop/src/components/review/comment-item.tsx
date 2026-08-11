@@ -6,11 +6,12 @@
  * into a composer while editing. CommentTools' `editKbd` is the hotkey chip
  * shown on Edit — the thread surface passes it on its last own comment.
  */
+
+import { Kbd } from "@nod/ui/kbd";
 import { useEffect, useRef, useState } from "react";
 import { copyTextToClipboard } from "../../lib/clipboard.ts";
 import { cn } from "../../lib/cn.ts";
 import { Markdown } from "../markdown.tsx";
-import { Kbd } from "../ui/kbd.tsx";
 import { AddCommentBox } from "./add-comment-box.tsx";
 
 const COPIED_FEEDBACK_MS = 1200;

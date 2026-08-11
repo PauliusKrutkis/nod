@@ -1,6 +1,6 @@
 [package]
 name = "nod"
-version = "0.4.0"
+version = "0.5.0"
 description = "Nod — a keyboard-first, cache-first GitHub pull request reviewer"
 authors = ["Paulius Krutkis"]
 edition = "2021"

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ChangedFile, ReviewComment } from "../types.ts";
+import { isImageFile } from "./image-file.ts";
 import {
   adjacentCommentItem,
   adjacentSelectableAnchor,
@@ -182,6 +183,53 @@ describe("buildReviewItems nav", () => {
     const stops = m.nav.filter((n) => n.kind === "comments");
 
     expect(stops).toHaveLength(1);
+  });
+});
+
+const SVG_FILE: ChangedFile = {
+  ...FILE,
+  filename: "icons/logo.svg",
+  patch: `@@ -1,2 +1,2 @@
+-<svg viewBox="0 0 8 8">
++<svg viewBox="0 0 16 16">
+ </svg>`,
+};
+
+const BITMAP_FILE: ChangedFile = {
+  ...FILE,
+  filename: "docs/shot.png",
+  patch: null,
+};
+
+function buildPreviewable(files: ChangedFile[]) {
+  return buildReviewItems({
+    ask: null,
+    collapsed: new Map(),
+    commentsByFile: new Map(),
+    expandedRows: new Map(),
+    files,
+    isImage: isImageFile,
+    openBoxes: new Map(),
+    pendingByFile: new Map(),
+  });
+}
+
+describe("buildReviewItems previews", () => {
+  it("puts an SVG preview above rows that stay navigable", () => {
+    const m = buildPreviewable([SVG_FILE]);
+
+    expect(m.items[0].kind).toBe("image");
+    expect(m.items.some((i) => i.kind === "hunk")).toBe(true);
+    expect(m.nav.length).toBeGreaterThan(0);
+    expect(m.navIndexOf.has(navKey(0, "RIGHT:1", "row"))).toBe(true);
+    expect(m.groupCounts[0]).toBe(m.items.length);
+  });
+
+  it("gives a bitmap the preview alone, with no note about a missing diff", () => {
+    const m = buildPreviewable([BITMAP_FILE]);
+
+    expect(m.items).toHaveLength(1);
+    expect(m.items[0].kind).toBe("image");
   });
 });
 

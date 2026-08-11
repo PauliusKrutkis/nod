@@ -15,8 +15,8 @@
  * waiting, which is what lets a caller drop optimistic state without racing
  * its own next keystroke. It never runs after unmount.
  */
+import { useLatest } from "@nod/ui/use-latest";
 import { useEffect, useRef } from "react";
-import { useLatest } from "./use-latest.ts";
 
 export function useCoalescedWrite<T>({
   delayMs,

@@ -1,6 +1,6 @@
 {
   "name": "nod",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "license": "FSL-1.1-Apache-2.0",
   "type": "module",
@@ -12,8 +12,8 @@
     "build": "pnpm --filter @nod/desktop build",
     "preview": "pnpm --filter @nod/desktop preview",
     "tauri": "pnpm --filter @nod/desktop tauri",
-    "typecheck": "pnpm --filter @nod/desktop typecheck",
-    "test": "pnpm --filter @nod/desktop test",
+    "typecheck": "pnpm --filter @nod/desktop typecheck && pnpm --filter @nod/gallery typecheck",
+    "test": "pnpm --filter @nod/desktop test && pnpm --filter @nod/tokens test && pnpm --filter @nod/ui test && pnpm --filter @nod/gallery test",
     "test:watch": "pnpm --filter @nod/desktop test:watch",
     "e2e": "pnpm --filter @nod/desktop e2e",
     "e2e:ui": "pnpm --filter @nod/desktop e2e:ui",
@@ -23,7 +23,8 @@
     "fix": "ultracite fix",
     "knip": "knip",
     "capture:landing": "bash scripts/capture-landing.sh",
-    "stats:downloads": "node scripts/download-stats.mjs"
+    "stats:downloads": "node scripts/download-stats.mjs",
+    "gallery": "pnpm --filter @nod/gallery dev"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.7",

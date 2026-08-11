@@ -1,14 +1,23 @@
+import { Spinner } from "@nod/ui/spinner";
 import { useQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { api } from "../../lib/api.ts";
 import { imageMimeFor } from "../../lib/mime.ts";
 import type { ChangedFile } from "../../types.ts";
-import { Spinner } from "../ui/spinner.tsx";
 
 /**
- * Before/after panes for binary image files, which have no textual patch.
- * Bytes come through the backend (the token never reaches the webview) as
- * base64 and render as data: URLs.
+ * Before/after panes for image files in a diff. Bytes come through the
+ * backend (the token never reaches the webview) as base64 and render as
+ * data: URLs.
+ *
+ * SVG is the reason every version goes through an `<img src="data:…">` and
+ * never into the DOM as markup. An SVG in a pull request is untrusted input
+ * that can carry `<script>`, event handlers, and references to remote files.
+ * Loaded as an image, it is inert: the browser refuses to run script or
+ * fetch external resources for it, so a hostile icon can neither reach the
+ * window holding the reviewer's session nor tell a third party that this PR
+ * was opened. Inlining the markup, or sanitising it by hand, would trade
+ * that guarantee for a filter we would have to keep winning forever.
  */
 
 function formatBytes(n: number): string {

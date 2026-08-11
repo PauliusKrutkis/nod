@@ -103,19 +103,9 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
       <div class="wrap pricing__inner">
         <p class="eyebrow">Pricing</p>
         <p class="pricing__price">
-          $59 <span class="pricing__term">one-time · a year of updates</span>
-        </p>
-        <p class="pricing__copy">
-          Nod is free to evaluate, every feature, no time limit. Buy it once
-          and the app is yours permanently: the first year brings every new
-          version as it ships, and when that year is up Nod keeps working
-          exactly as it is. You stop receiving updates, nothing else.
-        </p>
-        <p class="pricing__copy">
-          No subscription, and nothing resold on top: Nod is a tool you own,
-          not a seat you rent. AI is not part of it either. If you want the
-          optional ask-about-code feature, you bring a provider key of your
-          own and it talks to that provider directly.
+          $59 <span class="pricing__term"
+            >one-time · a year of updates · keeps working after</span
+          >
         </p>
         {
           checkoutUrl ? (
@@ -129,6 +119,9 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
             </p>
           )
         }
+        <p class="pricing__more">
+          More in the <a href="/faq">FAQ</a>.
+        </p>
         <p class="pricing__note">
           Buying for a team?{" "}<a href={`mailto:${CONTACT_EMAIL}`}>Email me</a
           > and I'll sort out invoicing.

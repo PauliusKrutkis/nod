@@ -3,9 +3,10 @@
  * from the inbox cache's view of the PR (title, branch, author) so the frame
  * is recognizable before detail loads, and the error state with a retry path.
  */
+
+import { Avatar } from "@nod/ui/avatar";
 import { queryClient, queryKeys } from "../../lib/query-client.ts";
 import type { InboxBucket, InboxData, PullRequest } from "../../types.ts";
-import { Avatar } from "../ui/avatar.tsx";
 
 const SIDEBAR_SKELETON_WIDTHS = [88, 72, 56, 40, 88, 72, 56, 40, 88] as const;
 const MAIN_SKELETON_WIDTHS = Array.from(

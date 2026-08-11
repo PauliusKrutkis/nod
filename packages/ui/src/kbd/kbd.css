@@ -1,0 +1,24 @@
+/* Keycaps and the combo row that groups them. */
+
+.q-kbd-combo {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.q-kbd {
+  display: inline-block;
+  min-width: 16px;
+  padding: 3px 5px;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 550;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: var(--muted);
+  text-align: center;
+  background: var(--surface-hi);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+}

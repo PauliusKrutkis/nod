@@ -1,0 +1,43 @@
+{
+  "name": "@nod/ui",
+  "version": "0.0.0",
+  "private": true,
+  "license": "FSL-1.1-Apache-2.0",
+  "type": "module",
+  "exports": {
+    "./avatar": "./src/avatar/avatar.tsx",
+    "./badge": "./src/badge/badge.tsx",
+    "./button": "./src/button/button.tsx",
+    "./catalog": "./src/catalog/catalog.ts",
+    "./fixtures": "./src/fixtures/fixtures.ts",
+    "./fuzzy": "./src/fuzzy/fuzzy.ts",
+    "./highlight-indices": "./src/highlight-indices/highlight-indices.tsx",
+    "./kbd": "./src/kbd/kbd.tsx",
+    "./manifest": "./src/manifest/manifest.ts",
+    "./search-pane": "./src/search-pane/search-pane.tsx",
+    "./spinner": "./src/spinner/spinner.tsx",
+    "./styles.css": "./src/styles.css",
+    "./time": "./src/time/time.ts",
+    "./use-latest": "./src/use-latest/use-latest.ts",
+    "./use-modal-dialog": "./src/use-modal-dialog/use-modal-dialog.ts"
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.22.0"
+  },
+  "peerDependencies": {
+    "react": "^19.1.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.1.8",
+    "jsdom": "^29.1.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "typescript": "~5.8.3",
+    "vitest": "^4.1.9"
+  }
+}

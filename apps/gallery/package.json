@@ -1,0 +1,33 @@
+{
+  "name": "@nod/gallery",
+  "version": "0.0.0",
+  "private": true,
+  "license": "FSL-1.1-Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "shots": "playwright test",
+    "shots:update": "playwright test --update-snapshots"
+  },
+  "dependencies": {
+    "@fontsource-variable/geist-mono": "^5.2.8",
+    "@fontsource/inter": "^5.2.8",
+    "@nod/tokens": "workspace:*",
+    "@nod/ui": "workspace:*",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "jsdom": "^29.1.1",
+    "typescript": "~5.8.3",
+    "vite": "^7.0.4",
+    "vitest": "^4.1.9"
+  }
+}

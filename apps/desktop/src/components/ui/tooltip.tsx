@@ -1,3 +1,4 @@
+import { Kbd } from "@nod/ui/kbd";
 import {
   cloneElement,
   type ReactElement,
@@ -10,7 +11,6 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "../../lib/cn.ts";
-import { Kbd } from "./kbd.tsx";
 
 const OPEN_DELAY_MS = 260;
 const EDGE_GAP_PX = 8;

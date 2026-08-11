@@ -1,6 +1,6 @@
 {
   "name": "@nod/desktop",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "license": "FSL-1.1-Apache-2.0",
   "type": "module",
@@ -16,11 +16,13 @@
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
     "doctor": "npx react-doctor@latest",
-    "build:demo": "vite build --config vite.demo.config.ts"
+    "build:demo": "vite build --config vite.demo.config.ts",
+    "gallery:desktop": "tauri dev --config '{\"build\":{\"devUrl\":\"http://localhost:1430\",\"beforeDevCommand\":\"pnpm --filter @nod/gallery dev\"}}'"
   },
   "dependencies": {
     "@fontsource-variable/geist-mono": "^5.2.8",
     "@fontsource/inter": "^5.2.8",
+    "@nod/ui": "workspace:*",
     "@tanstack/react-query": "^5.62.0",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
@@ -44,6 +46,7 @@
     "zustand": "^5.0.2"
   },
   "devDependencies": {
+    "@nod/tokens": "workspace:*",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/vite": "^4.0.0",
     "@tauri-apps/cli": "^2",

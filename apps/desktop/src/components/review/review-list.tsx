@@ -1,3 +1,6 @@
+import { Avatar } from "@nod/ui/avatar";
+import { Kbd } from "@nod/ui/kbd";
+import { useLatest } from "@nod/ui/use-latest";
 import { Check, FoldVertical, UnfoldVertical } from "lucide-react";
 import {
   type CSSProperties,
@@ -16,7 +19,6 @@ import {
   type GroupedVirtuosoHandle,
   type StateSnapshot,
 } from "react-virtuoso";
-import { useLatest } from "../../hooks/use-latest.ts";
 import { cn } from "../../lib/cn.ts";
 import { canExpandFile } from "../../lib/expand-file.ts";
 import { findMatchRangesInLine } from "../../lib/find-in-diff.ts";
@@ -38,8 +40,6 @@ import {
 import { useAppStore } from "../../store/app-store.ts";
 import type { AccountInfo, ChangedFile, PendingComment } from "../../types.ts";
 import { Markdown } from "../markdown.tsx";
-import { Avatar } from "../ui/avatar.tsx";
-import { Kbd } from "../ui/kbd.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
 import { AddCommentBox } from "./add-comment-box.tsx";
 import { AskNote, type AskNoteProps } from "./ask-note.tsx";

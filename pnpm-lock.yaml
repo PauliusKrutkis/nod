@@ -29,6 +29,9 @@ importers:
       '@fontsource/inter':
         specifier: ^5.2.8
         version: 5.2.8
+      '@nod/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@tanstack/react-query':
         specifier: ^5.62.0
         version: 5.101.2(react@19.2.7)
@@ -93,6 +96,9 @@ importers:
         specifier: ^5.0.2
         version: 5.0.14(@types/react@19.2.17)(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))
     devDependencies:
+      '@nod/tokens':
+        specifier: workspace:*
+        version: link:../../packages/tokens
       '@playwright/test':
         specifier: ^1.61.1
         version: 1.61.1
@@ -139,6 +145,55 @@ importers:
         specifier: ^4.1.9
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.1.0)(jsdom@29.1.1)(vite@7.3.6(@types/node@26.1.0)(jiti@2.7.0)(lightningcss@1.32.0)(yaml@2.9.0))
 
+  apps/gallery:
+    dependencies:
+      '@fontsource-variable/geist-mono':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource/inter':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@nod/tokens':
+        specifier: workspace:*
+        version: link:../../packages/tokens
+      '@nod/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      react:
+        specifier: ^19.1.0
+        version: 19.2.7
+      react-dom:
+        specifier: ^19.1.0
+        version: 19.2.7(react@19.2.7)
+    devDependencies:
+      '@playwright/test':
+        specifier: ^1.61.1
+        version: 1.61.1
+      '@testing-library/react':
+        specifier: ^16.3.2
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@types/react':
+        specifier: ^19.1.8
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.1.6
+        version: 19.2.3(@types/react@19.2.17)
+      '@vitejs/plugin-react':
+        specifier: ^4.6.0
+        version: 4.7.0(vite@7.3.6(@types/node@26.1.0)(jiti@2.7.0)(lightningcss@1.32.0)(yaml@2.9.0))
+      jsdom:
+        specifier: ^29.1.1
+        version: 29.1.1
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: ^7.0.4
+        version: 7.3.6(@types/node@26.1.0)(jiti@2.7.0)(lightningcss@1.32.0)(yaml@2.9.0)
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.1.0)(jsdom@29.1.1)(vite@7.3.6(@types/node@26.1.0)(jiti@2.7.0)(lightningcss@1.32.0)(yaml@2.9.0))
+
   apps/web:
     dependencies:
       '@astrojs/sitemap':
@@ -153,6 +208,9 @@ importers:
       '@noble/ed25519':
         specifier: ^3.1.0
         version: 3.1.0
+      '@nod/tokens':
+        specifier: workspace:*
+        version: link:../../packages/tokens
       astro:
         specifier: ^7.0.0
         version: 7.0.7(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@types/node@26.1.0)(jiti@2.7.0)(rollup@4.62.2)(yaml@2.9.0)
@@ -175,6 +233,43 @@ importers:
       wrangler:
         specifier: ^4.114.0
         version: 4.114.0(@cloudflare/workers-types@5.20260704.1)
+
+  packages/tokens:
+    devDependencies:
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.1.0)(jsdom@29.1.1)(vite@8.1.4(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
+
+  packages/ui:
+    dependencies:
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      lucide-react:
+        specifier: ^1.22.0
+        version: 1.23.0(react@19.2.7)
+    devDependencies:
+      '@testing-library/react':
+        specifier: ^16.3.2
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@types/react':
+        specifier: ^19.1.8
+        version: 19.2.17
+      jsdom:
+        specifier: ^29.1.1
+        version: 29.1.1
+      react:
+        specifier: ^19.1.0
+        version: 19.2.7
+      react-dom:
+        specifier: ^19.1.0
+        version: 19.2.7(react@19.2.7)
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.1.0)(jsdom@29.1.1)(vite@8.1.4(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
 
 packages:
 

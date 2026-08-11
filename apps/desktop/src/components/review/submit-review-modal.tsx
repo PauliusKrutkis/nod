@@ -1,5 +1,6 @@
+import { Button } from "@nod/ui/button";
+import { useModalDialog } from "@nod/ui/use-modal-dialog";
 import { type KeyboardEvent, useRef, useState } from "react";
-import { useModalDialog } from "../../hooks/use-modal-dialog.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
 import { cn } from "../../lib/cn.ts";
 import type { ReviewEvent } from "../../types.ts";
@@ -203,17 +204,17 @@ function SubmitReviewModalContent({
           Tab switches verdict · ⌘↵ to submit · Esc to cancel
         </span>
         <div className="flex items-center gap-2">
-          <button className="q-btn q-btn-ghost" onClick={onClose} type="button">
+          <Button onClick={onClose} variant="ghost">
             Cancel
-          </button>
-          <button
-            className="q-btn q-btn-primary"
+          </Button>
+          <Button
+            busy={busy}
             disabled={!canSubmit}
             onClick={submit}
-            type="button"
+            variant="primary"
           >
             {busy ? "Submitting…" : "Submit review"}
-          </button>
+          </Button>
         </div>
       </div>
     </dialog>

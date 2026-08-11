@@ -4,6 +4,8 @@
  * actions the find bar and hotkeys share. Seeds from the first visible row so
  * mod+f starts where the reviewer is looking, not at the top of the PR.
  */
+
+import { useLatest } from "@nod/ui/use-latest";
 import { useReducer, useRef } from "react";
 import type { ReviewListHandle } from "../components/review/review-list.tsx";
 import type { DiffRow } from "../lib/diff.ts";
@@ -16,7 +18,6 @@ import {
 } from "../lib/review-find.ts";
 import type { ReviewListModel } from "../lib/review-items.ts";
 import type { ChangedFile } from "../types.ts";
-import { useLatest } from "./use-latest.ts";
 
 const EMPTY_MATCHES: FindMatch[] = [];
 

@@ -1,0 +1,12 @@
+/* Avatar's shape and initials tint; loaded by importing the component. */
+
+.q-avatar {
+  display: inline-grid;
+  flex-shrink: 0;
+  place-items: center;
+  overflow: hidden;
+  font-weight: 600;
+  color: var(--avatar-fg, #fff);
+  object-fit: cover;
+  border-radius: var(--r-pill);
+}

@@ -1,3 +1,5 @@
+export const SVG_MIME = "image/svg+xml";
+
 const IMAGE_MIME: Record<string, string> = {
   avif: "image/avif",
   bmp: "image/bmp",
@@ -6,7 +8,7 @@ const IMAGE_MIME: Record<string, string> = {
   jpeg: "image/jpeg",
   jpg: "image/jpeg",
   png: "image/png",
-  svg: "image/svg+xml",
+  svg: SVG_MIME,
   webp: "image/webp",
 };
 
