@@ -1,0 +1,88 @@
+/* The before/after image panes; loaded by importing the component. The frame
+   paints a checkerboard so transparency reads as transparency rather than as
+   the app's surface. Panes shrink below their content (min-width: 0) and the
+   failure line wraps anywhere, because the strings that land in it are host
+   error messages — long, unbreakable, and otherwise able to push their own
+   frame open. */
+
+.qf-imgdiff {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding: 20px 24px;
+  font-family: var(--font-ui);
+}
+
+.qf-img-pane {
+  flex: 1 1 280px;
+  min-width: 0;
+  max-width: 620px;
+  margin: 0;
+}
+
+.qf-img-cap {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.qf-img-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.qf-img-old .qf-img-label {
+  color: var(--del);
+}
+
+.qf-img-new .qf-img-label {
+  color: var(--add);
+}
+
+.qf-img-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--faint);
+}
+
+.qf-img-frame {
+  display: grid;
+  place-items: center;
+  min-height: 140px;
+  padding: 14px;
+  background-image: conic-gradient(
+    rgba(255, 255, 255, 0.045) 0 25%,
+    transparent 0 50%,
+    rgba(255, 255, 255, 0.045) 0 75%,
+    transparent 0
+  );
+  background-size: 16px 16px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-xl);
+}
+
+.qf-img-old .qf-img-frame {
+  border-color: rgba(255, 112, 136, 0.28);
+}
+
+.qf-img-new .qf-img-frame {
+  border-color: rgba(95, 208, 138, 0.28);
+}
+
+.qf-img-frame img {
+  max-width: 100%;
+  max-height: 480px;
+  border-radius: var(--r-sm);
+}
+
+.qf-img-err {
+  max-width: 100%;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  overflow-wrap: anywhere;
+}

@@ -1,4 +1,6 @@
+import { AskNote, type AskNoteProps } from "@nod/ui/ask-note";
 import { Avatar } from "@nod/ui/avatar";
+import { CodeCell } from "@nod/ui/code-cell";
 import { Kbd } from "@nod/ui/kbd";
 import { Tooltip } from "@nod/ui/tooltip";
 import { useLatest } from "@nod/ui/use-latest";
@@ -42,15 +44,13 @@ import { useAppStore } from "../../store/app-store.ts";
 import type { AccountInfo, ChangedFile, PendingComment } from "../../types.ts";
 import { Markdown } from "../markdown.tsx";
 import { AddCommentBox } from "./add-comment-box.tsx";
-import { AskNote, type AskNoteProps } from "./ask-note.tsx";
-import { CodeCell } from "./code-cell.tsx";
 import {
   CommentThread,
   type EditRequest,
   type ReplyRequest,
   type ToggleRequest,
 } from "./comment-thread.tsx";
-import { ImageDiff } from "./image-diff.tsx";
+import { ImageDiffLoader } from "./image-diff-loader.tsx";
 
 /**
  * What to mark on every rendered row — the find bar's (mod+f) or the
@@ -841,7 +841,7 @@ function renderImageItem(
 ) {
   return (
     <div data-file-index={item.fileIndex}>
-      <ImageDiff
+      <ImageDiffLoader
         baseSha={p.baseSha}
         file={file}
         headSha={p.headSha}
@@ -958,6 +958,10 @@ function renderRowItem(
   );
 }
 
+function renderAskAnswer(text: string) {
+  return <Markdown>{text}</Markdown>;
+}
+
 function renderItem(
   ctx: ListContext,
   index: number,
@@ -986,7 +990,7 @@ function renderItem(
         <div style={{ height: 1 }} />
       ) : (
         <div className="qf-comment-wrap" data-file-index={item.fileIndex}>
-          <AskNote {...p.askNote} />
+          <AskNote {...p.askNote} renderAnswer={renderAskAnswer} />
         </div>
       );
     case "row":
@@ -1027,7 +1031,7 @@ function ListHeader({ context }: { context?: ListContext }) {
   }
   return (
     <div className="qf-ask-pr">
-      <AskNote {...askNote} />
+      <AskNote {...askNote} renderAnswer={renderAskAnswer} />
     </div>
   );
 }

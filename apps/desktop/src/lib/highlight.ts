@@ -1,5 +1,4 @@
 import hljs from "highlight.js";
-import { createElement, type ReactNode } from "react";
 import { type DiffHunk, type DiffRow, parsePatch } from "./diff.ts";
 import { findMatchRangesInLine } from "./find-in-diff.ts";
 import { occurrenceRangesInLine } from "./occurrences.ts";
@@ -411,43 +410,6 @@ function wrapMarkRanges(html: string, ranges: MarkRange[]): string {
     node.parentNode?.replaceChild(frag, node);
   }
   return root.innerHTML;
-}
-
-function domNodeToReactNode(node: ChildNode, key: string): ReactNode {
-  if (node.nodeType === Node.TEXT_NODE) {
-    return node.textContent;
-  }
-  if (node.nodeType !== Node.ELEMENT_NODE) {
-    return null;
-  }
-  const el = node as Element;
-  const children = Array.from(el.childNodes).map((child, i) =>
-    domNodeToReactNode(child, `${key}-${i}`)
-  );
-  return createElement(
-    el.tagName.toLowerCase(),
-    { className: el.className || undefined, key },
-    ...children
-  );
-}
-
-/**
- * Converts one of the highlighted-line HTML strings above into a React node
- * tree, so the diff view can render it without `dangerouslySetInnerHTML`.
- * Parses into a detached `<template>` (never attached to the document, so
- * this is inert regardless of the string's contents) and walks the result —
- * safe even though the *shape* of the highlighter output isn't hand-audited,
- * since nothing here ever reaches the live DOM as markup.
- */
-export function highlightHtmlToNodes(html: string): ReactNode[] {
-  if (html.length === 0) {
-    return [];
-  }
-  const template = document.createElement("template");
-  template.innerHTML = html;
-  return Array.from(template.content.childNodes).map((node, i) =>
-    domNodeToReactNode(node, String(i))
-  );
 }
 
 /**

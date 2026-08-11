@@ -1,0 +1,55 @@
+/* The code cell's own type and indent guides; loaded by importing the
+   component. The cell carries the diff's mono type itself so a specimen is
+   the same object outside a `.qf-diff` ancestor — inside the app the values
+   are the ones it already inherited, so nothing moves.
+
+   Ligatures stay OFF in diff code (VS Code's default too): a reviewer should
+   see the literal characters, and fonts with contextual ligatures (JetBrains
+   Mono, Fira Code) re-shape when a <mark> boundary splits a sequence — the
+   glyphs around a highlight would visibly shift as marks come and go.
+   geometricPrecision serves the same contract in WebKit, which otherwise
+   rounds text-run advances PER INLINE BOX: splitting a line's text nodes
+   with marks would nudge every glyph after them by accumulated subpixels.
+   tab-size is pinned (it's also the browser default) because the indent
+   guides assume one tab = one 8ch stop — see lib/indent.ts.
+
+   Indent guides: a hairline at each indent level, painted as a ::before
+   layer sized by the line's levels (--qf-lvl, set by the caller from bridged
+   per-hunk levels — blank lines inherit their neighbours', so a column runs
+   STRAIGHT through a block instead of reading as a dashed fence; --qf-indent
+   is the file's unit, set per diff). Painted OUTSIDE the text flow — no
+   wrapper elements in the code, so guides can't fragment text nodes or
+   interact with selection, clicks, or the mark layers. The layer overshoots
+   the row's 1.5px vertical padding so consecutive rows' columns touch. At
+   8% fg they're furniture: visible when you look for them, silent when you
+   don't. The 1px inset keeps the innermost boundary (where the text starts)
+   unpainted. */
+
+.qf-code {
+  position: relative;
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-variant-ligatures: none;
+  line-height: 1.75;
+  color: var(--fg);
+  word-break: break-word;
+  tab-size: 8;
+  white-space: pre-wrap;
+  text-rendering: geometricPrecision;
+}
+
+.qf-code::before {
+  position: absolute;
+  top: -1.5px;
+  bottom: -1.5px;
+  left: 0;
+  width: calc(var(--qf-lvl, 0) * var(--qf-indent, 2ch) - 1px);
+  pointer-events: none;
+  content: "";
+  background: repeating-linear-gradient(
+    to right,
+    color-mix(in srgb, var(--fg) 8%, transparent) 0 1px,
+    transparent 1px var(--qf-indent, 2ch)
+  );
+}

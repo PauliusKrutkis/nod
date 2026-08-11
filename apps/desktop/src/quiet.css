@@ -1226,75 +1226,6 @@ textarea.q-input {
     opacity: 0.5;
   }
 }
-/* ============ IMAGE DIFF ============ */
-.dir-quiet .qf-imgdiff {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 18px;
-  padding: 20px 24px;
-  font-family: var(--font-ui);
-}
-.dir-quiet .qf-img-pane {
-  flex: 1 1 280px;
-  max-width: 620px;
-  margin: 0;
-}
-.dir-quiet .qf-img-cap {
-  display: flex;
-  gap: 10px;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-.dir-quiet .qf-img-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-}
-.dir-quiet .qf-img-old .qf-img-label {
-  color: var(--del);
-}
-.dir-quiet .qf-img-new .qf-img-label {
-  color: var(--add);
-}
-.dir-quiet .qf-img-meta {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--faint);
-}
-.dir-quiet .qf-img-frame {
-  display: grid;
-  place-items: center;
-  min-height: 140px;
-  padding: 14px;
-  /* checkerboard so transparency reads */
-  background-image: conic-gradient(
-    rgba(255, 255, 255, 0.045) 0 25%,
-    transparent 0 50%,
-    rgba(255, 255, 255, 0.045) 0 75%,
-    transparent 0
-  );
-  background-size: 16px 16px;
-  border: 1px solid var(--line-2);
-  border-radius: var(--r-xl);
-}
-.dir-quiet .qf-img-old .qf-img-frame {
-  border-color: rgba(255, 112, 136, 0.28);
-}
-.dir-quiet .qf-img-new .qf-img-frame {
-  border-color: rgba(95, 208, 138, 0.28);
-}
-.dir-quiet .qf-img-frame img {
-  max-width: 100%;
-  max-height: 480px;
-  border-radius: var(--r-sm);
-}
-.dir-quiet .qf-img-err {
-  font-size: 12px;
-  color: var(--muted);
-  text-align: center;
-}
 .dir-quiet .qf-filebar-lang {
   padding: 2px 6px;
   font-family: var(--font-mono);
@@ -1341,24 +1272,6 @@ textarea.q-input {
   text-align: center;
   -webkit-user-select: none;
   user-select: none;
-}
-/* Ligatures stay OFF in diff code (VS Code's default too): a reviewer should
-   see the literal characters, and fonts with contextual ligatures (JetBrains
-   Mono, Fira Code) re-shape when a <mark> boundary splits a sequence — the
-   glyphs around a highlight would visibly shift as marks come and go.
-   geometricPrecision serves the same contract in WebKit, which otherwise
-   rounds text-run advances PER INLINE BOX: splitting a line's text nodes
-   with marks would nudge every glyph after them by accumulated subpixels. */
-.dir-quiet .qf-code {
-  position: relative;
-  font-variant-ligatures: none;
-  color: var(--fg);
-  word-break: break-word;
-  /* Pinned (it's also the browser default) because the indent guides assume
-     one tab = one 8ch stop — see lib/indent.ts. */
-  tab-size: 8;
-  white-space: pre-wrap;
-  text-rendering: geometricPrecision;
 }
 .dir-quiet .qf-row-hunk {
   width: 100%;
@@ -1470,32 +1383,6 @@ textarea.q-input {
   100% {
     box-shadow: none;
   }
-}
-
-/* Indent guides: a hairline at each indent level, painted as a ::before
-   layer sized by the line's levels (--qf-lvl, set by DiffLine from bridged
-   per-hunk levels — blank lines inherit their neighbours', so a column runs
-   STRAIGHT through a block instead of reading as a dashed fence; --qf-indent
-   is the file's unit, set per diff). Painted OUTSIDE the text flow — no
-   wrapper elements in the code, so guides can't fragment text nodes or
-   interact with selection, clicks, or the mark layers. The layer overshoots
-   the row's 1.5px vertical padding so consecutive rows' columns touch. At
-   8% fg they're furniture: visible when you look for them, silent when you
-   don't. The 1px inset keeps the innermost boundary (where the text starts)
-   unpainted. */
-.dir-quiet .qf-code::before {
-  position: absolute;
-  top: -1.5px;
-  bottom: -1.5px;
-  left: 0;
-  width: calc(var(--qf-lvl, 0) * var(--qf-indent, 2ch) - 1px);
-  pointer-events: none;
-  content: "";
-  background: repeating-linear-gradient(
-    to right,
-    color-mix(in srgb, var(--fg) 8%, transparent) 0 1px,
-    transparent 1px var(--qf-indent, 2ch)
-  );
 }
 
 /* inline "add comment" affordance in the gutter — absolutely positioned against
@@ -1988,117 +1875,6 @@ textarea.q-input {
 .dir-quiet .qf-thread-resolved-bar svg {
   color: var(--add);
 }
-/* the inline AI note — the third comment material. Posted threads are solid
-   cards on surface, pending comments are dashed with the accent wash, and the
-   AI note is a dotted hairline with NO fill: ink on the page, not paper, so
-   machine text can never be mistaken for a published comment. */
-.dir-quiet .qf-ask {
-  padding: 10px 14px 11px;
-  margin: 6px 0 10px;
-  font-family: var(--font-ui);
-  background: transparent;
-  border: 1px dotted var(--line-2);
-  border-radius: var(--r-xl);
-}
-.dir-quiet .qf-ask-head {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-.dir-quiet .qf-ask-spark {
-  flex: none;
-  color: var(--accent);
-}
-.dir-quiet .qf-ask-title {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--fg);
-}
-.dir-quiet .qf-ask-local {
-  margin-left: auto;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--faint);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.dir-quiet .qf-ask-close {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px;
-  color: var(--faint);
-  cursor: pointer;
-  background: transparent;
-  border: none;
-  border-radius: var(--r-md);
-  transition:
-    color 120ms ease,
-    background-color 120ms ease;
-}
-.dir-quiet .qf-ask-close:hover {
-  color: var(--fg);
-  background: var(--surface-2);
-}
-.dir-quiet .qf-ask-hint {
-  margin: 6px 0 0;
-  font-size: 12px;
-  color: var(--faint);
-}
-.dir-quiet .qf-ask-x {
-  margin-top: 8px;
-}
-.dir-quiet .qf-ask-q {
-  margin: 0 0 4px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--fg);
-}
-.dir-quiet .qf-ask-a {
-  font-size: 13px;
-  color: var(--muted);
-}
-.dir-quiet .qf-ask-err {
-  margin: 0;
-  font-size: 12px;
-  color: var(--del);
-}
-.dir-quiet .qf-ask-actions {
-  display: flex;
-  gap: 4px;
-  margin-top: 6px;
-}
-.dir-quiet .qf-ask-act {
-  display: inline-flex;
-  gap: 5px;
-  align-items: center;
-  padding: 2px 6px;
-  font-size: 11.5px;
-  color: var(--faint);
-  cursor: pointer;
-  background: transparent;
-  border: none;
-  border-radius: var(--r-md);
-  transition:
-    color 120ms ease,
-    background-color 120ms ease;
-}
-.dir-quiet .qf-ask-act:hover {
-  color: var(--fg);
-  background: var(--surface-2);
-}
-.dir-quiet .qf-ask-foot {
-  margin-top: 9px;
-}
-.dir-quiet .qf-ask-chip {
-  display: inline-block;
-  padding: 2px 7px;
-  margin-bottom: 8px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--muted);
-  border: 1px solid var(--line-2);
-  border-radius: var(--r-pill);
-}
 /* whole-PR slot: above the first file, same comment-column inset */
 .dir-quiet .qf-ask-pr {
   padding: 10px 16px 0 70px;
@@ -2106,6 +1882,9 @@ textarea.q-input {
 }
 .dir-quiet .qf-ask-pr .qf-ask {
   margin: 0;
+}
+.dir-quiet .qf-ask-a .md {
+  color: var(--muted);
 }
 
 /* pending */

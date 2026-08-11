@@ -1,0 +1,184 @@
+/* The inline AI note — the third comment material. Posted threads are solid
+   cards on surface, pending comments are dashed with the accent wash, and the
+   AI note is a dotted hairline with NO fill: ink on the page, not paper, so
+   machine text can never be mistaken for a published comment.
+
+   Three rules carry the payloads rather than the look. The target chip is a
+   file path with a line range, which at a sidebar width is longer than the
+   note is wide, so it ellipsizes instead of pushing the note open; questions
+   and answers break anywhere, because a pasted token or URL has no space to
+   wrap at; and the question field carries its own input skin so the note
+   travels without the app's shared form styles. */
+
+.qf-ask {
+  padding: 10px 14px 11px;
+  margin: 6px 0 10px;
+  font-family: var(--font-ui);
+  background: transparent;
+  border: 1px dotted var(--line-2);
+  border-radius: var(--r-xl);
+}
+
+.qf-ask-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.qf-ask-spark {
+  flex: none;
+  color: var(--accent);
+}
+
+.qf-ask-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.qf-ask-local {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--faint);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.qf-ask-close {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  color: var(--faint);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-md);
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.qf-ask-close:hover {
+  color: var(--fg);
+  background: var(--surface-2);
+}
+
+.qf-ask-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--faint);
+}
+
+.qf-ask-x {
+  margin-top: 8px;
+}
+
+.qf-ask-q {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+
+.qf-ask-a {
+  font-size: 13px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.qf-ask-para {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.qf-ask-err {
+  margin: 0;
+  font-size: 12px;
+  color: var(--del);
+  overflow-wrap: anywhere;
+}
+
+.qf-ask-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.qf-ask-act {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  padding: 2px 6px;
+  font-size: 11.5px;
+  color: var(--faint);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-md);
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.qf-ask-act:hover {
+  color: var(--fg);
+  background: var(--surface-2);
+}
+
+.qf-ask-foot {
+  margin-top: 9px;
+}
+
+.qf-ask-chip {
+  display: inline-block;
+  max-width: 100%;
+  padding: 2px 7px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-pill);
+}
+
+.qf-ask-field {
+  position: relative;
+}
+
+.qf-ask-input {
+  width: 100%;
+  padding: 9px 32px 9px 12px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.qf-ask-input::placeholder {
+  color: var(--faint);
+}
+
+.qf-ask-input:focus {
+  outline: none;
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.qf-ask-enter {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  color: var(--faint);
+  transform: translateY(-50%);
+}

@@ -159,12 +159,13 @@ describe("gallery", () => {
   });
 
   it("switches components with Tab and the arrows", () => {
+    const [, second, third] = componentNames;
     render(<Gallery />);
     fireEvent.keyDown(window, { key: "Tab" });
-    expect(window.location.hash).toContain("/badge/");
+    expect(window.location.hash).toContain(`/${second}/`);
     fireEvent.keyDown(window, { key: "ArrowDown" });
-    expect(window.location.hash).toContain("/button/");
+    expect(window.location.hash).toContain(`/${third}/`);
     fireEvent.keyDown(window, { key: "ArrowUp" });
-    expect(window.location.hash).toContain("/badge/");
+    expect(window.location.hash).toContain(`/${second}/`);
   });
 });
