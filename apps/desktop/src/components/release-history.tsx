@@ -1,4 +1,5 @@
-import { Spinner, useModalDialog } from "@nod/ui";
+import { Spinner } from "@nod/ui/spinner";
+import { useModalDialog } from "@nod/ui/use-modal-dialog";
 import { useQuery } from "@tanstack/react-query";
 import { History, X } from "lucide-react";
 import { useEffect } from "react";

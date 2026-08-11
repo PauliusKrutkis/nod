@@ -7,7 +7,7 @@
  * keyboard row navigation already uses via `nudgeItemIntoView`.
  */
 
-import { useLatest } from "@nod/ui";
+import { useLatest } from "@nod/ui/use-latest";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {

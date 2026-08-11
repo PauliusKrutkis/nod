@@ -5,7 +5,20 @@
   "license": "FSL-1.1-Apache-2.0",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    "./avatar": "./src/avatar.tsx",
+    "./badge": "./src/badge.tsx",
+    "./button": "./src/button.tsx",
+    "./catalog": "./src/catalog.ts",
+    "./fixtures": "./src/fixtures.ts",
+    "./fuzzy": "./src/fuzzy.ts",
+    "./highlight-indices": "./src/highlight-indices.tsx",
+    "./kbd": "./src/kbd.tsx",
+    "./search-pane": "./src/search-pane.tsx",
+    "./spinner": "./src/spinner.tsx",
+    "./time": "./src/time.ts",
+    "./use-latest": "./src/use-latest.ts",
+    "./use-modal-dialog": "./src/use-modal-dialog.ts",
+    "./styles.css": "./src/styles.css"
   },
   "scripts": {
     "test": "vitest run"

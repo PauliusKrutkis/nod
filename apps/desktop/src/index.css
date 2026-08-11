@@ -26,6 +26,7 @@
    rounded-sm / rounded-md / rounded-lg. */
 
 @import "tailwindcss" source("../src");
+@import "@nod/ui/styles.css";
 @import "./quiet.css";
 @source "../../../packages/ui/src";
 

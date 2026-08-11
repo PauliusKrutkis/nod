@@ -1,4 +1,4 @@
-import { Kbd } from "@nod/ui";
+import { Kbd } from "@nod/ui/kbd";
 import { Layers, Send } from "lucide-react";
 import { type Ref, useImperativeHandle, useRef, useState } from "react";
 import { cn } from "../../lib/cn.ts";

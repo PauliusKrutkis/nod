@@ -6,7 +6,8 @@
  * callbacks.
  */
 
-import { Avatar, Kbd } from "@nod/ui";
+import { Avatar } from "@nod/ui/avatar";
+import { Kbd } from "@nod/ui/kbd";
 import { Check, GitBranch, PanelLeft } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { copyTextToClipboard } from "../../lib/clipboard.ts";

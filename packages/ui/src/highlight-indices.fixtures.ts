@@ -4,7 +4,7 @@
  * characters where slicing by the wrong unit would split a glyph.
  */
 import { defineEntry } from "./fixtures.ts";
-import { HighlightIndices } from "./highlight.tsx";
+import { HighlightIndices } from "./highlight-indices.tsx";
 
 export const highlightIndicesEntry = defineEntry(HighlightIndices, {
   cjk: { props: { indices: [0, 2], text: "藤本さくらのレビュー" } },

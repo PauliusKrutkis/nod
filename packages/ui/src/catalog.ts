@@ -2,7 +2,7 @@ import { avatarEntry } from "./avatar.fixtures.ts";
 import { badgeEntry } from "./badge.fixtures.ts";
 import { buttonEntry } from "./button.fixtures.ts";
 import type { CatalogEntry } from "./fixtures.ts";
-import { highlightIndicesEntry } from "./highlight.fixtures.ts";
+import { highlightIndicesEntry } from "./highlight-indices.fixtures.ts";
 import { kbdEntry } from "./kbd.fixtures.ts";
 import { searchPaneEntry } from "./search-pane.fixtures.ts";
 import { spinnerEntry } from "./spinner.fixtures.ts";

@@ -7,32 +7,27 @@
  * is invisible to jsdom and belongs to the webkit screenshot suite over the
  * gallery, not here.
  *
- * The coverage block is the enforcement half of the package's rule 2: any
- * exported component missing from the catalog fails the suite by name.
+ * The coverage block is the enforcement half of the package's rule 2: with
+ * no barrel, the .tsx files ARE the export surface (each is a subpath in
+ * package.json), so any component file missing from the catalog fails the
+ * suite by name — catalog keys equal file basenames by convention.
  */
 import { cleanup, render } from "@testing-library/react";
 import { createElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { catalog } from "./catalog.ts";
-// biome-ignore lint/performance/noNamespaceImport: coverage needs to enumerate the public surface
-import * as pkg from "./index.ts";
 
 afterEach(cleanup);
 
-const COMPONENT_NAME = /^[A-Z]/;
-
-const componentExports = Object.entries(pkg).filter(
-  ([name, value]) => COMPONENT_NAME.test(name) && typeof value === "function"
-);
-
-const kebab = (name: string) =>
-  name.replace(/(?<=[a-z0-9])(?=[A-Z])/g, "-").toLowerCase();
+const componentFiles = Object.keys(import.meta.glob("./*.tsx"))
+  .filter((path) => !path.endsWith(".test.tsx"))
+  .map((path) => path.replace("./", "").replace(".tsx", ""));
 
 describe("catalog coverage", () => {
-  it.each(componentExports.map(([name]) => name))(
-    "exported component %s is catalogued with fixtures",
+  it.each(componentFiles)(
+    "component file %s is catalogued with fixtures",
     (name) => {
-      const entry = catalog[kebab(name)];
+      const entry = catalog[name];
       expect(entry).toBeDefined();
       expect(Object.keys(entry.fixtures).length).toBeGreaterThan(0);
     }

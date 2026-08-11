@@ -18,13 +18,10 @@
  * deliberate visit to an empty tab back to whichever tab has content.
  */
 
-import {
-  Avatar,
-  formatAbsolute,
-  formatRelativeTime,
-  Kbd,
-  Spinner,
-} from "@nod/ui";
+import { Avatar } from "@nod/ui/avatar";
+import { Kbd } from "@nod/ui/kbd";
+import { Spinner } from "@nod/ui/spinner";
+import { formatAbsolute, formatRelativeTime } from "@nod/ui/time";
 import {
   Archive,
   ArchiveRestore,

@@ -1,4 +1,4 @@
-import { Spinner } from "@nod/ui";
+import { Spinner } from "@nod/ui/spinner";
 import { useQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { api } from "../../lib/api.ts";

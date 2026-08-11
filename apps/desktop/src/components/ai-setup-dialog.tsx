@@ -8,7 +8,7 @@
  * that promise is made, per the 2026-08-01 privacy decision.
  */
 
-import { useModalDialog } from "@nod/ui";
+import { useModalDialog } from "@nod/ui/use-modal-dialog";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
 import { type KeyboardEvent, useRef, useState } from "react";

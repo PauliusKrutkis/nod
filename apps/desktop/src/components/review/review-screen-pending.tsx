@@ -4,7 +4,7 @@
  * is recognizable before detail loads, and the error state with a retry path.
  */
 
-import { Avatar } from "@nod/ui";
+import { Avatar } from "@nod/ui/avatar";
 import { queryClient, queryKeys } from "../../lib/query-client.ts";
 import type { InboxBucket, InboxData, PullRequest } from "../../types.ts";
 

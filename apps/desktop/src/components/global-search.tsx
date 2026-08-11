@@ -1,4 +1,4 @@
-import { SearchPane } from "@nod/ui";
+import { SearchPane } from "@nod/ui/search-pane";
 import { useInbox } from "../hooks/use-inbox.ts";
 import { useSubscribed } from "../hooks/use-subscribed.ts";
 import { useAppStore } from "../store/app-store.ts";

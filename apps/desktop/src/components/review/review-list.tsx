@@ -1,4 +1,6 @@
-import { Avatar, Kbd, useLatest } from "@nod/ui";
+import { Avatar } from "@nod/ui/avatar";
+import { Kbd } from "@nod/ui/kbd";
+import { useLatest } from "@nod/ui/use-latest";
 import { Check, FoldVertical, UnfoldVertical } from "lucide-react";
 import {
   type CSSProperties,

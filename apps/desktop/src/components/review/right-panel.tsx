@@ -12,7 +12,9 @@
  * the drawer, so growing conversation only ever resizes a section.
  */
 
-import { Avatar, formatAbsolute, formatRelativeTime, Kbd } from "@nod/ui";
+import { Avatar } from "@nod/ui/avatar";
+import { Kbd } from "@nod/ui/kbd";
+import { formatAbsolute, formatRelativeTime } from "@nod/ui/time";
 import {
   CheckCircle2,
   ExternalLink,

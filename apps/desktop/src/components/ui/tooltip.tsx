@@ -1,4 +1,4 @@
-import { Kbd } from "@nod/ui";
+import { Kbd } from "@nod/ui/kbd";
 import {
   cloneElement,
   type ReactElement,

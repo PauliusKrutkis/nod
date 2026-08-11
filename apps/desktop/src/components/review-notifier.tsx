@@ -1,4 +1,5 @@
-import { Avatar, Kbd } from "@nod/ui";
+import { Avatar } from "@nod/ui/avatar";
+import { Kbd } from "@nod/ui/kbd";
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useInbox } from "../hooks/use-inbox.ts";

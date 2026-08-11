@@ -38,7 +38,7 @@
  * before it arrives.
  */
 
-import { useLatest } from "@nod/ui";
+import { useLatest } from "@nod/ui/use-latest";
 import { useQueries } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api } from "../lib/api.ts";

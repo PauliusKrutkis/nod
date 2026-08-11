@@ -5,7 +5,7 @@
  * mod+f starts where the reviewer is looking, not at the top of the PR.
  */
 
-import { useLatest } from "@nod/ui";
+import { useLatest } from "@nod/ui/use-latest";
 import { useReducer, useRef } from "react";
 import type { ReviewListHandle } from "../components/review/review-list.tsx";
 import type { DiffRow } from "../lib/diff.ts";

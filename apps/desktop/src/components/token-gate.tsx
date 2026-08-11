@@ -1,4 +1,4 @@
-import { Spinner } from "@nod/ui";
+import { Spinner } from "@nod/ui/spinner";
 import { ArrowLeft, KeyRound, Server } from "lucide-react";
 import { type ChangeEvent, type KeyboardEvent, useEffect, useRef } from "react";
 import {

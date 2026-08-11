@@ -6,7 +6,7 @@
  * sidebar to its default for that mode during render.
  */
 
-import { useLatest } from "@nod/ui";
+import { useLatest } from "@nod/ui/use-latest";
 import { useState, useSyncExternalStore } from "react";
 
 /** Below this viewport width the 300px file tree stops being a push column and

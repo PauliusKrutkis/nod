@@ -7,7 +7,7 @@
  * shown on Edit — the thread surface passes it on its last own comment.
  */
 
-import { Kbd } from "@nod/ui";
+import { Kbd } from "@nod/ui/kbd";
 import { useEffect, useRef, useState } from "react";
 import { copyTextToClipboard } from "../../lib/clipboard.ts";
 import { cn } from "../../lib/cn.ts";

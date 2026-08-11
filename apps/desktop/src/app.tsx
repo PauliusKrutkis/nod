@@ -1,4 +1,5 @@
-import { Kbd, Spinner } from "@nod/ui";
+import { Kbd } from "@nod/ui/kbd";
+import { Spinner } from "@nod/ui/spinner";
 import {
   Command as CommandIcon,
   HelpCircle,

@@ -4,7 +4,7 @@ import { Avatar } from "./avatar.tsx";
 import { Badge } from "./badge.tsx";
 import { cn } from "./cn.ts";
 import { fuzzyMatchFields } from "./fuzzy.ts";
-import { HighlightIndices } from "./highlight.tsx";
+import { HighlightIndices } from "./highlight-indices.tsx";
 import { Kbd } from "./kbd.tsx";
 import { formatRelativeTime } from "./time.ts";
 import { useModalDialog } from "./use-modal-dialog.ts";

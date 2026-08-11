@@ -1,4 +1,4 @@
-import { Avatar } from "@nod/ui";
+import { Avatar } from "@nod/ui/avatar";
 import { Check, X } from "lucide-react";
 import { cn } from "../../lib/cn.ts";
 import { aggregateReviewVerdicts, type Reviewer } from "../../lib/reviews.ts";

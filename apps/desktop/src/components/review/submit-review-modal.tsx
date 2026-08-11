@@ -1,4 +1,5 @@
-import { Button, useModalDialog } from "@nod/ui";
+import { Button } from "@nod/ui/button";
+import { useModalDialog } from "@nod/ui/use-modal-dialog";
 import { type KeyboardEvent, useRef, useState } from "react";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
 import { cn } from "../../lib/cn.ts";

@@ -13,7 +13,7 @@
  * (`armedThreadAt`) instead, and only a cursor that is not on a block disarms.
  */
 
-import { useLatest } from "@nod/ui";
+import { useLatest } from "@nod/ui/use-latest";
 import type React from "react";
 import { useState } from "react";
 import type { ReviewListCallbacks } from "../components/review/review-list.tsx";

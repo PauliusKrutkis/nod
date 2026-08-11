@@ -1,4 +1,7 @@
-import { fuzzyMatch, HighlightIndices, Kbd, useModalDialog } from "@nod/ui";
+import { fuzzyMatch } from "@nod/ui/fuzzy";
+import { HighlightIndices } from "@nod/ui/highlight-indices";
+import { Kbd } from "@nod/ui/kbd";
+import { useModalDialog } from "@nod/ui/use-modal-dialog";
 import { CornerDownLeft, FileCode, Search } from "lucide-react";
 import {
   type KeyboardEvent,

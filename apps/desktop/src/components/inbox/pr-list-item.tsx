@@ -1,4 +1,6 @@
-import { Avatar, Badge, formatAbsolute, formatRelativeTime } from "@nod/ui";
+import { Avatar } from "@nod/ui/avatar";
+import { Badge } from "@nod/ui/badge";
+import { formatAbsolute, formatRelativeTime } from "@nod/ui/time";
 import { GitBranch, MessageSquare } from "lucide-react";
 import { cn } from "../../lib/cn.ts";
 import type { PullRequest } from "../../types.ts";

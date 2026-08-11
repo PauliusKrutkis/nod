@@ -17,7 +17,7 @@
  * immediately.
  */
 
-import { Spinner } from "@nod/ui";
+import { Spinner } from "@nod/ui/spinner";
 import { CornerDownLeft, Sparkles, X } from "lucide-react";
 import { type KeyboardEvent, useEffect, useRef } from "react";
 import type { AskExchange } from "../../hooks/use-ask-note.ts";

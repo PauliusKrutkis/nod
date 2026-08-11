@@ -1,4 +1,5 @@
-import { Kbd, useModalDialog } from "@nod/ui";
+import { Kbd } from "@nod/ui/kbd";
+import { useModalDialog } from "@nod/ui/use-modal-dialog";
 import { Command, X } from "lucide-react";
 import { useKeyboard } from "../keyboard/keyboard-provider.tsx";
 import type { KeyboardContextValue } from "../keyboard/types.ts";
