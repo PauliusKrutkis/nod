@@ -1803,6 +1803,57 @@ wanted instead of a quick win.
 
 ---
 
+## Inbox (2026-08-11)
+
+Four items raised by the owner. Checked against the code before writing, and
+where the check changed the diagnosis that is recorded here rather than
+quietly fixed.
+
+- [ ] 🟡 **Keyboard file order does not match the tree** — the sidebar's tree
+      view groups directories first (`buildFileTree` in `lib/file-tree.ts`
+      emits child dirs before files), but `Tab`/`e` and the diff pane walk the
+      ORIGINAL flat `files` order the host returned — the tree is deliberately
+      a pure presentation layer over flat indices. So with the tree visible,
+      "next file" can jump upward or across directories. Either walk the
+      flattened tree order when tree mode is on, or sort `files` once at load
+      so the flat order, the tree order and the walk order agree. The second
+      is simpler and also fixes the flat list, which today mirrors the host's
+      arbitrary ordering.
+- [ ] 🟡 ❓ **Failed-to-fetch / offline status is invisible with stale data** —
+      the inbox shows an error state only when there is no cached data
+      (`inbox.tsx` `isError && !hasData`); once anything is cached, a dead
+      network shows yesterday's inbox with no signal that refreshes are
+      failing. Decide the surface: a quiet "last synced · Xm ago, retrying"
+      line fits the app's tone better than a toast. Same question applies to
+      the PR view's queries.
+- [ ] 🟡 **Ask-about-code gaps** — one item per verified gap, because two of
+      the reported ones are already built:
+      *Already built:* answers DO stream (Rust emits `ai-ask-delta` per askId;
+      `use-ask-note.ts` accumulates `partial` per animation frame) — if tokens
+      are not visibly streaming, that is a bug or a provider path that never
+      emits deltas, and needs a live-key check (see the Nexos probe,
+      `scripts/probe-nexos.mjs`). And a closed note is NOT gone: exchanges
+      survive Esc and reopening at the same target resumes; only re-anchoring
+      elsewhere starts fresh.
+      *Real gaps:* (1) conversations are in-memory only — leaving the PR or
+      restarting the app loses every exchange; decide whether asks persist
+      like review memory does. (2) The input is `disabled` while an ask is in
+      flight (`ask-note.tsx`), which is what drops focus after submit; keep it
+      enabled so a follow-up can be typed/queued while the answer streams.
+      (3) Context is only the selected lines / cursor row — the model knows
+      nothing about the PR (title, description, diff summary, comments) or
+      the repo; ship a PR-level context block with every ask and treat the
+      selection as the *focus*, not the whole world. Repo-wide context is the
+      ⏸ whole-repo-index item above, not this one.
+- [ ] 🟡 **CI too slow** — E2E (~5.5 min) runs in full on every PR regardless
+      of paths, gallery shots takes ~9 min (932 baselines, one worker),
+      Playwright browsers are reinstalled on every run, and nothing cancels
+      superseded runs. Split workflows per app/package with path filters, cache
+      browsers, run PR e2e on chromium only (webkit-perf + prod-perf on push
+      to main), shard the gallery, and add concurrency cancellation.
+
+---
+
 ## Inbox (2026-08-09)
 
 Five items raised by the owner. Checked against the code before writing, and
