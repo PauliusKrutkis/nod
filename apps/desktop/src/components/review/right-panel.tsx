@@ -19,8 +19,11 @@
  */
 
 import { Avatar } from "@nod/ui/avatar";
+import { CiPill } from "@nod/ui/ci-pill";
 import { Kbd } from "@nod/ui/kbd";
+import { TicketTitle } from "@nod/ui/ticket-title";
 import { formatAbsolute, formatRelativeTime } from "@nod/ui/time";
+import { Tooltip } from "@nod/ui/tooltip";
 import {
   CheckCircle2,
   ExternalLink,
@@ -36,6 +39,7 @@ import {
 } from "react";
 import { cn } from "../../lib/cn.ts";
 import { firstLine } from "../../lib/comment-format.ts";
+import { openExternal } from "../../lib/open-external.ts";
 import { openOnProviderLabel } from "../../lib/provider.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type {
@@ -46,10 +50,7 @@ import type {
   ReviewSummary,
 } from "../../types.ts";
 import { Markdown } from "../markdown.tsx";
-import { TicketTitle } from "../ui/ticket-title.tsx";
-import { Tooltip } from "../ui/tooltip.tsx";
 import { AddCommentBox, type AddCommentBoxHandle } from "./add-comment-box.tsx";
-import { CiPill } from "./ci-pill.tsx";
 import { CommentBody, CommentTools } from "./comment-item.tsx";
 
 export interface RightPanelHandle {
@@ -395,7 +396,11 @@ function DrawerMeta({
       <div className="qf-drawer-pr">
         <span className="qf-pr-num">#{pr.number}</span>
         <span className="qf-drawer-pr-title">
-          <TicketTitle title={pr.title} trackerBase={trackerBase} />
+          <TicketTitle
+            onOpenTicket={openExternal}
+            title={pr.title}
+            trackerBase={trackerBase}
+          />
         </span>
       </div>
       <div className="qf-drawer-meta">
@@ -414,7 +419,7 @@ function DrawerMeta({
         </span>
       </div>
       <div className="qf-drawer-links">
-        <CiPill ci={ci} />
+        <CiPill ci={ci} onOpen={openExternal} />
         <Tooltip label={pr.url}>
           <button
             className="qf-drawer-link qf-focusable"

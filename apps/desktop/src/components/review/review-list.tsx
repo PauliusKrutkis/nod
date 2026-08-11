@@ -1,5 +1,6 @@
 import { Avatar } from "@nod/ui/avatar";
 import { Kbd } from "@nod/ui/kbd";
+import { Tooltip } from "@nod/ui/tooltip";
 import { useLatest } from "@nod/ui/use-latest";
 import { Check, FoldVertical, UnfoldVertical } from "lucide-react";
 import {
@@ -40,7 +41,6 @@ import {
 import { useAppStore } from "../../store/app-store.ts";
 import type { AccountInfo, ChangedFile, PendingComment } from "../../types.ts";
 import { Markdown } from "../markdown.tsx";
-import { Tooltip } from "../ui/tooltip.tsx";
 import { AddCommentBox } from "./add-comment-box.tsx";
 import { AskNote, type AskNoteProps } from "./ask-note.tsx";
 import { CodeCell } from "./code-cell.tsx";

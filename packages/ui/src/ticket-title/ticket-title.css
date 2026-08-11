@@ -1,0 +1,19 @@
+/* The ticket link inside a title: accent text on an accent underline that
+   firms up on hover. It is a button, not an anchor — the host decides how a
+   tracker URL opens — so it carries the type reset the package cannot assume
+   from a host preflight, and inherits the title's own font. */
+
+.q-ticket {
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  text-decoration: none;
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--accent-line);
+}
+
+.q-ticket:hover {
+  border-bottom-color: var(--accent);
+}

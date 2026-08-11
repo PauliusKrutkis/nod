@@ -1,0 +1,51 @@
+/* The portalled tip, its keycap slot, and the inline anchor that measures the
+   trigger. The tip fades in with the package's shared q-fade keyframes, and
+   both reduced-motion rules that used to live in the app's stylesheet travel
+   with it.
+
+   The width cap is load-bearing: the component clamps the tip's LEFT edge to
+   the viewport, which cannot help a tip wider than the viewport itself, so a
+   long label (a tracker URL, a branch ref) used to run off the right edge.
+   Capped and wrapping — anywhere, since the long labels are unbreakable URLs
+   — every label stays on screen. */
+
+.q-tooltip {
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  max-width: min(360px, calc(100vw - 16px));
+  padding: 5px 9px;
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  background: var(--surface-hi);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-md);
+  box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+  animation: q-fade 100ms ease;
+}
+
+.q-tooltip .q-kbd {
+  margin-left: 5px;
+}
+
+.q-tooltip-anchor {
+  display: inline-flex;
+}
+
+.q-tooltip-measure {
+  position: fixed;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .q-tooltip {
+    animation: none;
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}

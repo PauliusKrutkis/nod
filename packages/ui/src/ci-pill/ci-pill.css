@@ -1,0 +1,70 @@
+/* CI / pipeline status — one glanceable pill, mirroring the verdict language.
+   Muted "none" never reaches here (the component renders nothing). The pill
+   keeps to its row: it never grows past the container, the icon never shrinks,
+   and an implausibly large count ellipsizes instead of pushing the row wide.
+   The app's stylesheet scoped these under .dir-quiet; here the class family is
+   the component's own, so the scope is unnecessary. */
+
+.qf-ci {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  height: 24px;
+  padding: 0 8px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-pill);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  transition: filter 120ms ease;
+}
+
+.qf-ci:hover {
+  filter: brightness(1.08);
+}
+
+.qf-ci > svg {
+  flex-shrink: 0;
+}
+
+.qf-ci-count {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qf-ci-success {
+  color: var(--add);
+  background: var(--add-bg);
+}
+
+.qf-ci-failure {
+  color: var(--del);
+  background: var(--del-bg);
+}
+
+.qf-ci-pending {
+  color: var(--muted);
+  background: var(--surface-2);
+}
+
+.qf-ci-pending svg {
+  animation: qf-ci-spin 900ms linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qf-ci-pending svg {
+    animation: none;
+  }
+}
+
+@keyframes qf-ci-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
