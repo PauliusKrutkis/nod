@@ -7,7 +7,7 @@ import {
   releasesQuery,
   releasesSince,
 } from "../lib/releases.ts";
-import { Markdown } from "./markdown.tsx";
+import { Markdown } from "./markdown-loader.tsx";
 
 const LAST_RUN_KEY = "nod:lastRunVersion";
 

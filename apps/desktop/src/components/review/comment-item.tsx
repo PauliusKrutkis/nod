@@ -10,7 +10,7 @@
  * stack — none of which belongs behind the package boundary.
  */
 
-import { Markdown } from "../markdown.tsx";
+import { Markdown } from "../markdown-loader.tsx";
 import { AddCommentBox } from "./add-comment-box.tsx";
 
 interface CommentBodyProps {

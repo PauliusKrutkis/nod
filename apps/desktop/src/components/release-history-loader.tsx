@@ -4,7 +4,7 @@ import { useArmedRing } from "../hooks/use-armed-ring.ts";
 import { useHotkeys } from "../keyboard/use-hotkeys.ts";
 import { api } from "../lib/api.ts";
 import { compareVersions, releasesQuery } from "../lib/releases.ts";
-import { Markdown } from "./markdown.tsx";
+import { Markdown } from "./markdown-loader.tsx";
 
 /**
  * Query, hotkey and armed-ring wiring for the version timeline; the view is
