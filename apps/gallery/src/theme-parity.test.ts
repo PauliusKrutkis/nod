@@ -17,6 +17,7 @@ const varFor: Record<keyof typeof palette, string> = {
   elevated: "--surface-hi",
   faint: "--faint",
   fg: "--fg",
+  fgBright: "--fg-bright",
   line: "--line",
   lineStrong: "--line-2",
   muted: "--muted",

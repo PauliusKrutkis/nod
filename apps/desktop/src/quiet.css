@@ -5,11 +5,12 @@
      1. Shared primitives (`q-*`, `.md`, syntax) — unscoped, used everywhere.
      2. The Review screen (`qf-*`) — scoped under `.dir-quiet`, applied on the
         ReviewScreen root.
-     3. highlight.js output retheme (`.hljs-*`) — desktop highlights real code
-        via highlight.js, so the Quiet syntax palette is applied to its classes.
 
    Colour tokens (`--bg`, `--accent`, …) are defined on :root in index.css and
-   kept in sync with the Tailwind `@theme` `--color-*` values.
+   kept in sync with the Tailwind `@theme` `--color-*` values. The highlight.js
+   output retheme (`.hljs-*`) used to be a third layer here; it lives in
+   @nod/ui/styles.css now, because the package's own code surfaces render the
+   same token spans.
    =========================================================================== */
 
 /* ===========================================================================
@@ -435,78 +436,6 @@ textarea.q-input {
     transition-duration: 0ms !important;
     animation-duration: 0ms !important;
   }
-}
-
-/* ===========================================================================
-   3. highlight.js OUTPUT — Quiet syntax palette
-   Desktop renders diffs via highlight.js (.hljs-* classes). Map them onto the
-   Quiet token colours; keep the background transparent so diff-row tints show.
-   =========================================================================== */
-.hljs {
-  padding: 0 !important;
-  color: var(--fg);
-  background: transparent !important;
-}
-.hljs-keyword,
-.hljs-selector-tag,
-.hljs-literal,
-.hljs-meta,
-.hljs-meta .hljs-keyword {
-  color: var(--syn-keyword);
-}
-.hljs-string,
-.hljs-regexp,
-.hljs-addition {
-  color: var(--syn-string);
-}
-.hljs-number,
-.hljs-symbol,
-.hljs-bullet {
-  color: var(--syn-number);
-}
-.hljs-title,
-.hljs-title.function_,
-.hljs-section,
-.hljs-name {
-  color: var(--syn-func);
-}
-.hljs-type,
-.hljs-class .hljs-title,
-.hljs-title.class_,
-.hljs-built_in {
-  color: var(--syn-type);
-}
-.hljs-attr,
-.hljs-attribute,
-.hljs-property,
-.hljs-variable,
-.hljs-template-variable {
-  color: var(--syn-variable);
-}
-/* comments read as one quiet gray block — including JSDoc tags (@param) and
-   anything hljs nests inside a comment */
-.hljs-comment,
-.hljs-quote,
-.hljs-doctag,
-.hljs-comment .hljs-keyword,
-.hljs-comment .hljs-type,
-.hljs-comment .hljs-variable {
-  font-style: italic;
-  color: var(--syn-comment);
-}
-.hljs-tag,
-.hljs-punctuation,
-.hljs-operator {
-  color: var(--syn-punct);
-}
-.hljs-params {
-  color: var(--fg);
-}
-.hljs-emphasis {
-  font-style: italic;
-}
-.hljs-strong {
-  font-weight: 600;
 }
 
 /* ===========================================================================

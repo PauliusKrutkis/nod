@@ -1,11 +1,20 @@
 /* The system layer @nod/ui hosts import once (@nod/ui/styles.css): the
-   shared focus ring, mono/dot text helpers, the modal dialog frame, and the
-   keyframes several components share. Component-specific styles live next
-   to each component and load with it — importing a component brings its
-   look. Everything resolves through the host's tokens (@nod/tokens provides
-   palette and radii; the app provides fonts and a border-box box-sizing
-   reset — every block here assumes it). No Tailwind anywhere in the
-   package. */
+   shared focus ring, mono/dot text helpers, the modal dialog frame, the
+   keyframes several components share, and the highlight.js retheme.
+   Component-specific styles live next to each component and load with it —
+   importing a component brings its look. Everything resolves through the
+   host's tokens (@nod/tokens provides palette, syntax and radii; the app
+   provides fonts and a border-box box-sizing reset — every block here
+   assumes it). No Tailwind anywhere in the package.
+
+   The .hljs-* rules map highlight.js output onto the --syn-* palette. They
+   are hosted here rather than beside a component because several surfaces
+   render the same token spans from one highlighter — a diff line, a search
+   snippet, a fenced block in a comment — and each would otherwise carry a
+   copy. The background stays transparent so a diff row's tint shows through,
+   and comments read as one quiet gray block: JSDoc tags (@param) and
+   anything hljs nests inside a comment take the comment colour rather than
+   speckling it. */
 
 .q-focus:focus-visible {
   outline: none;
@@ -97,4 +106,80 @@ dialog.q-dialog::backdrop {
     opacity: 0;
     transform: translate(-50%, -6px) scale(0.99);
   }
+}
+
+.hljs {
+  padding: 0 !important;
+  color: var(--fg);
+  background: transparent !important;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-meta,
+.hljs-meta .hljs-keyword {
+  color: var(--syn-keyword);
+}
+
+.hljs-string,
+.hljs-regexp,
+.hljs-addition {
+  color: var(--syn-string);
+}
+
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet {
+  color: var(--syn-number);
+}
+
+.hljs-title,
+.hljs-title.function_,
+.hljs-section,
+.hljs-name {
+  color: var(--syn-func);
+}
+
+.hljs-type,
+.hljs-class .hljs-title,
+.hljs-title.class_,
+.hljs-built_in {
+  color: var(--syn-type);
+}
+
+.hljs-attr,
+.hljs-attribute,
+.hljs-property,
+.hljs-variable,
+.hljs-template-variable {
+  color: var(--syn-variable);
+}
+
+.hljs-comment,
+.hljs-quote,
+.hljs-doctag,
+.hljs-comment .hljs-keyword,
+.hljs-comment .hljs-type,
+.hljs-comment .hljs-variable {
+  font-style: italic;
+  color: var(--syn-comment);
+}
+
+.hljs-tag,
+.hljs-punctuation,
+.hljs-operator {
+  color: var(--syn-punct);
+}
+
+.hljs-params {
+  color: var(--fg);
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: 600;
 }

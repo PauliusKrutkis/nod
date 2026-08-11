@@ -8,10 +8,11 @@
    gutter tints) are derived with color-mix so they follow the palette too.
 
    The --color-syn-* block is the syntax palette, named by grammatical role.
-   Both code renderers in quiet.css (the highlight.js .hljs-* output and the
-   lab tokenizer's .tk-* classes) draw from these same tokens, so a theme
-   supplies the palette once. The comment slot is --faint, aliased as
-   --syn-comment on :root, and inline code (.md code) deliberately shares
+   Both code renderers draw from these same tokens — the highlight.js .hljs-*
+   retheme, which lives in @nod/ui/styles.css so the package's own code
+   surfaces get it too, and the lab tokenizer's .tk-* classes in quiet.css —
+   so a theme supplies the palette once. The comment slot is --faint, aliased
+   as --syn-comment on :root, and inline code (.md code) deliberately shares
    --syn-keyword.
 
    Corner radius is a 2px-step scale (--r-xs through --r-2xl, plus --r-pill).
@@ -53,7 +54,7 @@
   --color-warning: #e7c56a;
   --color-accent-deep: #6f63e6;
   --color-fg-bright: #d6d6e6;
-  --color-avatar-fg: #fff;
+  --color-avatar-fg: #ffffff;
 
   --color-syn-keyword: #c4b6ff;
   --color-syn-string: #8fe3b0;
@@ -191,6 +192,7 @@ body {
   user-select: none;
 }
 
-/* Diff line backgrounds, syntax (hljs) theming, and markdown (.md) all live in
-   quiet.css now, so the ported q- and qf- CSS and the Tailwind utilities share one
-   source of truth for the Quiet look. */
+/* Diff line backgrounds and markdown (.md) live in quiet.css, and the hljs
+   retheme in @nod/ui/styles.css, so the ported q- and qf- CSS, the package
+   components and the Tailwind utilities share one source of truth for the
+   Quiet look. */
