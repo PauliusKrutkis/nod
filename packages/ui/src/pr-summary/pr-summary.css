@@ -3,7 +3,10 @@
    sections and this block is never the last one), the +/− pair keeps
    component-owned class names rather than the app's shared .qf-add/.qf-del,
    and the title wraps rather than truncating — a drawer is for reading the
-   whole title, unlike the header's one-line version of it. */
+   whole title, unlike the header's one-line version of it.
+
+   .qf-drawer-links holds the checks pill and the host link, the two handoffs
+   that used to crowd the top bar. */
 
 .qf-drawer-summary {
   margin-bottom: 24px;
@@ -53,7 +56,6 @@
   color: var(--muted);
 }
 
-/* Checks pill + host link — the header handoffs that used to crowd the top bar. */
 .qf-drawer-links {
   display: flex;
   flex-wrap: wrap;

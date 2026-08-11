@@ -11,7 +11,15 @@
 
    The +/− stat pair keeps its own class names rather than the app's shared
    .qf-add/.qf-del, which are still worn by the diff surfaces left behind:
-   one class, one owner. */
+   one class, one owner.
+
+   Hover only reaches rows that are not already selected, so the iris
+   selection is never overwritten by (or double-stacked with) the hover wash,
+   and a viewed row carries an explicit tick as well as the dimming so it
+   reads at a glance. Inside a row the basename holds its width — it is the
+   part of a path that identifies the file, so the directory ellipsizes first
+   and the name is clipped by .qf-file-name only once there is no directory
+   left to give. */
 
 .qf-sidebar {
   display: flex;
@@ -100,8 +108,6 @@
     color 120ms ease;
 }
 
-/* Hover only affects rows that aren't already selected, so the iris selection
-   is never overwritten by (or double-stacked with) the hover wash. */
 .qf-file:not(.qf-file-active):hover {
   color: var(--fg);
   background: var(--surface-2);
@@ -117,7 +123,6 @@
   opacity: 0.7;
 }
 
-/* explicit "viewed" tick so it reads at a glance, not just via dimming */
 .qf-file-check {
   flex-shrink: 0;
   color: var(--add);
@@ -173,9 +178,6 @@
   color: var(--faint);
 }
 
-/* The basename holds its width — it is the part of a path that identifies the
-   file, so the directory ellipsizes first and the name is clipped by
-   .qf-file-name only once there is no directory left to give. */
 .qf-file-base {
   flex-shrink: 0;
   font-weight: 500;

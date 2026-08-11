@@ -6,7 +6,9 @@
    one owner.
 
    The section carries no bottom margin: it is always the drawer's last
-   section, and the space above it comes from the section before. */
+   section, and the space above it comes from the section before. The path
+   inside a row is laid out rtl so the ellipsis eats the directory prefix
+   rather than the file name. */
 
 .qf-threadindex-h {
   display: flex;
@@ -68,7 +70,6 @@
   color: var(--muted);
 }
 
-/* rtl so the ellipsis eats the directory prefix, not the file name */
 .qf-thread-path {
   min-width: 0;
   overflow: hidden;
