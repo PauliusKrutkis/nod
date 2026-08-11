@@ -25,7 +25,7 @@ export function Badge({
 }) {
   return (
     <span className={cn("q-pill", toneClasses[tone], className)}>
-      {children}
+      <span className="q-pill-label">{children}</span>
     </span>
   );
 }

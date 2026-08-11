@@ -36,7 +36,7 @@ export function Button({
       {...rest}
     >
       {busy ? <span aria-hidden className="q-btn-spin" /> : null}
-      {children}
+      <span className="q-btn-label">{children}</span>
       {combo ? <Kbd combo={combo} /> : null}
     </button>
   );
