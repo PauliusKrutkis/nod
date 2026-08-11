@@ -1,0 +1,100 @@
+/* The qi-tab family. The strip carries its own shrink, padding and bottom
+   rule (the host used to spell those as Tailwind utilities) so the bar can
+   render outside the app; .qi-tabs-end is the anchor class the Watch tooltip
+   wrapper needs to keep the margin-left: auto that would otherwise sit on the
+   button it wraps. */
+
+.qi-tabs {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+  align-items: center;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.qi-tabs-end {
+  margin-left: auto;
+}
+
+.qi-tab {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  padding: 9px 10px;
+  margin-bottom: -1px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  transition:
+    color 120ms ease,
+    border-color 120ms ease;
+}
+
+.qi-tab:hover {
+  color: var(--fg);
+}
+
+.qi-tab[data-state="active"] {
+  color: var(--fg);
+  border-bottom-color: var(--accent);
+}
+
+.qi-tab-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--faint);
+}
+
+.qi-tab:hover .qi-tab-count {
+  color: var(--muted);
+}
+
+.qi-tab[data-state="active"] .qi-tab-count {
+  color: var(--accent);
+}
+
+.qi-archived-toggle,
+.qi-watch-button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 5px 9px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  transition:
+    color 120ms ease,
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.qi-archived-toggle:hover,
+.qi-watch-button:hover {
+  color: var(--fg);
+  background: var(--surface-hi);
+}
+
+.qi-archived-toggle[data-state="active"] {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qi-tab,
+  .qi-archived-toggle,
+  .qi-watch-button {
+    transition: none;
+  }
+}

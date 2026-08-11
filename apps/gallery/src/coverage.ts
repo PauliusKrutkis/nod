@@ -57,13 +57,12 @@ export const CONTAINERS: Record<string, string> = {
     "viewed files from the store, thread/draft counts, and the remembered tree-vs-flat mode; its view is file-sidebar, catalogued in @nod/ui",
   "review-header-loader":
     "issue tracker, verdict rosters and the conversation count; its view is review-header, catalogued in @nod/ui",
+  inbox:
+    "inbox and subscribed queries, the archive ledger, tab visibility and the digit hotkeys; its views are inbox-tabs, inbox-zero, inbox-detail and pr-list-item in @nod/ui, leaving it the listbox that arranges them and the query's loading and error states",
+  "review-notifier":
+    "diffs each inbox poll against a localStorage ledger of announced PRs and owns the 12s expiry and the enter/esc scope; its card is review-toast, catalogued in @nod/ui",
+  "review-screen":
+    "the review route's whole state surface — detail query, comment mutations, cursor, selection, find, occurrences and every keyboard scope; the only markup it owns is the three-column frame and the sidebar scrim around file-sidebar, review-header, review-diff-pane, right-panel, submit-review-modal and pr-search",
 };
 
-export const PENDING = [
-  "inbox",
-  "review-diff-pane",
-  "review-list",
-  "review-notifier",
-  "review-screen",
-  "right-panel",
-];
+export const PENDING = ["review-diff-pane", "review-list", "right-panel"];
