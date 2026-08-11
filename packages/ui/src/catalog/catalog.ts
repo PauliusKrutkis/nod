@@ -12,11 +12,15 @@ import { imageDiffEntry } from "../image-diff/image-diff.fixtures.ts";
 import { kbdEntry } from "../kbd/kbd.fixtures.ts";
 import { overviewRulerEntry } from "../overview-ruler/overview-ruler.fixtures.ts";
 import { prListItemEntry } from "../pr-list-item/pr-list-item.fixtures.ts";
+import { purchasePromptEntry } from "../purchase-prompt/purchase-prompt.fixtures.ts";
+import { reviewScreenPendingEntry } from "../review-screen-pending/review-screen-pending.fixtures.ts";
 import { reviewVerdictsEntry } from "../review-verdicts/review-verdicts.fixtures.ts";
 import { searchPaneEntry } from "../search-pane/search-pane.fixtures.ts";
 import { spinnerEntry } from "../spinner/spinner.fixtures.ts";
 import { ticketTitleEntry } from "../ticket-title/ticket-title.fixtures.ts";
 import { tooltipEntry } from "../tooltip/tooltip.fixtures.ts";
+import { updatePromptEntry } from "../update-prompt/update-prompt.fixtures.ts";
+import { whatsNewEntry } from "../whats-new/whats-new.fixtures.ts";
 
 // biome-ignore lint/suspicious/noExplicitAny: heterogeneous registry; each entry is fully typed at its definition site
 export const catalog: Record<string, CatalogEntry<any>> = {
@@ -32,10 +36,14 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   "image-diff": imageDiffEntry,
   kbd: kbdEntry,
   "overview-ruler": overviewRulerEntry,
+  "purchase-prompt": purchasePromptEntry,
+  "review-screen-pending": reviewScreenPendingEntry,
   "review-verdicts": reviewVerdictsEntry,
   "pr-list-item": prListItemEntry,
   "search-pane": searchPaneEntry,
   spinner: spinnerEntry,
   "ticket-title": ticketTitleEntry,
   tooltip: tooltipEntry,
+  "update-prompt": updatePromptEntry,
+  "whats-new": whatsNewEntry,
 };

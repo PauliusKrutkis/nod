@@ -25,6 +25,14 @@ export const CONTAINERS: Record<string, string> = {
     "store and query wiring only; its view is search-pane, catalogued in @nod/ui",
   "image-diff-loader":
     "blob fetching only; its view is image-diff, catalogued in @nod/ui",
+  "purchase-prompt-loader":
+    "license query, activation command and once-per-launch dismissal; its card is purchase-prompt in @nod/ui",
+  "review-screen-pending-loader":
+    "reads the PR out of the inbox query cache; its shell is review-screen-pending in @nod/ui",
+  "update-prompt-loader":
+    "update feed, install command and the yield-to-purchase gate; its card is update-prompt in @nod/ui",
+  "whats-new-loader":
+    "version gate, releases query and markdown pipeline; its card is whats-new in @nod/ui",
 };
 
 export const PENDING = [
@@ -40,18 +48,14 @@ export const PENDING = [
   "issue-tracker-dialog",
   "markdown",
   "pr-search",
-  "purchase-prompt",
   "release-history",
   "review-diff-pane",
   "review-header",
   "review-list",
   "review-notifier",
   "review-screen",
-  "review-screen-pending",
   "right-panel",
   "submit-review-modal",
   "token-gate",
-  "update-prompt",
   "watch-repos-dialog",
-  "whats-new",
 ];

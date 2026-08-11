@@ -20,13 +20,13 @@ import { GlobalSearch } from "./components/global-search.tsx";
 import { HelpOverlay } from "./components/help-overlay.tsx";
 import { Inbox } from "./components/inbox/inbox.tsx";
 import { IssueTrackerDialog } from "./components/issue-tracker-dialog.tsx";
-import { PurchasePrompt } from "./components/purchase-prompt.tsx";
+import { PurchasePromptLoader } from "./components/purchase-prompt-loader.tsx";
 import { ReleaseHistory } from "./components/release-history.tsx";
 import { ReviewScreen } from "./components/review/review-screen.tsx";
 import { ReviewNotifier } from "./components/review-notifier.tsx";
 import { TokenGate } from "./components/token-gate.tsx";
-import { UpdatePrompt } from "./components/update-prompt.tsx";
-import { WhatsNew } from "./components/whats-new.tsx";
+import { UpdatePromptLoader } from "./components/update-prompt-loader.tsx";
+import { WhatsNewLoader } from "./components/whats-new-loader.tsx";
 import { useLicenseCommand } from "./hooks/use-license-command.ts";
 import type { Binding } from "./keyboard/types.ts";
 import { useHotkeys } from "./keyboard/use-hotkeys.ts";
@@ -258,10 +258,12 @@ export default function App() {
       </div>
 
       <div aria-live="polite" className="qb-stack qb-stack-host">
-        {showRouteChrome ? <UpdatePrompt /> : null}
-        {showRouteChrome ? <WhatsNew onShowHistory={openHistory} /> : null}
+        {showRouteChrome ? <UpdatePromptLoader /> : null}
+        {showRouteChrome ? (
+          <WhatsNewLoader onShowHistory={openHistory} />
+        ) : null}
         {showRouteChrome ? <ReviewNotifier /> : null}
-        {showRouteChrome ? <PurchasePrompt /> : null}
+        {showRouteChrome ? <PurchasePromptLoader /> : null}
         {!!toast && (
           <div className="qb-toast" role="alert">
             <span aria-hidden className="qb-toast-rail" />

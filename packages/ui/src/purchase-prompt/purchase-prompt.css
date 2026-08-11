@@ -1,0 +1,11 @@
+/* The restore note under the actions — the card's own line, on top of the
+   shared notice-card chrome. It carries the price indirectly (the button
+   above it does), so it wraps anywhere rather than widening the card. */
+
+.qb-update-note {
+  margin: 9px 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}

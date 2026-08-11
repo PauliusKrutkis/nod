@@ -176,6 +176,27 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "zero-counts",
     ],
   },
+  "purchase-prompt": {
+    fixtures: [
+      "already-licensed",
+      "error",
+      "overflow",
+      "trial-active",
+      "trial-expired",
+      "unknown-status",
+      "waiting",
+    ],
+  },
+  "review-screen-pending": {
+    fixtures: [
+      "cached",
+      "cold",
+      "error",
+      "error-overflow",
+      "overflow",
+      "unicode",
+    ],
+  },
   "review-verdicts": {
     fixtures: [
       "crowd-12",
@@ -225,6 +246,27 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "overflow",
       "rtl",
       "short",
+    ],
+  },
+  "update-prompt": {
+    fixtures: [
+      "error",
+      "ineligible",
+      "ineligible-purchasing",
+      "installing",
+      "overflow",
+      "ready-to-restart",
+      "with-notes",
+    ],
+  },
+  "whats-new": {
+    fixtures: [
+      "markup-as-text",
+      "no-notes",
+      "one-note",
+      "overflow",
+      "overflow-version",
+      "unicode",
     ],
   },
 };
