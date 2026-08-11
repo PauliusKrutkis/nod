@@ -19,6 +19,11 @@ import { defineConfig } from "@playwright/test";
  * retry, because webkit occasionally stalls a navigation deep into a long
  * sequential run — the retry's fresh worker always renders identically, so
  * pixel strictness is untouched.
+ *
+ * fullyParallel does not contradict the single worker: with workers: 1 the
+ * run stays strictly sequential on any one machine. It exists for CI's
+ * --shard, which otherwise splits by FILE — and every shot lives in one
+ * file, so one shard would run the whole suite while the rest ran nothing.
  */
 
 const port = Number(process.env.GALLERY_SHOTS_PORT ?? 1431);
@@ -33,6 +38,7 @@ export default defineConfig({
     reducedMotion: "reduce",
     viewport: { height: 800, width: 1280 },
   },
+  fullyParallel: true,
   retries: 1,
   workers: 1,
   webServer: {

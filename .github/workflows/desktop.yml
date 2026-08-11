@@ -1,0 +1,33 @@
+# Desktop webview checks: typecheck + vitest. Split from the old repo-wide
+# test.yml so a site-only or gallery-only PR doesn't pay for them; push to
+# main runs regardless of paths. Rust lives in rust.yml (its own paths),
+# e2e in e2e.yml.
+name: Desktop
+
+on:
+  pull_request:
+    paths:
+      - "apps/desktop/**"
+      - "!apps/desktop/src-tauri/**"
+      - "packages/ui/**"
+      - "packages/tokens/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/desktop.yml"
+      - ".github/actions/setup/**"
+  push:
+    branches: [main]
+
+concurrency:
+  group: desktop-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  frontend:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Typecheck
+        run: pnpm --filter @nod/desktop typecheck
+      - name: Unit tests
+        run: pnpm --filter @nod/desktop test

@@ -1,26 +1,41 @@
 # Frontend e2e (Playwright against vite with the mocked Tauri bridge).
+#
+# PRs run the chromium suite only. Push to main additionally runs the
+# webkit-perf project (the app ships on Tauri's WebKitGTK — Chromium-only
+# budgets can pass while the real engine lags) and the chromium-perf-prod
+# project (vite build + preview), so engine- and built-app-shaped regressions
+# are caught on main instead of being paid for on every PR iteration.
+# src-tauri is excluded: this suite mocks the bridge, Rust changes are
+# covered by cargo tests.
 name: E2E
 
 on:
   pull_request:
+    paths:
+      - "apps/desktop/**"
+      - "!apps/desktop/src-tauri/**"
+      - "packages/ui/**"
+      - "packages/tokens/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/e2e.yml"
+      - ".github/actions/setup/**"
   push:
     branches: [main]
+
+concurrency:
+  group: e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   e2e:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup
         with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile --trust-lockfile
-      - name: Install Playwright browsers
-        # webkit runs the perf specs (playwright.config.ts webkit-perf): the
-        # app ships on Tauri's WebKitGTK, and Chromium-only budgets can pass
-        # while the real engine lags.
-        run: pnpm exec playwright install --with-deps chromium webkit
+          browsers: ${{ github.event_name == 'push' && 'chromium webkit' || 'chromium' }}
       - name: Run e2e
         run: pnpm e2e
+        env:
+          E2E_WEBKIT: ${{ github.event_name == 'push' && '1' || '' }}
+          E2E_PROD_PERF: ${{ github.event_name == 'push' && '1' || '' }}

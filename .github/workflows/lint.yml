@@ -1,7 +1,6 @@
-# Ultracite (Biome) lint + format check, and Knip dead-code analysis.
-# Ultracite may fail until the codebase is brought into compliance — see
-# biome.jsonc and `pnpm check` locally. Knip runs via `pnpm knip`.
-
+# Ultracite (Biome) lint + format check, and Knip dead-code analysis. Both
+# are repo-wide and finish in under a minute, so this workflow keeps no path
+# filter — it is the one gate every PR runs.
 name: Lint
 
 on:
@@ -9,17 +8,16 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: lint-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   ultracite:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile --trust-lockfile
+      - uses: ./.github/actions/setup
       - name: Ultracite check
         run: pnpm check
 
@@ -27,11 +25,6 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile --trust-lockfile
+      - uses: ./.github/actions/setup
       - name: Knip
         run: pnpm knip

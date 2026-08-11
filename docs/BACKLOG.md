@@ -126,6 +126,16 @@ that keeps getting re-asked. Anything not listed was implementation detail;
 - **Release notes are curated at tag time** by the
   [release skill](../.claude/skills/release/SKILL.md), which is what makes the
   in-app "What's new" card show a real changelog.
+- **CI is path-filtered and PR-trimmed; main pays the full bill** (2026-08-11).
+  Workflows are split per area (desktop / rust / web / packages / e2e /
+  gallery shots) and run only when their paths change; PR e2e is
+  chromium-only, with the webkit-perf and prod-perf projects moved to
+  push-to-main (`E2E_WEBKIT` / `E2E_PROD_PERF` in the playwright config);
+  gallery shots shard 4× with one worker each, preserving the determinism
+  invariant; Playwright browsers restore from a version-keyed cache
+  (`.github/actions/setup`); superseded PR runs are cancelled. The skills
+  gate matches: slices run only the e2e specs they touch, never the full
+  suite per iteration.
 
 ---
 
@@ -1845,13 +1855,6 @@ quietly fixed.
       the repo; ship a PR-level context block with every ask and treat the
       selection as the *focus*, not the whole world. Repo-wide context is the
       ⏸ whole-repo-index item above, not this one.
-- [ ] 🟡 **CI too slow** — E2E (~5.5 min) runs in full on every PR regardless
-      of paths, gallery shots takes ~9 min (932 baselines, one worker),
-      Playwright browsers are reinstalled on every run, and nothing cancels
-      superseded runs. Split workflows per app/package with path filters, cache
-      browsers, run PR e2e on chromium only (webkit-perf + prod-perf on push
-      to main), shard the gallery, and add concurrency cancellation.
-
 ---
 
 ## Inbox (2026-08-09)

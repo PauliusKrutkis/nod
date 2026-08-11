@@ -22,8 +22,17 @@ Every PR produced by this skill MUST satisfy all of the following before it is o
    pnpm typecheck  # tsc --noEmit
    pnpm test       # vitest unit tests
    pnpm knip       # no dead/unwired code
-   pnpm e2e        # playwright, required when apps/desktop/src/ UI or apps/desktop/e2e/ changed
    ```
+   **E2e is scoped, never full, during slice delivery.** When the slice adds
+   or changes specs in `apps/desktop/e2e/`, run exactly those specs:
+   ```sh
+   pnpm --filter @nod/desktop exec playwright test <spec…> --project=chromium
+   ```
+   When it changes UI under `apps/desktop/src/` without touching specs, run
+   the specs that cover the changed surface — the same ones the UI evidence
+   is captured from. The full suite (webkit-perf and prod-perf included) runs
+   on push-to-main CI after merge; the user runs it pre-merge themselves when
+   a change warrants it.
    If `apps/desktop/src-tauri/` changed, also run `cargo test` in `apps/desktop/src-tauri/`.
 5. **knip must be green in every PR.** This is the anti-dead-code rule and it shapes how you slice (see "Slicing strategy").
 6. **UI PRs require visual evidence** (see "UI evidence").
