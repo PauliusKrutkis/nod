@@ -47,8 +47,6 @@ export const PENDING = [
   "add-comment-box",
   "ai-setup-dialog",
   "command-palette",
-  "comment-item",
-  "comment-thread",
   "composer-editor",
   "file-sidebar",
   "inbox",

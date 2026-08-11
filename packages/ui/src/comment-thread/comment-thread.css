@@ -1,0 +1,181 @@
+/* The inline thread card, moved out of the app's quiet.css apart from the
+   .dir-quiet scope the package does not need. The base .qf-thread rule also
+   stays behind: the diff writes it by hand around a pending comment and
+   around the open composer, and that surface is not catalogued yet.
+
+   What did not come with it is the reveal. The tool strip and the key hints
+   are hidden at rest and fade in on hover or focus-within of the thread, but
+   the same rules also serve the drawer's conversation rows and the diff's
+   keyboard-cursor state, so they stay with those surfaces. Here the strip
+   and the hints are simply visible, which is the only thing a specimen of a
+   thread can be.
+
+   The folded lead is a flex row whose snippet must ellipsize rather than
+   push the fold buttons off the card, which is what its min-width: 0 is
+   doing — the row's other children hold their size.
+
+   The fold control floats over the card's top right corner, so every comment
+   head inside a thread reserves its width: a long author fills the head row
+   and pushes the tool strip under the control otherwise, which is reachable
+   with the 39 characters a host login is allowed. Nothing moves for an
+   author that fits — the head is left-packed, and the reserve only takes
+   slack the row was not using. */
+
+.qf-thread {
+  position: relative;
+  margin: 6px 0 10px;
+  overflow: hidden;
+  font-family: var(--font-ui);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-xl);
+}
+
+.qf-thread-fold {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  padding: 2px 6px;
+  font-size: 11px;
+  color: var(--faint);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-md);
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.qf-thread-fold:hover {
+  color: var(--fg);
+  background: var(--surface-2);
+}
+
+.qf-thread-fold-corner {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  z-index: 1;
+}
+
+.qf-thread .qf-comment-head {
+  padding-right: 76px;
+}
+
+.qf-reply-btn {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  width: 100%;
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border-top: 1px solid var(--line);
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.qf-reply-btn:hover {
+  color: var(--fg);
+  background: var(--surface-2);
+}
+
+.qf-thread-actions {
+  display: flex;
+  gap: 2px;
+  border-top: 1px solid var(--line);
+}
+
+.qf-thread-actions .qf-reply-btn {
+  flex: 0 0 auto;
+  width: auto;
+  border-top: none;
+}
+
+.qf-resolve-btn {
+  flex: 0 0 auto;
+}
+
+.qf-resolve-btn:hover {
+  color: var(--add);
+}
+
+.qf-thread-collapsed {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding-right: 6px;
+}
+
+.qf-thread-collapsed-lead {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  padding: 8px 8px 8px 14px;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-lg);
+  transition: background-color 120ms ease;
+}
+
+.qf-thread-collapsed-lead:hover {
+  background: var(--surface-2);
+}
+
+.qf-thread-collapsed svg {
+  flex-shrink: 0;
+  color: var(--add);
+}
+
+.qf-thread-collapsed-open svg {
+  color: var(--muted);
+}
+
+.qf-thread-collapsed-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+  align-items: center;
+}
+
+.qf-resolved-tag {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--add);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.qf-resolved-snip {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+.qf-thread-resolved-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 14px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+}
+
+.qf-thread-resolved-bar svg {
+  color: var(--add);
+}

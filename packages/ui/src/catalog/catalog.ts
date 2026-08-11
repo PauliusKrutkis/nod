@@ -4,6 +4,8 @@ import { badgeEntry } from "../badge/badge.fixtures.ts";
 import { buttonEntry } from "../button/button.fixtures.ts";
 import { ciPillEntry } from "../ci-pill/ci-pill.fixtures.ts";
 import { codeCellEntry } from "../code-cell/code-cell.fixtures.ts";
+import { commentItemEntry } from "../comment-item/comment-item.fixtures.ts";
+import { commentThreadEntry } from "../comment-thread/comment-thread.fixtures.ts";
 import { commentToolsEntry } from "../comment-tools/comment-tools.fixtures.ts";
 import { findBarEntry } from "../find-bar/find-bar.fixtures.ts";
 import type { CatalogEntry } from "../fixtures/fixtures.ts";
@@ -34,6 +36,8 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   button: buttonEntry,
   "ci-pill": ciPillEntry,
   "code-cell": codeCellEntry,
+  "comment-item": commentItemEntry,
+  "comment-thread": commentThreadEntry,
   "comment-tools": commentToolsEntry,
   "find-bar": findBarEntry,
   "help-overlay": helpOverlayEntry,

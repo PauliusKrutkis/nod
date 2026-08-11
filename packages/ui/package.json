@@ -12,6 +12,8 @@
     "./catalog": "./src/catalog/catalog.ts",
     "./ci-pill": "./src/ci-pill/ci-pill.tsx",
     "./code-cell": "./src/code-cell/code-cell.tsx",
+    "./comment-item": "./src/comment-item/comment-item.tsx",
+    "./comment-thread": "./src/comment-thread/comment-thread.tsx",
     "./comment-tools": "./src/comment-tools/comment-tools.tsx",
     "./find-bar": "./src/find-bar/find-bar.tsx",
     "./fixtures": "./src/fixtures/fixtures.ts",

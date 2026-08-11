@@ -89,6 +89,38 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "whitespace",
     ],
   },
+  "comment-item": {
+    fixtures: [
+      "author-overflow",
+      "body-overflow",
+      "cjk",
+      "code-fence",
+      "empty-body",
+      "image-only",
+      "long",
+      "markup-as-text",
+      "no-timestamp",
+      "no-tools",
+      "own",
+      "reply",
+      "rtl",
+      "suggestion",
+      "typical",
+    ],
+  },
+  "comment-thread": {
+    fixtures: [
+      "crowd",
+      "long-chain",
+      "not-resolvable",
+      "overflow",
+      "own-buried",
+      "own-last",
+      "resolved-folded",
+      "single",
+      "unicode",
+    ],
+  },
   "comment-tools": {
     fixtures: [
       "chord",

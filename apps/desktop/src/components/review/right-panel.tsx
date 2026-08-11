@@ -20,6 +20,7 @@
 
 import { Avatar } from "@nod/ui/avatar";
 import { CiPill } from "@nod/ui/ci-pill";
+import { CommentBody } from "@nod/ui/comment-item";
 import { CommentTools } from "@nod/ui/comment-tools";
 import { Kbd } from "@nod/ui/kbd";
 import { TicketTitle } from "@nod/ui/ticket-title";
@@ -52,7 +53,6 @@ import type {
 } from "../../types.ts";
 import { Markdown } from "../markdown-loader.tsx";
 import { AddCommentBox, type AddCommentBoxHandle } from "./add-comment-box.tsx";
-import { CommentBody } from "./comment-item.tsx";
 
 export interface RightPanelHandle {
   openComposer: () => void;
@@ -636,6 +636,12 @@ function ConversationItem({
     onDelete?.({ commentId: id })?.catch(() => undefined);
   };
 
+  const renderMarkdown = (text: string) => (
+    <Markdown owner={owner} repo={repo}>
+      {text}
+    </Markdown>
+  );
+
   return (
     <div className="qf-convo-item" ref={ref}>
       <Avatar name={user} size={20} url={avatarUrl} />
@@ -657,14 +663,19 @@ function ConversationItem({
             />
           )}
         </div>
-        <CommentBody
-          body={body}
-          editing={editing}
-          onCancelEdit={onCancelEdit ?? noop}
-          onSubmitEdit={handleSubmitEdit}
-          owner={owner}
-          repo={repo}
-        />
+        {editing ? (
+          <AddCommentBox
+            autoFocus
+            initialMarkdown={body}
+            onCancel={onCancelEdit ?? noop}
+            onSubmit={handleSubmitEdit}
+            pending={false}
+            placeholder="Edit your comment…"
+            submitLabel="Save"
+          />
+        ) : (
+          <CommentBody body={body} renderMarkdown={renderMarkdown} />
+        )}
       </div>
     </div>
   );

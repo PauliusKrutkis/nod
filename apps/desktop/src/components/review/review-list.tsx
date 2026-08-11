@@ -1,6 +1,13 @@
 import { AskNote, type AskNoteProps } from "@nod/ui/ask-note";
 import { Avatar } from "@nod/ui/avatar";
 import { CodeCell } from "@nod/ui/code-cell";
+import {
+  CommentThread,
+  type EditRequest,
+  type ReplyRequest,
+  type ThreadComposerProps,
+  type ToggleRequest,
+} from "@nod/ui/comment-thread";
 import { Kbd } from "@nod/ui/kbd";
 import { Tooltip } from "@nod/ui/tooltip";
 import { useLatest } from "@nod/ui/use-latest";
@@ -48,12 +55,6 @@ import { useAppStore } from "../../store/app-store.ts";
 import type { AccountInfo, ChangedFile, PendingComment } from "../../types.ts";
 import { Markdown } from "../markdown-loader.tsx";
 import { AddCommentBox } from "./add-comment-box.tsx";
-import {
-  CommentThread,
-  type EditRequest,
-  type ReplyRequest,
-  type ToggleRequest,
-} from "./comment-thread.tsx";
 import { ImageDiffLoader } from "./image-diff-loader.tsx";
 
 /**
@@ -444,6 +445,7 @@ function measureMonoColWidth(host: HTMLElement): number {
 function MappedCommentThread({
   thread,
   filename,
+  ownLogin,
   replyPending,
   replyRequest,
   toggleRequest,
@@ -454,6 +456,7 @@ function MappedCommentThread({
 }: {
   thread: ReviewCommentsItem["threads"][number];
   filename: string;
+  ownLogin: string | undefined;
   replyPending: boolean;
   replyRequest: ReplyRequest | null;
   toggleRequest: ToggleRequest | null;
@@ -466,20 +469,29 @@ function MappedCommentThread({
   const handleHoverChange = (hovering: boolean) => {
     callbacks.onThreadHover(hovering ? { path: filename, rootId } : null);
   };
+  const renderComposer = (props: ThreadComposerProps) => (
+    <AddCommentBox autoFocus {...props} />
+  );
+  const renderMarkdown = (body: string) => (
+    <Markdown owner={owner} repo={repo}>
+      {body}
+    </Markdown>
+  );
 
   return (
     <CommentThread
       comments={thread}
+      composer={renderComposer}
       editRequest={editRequest}
       onDelete={callbacks.onDeleteComment}
       onEdit={callbacks.onEditComment}
       onHoverChange={handleHoverChange}
       onReply={callbacks.onReply}
       onResolve={callbacks.onResolveThread}
-      owner={owner}
+      ownLogin={ownLogin}
+      renderMarkdown={renderMarkdown}
       replyPending={replyPending}
       replyRequest={replyRequest}
-      repo={repo}
       toggleRequest={toggleRequest}
     />
   );
@@ -654,6 +666,7 @@ function CommentsBlock({
           filename={filename}
           key={thread[0].id}
           owner={owner}
+          ownLogin={activeAccount?.login}
           replyPending={replyPending}
           replyRequest={replyRequest}
           repo={repo}
