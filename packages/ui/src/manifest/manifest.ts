@@ -99,6 +99,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "no-tracker",
       "one-ticket",
       "overflow",
+      "repeated-separator",
       "trailing-slash",
       "unicode",
     ],

@@ -9,6 +9,10 @@
  * host opens the URL: onOpenTicket keeps this side of the boundary free of
  * Tauri, and receives the resolved href rather than the raw id so the template
  * rules stay in one place.
+ *
+ * Segments carry their position because a title repeats separators verbatim
+ * ("ABC-1 and ABC-2 and ABC-3" yields two identical text runs); keying the
+ * spans by their text made React see duplicate siblings.
  */
 import { Tooltip } from "../tooltip/tooltip.tsx";
 import "./ticket-title.css";
@@ -25,21 +29,22 @@ function ticketUrl(base: string, id: string): string {
 
 interface TitleSegment {
   kind: "text" | "ticket";
+  position: number;
   value: string;
 }
 
 function parseTitleSegments(title: string): TitleSegment[] {
   const parts = title.split(TICKET_RE);
   if (parts.length === 1) {
-    return [{ kind: "text", value: title }];
+    return [{ kind: "text", position: 0, value: title }];
   }
   const segments: TitleSegment[] = [];
   let expectTicket = false;
   for (const part of parts) {
     if (expectTicket) {
-      segments.push({ kind: "ticket", value: part });
+      segments.push({ kind: "ticket", position: segments.length, value: part });
     } else if (part) {
-      segments.push({ kind: "text", value: part });
+      segments.push({ kind: "text", position: segments.length, value: part });
     }
     expectTicket = !expectTicket;
   }
@@ -92,12 +97,12 @@ export function TicketTitle({
         segment.kind === "ticket" ? (
           <TicketLink
             id={segment.value}
-            key={`ticket-${segment.value}`}
+            key={`ticket-${segment.position}`}
             onOpenTicket={onOpenTicket}
             trackerBase={trackerBase}
           />
         ) : (
-          <span key={`text-${segment.value}`}>{segment.value}</span>
+          <span key={`text-${segment.position}`}>{segment.value}</span>
         )
       )}
     </>

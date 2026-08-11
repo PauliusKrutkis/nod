@@ -68,6 +68,15 @@ export const ticketTitleEntry = defineEntry(TicketTitle, {
       trackerBase: BASE,
     },
   },
+  "repeated-separator": {
+    props: {
+      onOpenTicket: noop,
+      title: "ABC-1 and ABC-2 and ABC-3 all land together",
+      trackerBase: BASE,
+    },
+    provenance:
+      "identical text runs between tickets used to key the spans by their text, so React saw duplicate siblings and warned it may drop one",
+  },
   "trailing-slash": {
     props: {
       onOpenTicket: noop,
