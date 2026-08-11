@@ -22,6 +22,11 @@
  * becomes a global hotkey (`s` = submit review…). The ⌘K url input takes the
  * caret the moment it appears through a stable callback ref, which must not
  * re-run on every keystroke's re-render.
+ *
+ * The suggestion tool inserts a real block, rendered like the shipped
+ * suggestion card and serialized to the ```suggestion fence both hosts apply
+ * natively. The caret lands at the end of the prefilled line — nothing
+ * pre-selected, it edits like code.
  */
 import { type Editor, Extension, type Extensions } from "@tiptap/core";
 import { Placeholder } from "@tiptap/extensions";
@@ -276,11 +281,6 @@ export function ComposerEditor({
     onUpdate: ({ editor: e }) => HANDLERS.get(e)?.emptyChange(e.isEmpty),
   });
 
-  /**
-   * A real block, rendered like the shipped suggestion card and serialized to
-   * the ```suggestion fence both hosts apply natively. The caret lands at the
-   * end of the prefilled line — nothing pre-selected, it edits like code.
-   */
   const insertSuggestion = () => {
     const line = suggestionText ?? "";
     editor

@@ -16,7 +16,10 @@
  * It never holds the composer open — the actions stay fire-and-forget, per
  * the optimistic-by-design contract in use-comments.ts. There is no error
  * state here for the same reason: a failed submit rolls back and flashes at
- * the mutation layer, and the composer's job is to keep the typed text.
+ * the mutation layer, and the composer's job is to keep the typed text. The
+ * lock is released after the try/catch rather than in a finally, because the
+ * React Compiler cannot lower try/catch/finally and the empty catch already
+ * guarantees the release is reached.
  *
  * Both button labels are caller text, so both clip: the mode labels through
  * their own span and the primary through Button's, which is why neither can
@@ -108,8 +111,6 @@ export function AddCommentBox({
     } catch {
       /* the mutation layer rolls back and flashes; keep the text */
     }
-    /* not a finally: React Compiler can't lower try/catch/finally, and the
-       empty catch already guarantees we reach this line */
     inFlightRef.current = false;
   };
 
