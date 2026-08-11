@@ -2,8 +2,10 @@
  * Three payloads decide what this renders: the draft (which the editor
  * parses), the two labels (caller text on buttons that must clip), and the
  * presence of a secondary action, which is what brings the segmented control
- * and its explanatory line. `overflow` combines the worst of all three,
- * because the footer only breaks when a long label meets a narrow panel.
+ * and its explanatory line. `overflow` is about the labels alone and keeps
+ * its draft short, so that the 280px shot contains the footer — which is the
+ * only thing a long label can break. An unbreakable run of text belongs to
+ * composer-editor's fixtures, since the surface below owns the wrapping.
  *
  * `now-mode` exists because the second half of the batch/now control is
  * otherwise unreachable from props — the mode is the composer's own state
@@ -33,8 +35,6 @@ const shared = {
   onSubmit: submit,
   pending: false,
 };
-
-const UNBREAKABLE = `sk-${"nod".repeat(660)}`;
 
 const LONG_DRAFT = [
   "The rename is mechanical — every call site that passed `attempts` now passes `maxAttempts`, and the compiler found all of them.",
@@ -72,10 +72,10 @@ export const addCommentBoxEntry = defineEntry(AddCommentBox, {
   overflow: {
     props: {
       ...shared,
-      initialMarkdown: `Rotate this, it is live: ${UNBREAKABLE}`,
+      initialMarkdown: "Rotate this, the key in the diff is live.",
       onSecondary: submit,
       secondaryLabel: "Post it to the pull request immediately",
-      submitLabel: "Add to this review and hold until submit",
+      submitLabel: "Add to this review and hold it until submit",
     },
   },
   "raw-html": {

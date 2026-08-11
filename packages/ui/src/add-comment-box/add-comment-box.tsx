@@ -183,7 +183,7 @@ export function AddCommentBox({
         ) : null}
 
         <div className="qa-actions">
-          <Button onClick={onCancel} variant="ghost">
+          <Button className="qa-cancel" onClick={onCancel} variant="ghost">
             Cancel
           </Button>
           <Button

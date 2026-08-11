@@ -36,7 +36,7 @@ const shared = {
   placeholder: "Leave a comment…  ⌘↵ to save",
 };
 
-const UNBREAKABLE = `sk-${"nod".repeat(660)}`;
+const UNBREAKABLE = `sk-${"nod".repeat(40)}`;
 
 const MARKDOWN = [
   "### What changed",

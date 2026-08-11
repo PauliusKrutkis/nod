@@ -7,10 +7,14 @@
    control caps at the panel width, each option may shrink below its content,
    the icon never does, and the text ellipsizes in its own min-width:0 span.
    Without that trio an "Add to review"-length label pushed the footer wider
-   than the 280px panel instead of truncating inside it. The radio itself is
-   visually hidden — it stays the focus target and the accessibility contract
-   — so the focus ring has to be drawn on the option around it, which is what
-   the :has rule does; a plain :focus-visible on a <label> can never match. */
+   than the 280px panel instead of truncating inside it. The action pair
+   shrinks for the same reason, and Cancel opts out — its label is fixed and
+   short, so there is never a reason to eat it to fit a caller's longer one.
+
+   The radio itself is visually hidden: it stays the focus target and the
+   accessibility contract, so the focus ring has to be drawn on the option
+   around it, which is what the :has rule does — a plain :focus-visible on a
+   <label> can never match. */
 
 .qa-inline {
   font-family: var(--font-ui);
@@ -97,9 +101,15 @@
 
 .qa-actions {
   display: flex;
+  min-width: 0;
+  max-width: 100%;
   gap: 8px;
   align-items: center;
   margin-left: auto;
+}
+
+.qa-cancel {
+  flex: none;
 }
 
 .qa-explain {
