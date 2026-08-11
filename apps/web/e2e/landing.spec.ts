@@ -12,6 +12,12 @@
 
 import { expect, type Page, test } from "@playwright/test";
 
+declare global {
+  interface Window {
+    peakConcurrentLoops: number;
+  }
+}
+
 const DOWNLOADS_URL_PATTERN = /\/downloads\/?$/;
 
 const HOMEBREW_URL_PATTERN = /\/downloads#homebrew$/;
@@ -21,6 +27,8 @@ const DOWNLOAD_LINK_PATTERN = /^Download/;
 const PLATFORM_NAME_PATTERN = /macOS|Windows|Linux/;
 
 const STABLE_FRAMES = 3;
+
+const SWEEP_STEP_PERCENT = 4;
 
 const START_DEMO_PATTERN = /try the real app/i;
 
@@ -204,16 +212,36 @@ test("never runs more than one loop at a time down the whole page", async ({
   page,
 }) => {
   // Before this was scoped to a single winner, a 1280x900 viewport ran two
-  // decoders at once and a tall one ran all three. A handful of sampled
-  // scroll offsets misses that: the overlap only exists over part of the
-  // page, so the sweep has to be fine enough to land inside it.
+  // decoders at once and a tall one ran all three. The overlap only exists
+  // over part of the page, so sampling a handful of scroll offsets can only
+  // ever report "not two just here". Recording the peak from a capture-phase
+  // play listener watches every transition instead: overlap needs a second
+  // frame to start while a first is running, and starting fires play. By the
+  // time that event's task runs, the pause loop that ran alongside it has
+  // already applied, so the count it reads is the settled one.
+  await page.addInitScript(() => {
+    window.peakConcurrentLoops = 0;
+    document.addEventListener(
+      "play",
+      () => {
+        const playing = [
+          ...document.querySelectorAll<HTMLVideoElement>(".show video"),
+        ].filter((video) => !video.paused).length;
+        window.peakConcurrentLoops = Math.max(
+          window.peakConcurrentLoops,
+          playing
+        );
+      },
+      true
+    );
+  });
   await page.goto("/");
 
   const playingCount = () =>
     page.evaluate(
       () =>
         [...document.querySelectorAll<HTMLVideoElement>(".show video")].filter(
-          (v) => !v.paused
+          (video) => !video.paused
         ).length
     );
 
@@ -223,16 +251,28 @@ test("never runs more than one loop at a time down the whole page", async ({
   await page.locator(".show video").first().scrollIntoViewIfNeeded();
   await expect.poll(playingCount).toBe(1);
 
-  let mostAtOnce = 0;
-  for (let percent = 0; percent <= 100; percent += 4) {
+  // `scroll-behavior: smooth` is set page-wide, so the two-argument scrollTo
+  // animates: each step would be read mid-flight, hundreds of pixels short of
+  // where the sweep claims to be, and reaching the foot of the page at all
+  // would depend on the animation happening to outrun the loop. Scrolling
+  // instantly and waiting for the observer to deliver — it reports after the
+  // frame callbacks, and play/pause set `paused` synchronously from there —
+  // parks each step exactly on the grid.
+  for (let percent = 0; percent <= 100; percent += SWEEP_STEP_PERCENT) {
     await page.evaluate((p) => {
-      scrollTo(0, (document.body.scrollHeight - innerHeight) * (p / 100));
+      scrollTo({
+        behavior: "instant",
+        top: (document.documentElement.scrollHeight - innerHeight) * (p / 100),
+      });
+      return new Promise<void>((resolve) => {
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => setTimeout(resolve, 0))
+        );
+      });
     }, percent);
-    await page.waitForTimeout(150);
-    mostAtOnce = Math.max(mostAtOnce, await playingCount());
   }
 
-  expect(mostAtOnce).toBe(1);
+  expect(await page.evaluate(() => window.peakConcurrentLoops)).toBe(1);
 });
 
 test("states the local-first qualities plainly", async ({ page }) => {

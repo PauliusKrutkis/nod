@@ -54,14 +54,20 @@ const { keys, title, body, scene, label } = Astro.props;
   // frame wins; ties keep whichever is earlier in the page, so a scroll that
   // parks two frames at equal height does not flicker between them. The
   // threshold list is what makes the ratios update at all — a single
-  // threshold only reports the crossing.
-  const MIN_RATIO = 0.25;
-  const THRESHOLDS = [0, 0.25, 0.5, 0.75, 1];
+  // threshold only reports its own crossing — and the grid is fine because a
+  // recorded ratio goes stale until the next one: too coarse and the frame
+  // that wins is the one that crossed most recently rather than the one most
+  // in view. The gate is a threshold too, so it is reported like the rest.
+  const MIN_PLAY_RATIO = 0.25;
+  const THRESHOLDS = [
+    MIN_PLAY_RATIO,
+    ...Array.from({ length: 11 }, (_, tenth) => tenth / 10),
+  ];
 
   const sync = () => {
     let winner: HTMLVideoElement | null = null;
     if (!reduced.matches) {
-      let best = MIN_RATIO;
+      let best = MIN_PLAY_RATIO;
       for (const video of videos) {
         const ratio = ratios.get(video) ?? 0;
         if (ratio > best) {
