@@ -57,6 +57,33 @@ test("mod+; drops the picked line into the open composer", async ({ page }) => {
   await shot(page, "canned-inserted");
 });
 
+test("a drawer composer left open behind a closed drawer does not take the line", async ({
+  page,
+}) => {
+  await openReview(page);
+
+  // Closing the drawer from its scrim leaves the box composing, so it stays
+  // mounted and laid out behind a panel that is only translated off-screen.
+  // Nothing else may be focused afterwards: a second composer taking focus
+  // would sit ahead of the stale one and hide the wrong answer.
+  await page.keyboard.press("Shift+C");
+  await expect(
+    page.getByRole("textbox", { name: "Comment on this pull request…" })
+  ).toBeFocused();
+  await page.getByRole("button", { name: "Close panel" }).click();
+
+  await page.keyboard.press("ControlOrMeta+;");
+  await expect(dialog(page).getByText("No comment box is open")).toBeVisible();
+
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Enter");
+  const drawerText = await page.evaluate(
+    () =>
+      document.querySelector(".qf-drawer [contenteditable]")?.textContent ?? ""
+  );
+  expect(drawerText).toBe("");
+});
+
 test("the line lands as its own paragraph under what is already typed", async ({
   page,
 }) => {

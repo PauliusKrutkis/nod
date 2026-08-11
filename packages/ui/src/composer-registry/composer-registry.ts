@@ -7,7 +7,10 @@
  * they unmount. That order survives a dialog stealing DOM focus, which a
  * `document.activeElement` lookup at insert time would not. The on-screen
  * check skips the collapsed drawer box: still mounted, but with nowhere to
- * show the text.
+ * show the text. It asks the panel rather than the layout — `aria-hidden` is
+ * what a drawer already sets when it closes, and the geometry says nothing,
+ * because the drawer collapses by translating itself off the viewport and
+ * stays laid out the whole time.
  */
 
 import type { Editor } from "@tiptap/core";
@@ -24,7 +27,7 @@ export function forgetComposer(editor: Editor): void {
 
 function isOnScreen(editor: Editor): boolean {
   const dom = editor.view.dom;
-  return dom.isConnected && dom.offsetParent !== null;
+  return dom.isConnected && dom.closest('[aria-hidden="true"]') === null;
 }
 
 /**
