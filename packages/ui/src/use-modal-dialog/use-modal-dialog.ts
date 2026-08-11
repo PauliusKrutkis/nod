@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useLatest } from "./use-latest.ts";
+import { useLatest } from "../use-latest/use-latest.ts";
 
 function isBackdropPointer(
   dialog: HTMLDialogElement,

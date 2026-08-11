@@ -8,18 +8,18 @@
     "./avatar": "./src/avatar/avatar.tsx",
     "./badge": "./src/badge/badge.tsx",
     "./button": "./src/button/button.tsx",
-    "./catalog": "./src/catalog.ts",
-    "./fixtures": "./src/fixtures.ts",
-    "./fuzzy": "./src/fuzzy.ts",
+    "./catalog": "./src/catalog/catalog.ts",
+    "./fixtures": "./src/fixtures/fixtures.ts",
+    "./fuzzy": "./src/fuzzy/fuzzy.ts",
     "./highlight-indices": "./src/highlight-indices/highlight-indices.tsx",
     "./kbd": "./src/kbd/kbd.tsx",
-    "./manifest": "./src/manifest.ts",
+    "./manifest": "./src/manifest/manifest.ts",
     "./search-pane": "./src/search-pane/search-pane.tsx",
     "./spinner": "./src/spinner/spinner.tsx",
     "./styles.css": "./src/styles.css",
-    "./time": "./src/time.ts",
-    "./use-latest": "./src/use-latest.ts",
-    "./use-modal-dialog": "./src/use-modal-dialog.ts"
+    "./time": "./src/time/time.ts",
+    "./use-latest": "./src/use-latest/use-latest.ts",
+    "./use-modal-dialog": "./src/use-modal-dialog/use-modal-dialog.ts"
   },
   "scripts": {
     "test": "vitest run"

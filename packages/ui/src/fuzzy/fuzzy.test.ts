@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { type FuzzyResult, fuzzyMatch, fuzzyMatchFields } from "./fuzzy.ts";
+import {
+  type FuzzyResult,
+  fuzzyMatch,
+  fuzzyMatchFields,
+} from "./fuzzy.ts";
 
 function mustMatch(query: string, text: string): FuzzyResult {
   const m = fuzzyMatch(query, text);

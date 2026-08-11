@@ -15,8 +15,8 @@
 import { cleanup, render } from "@testing-library/react";
 import { createElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";
+import { catalogManifest } from "../manifest/manifest.ts";
 import { catalog } from "./catalog.ts";
-import { catalogManifest } from "./manifest.ts";
 
 afterEach(cleanup);
 
@@ -37,9 +37,9 @@ describe("manifest parity", () => {
   });
 });
 
-const componentFiles = Object.keys(import.meta.glob("./*/*.tsx")).map(
-  (path) => path.split("/")[1] ?? ""
-);
+const componentFiles = Object.keys(import.meta.glob("../*/*.tsx"))
+  .filter((path) => !path.endsWith(".test.tsx"))
+  .map((path) => path.split("/")[1] ?? "");
 
 describe("catalog coverage", () => {
   it.each(componentFiles)(

@@ -5,7 +5,7 @@
  * that actually breaks under real reviewer lists.
  */
 
-import { defineEntry } from "../fixtures.ts";
+import { defineEntry } from "../fixtures/fixtures.ts";
 import { Avatar } from "./avatar.tsx";
 
 export const avatarEntry = defineEntry(Avatar, {

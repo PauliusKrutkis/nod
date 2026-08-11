@@ -4,7 +4,7 @@
  * string, and content that looks like markup and must stay text.
  */
 
-import { defineEntry } from "../fixtures.ts";
+import { defineEntry } from "../fixtures/fixtures.ts";
 import { Badge } from "./badge.tsx";
 
 const UNBROKEN_LABEL = "changed-".repeat(40);

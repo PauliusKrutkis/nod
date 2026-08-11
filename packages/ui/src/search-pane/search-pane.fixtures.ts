@@ -5,7 +5,7 @@
  * unbreakable branch ref). updatedAt values are fixed dates far in the past
  * so relative times stay stable across capture runs.
  */
-import { defineEntry } from "../fixtures.ts";
+import { defineEntry } from "../fixtures/fixtures.ts";
 import { type SearchablePr, SearchPane } from "./search-pane.tsx";
 
 const noop = () => {

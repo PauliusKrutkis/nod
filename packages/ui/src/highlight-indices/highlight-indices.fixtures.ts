@@ -3,7 +3,7 @@
  * that disagree with the text: out of range, empty, or over multi-byte
  * characters where slicing by the wrong unit would split a glyph.
  */
-import { defineEntry } from "../fixtures.ts";
+import { defineEntry } from "../fixtures/fixtures.ts";
 import { HighlightIndices } from "./highlight-indices.tsx";
 
 export const highlightIndicesEntry = defineEntry(HighlightIndices, {

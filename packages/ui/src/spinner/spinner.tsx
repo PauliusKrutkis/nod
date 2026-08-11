@@ -1,4 +1,4 @@
-import { cn } from "../cn.ts";
+import { cn } from "../cn/cn.ts";
 import "./spinner.css";
 
 export function Spinner({

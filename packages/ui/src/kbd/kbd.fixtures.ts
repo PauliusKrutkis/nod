@@ -4,7 +4,7 @@
  * rest walk the descriptor grammar: named caps, single letters, multi-cap
  * chords, and words the cap map has never heard of.
  */
-import { defineEntry } from "../fixtures.ts";
+import { defineEntry } from "../fixtures/fixtures.ts";
 import { Kbd } from "./kbd.tsx";
 
 export const kbdEntry = defineEntry(Kbd, {

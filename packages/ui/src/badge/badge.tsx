@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { cn } from "../cn.ts";
+import { cn } from "../cn/cn.ts";
 import "./badge.css";
 
 type Tone = "default" | "accent" | "success" | "danger" | "warning" | "muted";

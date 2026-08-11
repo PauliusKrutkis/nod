@@ -5,7 +5,7 @@
  * put on primary actions.
  */
 
-import { defineEntry } from "../fixtures.ts";
+import { defineEntry } from "../fixtures/fixtures.ts";
 import { Button } from "./button.tsx";
 
 const UNBROKEN_LABEL = `Approve-${"and-merge-".repeat(24)}now`;
