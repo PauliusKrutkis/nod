@@ -1,0 +1,214 @@
+/* The pending shell's own class family. The desktop painted this screen with
+   Tailwind utilities plus the review screen's shared .qf- rules; neither
+   travels — utilities have no build in this package, and the .qf- family
+   still belongs to the screens that stayed behind. The values below are
+   those two sources resolved into one sheet, so the shell keeps the real
+   screen's proportions: a 300px file column, the same header gradient, the
+   same muted meta row.
+
+   Every text block states its own margins. The app resets them through
+   Tailwind's preflight and this package cannot assume a host does.
+
+   The file column is 300px, but never more than 60% of what it is given:
+   the desktop window has a floor of 900px so that cap never binds there,
+   while below it the column would otherwise swallow the frame whole and
+   push the pane it is announcing off screen entirely. */
+
+.qrp-root {
+  position: relative;
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.qrp-side {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 300px;
+  max-width: 60%;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+}
+
+.qrp-side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+}
+
+.qrp-side-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.qrp-side-body {
+  padding: 4px 12px;
+}
+
+.qrp-side-bar {
+  height: 17px;
+  margin: 10px 8px;
+}
+
+.qrp-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg);
+}
+
+.qrp-header {
+  flex-shrink: 0;
+  padding: 12px 24px;
+  background: linear-gradient(180deg, var(--surface-2), var(--bg));
+  border-bottom: 1px solid var(--line);
+}
+
+.qrp-title {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fg);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+
+.qrp-sub {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px;
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.qrp-sub > * {
+  flex-shrink: 0;
+}
+
+.qrp-num {
+  font-family: var(--font-mono);
+  color: var(--faint);
+}
+
+.qrp-dot {
+  color: var(--faint);
+}
+
+.qrp-muted {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qrp-head-bar {
+  width: 340px;
+  max-width: 100%;
+  height: 16px;
+}
+
+.qrp-head-bar-sub {
+  width: 190px;
+  max-width: 100%;
+  height: 11px;
+  margin-top: 9px;
+}
+
+.qrp-body {
+  flex: 1;
+  min-width: 0;
+  padding: 20px 24px;
+  overflow: hidden;
+}
+
+.qrp-body-bar {
+  height: 12px;
+  margin: 11px 0;
+}
+
+.qrp-skel {
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 25%,
+    var(--surface-hi) 50%,
+    var(--surface-2) 75%
+  );
+  background-size: 200% 100%;
+  border-radius: var(--r-md);
+  animation: qrp-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes qrp-shimmer {
+  from {
+    background-position: 180% 0;
+  }
+  to {
+    background-position: -20% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qrp-skel {
+    background: var(--surface-2);
+    animation: none;
+  }
+}
+
+.qrp-error {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0 24px;
+  text-align: center;
+}
+
+.qrp-error-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--del);
+}
+
+.qrp-error-detail {
+  max-width: 28rem;
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.qrp-error-back {
+  padding: 6px 12px;
+  font-size: 14px;
+  color: var(--fg);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+
+.qrp-error-back:hover {
+  background: var(--surface-hi);
+}
+
+.qrp-error-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--faint);
+}

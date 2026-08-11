@@ -95,7 +95,7 @@ import { PrSearch } from "./pr-search.tsx";
 import { ReviewDiffPane } from "./review-diff-pane.tsx";
 import { ReviewHeader } from "./review-header.tsx";
 import type { MarkSpec, ReviewListHandle } from "./review-list.tsx";
-import { ReviewScreenPending } from "./review-screen-pending.tsx";
+import { ReviewScreenPendingLoader } from "./review-screen-pending-loader.tsx";
 import { RightPanel, type RightPanelHandle } from "./right-panel.tsx";
 import { SubmitReviewModal } from "./submit-review-modal.tsx";
 
@@ -941,7 +941,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
 
   if (!(detail && pr)) {
     return (
-      <ReviewScreenPending
+      <ReviewScreenPendingLoader
         error={error}
         goInbox={goInbox}
         isError={isError}

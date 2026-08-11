@@ -1,0 +1,124 @@
+/* The shell the three launch-time cards share — purchase-prompt, whats-new
+   and update-prompt are the same object with a different icon, body and
+   pair of actions, so the chrome lives once here and each component's own
+   sheet adds only what is unique to it. Moved out of the desktop's
+   quiet.css, where these rules were already a single .qb-update family
+   serving all three; class names are unchanged so the app renders
+   identically.
+
+   Text here is unbounded (a version string, a price, a backend error), so
+   every text block wraps anywhere rather than pushing the card wide, and the
+   header's version chip ellipsizes against a title that never shrinks. */
+
+.qb-update {
+  display: flex;
+  gap: 12px;
+  padding: 13px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-2xl);
+  box-shadow: 0 18px 48px -24px rgba(0, 0, 0, 0.7);
+  animation: q-rise 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qb-update {
+    animation: none;
+  }
+}
+
+@keyframes q-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.qb-update-icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: var(--r-lg);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+
+.qb-update-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.qb-update-head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.qb-update-title {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.qb-update-ver {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  color: var(--faint);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qb-update-text {
+  max-height: 6rem;
+  margin: 3px 0 0;
+  overflow-y: auto;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.qb-update-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 11px;
+}
+
+.qb-update-primary {
+  min-width: 0;
+  padding: 6px 11px;
+  font-size: 12px;
+}
+
+.qb-update-later {
+  flex-shrink: 0;
+  padding: 6px 4px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+}
+
+.qb-update-later:hover:not(:disabled) {
+  color: var(--fg);
+}
+
+.qb-update-later:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.qb-update-err {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--del);
+  overflow-wrap: anywhere;
+}
