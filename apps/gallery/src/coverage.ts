@@ -7,7 +7,9 @@
  * The gallery rail derives its "not catalogued yet" section from PENDING —
  * the list on screen is the list that gates, never a hand-maintained copy.
  */
-const componentModules = import.meta.glob("../components/**/*.tsx");
+const componentModules = import.meta.glob(
+  "../../desktop/src/components/**/*.tsx"
+);
 
 const names: string[] = [];
 for (const path of Object.keys(componentModules)) {

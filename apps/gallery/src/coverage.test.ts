@@ -4,7 +4,7 @@
  * list carries a name whose file is gone. Failure messages name the
  * component, because the fix is always "classify (or catalog) this one".
  */
-import { catalog } from "@nod/ui";
+import { catalog } from "@nod/ui/catalog";
 import { describe, expect, it } from "vitest";
 import { CONTAINERS, desktopComponentNames, PENDING } from "./coverage.ts";
 

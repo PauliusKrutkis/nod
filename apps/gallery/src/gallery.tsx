@@ -1,7 +1,8 @@
 /**
- * The component gallery — a dev-only surface, never part of a release build
- * (main.tsx mounts it behind import.meta.env.DEV, so the chunk is
- * tree-shaken out of production).
+ * The component gallery — its own dev-only app, never deployed or shipped.
+ * It runs on the browser for iteration and in the desktop's Tauri shell for
+ * the engine of record (the desktop's gallery:desktop script points the
+ * WebKitGTK webview at this app's port).
  *
  * It renders the REAL components from @nod/ui under their catalogued
  * fixtures; there is no parallel mock to drift the way the deleted
@@ -21,7 +22,9 @@
  * the list that gates. Dialog entries mount a real modal <dialog> in the top
  * layer, so their frame manages open state and offers a reopen control.
  */
-import { Button, catalog, Kbd } from "@nod/ui";
+import { Button } from "@nod/ui/button";
+import { catalog } from "@nod/ui/catalog";
+import { Kbd } from "@nod/ui/kbd";
 import { useEffect, useState } from "react";
 import { PENDING } from "./coverage.ts";
 import {

@@ -5,7 +5,7 @@
  * fixture × theme. What the specimens look like is the screenshot suite's
  * job, not this file's.
  */
-import { catalog } from "@nod/ui";
+import { catalog } from "@nod/ui/catalog";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Gallery } from "./gallery.tsx";

@@ -1,0 +1,26 @@
+/* App-level ground the packages deliberately do not provide: fonts are an
+   app choice (the gallery matches the desktop's static Inter + Geist Mono),
+   and the body paints the Quiet ground from @nod/tokens so specimens sit on
+   the same canvas as the app they describe. */
+
+:root {
+  --font-ui: Inter, system-ui, sans-serif;
+  --font-mono:
+    "Geist Mono", "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Monaco,
+    monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  color: var(--fg);
+  background: var(--bg);
+}
