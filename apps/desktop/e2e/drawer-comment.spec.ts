@@ -1,5 +1,8 @@
 import { setupApp } from "./bridge.ts";
-import { DETAIL_WITH_OWN_COMMENT } from "./fixtures.ts";
+import {
+  DETAIL_LONG_CONVERSATION,
+  DETAIL_WITH_OWN_COMMENT,
+} from "./fixtures.ts";
 import { expect, test } from "./test.ts";
 
 test.use({ permissions: ["clipboard-read", "clipboard-write"] });
@@ -131,6 +134,47 @@ test("shift+c opens the composer focused, from the diff or the open drawer", asy
   await page.keyboard.press("Shift+c");
   await expect(page.locator("aside.qf-drawer-open")).toHaveCount(1);
   await expect(editor).toBeFocused();
+});
+
+test("a posted comment is scrolled into view, not left below the fold", async ({
+  page,
+}) => {
+  await setupApp(page, {
+    detail: DETAIL_LONG_CONVERSATION,
+    hangIssueComment: true,
+  });
+  await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
+
+  await page.keyboard.press("Shift+c");
+  const box = page.getByRole("textbox", {
+    name: "Comment on this pull request…",
+  });
+  await expect(box).toBeFocused();
+
+  const body = page.locator(".qf-drawer-body");
+  await expect(body).toHaveJSProperty("scrollTop", 0);
+  expect(
+    await body.evaluate((el) => el.scrollHeight > el.clientHeight)
+  ).toBeTruthy();
+
+  await box.fill("Ship it once CI is green.");
+  await page.keyboard.press("ControlOrMeta+Enter");
+
+  const posted = page
+    .locator(".qf-convo-item")
+    .filter({ hasText: "Ship it once CI is green." });
+  await expect(posted).toBeInViewport();
+
+  const clippedPx = await posted.evaluate((el) => {
+    const item = el.getBoundingClientRect();
+    const host = (
+      el.closest(".qf-drawer-body") as HTMLElement
+    ).getBoundingClientRect();
+    return (
+      Math.max(0, item.bottom - host.bottom) + Math.max(0, host.top - item.top)
+    );
+  });
+  expect(clippedPx).toBeLessThan(1);
 });
 
 test("copy is offered on every conversation comment, not just your own", async ({

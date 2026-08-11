@@ -363,6 +363,22 @@ export const DETAIL_WITH_OWN_COMMENT = {
 };
 
 /**
+ * DETAIL with a conversation long enough to overflow the drawer body at the
+ * default viewport, so a freshly posted comment lands below the fold unless
+ * the drawer scrolls it into view.
+ */
+export const DETAIL_LONG_CONVERSATION = {
+  ...DETAIL,
+  issueComments: Array.from({ length: 14 }, (_, i) => ({
+    body: `Round ${i + 1} of the discussion, with enough text to take a couple of lines in the drawer.`,
+    createdAt: `2026-07-02T08:${String(i).padStart(2, "0")}:00Z`,
+    id: 400 + i,
+    user: i % 2 === 0 ? "carol" : "dave",
+    userAvatarUrl: "",
+  })),
+};
+
+/**
  * DETAIL's thread (root 100) with a reply from the signed-in fixture user
  * ("me", id 150) followed by another reply from a third party (id 151) — the
  * shift+e hint chip only shows on your comment when it is still the
