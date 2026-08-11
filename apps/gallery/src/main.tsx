@@ -1,3 +1,11 @@
+/**
+ * Mounting waits for the webfonts. Specimens that measure themselves at mount
+ * — an input that scrolls a long value into view, anything sized from text —
+ * otherwise settle against fallback metrics and reflow when Inter arrives,
+ * which reads as a flaky screenshot on whichever platform loses the race.
+ * Awaiting fonts here fixes it for every specimen at once, rather than each
+ * capture waiting after the fact, by which point the mount has happened.
+ */
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { Gallery } from "./gallery.tsx";
@@ -11,8 +19,14 @@ import "@nod/tokens/tokens.css";
 import "@nod/ui/styles.css";
 import "./base.css";
 
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <React.StrictMode>
-    <Gallery />
-  </React.StrictMode>
+const root = ReactDOM.createRoot(
+  document.getElementById("root") as HTMLElement
 );
+
+document.fonts.ready.then(() => {
+  root.render(
+    <React.StrictMode>
+      <Gallery />
+    </React.StrictMode>
+  );
+});

@@ -12,6 +12,10 @@
  * Dialog entries render inline in the frame like everything else, so every
  * cell is a frame shot and the narrow rule applies uniformly; the modal
  * variant is a gallery interaction, not a capture target.
+ *
+ * Waiting for the frame is the whole readiness contract: the app itself
+ * mounts only once the webfonts have loaded (src/main.tsx), so a frame on
+ * screen means the specimen already measured itself against final metrics.
  */
 import { catalogManifest } from "@nod/ui/manifest";
 import { expect, test } from "@playwright/test";
@@ -39,7 +43,7 @@ for (const [component, entry] of Object.entries(catalogManifest)) {
 for (const cell of cells) {
   test(captureName(cell), async ({ page }) => {
     await page.goto(`/${formatGalleryHash(cell)}`);
-    await page.evaluate(() => document.fonts.ready);
+    await page.locator("[data-frame]").first().waitFor();
     await expect(page.locator("[data-frame]")).toHaveScreenshot(
       captureName(cell),
       { animations: "disabled" }
