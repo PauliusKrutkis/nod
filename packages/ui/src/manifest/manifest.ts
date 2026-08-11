@@ -89,6 +89,20 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "whitespace",
     ],
   },
+  "find-bar": {
+    fixtures: [
+      "case-sensitive",
+      "closed",
+      "count-4-digit",
+      "empty-query",
+      "markup-as-text",
+      "no-matches",
+      "one-match",
+      "overflow",
+      "typical",
+      "unicode",
+    ],
+  },
   "highlight-indices": {
     fixtures: ["cjk", "empty-text", "every", "none", "out-of-range", "typical"],
   },
@@ -116,6 +130,31 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "named",
       "single",
       "unknown-word",
+    ],
+  },
+  "overview-ruler": {
+    fixtures: [
+      "all-unmeasured",
+      "crowd-500",
+      "current-out-of-range",
+      "edges",
+      "empty",
+      "occurrence",
+      "single",
+      "typical",
+      "unmeasured",
+    ],
+  },
+  "review-verdicts": {
+    fixtures: [
+      "crowd-12",
+      "empty",
+      "markup-as-text",
+      "mixed",
+      "no-avatar",
+      "one-approval",
+      "overflow",
+      "unicode",
     ],
   },
   "search-pane": {

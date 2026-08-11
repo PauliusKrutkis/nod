@@ -5,6 +5,8 @@
  * props, typed off ReviewList's own prop contract so the two cannot drift.
  */
 
+import { FindBar } from "@nod/ui/find-bar";
+import { OverviewRuler } from "@nod/ui/overview-ruler";
 import type React from "react";
 import type { ComponentProps } from "react";
 import type { FindMatch } from "../../lib/find-in-diff.ts";
@@ -15,8 +17,6 @@ import type {
 import { navKey } from "../../lib/review-items.ts";
 import type { getReviewMemory } from "../../lib/review-memory.ts";
 import type { PullRequest } from "../../types.ts";
-import { FindBar } from "./find-bar.tsx";
-import { OverviewRuler } from "./overview-ruler.tsx";
 import { ReviewList, type ReviewListHandle } from "./review-list.tsx";
 
 type ListProps = ComponentProps<typeof ReviewList>;

@@ -8,6 +8,7 @@
 
 import { Avatar } from "@nod/ui/avatar";
 import { Kbd } from "@nod/ui/kbd";
+import { ReviewVerdicts } from "@nod/ui/review-verdicts";
 import { TicketTitle } from "@nod/ui/ticket-title";
 import { Tooltip } from "@nod/ui/tooltip";
 import { Check, GitBranch, PanelLeft } from "lucide-react";
@@ -15,6 +16,7 @@ import { useEffect, useRef, useState } from "react";
 import { copyTextToClipboard } from "../../lib/clipboard.ts";
 import { cn } from "../../lib/cn.ts";
 import { openExternal } from "../../lib/open-external.ts";
+import { aggregateReviewVerdicts } from "../../lib/reviews.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type {
   CiStatus,
@@ -22,7 +24,6 @@ import type {
   PullRequestDetail,
   ReviewSummary,
 } from "../../types.ts";
-import { ReviewVerdicts } from "./review-verdicts.tsx";
 
 export function ReviewHeader({
   detail,
@@ -50,6 +51,8 @@ export function ReviewHeader({
   const trackerBase = useAppStore((s) =>
     s.activeAccountId ? s.issueTrackers[s.activeAccountId] : undefined
   );
+
+  const { approved, changesRequested } = aggregateReviewVerdicts(reviews);
 
   const stateClass = resolvePrStateClass(pr);
   const stateLabel = resolvePrStateLabel(pr);
@@ -120,7 +123,10 @@ export function ReviewHeader({
       </div>
 
       <div className="qf-header-actions flex shrink-0 items-center gap-4">
-        <ReviewVerdicts reviews={reviews} />
+        <ReviewVerdicts
+          approved={approved}
+          changesRequested={changesRequested}
+        />
         <Tooltip combo="i" label={infoTitle}>
           <button
             aria-pressed={rightOpen}

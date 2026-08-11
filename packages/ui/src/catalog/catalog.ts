@@ -4,10 +4,13 @@ import { badgeEntry } from "../badge/badge.fixtures.ts";
 import { buttonEntry } from "../button/button.fixtures.ts";
 import { ciPillEntry } from "../ci-pill/ci-pill.fixtures.ts";
 import { codeCellEntry } from "../code-cell/code-cell.fixtures.ts";
+import { findBarEntry } from "../find-bar/find-bar.fixtures.ts";
 import type { CatalogEntry } from "../fixtures/fixtures.ts";
 import { highlightIndicesEntry } from "../highlight-indices/highlight-indices.fixtures.ts";
 import { imageDiffEntry } from "../image-diff/image-diff.fixtures.ts";
 import { kbdEntry } from "../kbd/kbd.fixtures.ts";
+import { overviewRulerEntry } from "../overview-ruler/overview-ruler.fixtures.ts";
+import { reviewVerdictsEntry } from "../review-verdicts/review-verdicts.fixtures.ts";
 import { searchPaneEntry } from "../search-pane/search-pane.fixtures.ts";
 import { spinnerEntry } from "../spinner/spinner.fixtures.ts";
 import { ticketTitleEntry } from "../ticket-title/ticket-title.fixtures.ts";
@@ -21,9 +24,12 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   button: buttonEntry,
   "ci-pill": ciPillEntry,
   "code-cell": codeCellEntry,
+  "find-bar": findBarEntry,
   "highlight-indices": highlightIndicesEntry,
   "image-diff": imageDiffEntry,
   kbd: kbdEntry,
+  "overview-ruler": overviewRulerEntry,
+  "review-verdicts": reviewVerdictsEntry,
   "search-pane": searchPaneEntry,
   spinner: spinnerEntry,
   "ticket-title": ticketTitleEntry,
