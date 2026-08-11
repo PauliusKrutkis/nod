@@ -1,3 +1,4 @@
+import { addCommentBoxEntry } from "../add-comment-box/add-comment-box.fixtures.ts";
 import { aiSetupDialogEntry } from "../ai-setup-dialog/ai-setup-dialog.fixtures.ts";
 import { askNoteEntry } from "../ask-note/ask-note.fixtures.ts";
 import { avatarEntry } from "../avatar/avatar.fixtures.ts";
@@ -9,6 +10,7 @@ import { commandPaletteEntry } from "../command-palette/command-palette.fixtures
 import { commentItemEntry } from "../comment-item/comment-item.fixtures.ts";
 import { commentThreadEntry } from "../comment-thread/comment-thread.fixtures.ts";
 import { commentToolsEntry } from "../comment-tools/comment-tools.fixtures.ts";
+import { composerEditorEntry } from "../composer-editor/composer-editor.fixtures.ts";
 import { findBarEntry } from "../find-bar/find-bar.fixtures.ts";
 import type { CatalogEntry } from "../fixtures/fixtures.ts";
 import { helpOverlayEntry } from "../help-overlay/help-overlay.fixtures.ts";
@@ -34,6 +36,7 @@ import { whatsNewEntry } from "../whats-new/whats-new.fixtures.ts";
 
 // biome-ignore lint/suspicious/noExplicitAny: heterogeneous registry; each entry is fully typed at its definition site
 export const catalog: Record<string, CatalogEntry<any>> = {
+  "add-comment-box": addCommentBoxEntry,
   "ai-setup-dialog": aiSetupDialogEntry,
   "ask-note": askNoteEntry,
   avatar: avatarEntry,
@@ -45,6 +48,7 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   "comment-item": commentItemEntry,
   "comment-thread": commentThreadEntry,
   "comment-tools": commentToolsEntry,
+  "composer-editor": composerEditorEntry,
   "find-bar": findBarEntry,
   "help-overlay": helpOverlayEntry,
   "highlight-indices": highlightIndicesEntry,

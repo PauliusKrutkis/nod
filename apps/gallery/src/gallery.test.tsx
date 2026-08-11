@@ -120,6 +120,7 @@ describe("gallery", () => {
     const find = screen.getByLabelText("Find a component");
     fireEvent.change(find, { target: { value: "b" } });
     fireEvent.keyDown(find, { key: "ArrowDown" });
+    fireEvent.keyDown(find, { key: "ArrowDown" });
     fireEvent.keyDown(find, { key: "Enter" });
     expect(window.location.hash).toContain("/button/");
   });

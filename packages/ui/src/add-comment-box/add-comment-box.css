@@ -1,0 +1,110 @@
+/* The composer's footer: the batch/now segmented control, the action pair,
+   and the line of explanatory text under them. The control is this
+   component's own (.qa-mode) rather than the app sheet's .qa-seg, which
+   stays behind for the token screen still using it.
+
+   Its labels are caller text, so the whole strip is built to clip: the
+   control caps at the panel width, each option may shrink below its content,
+   the icon never does, and the text ellipsizes in its own min-width:0 span.
+   Without that trio an "Add to review"-length label pushed the footer wider
+   than the 280px panel instead of truncating inside it. The radio itself is
+   visually hidden — it stays the focus target and the accessibility contract
+   — so the focus ring has to be drawn on the option around it, which is what
+   the :has rule does; a plain :focus-visible on a <label> can never match. */
+
+.qa-inline {
+  font-family: var(--font-ui);
+}
+
+.qa-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 11px;
+}
+
+.qa-mode {
+  display: inline-flex;
+  max-width: 100%;
+  padding: 3px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+
+.qa-mode-btn {
+  display: inline-flex;
+  min-width: 0;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 11px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-md);
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.qa-mode-btn:hover {
+  color: var(--fg);
+}
+
+.qa-mode-btn svg {
+  flex: none;
+}
+
+.qa-mode-btn:has(.qa-mode-input:focus-visible) {
+  box-shadow:
+    0 0 0 1.5px var(--bg),
+    0 0 0 3px var(--accent);
+}
+
+.qa-mode-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  white-space: nowrap;
+  border: 0;
+  clip-path: inset(50%);
+}
+
+.qa-mode-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qa-mode-on {
+  color: var(--fg);
+  background: var(--surface-hi);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+
+.qa-mode-on svg {
+  color: var(--accent);
+}
+
+.qa-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-left: auto;
+}
+
+.qa-explain {
+  margin-top: 10px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--faint);
+}
