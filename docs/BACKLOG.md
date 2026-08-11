@@ -984,10 +984,25 @@ below requires changing how the app is built.
       describe itself. Print version, detected install format (system package vs
       AppImage vs unmanaged copy) and the exact upgrade command for that format.
       This alone removes most of the discovery cost that triggered this section.
+      *Designed 2026-08-09:* [telling you where you stand](https://claude.ai/code/artifact/eae8b11c-a7ae-438f-8cf8-ebc5760a65d9) prints three
+      lines: version, detected format, and that format's own upgrade command.
+      The third is the whole item, since a version number alone tells you that
+      you are behind and nothing about what to do. The mock also draws
+      `--help` and adds one rule: **do not grow a CLI.** Once flags exist the
+      temptation is `nod open`, `nod inbox`, `nod review`; this is a desktop
+      app launched from a shell, and two flags plus the deep-link form is the
+      whole surface.
 - [ ] 🟡 **Format-aware update notice** — supersedes the passive notice queued in
       [11b](#11b-auto-updates): on package installs, don't just suppress the CTA,
       show the copy-pasteable command for the detected package manager
       (`sudo apt upgrade nod`, `yay -Syu nod-bin`, `sudo dnf upgrade nod`).
+      *Designed 2026-08-09:* [telling you where you stand](https://claude.ai/code/artifact/eae8b11c-a7ae-438f-8cf8-ebc5760a65d9) shows the
+      passive notice next to the format-aware one. The command is **copyable,
+      never a button that runs it** — executing a privileged package command on
+      the user's machine is a far larger promise than this app makes anywhere
+      else, and the obstacle was never the typing, it was not knowing which
+      command. Shares its detection with `--version` above, so it is written
+      once.
 
 **Tier 1 — the package repos (this is the actual fix)**
 
@@ -1014,6 +1029,10 @@ below requires changing how the app is built.
       binary. Convenience wrapper over Tier 1, worth nothing before it exists —
       a one-liner that installs an unmanaged binary recreates the exact dead end
       that triggered this section.
+      *Designed 2026-08-09:* [telling you where you stand](https://claude.ai/code/artifact/eae8b11c-a7ae-438f-8cf8-ebc5760a65d9) draws what the
+      script should print, and the last line is the point of it: "updates
+      arrive with `sudo apt upgrade`, like everything else". If that line
+      cannot be written truthfully, the script should not exist.
 
 **Tier 2 — Flatpak / Flathub (defer, and verify the perf claim first)**
 
@@ -1960,6 +1979,12 @@ each carries an unresolved design question of its own, noted below.
       first — anything that makes the app's own clipboard rules diverge from
       the platform's is a rule the user has to learn.
 - [ ] **Check for updates action** — explicit user-triggered update check.
+      *Designed 2026-08-09:* [telling you where you stand](https://claude.ai/code/artifact/eae8b11c-a7ae-438f-8cf8-ebc5760a65d9) draws all three
+      outcomes in the existing toast slot. The one worth writing carefully is
+      the failure: "couldn't check" on its own leaves people assuming they are
+      fine, so it says explicitly that the result is **unknown rather than
+      negative**. Same class of mistake as an install button that appears when
+      it cannot work.
 - [x] **Info comment section design rework** — the drawer composer now
       collapses to a one-line prompt that expands on intent (Esc backs out of
       the composer, then the drawer; drafts survive collapse and the prompt
