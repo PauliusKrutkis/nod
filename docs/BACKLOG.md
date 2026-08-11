@@ -2416,7 +2416,7 @@ each carries an unresolved design question of its own, noted below.
 
 ## Inbox (2026-08-05)
 
-- [ ] 🟡 **Sticky file headers overlap awkwardly on scroll** — scrolling from
+- [x] 🟡 **Sticky file headers overlap awkwardly on scroll** — scrolling from
       one file into the next leaves two sticky bands fighting for the same
       strip, which reads as a glitch rather than as structure.
       **Decided (owner): push-out.** The incoming file header shoves the
