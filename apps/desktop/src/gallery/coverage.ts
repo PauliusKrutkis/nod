@@ -9,10 +9,14 @@
  */
 const componentModules = import.meta.glob("../components/**/*.tsx");
 
-export const desktopComponentNames = Object.keys(componentModules)
-  .filter((path) => !path.endsWith(".test.tsx"))
-  .map((path) => path.split("/").pop()?.replace(".tsx", "") ?? "")
-  .sort();
+const names: string[] = [];
+for (const path of Object.keys(componentModules)) {
+  if (!path.endsWith(".test.tsx")) {
+    names.push(path.split("/").pop()?.replace(".tsx", "") ?? "");
+  }
+}
+
+export const desktopComponentNames = names.sort();
 
 export const CONTAINERS: Record<string, string> = {
   "global-search":

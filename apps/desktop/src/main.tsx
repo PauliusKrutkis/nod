@@ -25,9 +25,11 @@ import "./index.css";
  * only: the import.meta.env.DEV guard is statically false in production, so
  * the dynamic import (and the whole gallery chunk) is tree-shaken out of
  * release bundles. The gallery is store-free, so hydration is skipped too.
- * mod+shift+g toggles between the app and the gallery (a reload, because
- * they are different roots by design), which is also how the Tauri dev
- * window reaches it — see the gallery:desktop script.
+ * mod+alt+g toggles between the app and the gallery (a reload, because they
+ * are different roots by design; matched by code, since macOS Alt rewrites
+ * the key — and mod+shift+g already belongs to the composer). The Tauri dev
+ * window reaches the gallery the same way, or via the gallery:desktop
+ * script.
  */
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
@@ -37,8 +39,8 @@ if (import.meta.env.DEV) {
   window.addEventListener("keydown", (event) => {
     if (
       (event.metaKey || event.ctrlKey) &&
-      event.shiftKey &&
-      event.key.toLowerCase() === "g"
+      event.altKey &&
+      event.code === "KeyG"
     ) {
       const inGallery = window.location.hash.startsWith("#/gallery");
       window.location.hash = inGallery ? "" : "#/gallery";
