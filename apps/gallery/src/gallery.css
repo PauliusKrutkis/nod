@@ -429,6 +429,15 @@
   margin-left: auto;
 }
 
+dialog.q-dialog:modal {
+  transform: translate(-50%, -50%) scale(var(--qg-zoom, 1));
+}
+
+dialog.q-dialog-top:modal {
+  transform: translate(-50%, 0) scale(var(--qg-zoom, 1));
+  transform-origin: top center;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .qg-stage *,
   .qg-stage *::before,

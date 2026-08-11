@@ -184,12 +184,14 @@ function applyGalleryZoom(factor: number) {
     root.style.transformOrigin = "";
     root.style.width = "";
     root.style.height = "";
+    document.documentElement.style.removeProperty("--qg-zoom");
     return;
   }
   root.style.transform = `scale(${factor})`;
   root.style.transformOrigin = "0 0";
   root.style.width = `${100 / factor}vw`;
   root.style.height = `${100 / factor}vh`;
+  document.documentElement.style.setProperty("--qg-zoom", String(factor));
 }
 
 function loadGalleryZoom(): number {
