@@ -33,6 +33,12 @@ export const CONTAINERS: Record<string, string> = {
     "update feed, install command and the yield-to-purchase gate; its card is update-prompt in @nod/ui",
   "whats-new-loader":
     "version gate, releases query and markdown pipeline; its card is whats-new in @nod/ui",
+  "issue-tracker-settings":
+    "reads and writes the per-account tracker URL in the store; its view is issue-tracker-dialog, catalogued in @nod/ui",
+  "keyboard-help":
+    "flattens the live keyboard registry into sections; its view is help-overlay, catalogued in @nod/ui",
+  "release-history-loader":
+    "releases and app-version queries, the armed ring, and Markdown notes; its view is release-history, catalogued in @nod/ui",
 };
 
 export const PENDING = [
@@ -43,12 +49,9 @@ export const PENDING = [
   "comment-thread",
   "composer-editor",
   "file-sidebar",
-  "help-overlay",
   "inbox",
-  "issue-tracker-dialog",
   "markdown",
   "pr-search",
-  "release-history",
   "review-diff-pane",
   "review-header",
   "review-list",

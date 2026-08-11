@@ -17,11 +17,12 @@ import { useEffect, useState } from "react";
 import { AiSetupDialog } from "./components/ai-setup-dialog.tsx";
 import { CommandPalette } from "./components/command-palette.tsx";
 import { GlobalSearch } from "./components/global-search.tsx";
-import { HelpOverlay } from "./components/help-overlay.tsx";
+
 import { Inbox } from "./components/inbox/inbox.tsx";
-import { IssueTrackerDialog } from "./components/issue-tracker-dialog.tsx";
+import { IssueTrackerSettings } from "./components/issue-tracker-settings.tsx";
+import { KeyboardHelp } from "./components/keyboard-help.tsx";
 import { PurchasePromptLoader } from "./components/purchase-prompt-loader.tsx";
-import { ReleaseHistory } from "./components/release-history.tsx";
+import { ReleaseHistoryLoader } from "./components/release-history-loader.tsx";
 import { ReviewScreen } from "./components/review/review-screen.tsx";
 import { ReviewNotifier } from "./components/review-notifier.tsx";
 import { TokenGate } from "./components/token-gate.tsx";
@@ -301,11 +302,11 @@ export default function App() {
         )}
       </div>
 
-      <IssueTrackerDialog onClose={closeTracker} open={trackerOpen} />
+      <IssueTrackerSettings onClose={closeTracker} open={trackerOpen} />
       <AiSetupDialog onClose={closeAiSetup} open={aiSetupOpen} />
-      <ReleaseHistory onClose={closeHistory} open={historyOpen} />
+      <ReleaseHistoryLoader onClose={closeHistory} open={historyOpen} />
       <CommandPalette baseScope={baseScope} />
-      <HelpOverlay baseScope={baseScope} />
+      <KeyboardHelp baseScope={baseScope} />
       {showRouteChrome ? <GlobalSearch /> : null}
     </div>
   );

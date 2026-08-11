@@ -1,0 +1,158 @@
+/* The qrh family — the version timeline. The close button repeats the app's
+   dialog-close look under its own prefix rather than borrowing the help
+   sheet's .qh-close: each component owns the styles it needs, so importing
+   one never depends on another being on the page. Tag and note text is
+   release data, so both break inside unbroken tokens rather than pushing the
+   spine off the panel; heading and paragraph margins are declared rather
+   than inherited from a preflight. */
+
+.qrh-panel {
+  width: min(600px, calc(100vw - 32px));
+}
+.qrh-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.qrh-title {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.qrh-title svg {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.qrh-close {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--muted);
+  cursor: pointer;
+  background: var(--surface-hi);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-md);
+  transition: color 120ms ease;
+}
+.qrh-close:hover {
+  color: var(--fg);
+}
+.qrh-close[data-armed="true"] {
+  color: var(--accent);
+  border-color: var(--accent-line);
+}
+.qrh-list {
+  padding: 4px 20px 18px;
+  overflow-y: auto;
+}
+.qrh-note {
+  padding: 22px 0;
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.qrh-item {
+  position: relative;
+  padding: 12px 0 4px 22px;
+}
+.qrh-item::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 1px;
+  content: "";
+  background: var(--line-2);
+}
+.qrh-item:first-child::before {
+  top: 19px;
+}
+.qrh-item:last-child::before {
+  bottom: auto;
+  height: 19px;
+}
+.qrh-item:only-child::before {
+  display: none;
+}
+.qrh-dot {
+  position: absolute;
+  top: 15px;
+  left: 0;
+  width: 9px;
+  height: 9px;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: 50%;
+}
+.qrh-item-on .qrh-dot {
+  background: var(--add);
+  border-color: var(--add);
+  box-shadow:
+    0 0 0 3px var(--add-bg),
+    0 0 6px var(--add-bg);
+}
+.qrh-item-head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.qrh-tag {
+  min-width: 0;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+.qrh-now {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  font-size: 10px;
+  color: var(--add);
+  background: var(--add-bg);
+  border-radius: var(--r-pill);
+}
+.qrh-date {
+  flex-shrink: 0;
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--faint);
+}
+.qrh-notes {
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.qrh-notes :first-child {
+  margin-top: 0;
+}
+.qrh-notes-plain {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.qrh-notes-none {
+  margin: 5px 0 0;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--faint);
+}
+
+.q-dialog.qrh-panel.qrh-inline {
+  position: static;
+  width: 100%;
+  max-height: 520px;
+  margin: 0;
+  transform: none;
+  animation: none;
+}

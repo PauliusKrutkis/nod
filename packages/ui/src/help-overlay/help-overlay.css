@@ -1,0 +1,169 @@
+/* The qh family — the scope-aware shortcut sheet. Two guards exist because
+   binding text is data, not copy we control: the label may shrink and break
+   inside an unbroken token, and a chord long enough to swallow the row is
+   capped at half the row and wraps its caps instead. The dl/dd margin resets
+   are explicit here: the desktop inherited them from Tailwind's preflight,
+   and a host without one would otherwise indent every row.
+
+   The column count is intrinsic (auto-fit over a 240px minimum) rather than a
+   viewport media query, because the panel is not always as wide as the
+   window: embedded at a fixed width it kept two columns and shredded every
+   label to one word per line. */
+
+.qh-panel {
+  width: min(720px, calc(100vw - 32px));
+  padding: 0;
+}
+.qh-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.qh-head-title {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+.qh-head-title svg {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.qh-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--fg);
+}
+.qh-head-note {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--faint);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.qh-close {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--muted);
+  cursor: pointer;
+  background: var(--surface-hi);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-md);
+  transition: color 120ms ease;
+}
+.qh-close:hover {
+  color: var(--fg);
+}
+
+.qh-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 28px;
+  align-items: start;
+  padding: 20px;
+  overflow-y: auto;
+}
+.qh-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.qh-scope {
+  padding: 12px 14px;
+  border: 1px solid transparent;
+  border-radius: var(--r-xl);
+}
+.qh-scope-active {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+.qh-scope-head {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.qh-scope-name {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+}
+.qh-scope-tag {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--accent-ink);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--accent);
+  border-radius: var(--r-pill);
+}
+.qh-scope-note {
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  font-size: 11px;
+  color: var(--faint);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.qh-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+}
+.qh-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 4px 0;
+}
+.qh-keys {
+  display: flex;
+  flex-shrink: 0;
+  gap: 4px;
+  min-width: 64px;
+  max-width: 50%;
+}
+.qh-keys .q-kbd-combo {
+  flex-wrap: wrap;
+}
+.qh-label {
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+.qh-foot {
+  padding: 12px 20px;
+  font-size: 12px;
+  color: var(--faint);
+  background: var(--surface-2);
+  border-top: 1px solid var(--line);
+}
+
+.q-dialog.qh-panel.qh-inline {
+  position: static;
+  width: 100%;
+  max-height: 520px;
+  margin: 0;
+  transform: none;
+  animation: none;
+}

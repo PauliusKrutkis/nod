@@ -115,6 +115,18 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "unicode",
     ],
   },
+  "help-overlay": {
+    dialog: true,
+    fixtures: [
+      "empty",
+      "full",
+      "long-chord",
+      "markup-as-text",
+      "one-section",
+      "overflow",
+      "unicode",
+    ],
+  },
   "highlight-indices": {
     fixtures: ["cjk", "empty-text", "every", "none", "out-of-range", "typical"],
   },
@@ -131,6 +143,19 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "tall",
       "tiny",
       "wide",
+    ],
+  },
+  "issue-tracker-dialog": {
+    dialog: true,
+    fixtures: [
+      "configured",
+      "id-template",
+      "invalid",
+      "markup-as-text",
+      "overflow",
+      "unicode",
+      "unset",
+      "unsupported-scheme",
     ],
   },
   kbd: {
@@ -185,6 +210,20 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "trial-expired",
       "unknown-status",
       "waiting",
+    ],
+  },
+  "release-history": {
+    dialog: true,
+    fixtures: [
+      "crowd-24",
+      "empty",
+      "failed",
+      "loading",
+      "markdown",
+      "no-notes",
+      "overflow",
+      "single",
+      "unicode",
     ],
   },
   "review-screen-pending": {
