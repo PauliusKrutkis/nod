@@ -23,4 +23,11 @@
   --warn-bg: color-mix(in srgb, #e7c56a 12%, transparent);
   --add-num: color-mix(in srgb, #5fd08a 55%, transparent);
   --del-num: color-mix(in srgb, #ff7088 55%, transparent);
+  --r-xs: 2px;
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 8px;
+  --r-xl: 10px;
+  --r-2xl: 12px;
+  --r-pill: 999px;
 }

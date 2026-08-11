@@ -43,6 +43,16 @@ export const palette = {
 
 export type Palette = typeof palette;
 
+export const radii = {
+  xs: "2px",
+  sm: "4px",
+  md: "6px",
+  lg: "8px",
+  xl: "10px",
+  "2xl": "12px",
+  pill: "999px",
+} as const;
+
 const mix = (color: string, pct: number) =>
   `color-mix(in srgb, ${color} ${pct}%, transparent)`;
 
@@ -68,6 +78,9 @@ export const cssVars: ReadonlyArray<readonly [string, string]> = [
   ["--warn-bg", mix(palette.warning, 12)],
   ["--add-num", mix(palette.success, 55)],
   ["--del-num", mix(palette.danger, 55)],
+  ...Object.entries(radii).map(
+    ([step, value]) => [`--r-${step}`, value] as const
+  ),
 ];
 
 export const tokensCss = `:root {

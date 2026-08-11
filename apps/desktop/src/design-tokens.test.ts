@@ -7,7 +7,7 @@
  * tokens are fine); it may never disagree on a shared one.
  */
 import { readFileSync } from "node:fs";
-import { palette } from "@nod/tokens";
+import { palette, radii } from "@nod/tokens";
 import { describe, expect, it } from "vitest";
 
 const themeNameFor: Record<keyof typeof palette, string> = {
@@ -37,6 +37,17 @@ describe("index.css @theme", () => {
     (paletteKey, themeName) => {
       const value = palette[paletteKey as keyof typeof palette];
       expect(theme).toContain(`${themeName}: ${value};`);
+    }
+  );
+});
+
+describe("index.css radius scale", () => {
+  const css = readFileSync(new URL("./index.css", import.meta.url), "utf8");
+
+  it.each(Object.entries(radii))(
+    "agrees with @nod/tokens on --r-%s",
+    (step, value) => {
+      expect(css).toContain(`--r-${step}: ${value};`);
     }
   );
 });
