@@ -74,6 +74,8 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "pending",
       "single-check",
       "success",
+    ],
+  },
   "code-cell": {
     fixtures: [
       "empty",

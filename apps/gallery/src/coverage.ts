@@ -30,9 +30,6 @@ export const CONTAINERS: Record<string, string> = {
 export const PENDING = [
   "add-comment-box",
   "ai-setup-dialog",
-  "ask-note",
-  "code-cell",
-  "ci-pill",
   "command-palette",
   "comment-item",
   "comment-thread",
