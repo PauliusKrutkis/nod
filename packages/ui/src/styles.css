@@ -2,7 +2,9 @@
    desktop app's quiet.css so the components and their look travel together.
    Everything resolves through the host's tokens (@nod/tokens provides the
    palette and radius scale; the app provides fonts), which is the whole
-   styling contract: import this sheet before any app-level overrides.
+   styling contract: import this sheet before any app-level overrides. No
+   Tailwind involved — components wear only classes defined here, so a host
+   without a Tailwind build renders them identically.
    The shared search-pane family (qsp-) lives here because SearchPane owns
    it; the desktop's pr-search continues to consume it through this import,
    and its snippet-mode extras (qsp-snip*) stay app-side. */
@@ -22,6 +24,33 @@
 
 .q-mono {
   font-family: var(--font-mono);
+}
+
+.q-kbd-combo {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.q-spinner {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+}
+
+.q-spinner-disc {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: var(--r-pill);
+  animation: q-btn-rot 1s linear infinite;
+}
+
+.q-spinner-label {
+  font-size: 0.875rem;
 }
 
 /* ---- keycap ---- */
@@ -211,7 +240,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .q-btn-spin {
+  .q-btn-spin,
+  .q-spinner-disc {
     animation-duration: 2400ms;
   }
 }

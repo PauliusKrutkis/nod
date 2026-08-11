@@ -56,7 +56,7 @@ export function Kbd({
   }
   const caps = toCaps(combo);
   return (
-    <span className={cn("inline-flex items-center gap-0.5", className)}>
+    <span className={cn("q-kbd-combo", className)}>
       {caps.map((part) => (
         <KbdCap key={part} part={part} />
       ))}
