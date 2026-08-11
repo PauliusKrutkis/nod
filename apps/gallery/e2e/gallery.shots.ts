@@ -16,6 +16,17 @@
  * Waiting for the frame is the whole readiness contract: the app itself
  * mounts only once the webfonts have loaded (src/main.tsx), so a frame on
  * screen means the specimen already measured itself against final metrics.
+ *
+ * CAPTURE_INSTANT is the clock every capture runs against. Fixtures carry
+ * fixed timestamps, but formatRelativeTime measures them against Date.now(),
+ * so a cell reading "2y ago" silently becomes "3y ago" a few months later
+ * and the baseline fails without a single line of code having changed. The
+ * instant is arbitrary beyond two constraints: it sits after every past
+ * fixture timestamp (the oldest is 2016) so those still read as elapsed
+ * time, and well before the deliberately-future one (2099) that pins "just
+ * now". It is installed before goto because the app mounts off
+ * document.fonts.ready — by the time a frame exists, the fixtures have
+ * already been formatted.
  */
 import { catalogManifest } from "@nod/ui/manifest";
 import { expect, test } from "@playwright/test";
@@ -27,6 +38,7 @@ import {
 } from "../src/route.ts";
 
 const NARROW_WORTHY = /overflow|crowd|chord/;
+const CAPTURE_INSTANT = new Date("2026-01-01T00:00:00Z");
 
 const cells: GalleryRoute[] = [];
 for (const [component, entry] of Object.entries(catalogManifest)) {
@@ -42,6 +54,7 @@ for (const [component, entry] of Object.entries(catalogManifest)) {
 
 for (const cell of cells) {
   test(captureName(cell), async ({ page }) => {
+    await page.clock.setFixedTime(CAPTURE_INSTANT);
     await page.goto(`/${formatGalleryHash(cell)}`);
     await page.locator("[data-frame]").first().waitFor();
     await expect(page.locator("[data-frame]")).toHaveScreenshot(
