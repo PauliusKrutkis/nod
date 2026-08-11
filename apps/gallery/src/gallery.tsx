@@ -347,7 +347,7 @@ export function Gallery() {
   };
 
   return (
-    <div className="qg-root">
+    <div className={`qg-root qg-stage-${route.theme}`}>
       <aside className="qg-rail">
         <div className="qg-rail-head">
           <span className="qg-brand">Nod</span>

@@ -3,8 +3,12 @@
    a screenshot target. Chrome colours resolve through the app tokens; the
    ONLY hex literals allowed in this file are the qg-stage-day block — a
    placeholder token set that proves theme switching until @nod/tokens grows
-   a real second theme (which needs diff + syntax palettes too). Animations
-   pause under prefers-reduced-motion so webkit captures are deterministic. */
+   a real second theme (which needs diff + syntax palettes too), and the
+   qg-stage-quiet mirror of the @nod/tokens palette — the root wears the
+   selected set so the whole view switches, and matrix columns re-assert
+   their own set per frame; a parity test holds the mirror to the package.
+   Animations pause under prefers-reduced-motion so webkit captures are
+   deterministic. */
 
 .qg-root {
   display: flex;
@@ -291,6 +295,23 @@
   max-width: 100%;
 }
 
+.qg-stage-quiet {
+  --bg: #0f0f17;
+  --surface: #15151f;
+  --surface-2: #191924;
+  --surface-hi: #1c1c2a;
+  --line: #232334;
+  --line-2: #2c2c40;
+  --fg: #e8e8f3;
+  --muted: #9a9ab2;
+  --faint: #5f5f78;
+  --accent: #8b80ff;
+  --accent-ink: #14111f;
+  --add: #5fd08a;
+  --del: #ff7088;
+  --warn: #e7c56a;
+}
+
 .qg-stage-day {
   --bg: #f6f6fa;
   --surface: #ffffff;
@@ -306,10 +327,6 @@
   --add: #0f7b4d;
   --del: #c2362f;
   --warn: #9a6a00;
-
-  background: var(--surface);
-  border-color: var(--line);
-  color: var(--fg);
 }
 
 .qg-viewport {

@@ -89,10 +89,11 @@ describe("gallery", () => {
     expect(window.location.hash).toContain(`/${firstFixtures[1]}/`);
   });
 
-  it("switches theme on t", () => {
-    render(<Gallery />);
+  it("switches the whole view's theme on t", () => {
+    const { container } = render(<Gallery />);
     fireEvent.keyDown(window, { key: "t" });
     expect(window.location.hash).toContain("/day/");
+    expect(container.querySelector(".qg-root.qg-stage-day")).not.toBeNull();
   });
 
   it("renders one frame per fixture × theme in matrix view", () => {
