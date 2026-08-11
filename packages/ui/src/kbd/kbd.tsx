@@ -1,4 +1,5 @@
-import { cn } from "../../lib/cn.ts";
+import { cn } from "../cn/cn.ts";
+import "./kbd.css";
 
 const capClass = "q-kbd";
 
@@ -56,7 +57,7 @@ export function Kbd({
   }
   const caps = toCaps(combo);
   return (
-    <span className={cn("inline-flex items-center gap-0.5", className)}>
+    <span className={cn("q-kbd-combo", className)}>
       {caps.map((part) => (
         <KbdCap key={part} part={part} />
       ))}

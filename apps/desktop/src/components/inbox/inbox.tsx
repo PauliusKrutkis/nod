@@ -17,6 +17,11 @@
  * visit and re-running the correction on each remount would boomerang a
  * deliberate visit to an empty tab back to whichever tab has content.
  */
+
+import { Avatar } from "@nod/ui/avatar";
+import { Kbd } from "@nod/ui/kbd";
+import { Spinner } from "@nod/ui/spinner";
+import { formatAbsolute, formatRelativeTime } from "@nod/ui/time";
 import {
   Archive,
   ArchiveRestore,
@@ -34,14 +39,10 @@ import { prefetchPullRequest } from "../../hooks/use-pull-request-detail.ts";
 import { useSubscribed } from "../../hooks/use-subscribed.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
 import { cn } from "../../lib/cn.ts";
-import { formatAbsolute, formatRelativeTime } from "../../lib/time.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type { InboxData, InboxTabKey, PullRequest } from "../../types.ts";
 import { prKey } from "../../types.ts";
 import { Markdown } from "../markdown.tsx";
-import { Avatar } from "../ui/avatar.tsx";
-import { Kbd } from "../ui/kbd.tsx";
-import { Spinner } from "../ui/spinner.tsx";
 import { TicketTitle } from "../ui/ticket-title.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
 import { PRListItem } from "./pr-list-item.tsx";

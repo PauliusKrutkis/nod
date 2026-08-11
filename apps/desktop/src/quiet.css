@@ -42,15 +42,6 @@
    1. SHARED PRIMITIVES  (from theme.ts)
    =========================================================================== */
 
-/* ---- one focus-ring treatment, everywhere ---- */
-.q-focus:focus-visible {
-  outline: none;
-  border-radius: var(--r-md);
-  box-shadow:
-    0 0 0 1.5px var(--bg),
-    0 0 0 3px var(--accent);
-}
-
 /* ---- text helpers ---- */
 .q-add {
   color: var(--add);
@@ -63,12 +54,6 @@
 }
 .q-faint {
   color: var(--faint);
-}
-.q-dot {
-  color: var(--faint);
-}
-.q-mono {
-  font-family: var(--font-mono);
 }
 
 /* ---- issue-tracker ticket link inside titles ---- */
@@ -89,34 +74,6 @@
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-}
-
-/* ---- keycap ---- */
-.q-kbd {
-  display: inline-block;
-  min-width: 16px;
-  padding: 3px 5px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  line-height: 1;
-  color: var(--muted);
-  text-align: center;
-  background: var(--surface-hi);
-  border: 1px solid var(--line-2);
-  border-radius: var(--r-sm);
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
-}
-
-/* ---- avatar ---- */
-.q-avatar {
-  display: inline-grid;
-  flex-shrink: 0;
-  place-items: center;
-  overflow: hidden;
-  font-weight: 600;
-  color: #fff;
-  object-fit: cover;
-  border-radius: var(--r-pill);
 }
 
 /* ---- status glyph (file / PR change kind) ---- */
@@ -146,126 +103,6 @@
 .q-glyph-ren {
   color: var(--accent);
   background: var(--accent-soft);
-}
-
-/* ---- state / status pills ---- */
-.q-pill {
-  display: inline-flex;
-  gap: 5px;
-  align-items: center;
-  padding: 2px 8px;
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-  border-radius: var(--r-pill);
-}
-.q-pill-dot {
-  width: 6px;
-  height: 6px;
-  background: currentColor;
-  border-radius: var(--r-pill);
-}
-.q-pill-open {
-  color: var(--add);
-  background: var(--add-bg);
-  box-shadow: inset 0 0 0 1px rgba(95, 208, 138, 0.25);
-}
-.q-pill-draft {
-  color: var(--muted);
-  background: var(--surface-hi);
-  box-shadow: inset 0 0 0 1px var(--line-2);
-}
-.q-pill-merged {
-  color: var(--accent);
-  background: var(--accent-soft);
-  box-shadow: inset 0 0 0 1px var(--accent-line);
-}
-.q-pill-muted {
-  color: var(--muted);
-  background: var(--surface-hi);
-  box-shadow: inset 0 0 0 1px var(--line-2);
-}
-.q-pill-approved {
-  color: var(--add);
-  background: var(--add-bg);
-}
-.q-pill-changes {
-  color: var(--del);
-  background: var(--del-bg);
-}
-.q-pill-commented {
-  color: var(--accent);
-  background: var(--accent-soft);
-}
-.q-pill-pending {
-  color: var(--muted);
-  background: var(--surface-hi);
-  box-shadow: inset 0 0 0 1px var(--line-2);
-}
-
-/* ---- buttons ---- */
-.q-btn {
-  display: inline-flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: center;
-  padding: 7px 13px;
-  font-family: var(--font-ui);
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-  border: 1px solid transparent;
-  border-radius: var(--r-lg);
-  transition:
-    background-color 120ms ease,
-    border-color 120ms ease,
-    color 120ms ease,
-    filter 120ms ease;
-}
-.q-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-.q-btn-primary {
-  color: var(--accent-ink);
-  background: var(--accent);
-  border-color: var(--accent);
-}
-.q-btn-primary:hover:not(:disabled) {
-  filter: brightness(1.08);
-}
-.q-btn-primary .q-kbd {
-  color: var(--accent-ink);
-  background: rgba(20, 17, 31, 0.16);
-  border-color: rgba(20, 17, 31, 0.22);
-  box-shadow: none;
-}
-.q-btn-quiet {
-  color: var(--fg);
-  background: var(--surface);
-  border-color: var(--line);
-}
-.q-btn-quiet:hover:not(:disabled) {
-  background: var(--surface-hi);
-  border-color: var(--line-2);
-}
-.q-btn-ghost {
-  color: var(--muted);
-  background: transparent;
-}
-.q-btn-ghost:hover:not(:disabled) {
-  color: var(--fg);
-  background: var(--surface-2);
-}
-.q-btn-danger {
-  color: var(--del);
-  background: var(--del-bg);
-  border-color: rgba(255, 112, 136, 0.3);
-}
-.q-btn-danger:hover:not(:disabled) {
-  background: rgba(255, 112, 136, 0.16);
-  border-color: var(--del);
 }
 
 .q-btn-badge {
@@ -326,69 +163,6 @@ textarea.q-input {
   background: rgba(6, 6, 12, 0.62);
   backdrop-filter: blur(2px);
   animation: q-fade 120ms ease;
-}
-.q-dialog {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  z-index: 51;
-  display: flex;
-  flex-direction: column;
-  width: min(560px, calc(100vw - 32px));
-  max-height: min(78vh, 640px);
-  overflow: hidden;
-  background: var(--surface);
-  border: 1px solid var(--line-2);
-  border-radius: var(--r-2xl);
-  box-shadow:
-    0 24px 64px -24px rgba(0, 0, 0, 0.7),
-    0 0 0 1px rgba(139, 128, 255, 0.06);
-  transform: translate(-50%, -50%);
-  animation: q-pop 130ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.q-dialog:focus {
-  outline: none;
-}
-dialog.q-dialog {
-  max-width: none;
-  padding: 0;
-  margin: 0;
-  color: inherit;
-  border: none;
-}
-/* UA styles set `display: block` on dialog[open], which breaks the flex column
-   layout (qc-list collapses, foot/hints vanish). Beat that specificity. */
-dialog.q-dialog[open] {
-  display: flex;
-  flex-direction: column;
-}
-dialog.q-dialog::backdrop {
-  background: rgba(6, 6, 12, 0.62);
-  backdrop-filter: blur(2px);
-  animation: q-fade 120ms ease;
-}
-.q-dialog-top {
-  top: 14vh;
-  width: min(620px, calc(100vw - 32px));
-  transform: translate(-50%, 0);
-  animation: q-pop-top 130ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-@keyframes q-fade {
-  from {
-    opacity: 0;
-  }
-}
-@keyframes q-pop {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -48%) scale(0.98);
-  }
-}
-@keyframes q-pop-top {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -6px) scale(0.99);
-  }
 }
 
 .q-tabs-list {
@@ -1122,11 +896,6 @@ dialog.q-dialog::backdrop {
 }
 .qg-link svg {
   color: var(--faint);
-}
-.qsp-empty svg {
-  margin-bottom: 4px;
-  color: var(--accent);
-  opacity: 0.8;
 }
 .qh-head-title svg {
   flex-shrink: 0;
@@ -3020,11 +2789,6 @@ dialog.q-dialog::backdrop {
   flex-direction: column;
   gap: 14px;
 }
-.qsp-title > :first-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .dir-quiet .qf-convo-item {
   display: flex;
   gap: 10px;
@@ -3888,6 +3652,7 @@ dialog.q-dialog::backdrop {
   line-height: 1.5;
   color: var(--muted);
 }
+/* biome-ignore lint/style/noDescendingSpecificity: different subtree from the drawer convo rules; file is organized by surface */
 .qb-whatsnew-notes :first-child {
   margin-top: 0;
 }
@@ -4000,6 +3765,7 @@ dialog.q-dialog::backdrop {
   line-height: 1.5;
   color: var(--muted);
 }
+/* biome-ignore lint/style/noDescendingSpecificity: different subtree from the drawer convo rules; file is organized by surface */
 .qrh-notes :first-child {
   margin-top: 0;
 }
@@ -4018,138 +3784,11 @@ dialog.q-dialog::backdrop {
 }
 
 /* ===========================================================================
-   5. SEARCH PANE (from views/search-pane.tsx) — global, portalled dialog.
-   `/` opens a full pane over the inbox rather than an inline filter.
+   5. SEARCH PANE extras — the shared qsp family lives in @nod/ui/styles.css;
+   these are pr-search's code-mode panel width and text-search snippets.
    =========================================================================== */
-.qsp-panel {
-  width: min(680px, calc(100vw - 32px));
-  min-height: min(440px, 60vh);
-  padding: 0;
-}
-.qsp-panel-code {
+.q-dialog.qsp-panel.qsp-panel-code {
   width: min(920px, calc(100vw - 32px));
-}
-
-.qsp-search {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  padding: 17px 20px;
-  border-bottom: 1px solid var(--line);
-}
-.qsp-search-icon {
-  flex-shrink: 0;
-  color: var(--faint);
-}
-.qsp-input {
-  flex: 1;
-  min-width: 0;
-  font-family: var(--font-ui);
-  font-size: 16px;
-  color: var(--fg);
-  outline: none;
-  background: transparent;
-  border: none;
-}
-.qsp-input::placeholder {
-  color: var(--faint);
-}
-
-.qsp-list {
-  flex: 1;
-  padding: 8px;
-  overflow-y: auto;
-}
-.qsp-section {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  padding: 8px 10px 6px;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--faint);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.qsp-row {
-  position: relative;
-  display: flex;
-  width: 100%;
-  gap: 12px;
-  align-items: center;
-  padding: 10px 12px 10px 14px;
-  color: var(--muted);
-  cursor: pointer;
-  border-radius: var(--r-xl);
-}
-.qsp-rail {
-  position: absolute;
-  top: 9px;
-  bottom: 9px;
-  left: 3px;
-  width: 2px;
-  background: transparent;
-  border-radius: var(--r-pill);
-}
-.qsp-row-on {
-  color: var(--fg);
-  background: var(--accent-soft);
-}
-.qsp-row-on .qsp-rail {
-  background: var(--accent);
-  box-shadow: 0 0 10px 0 var(--accent-line);
-}
-.qsp-num {
-  flex-shrink: 0;
-  min-width: 40px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--faint);
-}
-.qsp-row-on .qsp-num {
-  color: var(--accent);
-}
-.qsp-main {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-.qsp-title {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  font-size: 13.5px;
-  font-weight: 500;
-  color: var(--fg);
-}
-.qsp-meta {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  font-size: 12px;
-  color: var(--muted);
-}
-.qsp-time {
-  flex-shrink: 0;
-  font-size: 11px;
-  color: var(--faint);
-}
-
-/* matched-text highlight, shared by every search surface. No padding/margin —
-   the mark must sit seamlessly in the text flow (mono snippets especially). */
-.q-hl {
-  padding: 0;
-  margin: 0;
-  color: inherit;
-  background: var(--accent-soft);
-  border-radius: var(--r-xs);
-  box-shadow: inset 0 -1.5px 0 var(--accent-line);
-}
-.qsp-row-on .q-hl {
-  box-shadow: inset 0 -1.5px 0 var(--accent);
 }
 
 /* text-search context snippet (the selected result expands, VS Code style) */
@@ -4197,51 +3836,6 @@ dialog.q-dialog::backdrop {
   text-overflow: clip;
   white-space: pre-wrap;
   word-break: break-word;
-}
-
-.qsp-branch {
-  display: inline-flex;
-  gap: 4px;
-  align-items: center;
-  min-width: 0;
-  color: var(--faint);
-}
-
-.qsp-empty {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  align-items: center;
-  padding: 44px 16px;
-  color: var(--faint);
-  text-align: center;
-}
-.qsp-empty p {
-  font-size: 14px;
-  color: var(--fg);
-}
-.qsp-empty span {
-  font-size: 12px;
-}
-
-.qsp-foot {
-  display: flex;
-  gap: 18px;
-  align-items: center;
-  padding: 10px 20px;
-  background: var(--surface-2);
-  border-top: 1px solid var(--line);
-}
-.qsp-foot span {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
-  font-size: 11px;
-  color: var(--faint);
-}
-.qsp-foot-scope {
-  margin-left: auto;
-  font-family: var(--font-mono);
 }
 
 /* ===========================================================================

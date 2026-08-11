@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useLatest } from "./use-latest.ts";
+import { useLatest } from "../use-latest/use-latest.ts";
 
 function isBackdropPointer(
   dialog: HTMLDialogElement,
@@ -45,14 +45,20 @@ function initialFocusTarget(
  * (to `initialFocusRef` when supplied, else the panel itself) and is restored
  * to the previously focused element on close, so no dialog leaves the caret
  * stranded on the page behind it.
+ *
+ * `options.modal: false` opens with `show()` instead — no top layer, no tab
+ * trap, no backdrop — for hosts that embed the dialog in normal flow (the
+ * gallery's inline specimens); everything else behaves identically.
  */
 export function useModalDialog(
   onClose: () => void,
-  initialFocusRef?: React.RefObject<HTMLElement | null>
+  initialFocusRef?: React.RefObject<HTMLElement | null>,
+  options?: { modal?: boolean }
 ) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const onCloseRef = useLatest(onClose);
   const initialFocusRefLatest = useLatest(initialFocusRef);
+  const modal = options?.modal !== false;
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -64,7 +70,11 @@ export function useModalDialog(
         ? document.activeElement
         : null;
     if (!dialog.open) {
-      dialog.showModal();
+      if (modal) {
+        dialog.showModal();
+      } else {
+        dialog.show();
+      }
     }
     requestAnimationFrame(() => {
       if (!dialog.isConnected) {
@@ -93,7 +103,7 @@ export function useModalDialog(
       dialog.removeEventListener("click", onClick);
       previouslyFocused?.focus();
     };
-  }, [onCloseRef, initialFocusRefLatest]);
+  }, [onCloseRef, initialFocusRefLatest, modal]);
 
   const onDialogClose = () => {
     onClose();

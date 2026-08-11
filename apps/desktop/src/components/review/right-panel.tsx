@@ -11,6 +11,10 @@
  * by observing the body *and its sections* — the body's own box is pinned by
  * the drawer, so growing conversation only ever resizes a section.
  */
+
+import { Avatar } from "@nod/ui/avatar";
+import { Kbd } from "@nod/ui/kbd";
+import { formatAbsolute, formatRelativeTime } from "@nod/ui/time";
 import {
   CheckCircle2,
   ExternalLink,
@@ -27,7 +31,6 @@ import {
 import { cn } from "../../lib/cn.ts";
 import { firstLine } from "../../lib/comment-format.ts";
 import { openOnProviderLabel } from "../../lib/provider.ts";
-import { formatAbsolute, formatRelativeTime } from "../../lib/time.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type {
   CiStatus,
@@ -37,8 +40,6 @@ import type {
   ReviewSummary,
 } from "../../types.ts";
 import { Markdown } from "../markdown.tsx";
-import { Avatar } from "../ui/avatar.tsx";
-import { Kbd } from "../ui/kbd.tsx";
 import { TicketTitle } from "../ui/ticket-title.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
 import { AddCommentBox, type AddCommentBoxHandle } from "./add-comment-box.tsx";

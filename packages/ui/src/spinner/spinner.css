@@ -1,0 +1,28 @@
+/* Spinner disc and label; the disc shares the package's q-rot keyframes. */
+
+.q-spinner {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+}
+
+.q-spinner-disc {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: var(--r-pill);
+  animation: q-rot 1s linear infinite;
+}
+
+.q-spinner-label {
+  font-size: 0.875rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .q-spinner-disc {
+    animation-duration: 2400ms;
+  }
+}

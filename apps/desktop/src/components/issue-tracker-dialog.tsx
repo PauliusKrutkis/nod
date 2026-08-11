@@ -1,6 +1,6 @@
+import { useModalDialog } from "@nod/ui/use-modal-dialog";
 import { Ticket } from "lucide-react";
 import { type KeyboardEvent, useEffect, useRef } from "react";
-import { useModalDialog } from "../hooks/use-modal-dialog.ts";
 import { useHotkeys } from "../keyboard/use-hotkeys.ts";
 import { useAppStore } from "../store/app-store.ts";
 

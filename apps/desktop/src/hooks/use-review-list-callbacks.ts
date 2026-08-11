@@ -13,6 +13,7 @@
  * (`armedThreadAt`) instead, and only a cursor that is not on a block disarms.
  */
 
+import { useLatest } from "@nod/ui/use-latest";
 import type React from "react";
 import { useState } from "react";
 import type { ReviewListCallbacks } from "../components/review/review-list.tsx";
@@ -29,7 +30,6 @@ import {
 import { fingerprintFile } from "../lib/viewed-fingerprint.ts";
 import type { ChangedFile } from "../types.ts";
 import type { useCommentMutations } from "./use-comments.ts";
-import { useLatest } from "./use-latest.ts";
 
 export function isRealPointer(
   x: number,

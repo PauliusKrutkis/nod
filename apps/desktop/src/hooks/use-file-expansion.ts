@@ -38,6 +38,7 @@
  * before it arrives.
  */
 
+import { useLatest } from "@nod/ui/use-latest";
 import { useQueries } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api } from "../lib/api.ts";
@@ -54,7 +55,6 @@ import {
   type ReviewListModel,
 } from "../lib/review-items.ts";
 import type { ChangedFile } from "../types.ts";
-import { useLatest } from "./use-latest.ts";
 
 /**
  * `preSwap` marks a capture taken inside a commit's effects (blob promotion):

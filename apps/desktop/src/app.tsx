@@ -1,3 +1,5 @@
+import { Kbd } from "@nod/ui/kbd";
+import { Spinner } from "@nod/ui/spinner";
 import {
   Command as CommandIcon,
   HelpCircle,
@@ -23,8 +25,6 @@ import { ReleaseHistory } from "./components/release-history.tsx";
 import { ReviewScreen } from "./components/review/review-screen.tsx";
 import { ReviewNotifier } from "./components/review-notifier.tsx";
 import { TokenGate } from "./components/token-gate.tsx";
-import { Kbd } from "./components/ui/kbd.tsx";
-import { Spinner } from "./components/ui/spinner.tsx";
 import { UpdatePrompt } from "./components/update-prompt.tsx";
 import { WhatsNew } from "./components/whats-new.tsx";
 import { useLicenseCommand } from "./hooks/use-license-command.ts";

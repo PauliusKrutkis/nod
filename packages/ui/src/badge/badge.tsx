@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { cn } from "../../lib/cn.ts";
+import { cn } from "../cn/cn.ts";
+import "./badge.css";
 
 type Tone = "default" | "accent" | "success" | "danger" | "warning" | "muted";
 
@@ -24,7 +25,7 @@ export function Badge({
 }) {
   return (
     <span className={cn("q-pill", toneClasses[tone], className)}>
-      {children}
+      <span className="q-pill-label">{children}</span>
     </span>
   );
 }

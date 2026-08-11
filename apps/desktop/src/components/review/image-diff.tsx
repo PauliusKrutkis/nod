@@ -1,9 +1,9 @@
+import { Spinner } from "@nod/ui/spinner";
 import { useQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { api } from "../../lib/api.ts";
 import { imageMimeFor } from "../../lib/mime.ts";
 import type { ChangedFile } from "../../types.ts";
-import { Spinner } from "../ui/spinner.tsx";
 
 /**
  * Before/after panes for image files in a diff. Bytes come through the

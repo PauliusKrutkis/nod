@@ -5,6 +5,9 @@
  * detail payloads; interaction state stays in the screen and arrives as
  * callbacks.
  */
+
+import { Avatar } from "@nod/ui/avatar";
+import { Kbd } from "@nod/ui/kbd";
 import { Check, GitBranch, PanelLeft } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { copyTextToClipboard } from "../../lib/clipboard.ts";
@@ -16,8 +19,6 @@ import type {
   PullRequestDetail,
   ReviewSummary,
 } from "../../types.ts";
-import { Avatar } from "../ui/avatar.tsx";
-import { Kbd } from "../ui/kbd.tsx";
 import { TicketTitle } from "../ui/ticket-title.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
 import { ReviewVerdicts } from "./review-verdicts.tsx";

@@ -1,3 +1,7 @@
+import { fuzzyMatch } from "@nod/ui/fuzzy";
+import { HighlightIndices } from "@nod/ui/highlight-indices";
+import { Kbd } from "@nod/ui/kbd";
+import { useModalDialog } from "@nod/ui/use-modal-dialog";
 import { CornerDownLeft, FileCode, Search } from "lucide-react";
 import {
   type KeyboardEvent,
@@ -7,14 +11,10 @@ import {
   useRef,
   useState,
 } from "react";
-import { useModalDialog } from "../../hooks/use-modal-dialog.ts";
 import { cn } from "../../lib/cn.ts";
 import { type DiffRow, parsePatch } from "../../lib/diff.ts";
-import { fuzzyMatch } from "../../lib/fuzzy.ts";
 import { highlightLineWithMatch } from "../../lib/highlight.ts";
 import type { ChangedFile } from "../../types.ts";
-import { HighlightIndices } from "../ui/highlight.tsx";
-import { Kbd } from "../ui/kbd.tsx";
 
 type Mode = "files" | "text";
 

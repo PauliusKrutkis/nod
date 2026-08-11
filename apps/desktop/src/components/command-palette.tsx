@@ -1,3 +1,7 @@
+import { fuzzyMatch } from "@nod/ui/fuzzy";
+import { HighlightIndices } from "@nod/ui/highlight-indices";
+import { Kbd } from "@nod/ui/kbd";
+import { useModalDialog } from "@nod/ui/use-modal-dialog";
 import { Search } from "lucide-react";
 import {
   type KeyboardEvent,
@@ -7,14 +11,10 @@ import {
   useRef,
   useState,
 } from "react";
-import { useModalDialog } from "../hooks/use-modal-dialog.ts";
 import { useKeyboard } from "../keyboard/keyboard-provider.tsx";
 import { useHotkeys } from "../keyboard/use-hotkeys.ts";
 import { cn } from "../lib/cn.ts";
-import { fuzzyMatch } from "../lib/fuzzy.ts";
 import { useAppStore } from "../store/app-store.ts";
-import { HighlightIndices } from "./ui/highlight.tsx";
-import { Kbd } from "./ui/kbd.tsx";
 
 interface Entry {
   group?: string;
