@@ -4,6 +4,7 @@ import { badgeEntry } from "../badge/badge.fixtures.ts";
 import { buttonEntry } from "../button/button.fixtures.ts";
 import { ciPillEntry } from "../ci-pill/ci-pill.fixtures.ts";
 import { codeCellEntry } from "../code-cell/code-cell.fixtures.ts";
+import { commandPaletteEntry } from "../command-palette/command-palette.fixtures.ts";
 import { commentItemEntry } from "../comment-item/comment-item.fixtures.ts";
 import { commentThreadEntry } from "../comment-thread/comment-thread.fixtures.ts";
 import { commentToolsEntry } from "../comment-tools/comment-tools.fixtures.ts";
@@ -24,6 +25,7 @@ import { reviewVerdictsEntry } from "../review-verdicts/review-verdicts.fixtures
 import { searchPaneEntry } from "../search-pane/search-pane.fixtures.ts";
 import { spinnerEntry } from "../spinner/spinner.fixtures.ts";
 import { ticketTitleEntry } from "../ticket-title/ticket-title.fixtures.ts";
+import { tokenGateEntry } from "../token-gate/token-gate.fixtures.ts";
 import { tooltipEntry } from "../tooltip/tooltip.fixtures.ts";
 import { updatePromptEntry } from "../update-prompt/update-prompt.fixtures.ts";
 import { whatsNewEntry } from "../whats-new/whats-new.fixtures.ts";
@@ -36,6 +38,7 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   button: buttonEntry,
   "ci-pill": ciPillEntry,
   "code-cell": codeCellEntry,
+  "command-palette": commandPaletteEntry,
   "comment-item": commentItemEntry,
   "comment-thread": commentThreadEntry,
   "comment-tools": commentToolsEntry,
@@ -55,6 +58,7 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   "search-pane": searchPaneEntry,
   spinner: spinnerEntry,
   "ticket-title": ticketTitleEntry,
+  "token-gate": tokenGateEntry,
   tooltip: tooltipEntry,
   "update-prompt": updatePromptEntry,
   "whats-new": whatsNewEntry,

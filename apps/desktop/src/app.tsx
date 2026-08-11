@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AiSetupDialog } from "./components/ai-setup-dialog.tsx";
-import { CommandPalette } from "./components/command-palette.tsx";
+import { CommandPaletteCommands } from "./components/command-palette-commands.tsx";
 import { GlobalSearch } from "./components/global-search.tsx";
 
 import { Inbox } from "./components/inbox/inbox.tsx";
@@ -25,7 +25,7 @@ import { PurchasePromptLoader } from "./components/purchase-prompt-loader.tsx";
 import { ReleaseHistoryLoader } from "./components/release-history-loader.tsx";
 import { ReviewScreen } from "./components/review/review-screen.tsx";
 import { ReviewNotifier } from "./components/review-notifier.tsx";
-import { TokenGate } from "./components/token-gate.tsx";
+import { TokenGateFlow } from "./components/token-gate-flow.tsx";
 import { UpdatePromptLoader } from "./components/update-prompt-loader.tsx";
 import { WhatsNewLoader } from "./components/whats-new-loader.tsx";
 import { useLicenseCommand } from "./hooks/use-license-command.ts";
@@ -248,7 +248,7 @@ export default function App() {
             <Spinner label="Loading…" />
           </div>
         )}
-        {route.name === "token" && <TokenGate />}
+        {route.name === "token" && <TokenGateFlow />}
         {route.name === "inbox" && <Inbox />}
         {route.name === "review" && (
           <ReviewScreen
@@ -305,7 +305,7 @@ export default function App() {
       <IssueTrackerSettings onClose={closeTracker} open={trackerOpen} />
       <AiSetupDialog onClose={closeAiSetup} open={aiSetupOpen} />
       <ReleaseHistoryLoader onClose={closeHistory} open={historyOpen} />
-      <CommandPalette baseScope={baseScope} />
+      <CommandPaletteCommands baseScope={baseScope} />
       <KeyboardHelp baseScope={baseScope} />
       {showRouteChrome ? <GlobalSearch /> : null}
     </div>

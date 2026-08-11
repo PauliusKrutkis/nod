@@ -89,6 +89,22 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "whitespace",
     ],
   },
+  "command-palette": {
+    dialog: true,
+    fixtures: [
+      "crowd-140",
+      "empty",
+      "full",
+      "markup-as-text",
+      "matches-many",
+      "no-hints",
+      "no-matches",
+      "overflow",
+      "overflow-query",
+      "single",
+      "unicode",
+    ],
+  },
   "comment-item": {
     fixtures: [
       "author-overflow",
@@ -334,6 +350,25 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "repeated-separator",
       "trailing-slash",
       "unicode",
+    ],
+  },
+  "token-gate": {
+    fixtures: [
+      "add-account",
+      "auth-error",
+      "error-overflow",
+      "instances",
+      "markup-as-text",
+      "needs-setup",
+      "self-hosted",
+      "self-hosted-probed",
+      "self-hosted-probing",
+      "signed-out",
+      "signing-in",
+      "token-gitlab",
+      "token-rejected",
+      "unicode",
+      "verifying-token",
     ],
   },
   tooltip: {

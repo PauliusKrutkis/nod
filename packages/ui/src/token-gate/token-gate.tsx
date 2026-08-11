@@ -1,14 +1,45 @@
-import { Spinner } from "@nod/ui/spinner";
+/**
+ * The gate — identity, never configuration. One stack of continue-as rows;
+ * the sub-steps (self-hosted GitLab, paste a token) ask a single question and
+ * collapse back into the rows. The iris rail on hover is the same selection
+ * language as the palette and the search rows.
+ *
+ * Every value it draws and every action it offers arrives as a prop: the OAuth
+ * calls, the instance probe, the keychain write and the remembered-instance
+ * list all live in the host's flow hook, which keeps this a props-pure view
+ * the gallery can mount from a fixture. That matters more here than anywhere
+ * else in the app — the gate is the one screen a signed-in developer never
+ * sees again, so its error, busy and rejected states are otherwise impossible
+ * to look at.
+ *
+ * `shortHost` ships with the view because trimming the scheme is presentation,
+ * not storage: hosts are stored with their scheme and only ever shown without
+ * it, so the host and the view agree by importing the same function.
+ *
+ * The brand marks are inline SVG rather than icon-set imports: lucide dropped
+ * its brand icons, and these two are the only marks the app draws.
+ */
 import { ArrowLeft, KeyRound, Server } from "lucide-react";
 import { type ChangeEvent, type KeyboardEvent, useEffect, useRef } from "react";
-import {
-  type Busy,
-  type GitlabInstance,
-  shortHost,
-  type TokenProvider,
-  useTokenGate,
-} from "../hooks/use-token-gate.ts";
-import { cn } from "../lib/cn.ts";
+import { Button } from "../button/button.tsx";
+import { cn } from "../cn/cn.ts";
+import { Spinner } from "../spinner/spinner.tsx";
+import "./token-gate.css";
+
+export type TokenGateBusy = "idle" | "oauth" | "probe" | "pat";
+export type TokenGateProvider = "github" | "gitlab";
+export type TokenGateView = "identity" | "selfhosted" | "token";
+
+export interface GitlabInstance {
+  clientId?: string;
+  host: string;
+}
+
+const HTTPS_PREFIX = /^https?:\/\//;
+
+export function shortHost(host: string): string {
+  return host.replace(HTTPS_PREFIX, "");
+}
 
 function GitHubMark() {
   return (
@@ -59,7 +90,7 @@ function InstanceRow({ inst, disabled, onOpen }: InstanceRowProps) {
       type="button"
     >
       <Server aria-hidden size={16} />
-      <span className="q-mono">{shortHost(inst.host)}</span>
+      <span className="qg-row-host q-mono">{shortHost(inst.host)}</span>
       {inst.clientId ? null : <span className="qg-row-hint">token</span>}
     </button>
   );
@@ -69,7 +100,7 @@ interface IdentityPanelProps {
   disabled: boolean;
   ghOauthReady: boolean;
   glOauthReady: boolean;
-  instances: GitlabInstance[];
+  instances: readonly GitlabInstance[];
   onOpenInstance: (inst: GitlabInstance) => void;
   onSelfHosted: () => void;
   onSignInGithub: () => void;
@@ -91,7 +122,7 @@ function IdentityPanel({
   return (
     <>
       <fieldset className="qg-stack">
-        <legend className="sr-only">Sign in</legend>
+        <legend className="qg-sr">Sign in</legend>
         <button
           className="qg-row q-focus"
           disabled={disabled}
@@ -99,7 +130,7 @@ function IdentityPanel({
           type="button"
         >
           <GitHubMark />
-          Continue with GitHub
+          <span className="qg-row-label">Continue with GitHub</span>
           {ghOauthReady ? null : (
             <span className="qg-row-hint">needs setup</span>
           )}
@@ -111,7 +142,7 @@ function IdentityPanel({
           type="button"
         >
           <GitLabMark />
-          Continue with GitLab
+          <span className="qg-row-label">Continue with GitLab</span>
           {glOauthReady ? null : (
             <span className="qg-row-hint">needs setup</span>
           )}
@@ -145,7 +176,7 @@ function IdentityPanel({
 
 interface SelfHostedPanelProps {
   appId: string;
-  busy: Busy;
+  busy: TokenGateBusy;
   disabled: boolean;
   hostInput: string;
   oauthId: string | undefined;
@@ -191,10 +222,10 @@ function SelfHostedPanel({
       <label className="qg-label" htmlFor="qg-host">
         GitLab host
       </label>
-      <div className="flex gap-2">
+      <div className="qg-host-row">
         <input
           autoComplete="off"
-          className="q-input font-mono"
+          className="qg-input q-mono"
           disabled={disabled}
           id="qg-host"
           onChange={onHostInputChange}
@@ -206,14 +237,13 @@ function SelfHostedPanel({
           value={hostInput}
         />
         {probedHost ? null : (
-          <button
-            className="q-btn q-btn-quiet shrink-0"
+          <Button
+            className="qg-probe"
             disabled={disabled || !hostInput.trim()}
             onClick={onProbe}
-            type="button"
           >
             {busy === "probe" ? <Spinner /> : "Continue"}
-          </button>
+          </Button>
         )}
       </div>
 
@@ -222,14 +252,17 @@ function SelfHostedPanel({
           <p className="qg-ok">✓ {shortHost(probedHost)} is reachable</p>
 
           {oauthId ? (
-            <button
-              className="q-btn q-btn-primary q-focus mb-4 w-full py-2.5"
+            <Button
+              className="qg-signin"
               disabled={disabled}
               onClick={onSignInGitlab}
-              type="button"
+              variant="primary"
             >
-              <GitLabMark /> Sign in to {shortHost(probedHost)}
-            </button>
+              <GitLabMark />
+              <span className="qg-signin-host">
+                Sign in to {shortHost(probedHost)}
+              </span>
+            </Button>
           ) : null}
 
           <label className="qg-label" htmlFor="qg-appid">
@@ -241,7 +274,7 @@ function SelfHostedPanel({
           </label>
           <input
             autoComplete="off"
-            className="q-input font-mono"
+            className="qg-input q-mono"
             disabled={disabled}
             id="qg-appid"
             onChange={onAppIdChange}
@@ -256,7 +289,7 @@ function SelfHostedPanel({
           <input
             aria-label="Personal access token"
             autoComplete="off"
-            className="q-input font-mono"
+            className="qg-input q-mono"
             disabled={disabled}
             onChange={onTokenChange}
             onKeyDown={onTokenKeyDown}
@@ -265,17 +298,16 @@ function SelfHostedPanel({
             type="password"
             value={token}
           />
-          <div className="mt-2.5 flex items-center justify-between gap-3">
-            <button
-              className="q-btn q-btn-quiet flex-1"
+          <div className="qg-actions">
+            <Button
+              className="qg-connect"
               disabled={disabled || !token.trim()}
               onClick={onConnectGitlabToken}
-              type="button"
             >
               {busy === "pat" ? <Spinner /> : "Connect"}
-            </button>
+            </Button>
             <button
-              className="shrink-0 text-accent text-sm hover:underline"
+              className="qg-create q-focus"
               onClick={onCreateToken}
               type="button"
             >
@@ -289,17 +321,17 @@ function SelfHostedPanel({
 }
 
 interface TokenPanelProps {
-  busy: Busy;
+  busy: TokenGateBusy;
   disabled: boolean;
   onConnect: () => void;
   onCreateToken: () => void;
-  onProviderChange: (provider: TokenProvider) => void;
+  onProviderChange: (provider: TokenGateProvider) => void;
   onTokenChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onTokenHostChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onTokenKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
   token: string;
   tokenHost: string;
-  tokenProvider: TokenProvider;
+  tokenProvider: TokenGateProvider;
 }
 
 function TokenPanel({
@@ -331,17 +363,17 @@ function TokenPanel({
 
   return (
     <>
-      <fieldset className="qa-seg mb-4">
-        <legend className="sr-only">Provider</legend>
+      <fieldset className="qg-provider">
+        <legend className="qg-sr">Provider</legend>
         <label
           className={cn(
-            "qa-seg-btn",
-            tokenProvider === "github" && "qa-seg-on"
+            "qg-provider-btn",
+            tokenProvider === "github" && "qg-provider-on"
           )}
         >
           <input
             checked={tokenProvider === "github"}
-            className="sr-only"
+            className="qg-sr"
             name="token-provider"
             onChange={onSelectGithub}
             type="radio"
@@ -351,13 +383,13 @@ function TokenPanel({
         </label>
         <label
           className={cn(
-            "qa-seg-btn",
-            tokenProvider === "gitlab" && "qa-seg-on"
+            "qg-provider-btn",
+            tokenProvider === "gitlab" && "qg-provider-on"
           )}
         >
           <input
             checked={tokenProvider === "gitlab"}
-            className="sr-only"
+            className="qg-sr"
             name="token-provider"
             onChange={onSelectGitlab}
             type="radio"
@@ -374,7 +406,7 @@ function TokenPanel({
           </label>
           <input
             autoComplete="off"
-            className="q-input mb-3 font-mono"
+            className="qg-input qg-input-gap q-mono"
             disabled={disabled}
             id="qg-token-host"
             onChange={onTokenHostChange}
@@ -392,7 +424,7 @@ function TokenPanel({
       </label>
       <input
         autoComplete="off"
-        className="q-input font-mono"
+        className="qg-input q-mono"
         disabled={disabled}
         id="qg-token"
         onChange={onTokenChange}
@@ -403,17 +435,16 @@ function TokenPanel({
         type="password"
         value={token}
       />
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <button
-          className="q-btn q-btn-quiet flex-1 py-2"
+      <div className="qg-actions">
+        <Button
+          className="qg-connect"
           disabled={disabled || !token.trim()}
           onClick={onConnect}
-          type="button"
         >
           {busy === "pat" ? <Spinner /> : "Connect"}
-        </button>
+        </Button>
         <button
-          className="shrink-0 text-accent text-sm hover:underline"
+          className="qg-create q-focus"
           onClick={onCreateToken}
           type="button"
         >
@@ -424,109 +455,170 @@ function TokenPanel({
   );
 }
 
-function TokenGateScreen() {
-  const gate = useTokenGate();
-  const gateError: string | null = gate.error;
-
+export function TokenGate({
+  accountCount,
+  appId,
+  busy,
+  busyLabel,
+  disabled,
+  error,
+  ghOauthReady,
+  glOauthReady,
+  hostInput,
+  instances,
+  oauthId,
+  onAppIdChange,
+  onBackToIdentity,
+  onConnectGitlabToken,
+  onConnectToken,
+  onCreateSelfHostedToken,
+  onCreateToken,
+  onGoInbox,
+  onHostInputChange,
+  onHostKeyDown,
+  onOpenInstance,
+  onProbe,
+  onProviderChange,
+  onSelfHosted,
+  onSelfHostedSignInGitlab,
+  onSelfHostedTokenChange,
+  onSelfHostedTokenKeyDown,
+  onSignInGithub,
+  onSignInGitlab,
+  onTokenChange,
+  onTokenHostChange,
+  onTokenKeyDown,
+  onUseToken,
+  probedHost,
+  token,
+  tokenHost,
+  tokenProvider,
+  view,
+}: {
+  accountCount: number;
+  appId: string;
+  busy: TokenGateBusy;
+  busyLabel: string;
+  disabled: boolean;
+  error: string | null;
+  ghOauthReady: boolean;
+  glOauthReady: boolean;
+  hostInput: string;
+  instances: readonly GitlabInstance[];
+  oauthId: string | undefined;
+  onAppIdChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onBackToIdentity: () => void;
+  onConnectGitlabToken: () => void;
+  onConnectToken: () => void;
+  onCreateSelfHostedToken: () => void;
+  onCreateToken: () => void;
+  onGoInbox: () => void;
+  onHostInputChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onHostKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
+  onOpenInstance: (inst: GitlabInstance) => void;
+  onProbe: () => void;
+  onProviderChange: (provider: TokenGateProvider) => void;
+  onSelfHosted: () => void;
+  onSelfHostedSignInGitlab: () => void;
+  onSelfHostedTokenChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onSelfHostedTokenKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
+  onSignInGithub: () => void;
+  onSignInGitlab: () => void;
+  onTokenChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onTokenHostChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onTokenKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
+  onUseToken: () => void;
+  probedHost: string | null;
+  token: string;
+  tokenHost: string;
+  tokenProvider: TokenGateProvider;
+  view: TokenGateView;
+}) {
   return (
-    <div className="flex h-full items-center justify-center bg-bg px-6">
+    <div className="qg-screen">
       <div className="qg-card">
-        <div className="flex items-center gap-2.5">
+        <div className="qg-head">
           <span aria-hidden className="qg-logo" />
-          <h1 className="font-semibold text-2xl text-fg">Nod</h1>
-          {gate.view === "identity" && gate.accounts.length > 0 ? (
-            <button
-              className="q-btn q-btn-ghost q-focus ml-auto px-2 py-1 text-xs"
-              onClick={gate.onGoInbox}
-              type="button"
-            >
-              <ArrowLeft aria-hidden size={13} /> Back
-            </button>
+          <h1 className="qg-wordmark">Nod</h1>
+          {view === "identity" && accountCount > 0 ? (
+            <Button className="qg-back" onClick={onGoInbox} variant="ghost">
+              <span className="qg-back-inner">
+                <ArrowLeft aria-hidden size={13} /> Back
+              </span>
+            </Button>
           ) : null}
         </div>
-        <p className="mt-1 mb-6 text-muted text-sm">
-          {gate.accounts.length > 0
-            ? "Add an account"
-            : "Keyboard-first code review"}
+        <p className="qg-tagline">
+          {accountCount > 0 ? "Add an account" : "Keyboard-first code review"}
         </p>
 
-        {gate.view === "identity" ? (
+        {view === "identity" ? (
           <IdentityPanel
-            disabled={gate.disabled}
-            ghOauthReady={gate.ghOauthReady}
-            glOauthReady={gate.glOauthReady}
-            instances={gate.instances}
-            onOpenInstance={gate.onOpenInstance}
-            onSelfHosted={gate.onSelfHosted}
-            onSignInGithub={gate.onSignInGithub}
-            onSignInGitlab={gate.onSignInGitlab}
-            onUseToken={gate.onUseToken}
+            disabled={disabled}
+            ghOauthReady={ghOauthReady}
+            glOauthReady={glOauthReady}
+            instances={instances}
+            onOpenInstance={onOpenInstance}
+            onSelfHosted={onSelfHosted}
+            onSignInGithub={onSignInGithub}
+            onSignInGitlab={onSignInGitlab}
+            onUseToken={onUseToken}
           />
         ) : null}
 
-        {gate.view === "selfhosted" ? (
+        {view === "selfhosted" ? (
           <SelfHostedPanel
-            appId={gate.appId}
-            busy={gate.busy}
-            disabled={gate.disabled}
-            hostInput={gate.hostInput}
-            oauthId={gate.oauthId}
-            onAppIdChange={gate.onAppIdChange}
-            onConnectGitlabToken={gate.onConnectGitlabToken}
-            onCreateToken={gate.onCreateSelfHostedToken}
-            onHostInputChange={gate.onHostInputChange}
-            onHostKeyDown={gate.onHostKeyDown}
-            onProbe={gate.onProbe}
-            onSignInGitlab={gate.onSelfHostedSignInGitlab}
-            onTokenChange={gate.onSelfHostedTokenChange}
-            onTokenKeyDown={gate.onSelfHostedTokenKeyDown}
-            probedHost={gate.probedHost}
-            token={gate.token}
+            appId={appId}
+            busy={busy}
+            disabled={disabled}
+            hostInput={hostInput}
+            oauthId={oauthId}
+            onAppIdChange={onAppIdChange}
+            onConnectGitlabToken={onConnectGitlabToken}
+            onCreateToken={onCreateSelfHostedToken}
+            onHostInputChange={onHostInputChange}
+            onHostKeyDown={onHostKeyDown}
+            onProbe={onProbe}
+            onSignInGitlab={onSelfHostedSignInGitlab}
+            onTokenChange={onSelfHostedTokenChange}
+            onTokenKeyDown={onSelfHostedTokenKeyDown}
+            probedHost={probedHost}
+            token={token}
           />
         ) : null}
 
-        {gate.view === "token" ? (
+        {view === "token" ? (
           <TokenPanel
-            busy={gate.busy}
-            disabled={gate.disabled}
-            onConnect={gate.onConnectToken}
-            onCreateToken={gate.onCreateToken}
-            onProviderChange={gate.onProviderChange}
-            onTokenChange={gate.onTokenChange}
-            onTokenHostChange={gate.onTokenHostChange}
-            onTokenKeyDown={gate.onTokenKeyDown}
-            token={gate.token}
-            tokenHost={gate.tokenHost}
-            tokenProvider={gate.tokenProvider}
+            busy={busy}
+            disabled={disabled}
+            onConnect={onConnectToken}
+            onCreateToken={onCreateToken}
+            onProviderChange={onProviderChange}
+            onTokenChange={onTokenChange}
+            onTokenHostChange={onTokenHostChange}
+            onTokenKeyDown={onTokenKeyDown}
+            token={token}
+            tokenHost={tokenHost}
+            tokenProvider={tokenProvider}
           />
         ) : null}
 
-        {gate.busy === "oauth" ? (
-          <p className="mt-3 text-center text-muted text-xs">
-            {gate.busyLabel}
-          </p>
-        ) : null}
-        {gateError ? (
-          <p className="mt-3 break-words text-danger text-sm">{gateError}</p>
-        ) : null}
+        {busy === "oauth" ? <p className="qg-status">{busyLabel}</p> : null}
+        {error ? <p className="qg-error">{error}</p> : null}
 
-        {gate.view === "identity" ? null : (
+        {view === "identity" ? null : (
           <button
-            className="qg-link q-focus mt-5"
-            onClick={gate.onBackToIdentity}
+            className="qg-link qg-link-back q-focus"
+            onClick={onBackToIdentity}
             type="button"
           >
             <ArrowLeft aria-hidden size={12} /> All sign-in options
           </button>
         )}
-        <p className="mt-4 text-center text-faint text-xs">
+        <p className="qg-fine">
           Tokens stay on this device; sign-ins open your browser.
         </p>
       </div>
     </div>
   );
-}
-
-export function TokenGate() {
-  return <TokenGateScreen />;
 }
