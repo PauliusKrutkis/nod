@@ -1,6 +1,6 @@
 import type { ReviewSummary } from "../types.ts";
 
-export interface Reviewer {
+interface Reviewer {
   user: string;
   userAvatarUrl: string;
 }

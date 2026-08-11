@@ -933,50 +933,6 @@ textarea.q-input {
   font-size: 12px;
 }
 
-/* review verdicts — who approves / requests changes, faces first */
-.dir-quiet .qf-verdicts {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.dir-quiet .qf-verdict {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 24px;
-  padding: 0 7px 0 6px;
-  border-radius: var(--r-pill);
-  box-shadow: inset 0 0 0 1px var(--line-2);
-}
-.dir-quiet .qf-verdict-approved {
-  color: var(--add);
-  background: var(--add-bg);
-}
-.dir-quiet .qf-verdict-changes {
-  color: var(--del);
-  background: var(--del-bg);
-}
-.dir-quiet .qf-verdict-faces {
-  display: inline-flex;
-  align-items: center;
-}
-.dir-quiet .qf-verdict-faces > * + * {
-  margin-left: -6px;
-}
-.dir-quiet .qf-verdict-approved .q-avatar {
-  box-shadow: 0 0 0 1.5px var(--add-bg);
-}
-.dir-quiet .qf-verdict-changes .q-avatar {
-  box-shadow: 0 0 0 1.5px var(--del-bg);
-}
-.dir-quiet .qf-verdict-more {
-  margin-left: 3px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--muted);
-}
-
 .dir-quiet .qf-info-btn {
   position: relative;
   width: 28px;
@@ -1477,87 +1433,6 @@ textarea.q-input {
 }
 
 /* ============ FIND IN DIFF (mod+f) ============ */
-/* A compact editor-style bar floated over the diff's top-right corner. No
-   scrim and no focus trap — the diff stays live underneath: this is a lens on
-   the text, not a mode. */
-.dir-quiet .qf-findbar {
-  position: absolute;
-  top: 8px;
-  right: 20px;
-  z-index: 30;
-  display: flex;
-  gap: 2px;
-  align-items: center;
-  padding: 4px 5px 4px 11px;
-  font-family: var(--font-ui);
-  background: var(--surface);
-  border: 1px solid var(--line-2);
-  border-radius: var(--r-xl);
-  box-shadow:
-    0 12px 32px -16px rgba(0, 0, 0, 0.7),
-    0 0 0 1px rgba(139, 128, 255, 0.05);
-  animation: q-fade 120ms ease;
-}
-.dir-quiet .qf-findbar-input {
-  width: 200px;
-  font-family: var(--font-ui);
-  font-size: 12.5px;
-  color: var(--fg);
-  outline: none;
-  background: transparent;
-  border: none;
-}
-.dir-quiet .qf-findbar-input::placeholder {
-  color: var(--faint);
-}
-/* the "3/17" counter — mono so it doesn't wobble while stepping */
-.dir-quiet .qf-findbar-count {
-  min-width: 42px;
-  padding-right: 6px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--muted);
-  text-align: right;
-  white-space: nowrap;
-  -webkit-user-select: none;
-  user-select: none;
-}
-.dir-quiet .qf-findbar-none {
-  color: var(--del);
-}
-.dir-quiet .qf-findbar-sep {
-  width: 1px;
-  height: 16px;
-  margin: 0 3px;
-  background: var(--line);
-}
-.dir-quiet .qf-findbar-btn {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  color: var(--muted);
-  cursor: pointer;
-  background: transparent;
-  border: none;
-  border-radius: var(--r-md);
-}
-.dir-quiet .qf-findbar-btn:hover:not(:disabled) {
-  color: var(--fg);
-  background: var(--surface-hi);
-}
-.dir-quiet .qf-findbar-btn:disabled {
-  color: var(--faint);
-  cursor: default;
-  opacity: 0.55;
-}
-.dir-quiet .qf-findbar-btn-on {
-  color: var(--accent);
-  background: var(--accent-soft);
-  box-shadow: inset 0 0 0 1px var(--accent-line);
-}
-
 .dir-quiet mark.qf-find-mark {
   padding: 0;
   margin: 0;
@@ -1608,35 +1483,6 @@ textarea.q-input {
 .dir-quiet .qf-row-add mark.qf-intra-mark {
   background: color-mix(in srgb, var(--add) 30%, transparent);
 }
-.dir-quiet .qf-ruler {
-  position: absolute;
-  top: 2px;
-  right: 9px;
-  bottom: 2px;
-  z-index: 20;
-  width: 6px;
-  pointer-events: none;
-}
-.dir-quiet .qf-ruler-tick {
-  position: absolute;
-  right: 1px;
-  left: 1px;
-  height: 2px;
-  border-radius: var(--r-xs);
-}
-.dir-quiet .qf-ruler-find {
-  background: color-mix(in srgb, var(--accent) 70%, transparent);
-}
-.dir-quiet .qf-ruler-find.qf-ruler-current {
-  right: 0;
-  left: 0;
-  height: 3px;
-  background: var(--accent);
-}
-.dir-quiet .qf-ruler-occ {
-  background: color-mix(in srgb, var(--fg) 40%, transparent);
-}
-
 .dir-quiet .qf-comment-wrap {
   padding: 0 16px 6px 70px;
   background: var(--bg);

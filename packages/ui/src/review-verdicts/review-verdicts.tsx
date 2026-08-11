@@ -1,24 +1,37 @@
-import { Avatar } from "@nod/ui/avatar";
-import { Tooltip } from "@nod/ui/tooltip";
-import { Check, X } from "lucide-react";
-import { cn } from "../../lib/cn.ts";
-import { aggregateReviewVerdicts, type Reviewer } from "../../lib/reviews.ts";
-import type { ReviewSummary } from "../../types.ts";
-
-const MAX_FACES = 3;
-
 /**
  * Header verdict summary: who approves and who requests changes, as two quiet
  * pills each fronted by the reviewers' faces. Renders nothing until at least
  * one reviewer has cast a verdict, so a PR with no reviews stays silent.
+ *
+ * Collapsing a review timeline into these two lists is the host's job (the
+ * desktop's aggregateReviewVerdicts): this component takes the two verdict
+ * rosters already resolved, in the order it should show them.
  *
  * The reviewer list is a hover tooltip plus an aria-label, deliberately not a
  * tab stop: the pill reports state and has nothing to activate, so making it
  * focusable would add a keyboard stop that does nothing in a keyboard-first
  * app.
  */
-export function ReviewVerdicts({ reviews }: { reviews: ReviewSummary[] }) {
-  const { approved, changesRequested } = aggregateReviewVerdicts(reviews);
+import { Check, X } from "lucide-react";
+import { Avatar } from "../avatar/avatar.tsx";
+import { cn } from "../cn/cn.ts";
+import { Tooltip } from "../tooltip/tooltip.tsx";
+import "./review-verdicts.css";
+
+const MAX_FACES = 3;
+
+export interface Reviewer {
+  user: string;
+  userAvatarUrl?: string | null;
+}
+
+export function ReviewVerdicts({
+  approved,
+  changesRequested,
+}: {
+  approved: readonly Reviewer[];
+  changesRequested: readonly Reviewer[];
+}) {
   if (approved.length === 0 && changesRequested.length === 0) {
     return null;
   }
@@ -39,7 +52,7 @@ function VerdictPill({
   reviewers,
 }: {
   kind: "approved" | "changes";
-  reviewers: Reviewer[];
+  reviewers: readonly Reviewer[];
 }) {
   const label = kind === "approved" ? "Approved" : "Changes requested";
   const faces = reviewers.slice(0, MAX_FACES);

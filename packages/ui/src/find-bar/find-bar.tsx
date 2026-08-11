@@ -1,24 +1,32 @@
-import { Tooltip } from "@nod/ui/tooltip";
-import { CaseSensitive, ChevronDown, ChevronUp, X } from "lucide-react";
-import { type ChangeEvent, type KeyboardEvent, useRef } from "react";
-import { cn } from "../../lib/cn.ts";
-
 /**
  * Editor/browser-style find bar, floated over the diff's top-right corner
  * (mod+f). Deliberately NOT a modal: no scrim, no focus trap — the diff stays
  * fully interactive underneath, this is a lens on the text rather than a mode.
  *
- * Matching lives in lib/find-in-diff.ts and navigation state in ReviewScreen;
- * this component only owns the input and its keys. The global key dispatcher
- * ignores non-modifier keys inside editable targets, so Enter / arrows / Esc
- * are handled right here while the input is focused.
- */
-/**
+ * Matching and navigation state live at the call site (the desktop's find
+ * hook and ReviewScreen); this component only owns the input and its keys.
+ * The host's global key dispatcher ignores non-modifier keys inside editable
+ * targets, so Enter / arrows / Esc are handled right here while the input is
+ * focused. Remounting on a changed focusSeq is how the host re-focuses and
+ * re-selects an already-open bar.
+ *
  * Buttons don't steal focus from the input (onMouseDown preventDefault), so
  * clicking a chevron then pressing Enter keeps stepping through matches.
  */
+import { CaseSensitive, ChevronDown, ChevronUp, X } from "lucide-react";
+import type { ChangeEvent, KeyboardEvent } from "react";
+import { cn } from "../cn/cn.ts";
+import { Tooltip } from "../tooltip/tooltip.tsx";
+import "./find-bar.css";
 
 const keepFocus = (e: React.MouseEvent) => e.preventDefault();
+
+const focusOnMount = (el: HTMLInputElement | null) => {
+  if (el) {
+    el.focus();
+    el.select();
+  }
+};
 
 export function FindBar({
   open,
@@ -45,16 +53,6 @@ export function FindBar({
   onPrev: () => void;
   onClose: () => void;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const bindInputRef = (el: HTMLInputElement | null) => {
-    inputRef.current = el;
-    if (el) {
-      el.focus();
-      el.select();
-    }
-  };
-
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     onQueryChange(e.target.value);
   };
@@ -103,7 +101,7 @@ export function FindBar({
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         placeholder="Find in diff"
-        ref={bindInputRef}
+        ref={focusOnMount}
         spellCheck={false}
         value={query}
       />
