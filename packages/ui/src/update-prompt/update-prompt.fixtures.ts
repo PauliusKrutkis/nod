@@ -1,11 +1,12 @@
 /**
  * Every face of the card, and every way each of them can be mid-flight:
- * offered, installing, offered-but-unlicensed, waiting on the browser, failed,
- * and packaged — the .deb/.rpm build that has no install button at all. There
- * is deliberately no "downloading, 43%" fixture — the install
- * is a single backend command that ends in a relaunch and reports no
- * progress, so a progress bar here would be a picture of something the app
- * does not know.
+ * offered, installing, offered-but-unlicensed, waiting on the browser and
+ * failed. The two packaged fixtures are the .deb/.rpm build, which has no
+ * install button at all — and its lapsed pair, where the license CTA has to
+ * stay primary while the copy still admits the swap is manual. There is
+ * deliberately no "downloading, 43%" fixture — the install is a single
+ * backend command that ends in a relaunch and reports no progress, so a
+ * progress bar here would be a picture of something the app does not know.
  *
  * Versions are the unbounded strings: they come from a release feed, land in
  * the header chip, the lede and the notes at once, and a pre-release tag can
@@ -57,6 +58,9 @@ export const updatePromptEntry = defineEntry(UpdatePrompt, {
       "caught the version chip pushing straight through the card's right edge — it had no ellipsis floor",
   },
   packaged: { props: { ...base, selfInstallable: false } },
+  "packaged-ineligible": {
+    props: { ...base, eligible: false, selfInstallable: false },
+  },
   "ready-to-restart": { props: base },
   "with-notes": {
     props: {

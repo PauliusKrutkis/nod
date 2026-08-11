@@ -5,22 +5,17 @@
  * .rpm belongs to the package manager and the install ends in "Failed to
  * install package". The backend reports that as `selfInstallable`; these
  * specs pin that a build without it loses the install button and points at
- * the downloads page instead, and that every build with it keeps the
- * one-click install.
+ * the downloads page instead, that a lapsed license there still sells the
+ * license first while saying the swap stays manual, and that every build
+ * with it keeps the one-click install.
  */
 import { setupApp } from "./bridge.ts";
+import { updateCard } from "./dom.ts";
+import { LAPSED_LICENSE, UPDATE_AVAILABLE } from "./fixtures.ts";
 import { expect, test } from "./test.ts";
-import type { Page } from "./types.ts";
 
-const UPDATE = {
-  currentVersion: "1.0.0",
-  eligible: true,
-  notes: null,
-  version: "2.0.0",
-};
-
-const updateCard = (page: Page) =>
-  page.getByRole("status").filter({ hasText: "Update available" });
+const UPDATE = { ...UPDATE_AVAILABLE, eligible: true };
+const LICENSE_CTA = /Get a license/;
 
 test("a package install gets a notice instead of an install button", async ({
   page,
@@ -28,7 +23,7 @@ test("a package install gets a notice instead of an install button", async ({
   await setupApp(page, { update: { ...UPDATE, selfInstallable: false } });
 
   await expect(updateCard(page)).toContainText(
-    "Your package manager installed Nod"
+    "Nod can't replace a .deb or .rpm install on its own"
   );
   await expect(
     updateCard(page).getByRole("button", { name: "Restart & update" })
@@ -47,6 +42,28 @@ test("a package install gets a notice instead of an install button", async ({
   expect(opened).toContain("https://nodreview.com/downloads");
 });
 
+test("a lapsed license on a package install sells the license first", async ({
+  page,
+}) => {
+  await setupApp(page, {
+    licenseState: LAPSED_LICENSE,
+    update: { ...UPDATE, eligible: false, selfInstallable: false },
+  });
+
+  await expect(updateCard(page)).toContainText(
+    "2.0.0 is outside your update window"
+  );
+  await expect(updateCard(page)).toContainText(
+    "Nod can't replace a .deb or .rpm install on its own"
+  );
+  await expect(
+    updateCard(page).getByRole("button", { name: LICENSE_CTA })
+  ).toBeVisible();
+  await expect(
+    updateCard(page).getByRole("button", { name: "Restart & update" })
+  ).toHaveCount(0);
+});
+
 test("a build that installs its own updates keeps the button", async ({
   page,
 }) => {
@@ -55,7 +72,7 @@ test("a build that installs its own updates keeps the button", async ({
   await expect(
     updateCard(page).getByRole("button", { name: "Restart & update" })
   ).toBeVisible();
-  await expect(updateCard(page)).not.toContainText("package manager");
+  await expect(updateCard(page)).not.toContainText(".deb");
   await expect(
     updateCard(page).getByRole("button", { name: "Open downloads" })
   ).toHaveCount(0);

@@ -55,3 +55,6 @@ export async function dblclickToken(
   await page.waitForTimeout(100);
   await page.mouse.dblclick(x, y);
 }
+
+export const updateCard = (page: Page) =>
+  page.getByRole("status").filter({ hasText: "Update available" });

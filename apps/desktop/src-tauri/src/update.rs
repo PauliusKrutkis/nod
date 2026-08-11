@@ -199,7 +199,7 @@ pub async fn list_releases() -> Result<Option<Vec<ReleaseInfo>>, String> {
 pub async fn install_update(app: AppHandle) -> Result<(), String> {
     if !can_self_install(Target::current(), appimage_path(&app).as_deref()) {
         return Err(
-            "Your package manager installed Nod, so it installs the update too. Get the newest package from https://nodreview.com/downloads."
+            "Nod can't replace a .deb or .rpm install on its own. Download the new package from https://nodreview.com/downloads and install it over this one."
                 .to_string(),
         );
     }

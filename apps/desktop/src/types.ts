@@ -11,7 +11,8 @@
  * LicenseState.updatesUntil bounds update eligibility, not app function —
  * a licensed app never stops working, it stops receiving newer releases.
  * UpdateInfo.selfInstallable is false on a Linux .deb/.rpm install, where the
- * new release comes from the package manager and the app cannot install it.
+ * app cannot put a release in place and the new package has to be downloaded
+ * and installed by hand.
  */
 
 export interface GitHubUser {

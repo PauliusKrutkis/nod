@@ -8,24 +8,11 @@
  * trialExpired the card yields to PurchasePrompt instead of double-selling.
  */
 import { setupApp } from "./bridge.ts";
+import { updateCard } from "./dom.ts";
+import { LAPSED_LICENSE, UPDATE_AVAILABLE as UPDATE } from "./fixtures.ts";
 import { expect, test } from "./test.ts";
-import type { Page } from "./types.ts";
 
 const LICENSE_CTA = /Get a license/;
-
-const UPDATE = {
-  currentVersion: "1.0.0",
-  notes: null,
-  version: "2.0.0",
-};
-
-const LAPSED_LICENSE = {
-  status: "licensed",
-  updatesUntil: "2020-01-01",
-} as const;
-
-const updateCard = (page: Page) =>
-  page.getByRole("status").filter({ hasText: "Update available" });
 
 test("an eligible update offers the one-click install", async ({ page }) => {
   await setupApp(page, { update: { ...UPDATE, eligible: true } });

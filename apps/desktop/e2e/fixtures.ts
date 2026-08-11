@@ -572,6 +572,17 @@ export function perfBudget(ms: number, projectName: string): number {
   return projectName.endsWith("-prod") ? base / 2 : base;
 }
 
+export const UPDATE_AVAILABLE = {
+  currentVersion: "1.0.0",
+  notes: null,
+  version: "2.0.0",
+};
+
+export const LAPSED_LICENSE = {
+  status: "licensed",
+  updatesUntil: "2020-01-01",
+} as const;
+
 export const ACCOUNT = {
   avatarUrl: "",
   host: "https://github.com",
