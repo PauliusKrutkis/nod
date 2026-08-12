@@ -11,7 +11,7 @@ import { useNotificationFeed } from "../hooks/use-notification-feed.ts";
 import { useHotkeys } from "../keyboard/use-hotkeys.ts";
 
 export function ReviewNotifier() {
-  const { dismiss, open, toast } = useNotificationFeed();
+  const { announcement, dismiss, open } = useNotificationFeed();
 
   useHotkeys(
     "review-notifier",
@@ -29,24 +29,26 @@ export function ReviewNotifier() {
         run: dismiss,
       },
     ],
-    { enabled: !!toast }
+    { enabled: !!announcement }
   );
 
-  if (!toast) {
+  if (!announcement) {
     return null;
   }
 
   return (
     <ReviewToast
-      extraCount={toast.extra}
-      kind={toast.event.kind === "authorResponded" ? "response" : "request"}
+      extraCount={announcement.extra}
+      kind={
+        announcement.event.kind === "authorResponded" ? "response" : "request"
+      }
       onDismiss={dismiss}
       onOpen={open}
       request={{
-        author: toast.event.actor,
-        authorAvatarUrl: toast.event.actorAvatarUrl,
-        number: toast.event.number,
-        title: toast.event.title,
+        author: announcement.event.actor,
+        authorAvatarUrl: announcement.event.actorAvatarUrl,
+        number: announcement.event.number,
+        title: announcement.event.title,
       }}
     />
   );

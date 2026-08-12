@@ -12,13 +12,13 @@
  * in the middle of another component's render. Running twice is harmless
  * anyway, because `ingest` is idempotent.
  *
+ * The live announcement is store state, not component state, so nothing here
+ * sets React state from an effect and the notifier holds no state at all.
+ *
  * Dismissing the toast does not mark the event read — waving a card off your
  * screen is not the same as dealing with the PR, and the list exists precisely
  * to hold what you waved off. Opening does, because going to the PR is the
- * strongest signal there is. Either way the read write happens outside the
- * state updater, never inside it: an updater runs during render, and this one
- * writes to a store the notification list subscribes to, which would be an
- * update to another component mid-render.
+ * strongest signal there is.
  *
  * Sinks read the same batch `ingest` returned, so the toast and the OS banner
  * can never disagree about what is new. Each is gated by that kind's channel,
@@ -26,7 +26,7 @@
  * about the screen in front of you is noise, and the log still records it so
  * the list stays complete.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 import { detectEvents, notificationCopy } from "../lib/notification-events.ts";
 import { sendOsNotification } from "../lib/os-notification.ts";
 import { type Route, useAppStore } from "../store/app-store.ts";
@@ -54,16 +54,14 @@ function isOpenOnScreen(route: Route, event: StoredNotification): boolean {
 
 export function useNotificationFeed() {
   const { data } = useInbox();
-  const [toast, setToast] = useState<{
-    event: StoredNotification;
-    extra: number;
-  } | null>(null);
+  const announcement = useNotificationStore((s) => s.announcement);
 
   useEffect(() => {
     if (!data) {
       return;
     }
-    const fresh = useNotificationStore.getState().ingest(detectEvents(data));
+    const store = useNotificationStore.getState();
+    const fresh = store.ingest(detectEvents(data));
     if (fresh.length === 0) {
       return;
     }
@@ -82,33 +80,38 @@ export function useNotificationFeed() {
     );
     const next = toastable.at(0);
     if (next) {
-      setToast({ event: next, extra: toastable.length - 1 });
+      store.setAnnouncement({ event: next, extra: toastable.length - 1 });
     }
   }, [data]);
 
   useEffect(() => {
-    if (!toast) {
+    if (!announcement) {
       return;
     }
-    const t = window.setTimeout(() => setToast(null), AUTO_DISMISS_MS);
+    const t = window.setTimeout(
+      () => useNotificationStore.getState().setAnnouncement(null),
+      AUTO_DISMISS_MS
+    );
     return () => window.clearTimeout(t);
-  }, [toast]);
+  }, [announcement]);
 
   const dismiss = useCallback(() => {
-    setToast(null);
+    useNotificationStore.getState().setAnnouncement(null);
   }, []);
 
   const open = useCallback(() => {
-    if (!toast) {
+    const store = useNotificationStore.getState();
+    const current = store.announcement;
+    if (!current) {
       return;
     }
-    const { event } = toast;
-    setToast(null);
-    useNotificationStore.getState().markRead(event.id);
-    const store = useAppStore.getState();
-    store.markSeen(event.prKey, event.createdAt);
-    store.openReview(event.owner, event.name, event.number);
-  }, [toast]);
+    const { event } = current;
+    store.setAnnouncement(null);
+    store.markRead(event.id);
+    const app = useAppStore.getState();
+    app.markSeen(event.prKey, event.createdAt);
+    app.openReview(event.owner, event.name, event.number);
+  }, []);
 
-  return { dismiss, open, toast };
+  return { announcement, dismiss, open };
 }

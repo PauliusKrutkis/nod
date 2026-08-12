@@ -1,6 +1,6 @@
 /**
- * The notification log: what has been announced, what you have read, and
- * nothing about how any of it is shown.
+ * The notification log: what has been announced, what you have read, and which
+ * one is being announced right now.
  *
  * `ingest` is the only way in and the only place repeats die. Detectors report
  * everything currently true on each poll (see `lib/notification-events.ts`),
@@ -17,6 +17,13 @@
  * leak: an event evicted while its condition is still true would announce a
  * second time. That needs a standing backlog of two hundred unread events to
  * reach, which is a different problem than this one.
+ *
+ * `announcement` is the live one — which event is currently interrupting you,
+ * and how many others arrived with it. It is transient and never persisted:
+ * an interruption you were not present for is not owed to you on next launch,
+ * and the log already kept the events themselves. It lives here rather than in
+ * component state so the notifier stays a view with no state of its own, and
+ * because the sinks and the card then read one runtime instead of two.
  *
  * There is no "clear", only "mark all read", and that is a correctness point
  * rather than a missing feature: forgetting an id is exactly what makes the
@@ -78,18 +85,26 @@ function newestFirst(events: StoredNotification[]): StoredNotification[] {
     .slice(0, MAX_EVENTS);
 }
 
+interface Announcement {
+  event: StoredNotification;
+  extra: number;
+}
+
 interface NotificationState {
+  announcement: Announcement | null;
   events: StoredNotification[];
   ingest: (detected: NotificationEvent[]) => StoredNotification[];
   markAllRead: () => void;
   markRead: (id: string) => void;
   seeded: boolean;
+  setAnnouncement: (announcement: Announcement | null) => void;
   unreadCount: () => number;
 }
 
 const initial = loadLog();
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
+  announcement: null,
   events: initial.events,
   ingest: (detected) => {
     const { events, seeded } = get();
@@ -126,5 +141,6 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     saveLog({ events: next, seeded: get().seeded });
   },
   seeded: initial.seeded,
+  setAnnouncement: (announcement) => set({ announcement }),
   unreadCount: () => get().events.filter((e) => !e.readAt).length,
 }));
