@@ -387,6 +387,12 @@
 
 .qg-viewport {
   overflow: hidden;
+  /* Clip to the mat's own rounding, or square specimen pixels in the corner
+     paint over the well outside the sheet's curve (a blockquote's accent bar,
+     a button border at the slot edge). `inherit` tracks .qg-mat exactly:
+     under .qg-capture the mat's radius is 0, so capture pixels are untouched
+     and baselines stay byte-stable. */
+  border-radius: inherit;
 }
 
 .qg-tick {
