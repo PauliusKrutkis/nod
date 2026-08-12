@@ -14,14 +14,44 @@
  * `dialog` marks entries that mount a modal <dialog>: they render in the top
  * layer rather than inside any frame, so the gallery manages their open state
  * and the screenshot suite captures the viewport instead of the frame.
+ *
+ * A sequence fixture renders a RUN of specimens as stacked siblings in one
+ * cell, for components whose bugs live between rows rather than inside one
+ * (a diff is add/del pairs, context runs, a hunk band mid-file — never a
+ * lone row). The run container in the app is the desktop's review-list — a
+ * store-fed virtuoso surface no fixture can express — and its `.qf-diff`
+ * wrapper is app CSS, so steps stack bare: each row declares its own type
+ * (see diff-row.css), which is what makes bare stacking honest. Each step
+ * names its component through `defineStep`, so one mechanism also covers
+ * heterogeneous runs (a hunk band between diff rows) without special-casing
+ * any entry. Every consumer renders a sequence through `sequenceElement`,
+ * keeping the jsdom walk and the gallery pixel-identical in structure.
  */
-import type { ComponentType } from "react";
+import {
+  type ComponentType,
+  createElement,
+  Fragment,
+  type ReactElement,
+} from "react";
 
-export interface Fixture<P> {
+export interface PropsFixture<P> {
   props: P;
   rendersNothing?: boolean;
   provenance?: string;
 }
+
+export interface SequenceStep<Q> {
+  component: ComponentType<Q>;
+  props: Q;
+}
+
+export interface SequenceFixture {
+  // biome-ignore lint/suspicious/noExplicitAny: heterogeneous run; each step is fully typed by defineStep at its definition site
+  sequence: readonly SequenceStep<any>[];
+  provenance?: string;
+}
+
+export type Fixture<P> = PropsFixture<P> | SequenceFixture;
 
 export interface CatalogEntry<P> {
   component: ComponentType<P>;
@@ -35,4 +65,25 @@ export function defineEntry<P>(
   options: { dialog?: boolean } = {}
 ): CatalogEntry<P> {
   return { component, fixtures, ...options };
+}
+
+export function defineStep<Q>(
+  component: ComponentType<Q>,
+  props: Q
+): SequenceStep<Q> {
+  return { component, props };
+}
+
+export function isSequence<P>(fixture: Fixture<P>): fixture is SequenceFixture {
+  return "sequence" in fixture;
+}
+
+export function sequenceElement(fixture: SequenceFixture): ReactElement {
+  return createElement(
+    Fragment,
+    null,
+    fixture.sequence.map((step, index) =>
+      createElement(step.component, { key: index, ...step.props })
+    )
+  );
 }
