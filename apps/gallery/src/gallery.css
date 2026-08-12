@@ -19,10 +19,12 @@
    marks gallery territory: the frame ring sits in a well dimmed below the
    stage (color-mix toward black works on both themes) and the solid mat
    (.qg-mat) rides on it as a sheet — its fill is exactly the surface that
-   stood behind specimens before, with a hairline box-shadow seam (shadow,
-   never border: a border would shift specimen layout). Under the ?capture
-   query flag (qg-capture on the root) the well, the grid and the seam are
-   all suppressed and the mat vanishes into the frame background — the
+   stood behind specimens before. The sheet's edge is the tonal step alone,
+   no seam line: a hairline there doubled against specimens that carry
+   their own border at fluid width (ask-note's dotted hairline reads as the
+   component; a second line around it read as gallery noise). Under the
+   ?capture query flag (qg-capture on the root) the well and the grid are
+   suppressed and the mat vanishes into the frame background — the
    screenshot suite sees the pre-mat pixels. Animations pause under
    prefers-reduced-motion so webkit captures are deterministic. */
 
@@ -336,12 +338,10 @@
   background: var(--surface);
   min-width: 0;
   border-radius: var(--r-lg);
-  box-shadow: 0 0 0 1px var(--line-2);
 }
 
 .qg-capture .qg-mat {
   border-radius: 0;
-  box-shadow: none;
 }
 
 .qg-frame-fit .qg-mat {
