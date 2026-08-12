@@ -1,3 +1,4 @@
+import { aiSetupDialogEntry } from "../ai-setup-dialog/ai-setup-dialog.fixtures.ts";
 import { askNoteEntry } from "../ask-note/ask-note.fixtures.ts";
 import { avatarEntry } from "../avatar/avatar.fixtures.ts";
 import { badgeEntry } from "../badge/badge.fixtures.ts";
@@ -28,10 +29,12 @@ import { ticketTitleEntry } from "../ticket-title/ticket-title.fixtures.ts";
 import { tokenGateEntry } from "../token-gate/token-gate.fixtures.ts";
 import { tooltipEntry } from "../tooltip/tooltip.fixtures.ts";
 import { updatePromptEntry } from "../update-prompt/update-prompt.fixtures.ts";
+import { watchReposDialogEntry } from "../watch-repos-dialog/watch-repos-dialog.fixtures.ts";
 import { whatsNewEntry } from "../whats-new/whats-new.fixtures.ts";
 
 // biome-ignore lint/suspicious/noExplicitAny: heterogeneous registry; each entry is fully typed at its definition site
 export const catalog: Record<string, CatalogEntry<any>> = {
+  "ai-setup-dialog": aiSetupDialogEntry,
   "ask-note": askNoteEntry,
   avatar: avatarEntry,
   badge: badgeEntry,
@@ -61,5 +64,6 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   "token-gate": tokenGateEntry,
   tooltip: tooltipEntry,
   "update-prompt": updatePromptEntry,
+  "watch-repos-dialog": watchReposDialogEntry,
   "whats-new": whatsNewEntry,
 };

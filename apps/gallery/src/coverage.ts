@@ -45,11 +45,14 @@ export const CONTAINERS: Record<string, string> = {
     "flattens the live keyboard registry into commands and owns the palette's open flag; its view is command-palette, catalogued in @nod/ui",
   "token-gate-flow":
     "OAuth round trips, the instance probe and the keychain write (useTokenGate); its screen is token-gate, catalogued in @nod/ui",
+  "ai-setup-loader":
+    "AI config query, the save/pick/remove commands and which face is showing; its view is ai-setup-dialog, catalogued in @nod/ui",
+  "watch-repos-loader":
+    "watched-list query, the coalesced write and the debounced provider search; its view is watch-repos-dialog, catalogued in @nod/ui",
 };
 
 export const PENDING = [
   "add-comment-box",
-  "ai-setup-dialog",
   "composer-editor",
   "file-sidebar",
   "inbox",
@@ -61,5 +64,4 @@ export const PENDING = [
   "review-screen",
   "right-panel",
   "submit-review-modal",
-  "watch-repos-dialog",
 ];

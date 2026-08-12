@@ -1,0 +1,321 @@
+/* The qw family, moved wholesale out of the app sheet — nothing outside this
+   dialog ever used it. The panel width, the search input and the row close
+   button used to be the app's .qw-panel / .q-input / .qb-x; owning them here
+   is what lets the dialog render outside the app with no Tailwind and no app
+   stylesheet. Heading and paragraph margins are declared rather than
+   inherited from a preflight for the same reason.
+
+   Every text cell that can hold an arbitrary repo name is min-width: 0 with
+   an ellipsis, because a flex item defaults to min-width: auto and one
+   unbreakable owner/name would otherwise push the panel past the viewport. */
+
+.q-dialog.qw-panel {
+  width: min(480px, calc(100vw - 32px));
+  padding: 0;
+}
+
+.qw-head {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.qw-title {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.qw-title svg {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.qw-sub {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.qw-body {
+  flex: 1;
+  min-height: 0;
+  padding: 16px 20px;
+  overflow-y: auto;
+}
+
+.qw-search {
+  position: relative;
+}
+
+.qw-search-icon {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  color: var(--faint);
+  transform: translateY(-50%);
+}
+
+.qw-input {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 9px 12px 9px 34px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.qw-input::placeholder {
+  color: var(--faint);
+}
+
+.qw-input:focus {
+  outline: none;
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.qw-results {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+}
+
+.qw-none {
+  margin: 0;
+  padding: 8px;
+  font-size: 12px;
+  color: var(--faint);
+  overflow-wrap: anywhere;
+}
+
+.qw-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 224px;
+  margin-top: 12px;
+  overflow-y: auto;
+}
+
+.qw-note {
+  margin: 0;
+  padding: 16px 0;
+  font-size: 12px;
+  color: var(--faint);
+  text-align: center;
+}
+
+.qw-note .q-spinner {
+  justify-content: center;
+}
+
+.qw-saving {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--faint);
+}
+
+.qw-error {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--del);
+  overflow-wrap: anywhere;
+}
+
+.qw-name,
+.qw-hit-name {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qw-x {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: var(--faint);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-md);
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.qw-x:hover {
+  color: var(--fg);
+  background: var(--surface-hi);
+}
+
+.qw-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  color: var(--fg);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+
+.qw-scan {
+  position: absolute;
+  right: 10px;
+  bottom: 0;
+  left: 10px;
+  height: 1px;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: var(--r-pill);
+}
+
+.qw-scan::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  content: "";
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--accent) 55%, white),
+    transparent
+  );
+  filter: drop-shadow(0 0 3px var(--accent));
+  animation: qw-scan 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes qw-scan {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+.qw-row-armed {
+  background: var(--surface-hi);
+  border-color: var(--line-2);
+}
+
+.qw-row-armed .qw-x {
+  color: var(--del);
+  background: var(--del-bg);
+}
+
+.q-btn.qw-done-armed {
+  color: var(--fg);
+  background: var(--surface-hi);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+
+.qw-hit {
+  position: relative;
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  width: 100%;
+  padding: 7px 10px 7px 12px;
+  color: var(--fg);
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-lg);
+}
+
+.qw-hit::before {
+  position: absolute;
+  top: 7px;
+  bottom: 7px;
+  left: 2px;
+  width: 2px;
+  content: "";
+  background: transparent;
+  border-radius: var(--r-pill);
+}
+
+.qw-hit-on {
+  background: var(--accent-soft);
+}
+
+.qw-hit-on::before {
+  background: var(--accent);
+  box-shadow: 0 0 10px 0 var(--accent-line);
+}
+
+.qw-hit:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.qw-hit-desc {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11.5px;
+  color: var(--faint);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qw-hit-check {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--add);
+}
+
+.qw-foot {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-top: 1px solid var(--line);
+}
+
+.qw-foot-hint {
+  min-width: 0;
+  font-size: 12px;
+  color: var(--faint);
+  overflow-wrap: anywhere;
+}
+
+.q-dialog.qw-panel.qw-inline {
+  position: static;
+  width: 100%;
+  margin: 0;
+  transform: none;
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qw-input {
+    transition: none;
+  }
+
+  .qw-scan::before {
+    width: 100%;
+    opacity: 0.5;
+    animation: none;
+  }
+}
