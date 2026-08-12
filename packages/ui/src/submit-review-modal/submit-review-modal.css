@@ -1,0 +1,166 @@
+/* The qsr family. The panel width and the textarea mirror the app's
+   .q-dialog-top / .q-input, which stay in the desktop sheet for the dialogs
+   still living there; owning them here is what lets this modal render outside
+   the app with no Tailwind and no app stylesheet. Heading and paragraph
+   margins are declared rather than inherited from a preflight for the same
+   reason.
+
+   A selected verdict has no hover state on purpose: it is already the answer,
+   so only the other two respond to the pointer. The footer hint shares its row
+   with the actions and is the part that gives way — min-width: 0 plus wrapping
+   anywhere, so a narrow panel never pushes Submit off the edge. */
+
+.q-dialog.qsr-panel {
+  width: min(620px, calc(100vw - 32px));
+}
+
+.qsr-head {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.qsr-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--fg);
+}
+
+.qsr-sub {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted);
+}
+
+.qsr-body {
+  padding: 16px 20px;
+}
+
+.qsr-note {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--faint);
+}
+
+.qsr-verdicts {
+  display: flex;
+  gap: 8px;
+}
+
+.qsr-verdict {
+  flex: 1;
+  min-width: 0;
+  padding: 8px;
+  overflow: hidden;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.qsr-verdict.q-focus:focus-visible {
+  border-radius: var(--r-lg);
+}
+
+.qsr-verdict:not(.qsr-verdict-on):not(:disabled):hover {
+  color: var(--fg);
+  background: var(--surface-2);
+}
+
+.qsr-verdict-on {
+  color: var(--fg);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.qsr-verdict:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.qsr-input {
+  width: 100%;
+  padding: 9px 12px;
+  margin-top: 12px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--fg);
+  resize: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.qsr-input::placeholder {
+  color: var(--faint);
+}
+
+.qsr-input:focus {
+  outline: none;
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.qsr-error {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--del);
+  overflow-wrap: anywhere;
+}
+
+.qsr-foot {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-top: 1px solid var(--line);
+}
+
+.qsr-hint {
+  min-width: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--faint);
+}
+
+.qsr-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+  align-items: center;
+}
+
+.q-dialog.qsr-panel.qsr-inline {
+  position: static;
+  width: 100%;
+  margin: 0;
+  transform: none;
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qsr-verdict,
+  .qsr-input {
+    transition: none;
+  }
+}

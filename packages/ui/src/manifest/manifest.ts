@@ -323,6 +323,27 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "zero-counts",
     ],
   },
+  "pr-search": {
+    dialog: true,
+    fixtures: [
+      "crowd-60",
+      "files-crowd",
+      "files-empty-query",
+      "files-matches",
+      "files-no-matches",
+      "markup-as-text",
+      "overflow-long-hit",
+      "overflow-long-line",
+      "overflow-unbreakable-query",
+      "text-empty-query",
+      "text-first-line",
+      "text-hunk-boundary",
+      "text-last-line",
+      "text-no-matches",
+      "text-snippets",
+      "unicode",
+    ],
+  },
   "purchase-prompt": {
     fixtures: [
       "already-licensed",
@@ -383,6 +404,23 @@ export const catalogManifest: Record<string, ManifestEntry> = {
   },
   spinner: {
     fixtures: ["bare", "labelled", "overflow"],
+  },
+  "submit-review-modal": {
+    dialog: true,
+    fixtures: [
+      "approve",
+      "busy",
+      "comment",
+      "error",
+      "long-body",
+      "markup-as-text",
+      "overflow",
+      "own-pr",
+      "pending-many",
+      "pending-one",
+      "request-changes",
+      "unicode",
+    ],
   },
   "ticket-title": {
     fixtures: [

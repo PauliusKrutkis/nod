@@ -1,6 +1,13 @@
-/* The shared qsp family. The desktop's pr-search consumes these same rows
-   and panel — they load because the app always mounts SearchPane (global
-   search) — while its snippet-mode extras stay app-side in quiet.css. */
+/* The shared qsp family, owned here: pr-search consumes these same rows and
+   panel and imports this sheet directly, so the base always loads before its
+   own extras rather than depending on which panes the host mounts.
+
+   The empty state echoes whatever was typed, so its paragraph breaks
+   anywhere — a query can be one 700-character token, and the alternative to
+   breaking it is a line clipped at both panel edges. The max-width is half of
+   that fix, not decoration: webkit sizes the centred flex item to max-content
+   regardless of overflow-wrap, so without a cap there is nothing to break
+   against. */
 
 .qsp-empty svg {
   margin-bottom: 4px;
@@ -169,8 +176,10 @@
 }
 
 .qsp-empty p {
+  max-width: 100%;
   font-size: 14px;
   color: var(--fg);
+  overflow-wrap: anywhere;
 }
 
 .qsp-empty span {

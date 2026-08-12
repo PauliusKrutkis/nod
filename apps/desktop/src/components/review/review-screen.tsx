@@ -90,14 +90,14 @@ import type {
   ReviewComment,
 } from "../../types.ts";
 import { parsePrKey } from "../../types.ts";
+import { DiffSearch } from "./diff-search.tsx";
 import { FileSidebar } from "./file-sidebar.tsx";
-import { PrSearch } from "./pr-search.tsx";
 import { ReviewDiffPane } from "./review-diff-pane.tsx";
 import { ReviewHeader } from "./review-header.tsx";
 import type { MarkSpec, ReviewListHandle } from "./review-list.tsx";
 import { ReviewScreenPendingLoader } from "./review-screen-pending-loader.tsx";
 import { RightPanel, type RightPanelHandle } from "./right-panel.tsx";
-import { SubmitReviewModal } from "./submit-review-modal.tsx";
+import { SubmitReview } from "./submit-review.tsx";
 
 /**
  * Full-screen PR review: a virtualized diff list, keyboard cursor, multi-line
@@ -1058,7 +1058,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
         wide={drawerWide}
       />
 
-      <SubmitReviewModal
+      <SubmitReview
         busy={submitReview.isPending}
         error={null}
         onClose={onCloseSubmitModal}
@@ -1068,13 +1068,12 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
         pendingCount={pending.length}
       />
 
-      <PrSearch
+      <DiffSearch
         files={files}
-        mode={prSearch ?? "files"}
+        mode={prSearch}
         onClose={onClosePrSearch}
         onSelectFile={scrollToFile}
         onSelectLine={selectLine}
-        open={prSearch !== null}
       />
     </div>
   );

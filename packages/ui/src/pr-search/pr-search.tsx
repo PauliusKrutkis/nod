@@ -1,7 +1,34 @@
-import { fuzzyMatch } from "@nod/ui/fuzzy";
-import { HighlightIndices } from "@nod/ui/highlight-indices";
-import { Kbd } from "@nod/ui/kbd";
-import { useModalDialog } from "@nod/ui/use-modal-dialog";
+/**
+ * In-PR search. Two modes over one pull request, in the same pane shape as the
+ * global "/" search: `files` fuzzy-matches changed file paths; `text` searches
+ * the diff text. Matches are highlighted; the selected text result expands into
+ * a small context snippet, and choosing it lands the diff on that exact line.
+ *
+ * The host hands over rows already parsed and grouped per hunk — patch parsing
+ * and syntax highlighting stay app-side (they carry the diff parser and
+ * highlight.js), which is what keeps this pane renderable from a fixture. The
+ * hunk grouping is load-bearing: a snippet must never bleed across a hunk
+ * boundary, because rows either side of one are not adjacent in the file.
+ *
+ * `highlightLine` returns HTML for a single code line and defaults to escaped
+ * text with the query marked — the pane's behavior minus syntax colors, so a
+ * fixture needs no highlighter. Whatever it returns is walked into React nodes
+ * (highlight-html), never injected, so nothing in a diff line can reach the
+ * live DOM as an attribute or handler.
+ *
+ * `initialQuery` seeds the field on first paint: it is what makes every result
+ * state (matches, snippets, nothing found) a fixture rather than a scripted
+ * interaction. `inline` opens with show() instead of showModal() (see
+ * useModalDialog), leaves the query field unfocused so an embedded specimen
+ * does not take over the host's keyboard, and `.qsp-inline` returns the panel
+ * to normal flow.
+ *
+ * The shared `qsp-*` base belongs to search-pane and is imported here rather
+ * than assumed present: importing this pane brings its whole look, and the
+ * load order (base, then these extras) stops being a property of which panes
+ * the host happens to mount.
+ */
+
 import { CornerDownLeft, FileCode, Search } from "lucide-react";
 import {
   type KeyboardEvent,
@@ -11,12 +38,35 @@ import {
   useRef,
   useState,
 } from "react";
-import { cn } from "../../lib/cn.ts";
-import { type DiffRow, parsePatch } from "../../lib/diff.ts";
-import { highlightLineWithMatch } from "../../lib/highlight.ts";
-import type { ChangedFile } from "../../types.ts";
+import { cn } from "../cn/cn.ts";
+import { fuzzyMatch } from "../fuzzy/fuzzy.ts";
+import { highlightHtmlToNodes } from "../highlight-html/highlight-html.ts";
+import { HighlightIndices } from "../highlight-indices/highlight-indices.tsx";
+import { Kbd } from "../kbd/kbd.tsx";
+import { useModalDialog } from "../use-modal-dialog/use-modal-dialog.ts";
+import "../search-pane/search-pane.css";
+import "./pr-search.css";
 
-type Mode = "files" | "text";
+export type PrSearchMode = "files" | "text";
+
+export interface PrSearchLine {
+  anchor: string | null;
+  num: number | null;
+  text: string;
+}
+
+export type PrSearchHunk = readonly PrSearchLine[];
+
+export interface PrSearchFile {
+  filename: string;
+  hunks?: readonly PrSearchHunk[];
+}
+
+export type HighlightLine = (
+  code: string,
+  filename: string,
+  query: string
+) => string;
 
 interface FileItem {
   fileIndex: number;
@@ -48,13 +98,6 @@ function base(path: string): string {
   return i < 0 ? path : path.slice(i + 1);
 }
 
-function rowAnchor(row: DiffRow): string | null {
-  if (row.type === "del") {
-    return row.oldLine === null ? null : `LEFT:${row.oldLine}`;
-  }
-  return row.newLine === null ? null : `RIGHT:${row.newLine}`;
-}
-
 function itemKey(it: Item, index: number): string {
   if (it.kind === "file") {
     return `file-${it.fileIndex}-${it.filename}`;
@@ -62,7 +105,30 @@ function itemKey(it: Item, index: number): string {
   return `line-${it.fileIndex}-${it.anchor ?? "none"}-${it.line ?? index}`;
 }
 
-function buildFileItems(q: string, files: ChangedFile[]): Item[] {
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** The fixture-friendly default: no syntax colors, query occurrences marked. */
+function markQuery(code: string, _filename: string, query: string): string {
+  const needle = query.trim().toLowerCase();
+  if (!needle) {
+    return escapeHtml(code);
+  }
+  const hay = code.toLowerCase();
+  let out = "";
+  let at = 0;
+  let hit = hay.indexOf(needle);
+  while (hit !== -1) {
+    const end = hit + needle.length;
+    out += `${escapeHtml(code.slice(at, hit))}<mark class="q-hl">${escapeHtml(code.slice(hit, end))}</mark>`;
+    at = end;
+    hit = hay.indexOf(needle, at);
+  }
+  return out + escapeHtml(code.slice(at));
+}
+
+function buildFileItems(q: string, files: readonly PrSearchFile[]): Item[] {
   const out: (FileItem & { score: number })[] = [];
   files.forEach((f, i) => {
     const m = fuzzyMatch(q, f.filename);
@@ -80,59 +146,51 @@ function buildFileItems(q: string, files: ChangedFile[]): Item[] {
   return out;
 }
 
-function snippetContext(rows: DiffRow[], ri: number): SnippetLine[] {
+function snippetContext(hunk: PrSearchHunk, ri: number): SnippetLine[] {
   const context: SnippetLine[] = [];
   const start = Math.max(0, ri - SNIPPET_RADIUS);
-  const end = Math.min(rows.length - 1, ri + SNIPPET_RADIUS);
+  const end = Math.min(hunk.length - 1, ri + SNIPPET_RADIUS);
   for (let ci = start; ci <= end; ci += 1) {
-    const r = rows[ci];
-    context.push({
-      hit: ci === ri,
-      num: r.newLine ?? r.oldLine,
-      text: r.content,
-    });
+    const line = hunk[ci];
+    context.push({ hit: ci === ri, num: line.num, text: line.text });
   }
   return context;
 }
 
 function pushTextMatch(
   out: Item[],
-  row: DiffRow,
+  hunk: PrSearchHunk,
   ri: number,
-  rows: DiffRow[],
   fileIndex: number,
   filename: string,
   q: string
 ): boolean {
-  if (!row.content.toLowerCase().includes(q)) {
+  const line = hunk[ri];
+  if (!line.text.toLowerCase().includes(q)) {
     return false;
   }
   out.push({
-    anchor: rowAnchor(row),
-    content: row.content.trim(),
-    context: snippetContext(rows, ri),
+    anchor: line.anchor,
+    content: line.text.trim(),
+    context: snippetContext(hunk, ri),
     fileIndex,
     filename,
     kind: "line",
-    line: row.newLine ?? row.oldLine,
+    line: line.num,
   });
   return out.length >= MAX_LINES;
 }
 
-function buildTextItems(q: string, files: ChangedFile[]): Item[] {
+function buildTextItems(q: string, files: readonly PrSearchFile[]): Item[] {
   if (!q) {
     return [];
   }
   const out: Item[] = [];
   for (let i = 0; i < files.length && out.length < MAX_LINES; i += 1) {
     const f = files[i];
-    if (!f.patch) {
-      continue;
-    }
-    for (const hunk of parsePatch(f.patch)) {
-      const rows = hunk.rows.filter((r) => r.type !== "hunk");
-      for (let ri = 0; ri < rows.length; ri += 1) {
-        if (pushTextMatch(out, rows[ri], ri, rows, i, f.filename, q)) {
+    for (const hunk of f.hunks ?? []) {
+      for (let ri = 0; ri < hunk.length; ri += 1) {
+        if (pushTextMatch(out, hunk, ri, i, f.filename, q)) {
           return out;
         }
       }
@@ -141,27 +199,26 @@ function buildTextItems(q: string, files: ChangedFile[]): Item[] {
   return out;
 }
 
-/**
- * In-PR search. Two modes over the current pull request, in the same pane shape
- * as the global "/" search: `files` (Ctrl/⌘-T) fuzzy-matches changed file paths;
- * `text` (Ctrl/⌘-F) searches the diff text. Matches are highlighted; the
- * selected text result expands into a small context snippet, and choosing it
- * lands the diff on that exact line.
- */
 export function PrSearch({
   open,
   mode,
-  onClose,
+  onOpenChange,
   files,
   onSelectFile,
   onSelectLine,
+  highlightLine = markQuery,
+  initialQuery = "",
+  inline = false,
 }: {
   open: boolean;
-  mode: Mode;
-  onClose: () => void;
-  files: ChangedFile[];
+  mode: PrSearchMode;
+  onOpenChange: (v: boolean) => void;
+  files: readonly PrSearchFile[];
   onSelectFile: (index: number) => void;
   onSelectLine: (index: number, anchor: string) => void;
+  highlightLine?: HighlightLine;
+  initialQuery?: string;
+  inline?: boolean;
 }) {
   if (!open) {
     return null;
@@ -169,9 +226,12 @@ export function PrSearch({
   return (
     <PrSearchContent
       files={files}
+      highlightLine={highlightLine}
+      initialQuery={initialQuery}
+      inline={inline}
       key={mode}
       mode={mode}
-      onClose={onClose}
+      onOpenChange={onOpenChange}
       onSelectFile={onSelectFile}
       onSelectLine={onSelectLine}
     />
@@ -180,20 +240,33 @@ export function PrSearch({
 
 function PrSearchContent({
   mode,
-  onClose,
+  onOpenChange,
   files,
   onSelectFile,
   onSelectLine,
+  highlightLine,
+  initialQuery,
+  inline,
 }: {
-  mode: Mode;
-  onClose: () => void;
-  files: ChangedFile[];
+  mode: PrSearchMode;
+  onOpenChange: (v: boolean) => void;
+  files: readonly PrSearchFile[];
   onSelectFile: (index: number) => void;
   onSelectLine: (index: number, anchor: string) => void;
+  highlightLine: HighlightLine;
+  initialQuery: string;
+  inline: boolean;
 }) {
   const listId = useId();
-  const { dialogRef, onDialogCancel, onDialogClose } = useModalDialog(onClose);
-  const [query, setQuery] = useState("");
+  const close = () => {
+    onOpenChange(false);
+  };
+  const { dialogRef, onDialogCancel, onDialogClose } = useModalDialog(
+    close,
+    undefined,
+    { modal: !inline }
+  );
+  const [query, setQuery] = useState(initialQuery);
   const [sel, setSel] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -203,8 +276,11 @@ function PrSearchContent({
     mode === "files" ? buildFileItems(q, files) : buildTextItems(q, files);
 
   useEffect(() => {
+    if (inline) {
+      return;
+    }
     requestAnimationFrame(() => inputRef.current?.focus());
-  }, []);
+  }, [inline]);
 
   useEffect(() => {
     listRef.current
@@ -218,7 +294,7 @@ function PrSearchContent({
     } else {
       onSelectFile(it.fileIndex);
     }
-    onClose();
+    close();
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -241,7 +317,7 @@ function PrSearchContent({
       }
     } else if (e.key === "Escape") {
       e.preventDefault();
-      onClose();
+      close();
     }
   };
 
@@ -280,7 +356,8 @@ function PrSearchContent({
       aria-label={mode === "files" ? "Find a file" : "Search code"}
       className={cn(
         "q-dialog q-dialog-top qsp-panel",
-        mode === "text" && "qsp-panel-code"
+        mode === "text" && "qsp-panel-code",
+        inline && "qsp-inline"
       )}
       onCancel={onDialogCancel}
       onClose={onDialogClose}
@@ -347,17 +424,11 @@ function PrSearchContent({
                 <span className="qsp-main">
                   <span className="qsp-title q-mono">
                     {it.content ? (
-                      <span
-                        className="hljs"
-                        // biome-ignore lint/security/noDangerouslySetInnerHtml: syntax-highlighted diff snippet
-                        dangerouslySetInnerHTML={{
-                          __html: highlightLineWithMatch(
-                            it.content,
-                            it.filename,
-                            displayQ
-                          ),
-                        }}
-                      />
+                      <span className="hljs">
+                        {highlightHtmlToNodes(
+                          highlightLine(it.content, it.filename, displayQ)
+                        )}
+                      </span>
                     ) : (
                       <span> </span>
                     )}
@@ -374,19 +445,17 @@ function PrSearchContent({
                           key={`${l.num ?? "x"}-${l.text}`}
                         >
                           <span className="qsp-snip-num">{l.num ?? ""}</span>
-                          <span
-                            className="qsp-snip-code hljs"
-                            // biome-ignore lint/security/noDangerouslySetInnerHtml: syntax-highlighted diff snippet
-                            dangerouslySetInnerHTML={{
-                              __html: l.text
-                                ? highlightLineWithMatch(
+                          <span className="qsp-snip-code hljs">
+                            {l.text
+                              ? highlightHtmlToNodes(
+                                  highlightLine(
                                     l.text,
                                     it.filename,
                                     l.hit ? displayQ : ""
                                   )
-                                : " ",
-                            }}
-                          />
+                                )
+                              : " "}
+                          </span>
                         </span>
                       ))}
                     </span>

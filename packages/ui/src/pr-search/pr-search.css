@@ -1,0 +1,87 @@
+/* pr-search's extras on top of the shared qsp family (search-pane owns the
+   base and this component imports it): the wider code-mode panel and the
+   context snippet the selected text result expands into, VS Code style.
+
+   The panel widths are three-class selectors on purpose. `.q-dialog.qsp-panel`
+   sets the 680px search width, so overriding it needs a third class, and the
+   inline variant needs a fourth — an equal-specificity rule across two sheets
+   would make the winner depend on stylesheet order, which broke this panel
+   once already.
+
+   These rows are buttons where search-pane's are divs, so they carry the
+   reset the app's Tailwind preflight hands every control — the package ships
+   no preflight, and without it a row renders with the browser's grey button
+   fill and border.
+
+   `.qsp-snip-code` carries `min-width: 0` because it is a flex item: without
+   it a long context line cannot shrink below its own text (the lines are
+   `white-space: pre`), so it blows past the snippet and gets hard-clipped
+   instead of ellipsized. The hit line opts out of both — it wraps rather than
+   truncates, because the match must always be readable. */
+
+.q-dialog.qsp-panel.qsp-panel-code {
+  width: min(920px, calc(100vw - 32px));
+}
+
+.q-dialog.qsp-panel.qsp-panel-code.qsp-inline {
+  width: 100%;
+}
+
+button.qsp-row {
+  font: inherit;
+  background: transparent;
+  border: 0;
+}
+
+.qsp-snippet {
+  display: block;
+  padding: 6px 0;
+  margin: 6px 0 2px;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+
+.qsp-snip-line {
+  display: flex;
+  gap: 10px;
+  padding: 0 10px;
+  overflow: hidden;
+  color: var(--muted);
+  white-space: pre;
+}
+
+.qsp-snip-line-hit {
+  align-items: flex-start;
+  overflow: visible;
+  background: var(--accent-soft);
+}
+
+.qsp-snip-num {
+  flex-shrink: 0;
+  min-width: 34px;
+  color: var(--faint);
+  text-align: right;
+  user-select: none;
+}
+
+.qsp-snip-line-hit .qsp-snip-num {
+  color: var(--accent);
+}
+
+.qsp-snip-code {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.qsp-snip-line-hit .qsp-snip-code {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

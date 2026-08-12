@@ -21,12 +21,14 @@ import { kbdEntry } from "../kbd/kbd.fixtures.ts";
 import { markdownEntry } from "../markdown/markdown.fixtures.ts";
 import { overviewRulerEntry } from "../overview-ruler/overview-ruler.fixtures.ts";
 import { prListItemEntry } from "../pr-list-item/pr-list-item.fixtures.ts";
+import { prSearchEntry } from "../pr-search/pr-search.fixtures.ts";
 import { purchasePromptEntry } from "../purchase-prompt/purchase-prompt.fixtures.ts";
 import { releaseHistoryEntry } from "../release-history/release-history.fixtures.ts";
 import { reviewScreenPendingEntry } from "../review-screen-pending/review-screen-pending.fixtures.ts";
 import { reviewVerdictsEntry } from "../review-verdicts/review-verdicts.fixtures.ts";
 import { searchPaneEntry } from "../search-pane/search-pane.fixtures.ts";
 import { spinnerEntry } from "../spinner/spinner.fixtures.ts";
+import { submitReviewModalEntry } from "../submit-review-modal/submit-review-modal.fixtures.ts";
 import { ticketTitleEntry } from "../ticket-title/ticket-title.fixtures.ts";
 import { tokenGateEntry } from "../token-gate/token-gate.fixtures.ts";
 import { tooltipEntry } from "../tooltip/tooltip.fixtures.ts";
@@ -58,12 +60,14 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   markdown: markdownEntry,
   "overview-ruler": overviewRulerEntry,
   "pr-list-item": prListItemEntry,
+  "pr-search": prSearchEntry,
   "purchase-prompt": purchasePromptEntry,
   "release-history": releaseHistoryEntry,
   "review-screen-pending": reviewScreenPendingEntry,
   "review-verdicts": reviewVerdictsEntry,
   "search-pane": searchPaneEntry,
   spinner: spinnerEntry,
+  "submit-review-modal": submitReviewModalEntry,
   "ticket-title": ticketTitleEntry,
   "token-gate": tokenGateEntry,
   tooltip: tooltipEntry,
