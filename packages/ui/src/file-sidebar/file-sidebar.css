@@ -1,0 +1,240 @@
+/* The qf-sidebar / qf-file family, moved out of the app's quiet.css. Two
+   things changed on the way: the utility classes the app got from Tailwind
+   are real declarations here (the package has no utility build, so a
+   `flex` in the markup would style nothing), and buttons reset their own
+   background/border/font — the app inherits that from Tailwind's preflight,
+   a bare host does not.
+
+   The column takes its height from its host and caps at the viewport, so an
+   embedding surface with no height of its own (the gallery frame) still
+   scrolls the list instead of growing a thousand rows tall.
+
+   The +/− stat pair keeps its own class names rather than the app's shared
+   .qf-add/.qf-del, which are still worn by the diff surfaces left behind:
+   one class, one owner.
+
+   Hover only reaches rows that are not already selected, so the iris
+   selection is never overwritten by (or double-stacked with) the hover wash,
+   and a viewed row carries an explicit tick as well as the dimming so it
+   reads at a glance. Inside a row the basename holds its width — it is the
+   part of a path that identifies the file, so the directory ellipsizes first
+   and the name is clipped by .qf-file-name only once there is no directory
+   left to give. */
+
+.qf-sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 100vh;
+  background: var(--surface);
+}
+
+.qf-side-head {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+}
+
+.qf-side-head-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.qf-side-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.qf-side-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--faint);
+}
+
+.qf-side-mode {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  color: var(--faint);
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: var(--r-sm);
+}
+
+.qf-side-mode:hover {
+  color: var(--fg);
+  background: var(--surface-2);
+}
+
+.qf-side-empty {
+  padding: 24px 16px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--faint);
+  text-align: center;
+}
+
+.qf-filelist {
+  flex: 1;
+  min-height: 0;
+  padding: 4px 0;
+  overflow-y: auto;
+}
+
+.qf-file {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  width: calc(100% - 12px);
+  padding: 6px 8px 6px calc(6px + var(--qf-depth, 0) * 12px);
+  margin: 1px 6px;
+  font: inherit;
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-md);
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.qf-file:not(.qf-file-active):hover {
+  color: var(--fg);
+  background: var(--surface-2);
+}
+
+.qf-file-active {
+  color: var(--fg);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+
+.qf-file-viewed:not(.qf-file-active) {
+  opacity: 0.7;
+}
+
+.qf-file-check {
+  flex-shrink: 0;
+  color: var(--add);
+}
+
+.qf-file-glyph {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: var(--r-sm);
+}
+
+.qf-st-add {
+  color: var(--add);
+  background: var(--add-bg);
+}
+
+.qf-st-mod {
+  color: var(--warn);
+  background: var(--warn-bg);
+}
+
+.qf-st-del {
+  color: var(--del);
+  background: var(--del-bg);
+}
+
+.qf-st-ren {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.qf-file-name {
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.qf-file-dir {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--faint);
+}
+
+.qf-file-base {
+  flex-shrink: 0;
+  font-weight: 500;
+  color: inherit;
+}
+
+.qf-file-dirrow svg {
+  flex-shrink: 0;
+}
+
+.qf-file-meta {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+  align-items: center;
+}
+
+.qf-file-dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  background: var(--warn);
+  border-radius: var(--r-pill);
+  box-shadow: 0 0 8px -1px var(--warn);
+}
+
+.qf-file-badge {
+  padding: 2px 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+  border-radius: var(--r-pill);
+}
+
+.qf-file-badge-comment {
+  color: var(--muted);
+  background: var(--surface-hi);
+  border: 1px solid var(--line-2);
+}
+
+.qf-file-badge-pending {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+}
+
+.qf-file-stat {
+  display: flex;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.qf-file-add {
+  color: var(--add);
+}
+
+.qf-file-del {
+  color: var(--del);
+}

@@ -53,13 +53,15 @@ export const CONTAINERS: Record<string, string> = {
     "parses the PR's patches into search rows and lends the app's highlighter; its view is pr-search, catalogued in @nod/ui",
   "submit-review":
     "registers the hotkey scope that suspends the review bindings while the modal is open; its view is submit-review-modal, catalogued in @nod/ui",
+  "file-sidebar-loader":
+    "viewed files from the store, thread/draft counts, and the remembered tree-vs-flat mode; its view is file-sidebar, catalogued in @nod/ui",
+  "review-header-loader":
+    "issue tracker, verdict rosters and the conversation count; its view is review-header, catalogued in @nod/ui",
 };
 
 export const PENDING = [
-  "file-sidebar",
   "inbox",
   "review-diff-pane",
-  "review-header",
   "review-list",
   "review-notifier",
   "review-screen",

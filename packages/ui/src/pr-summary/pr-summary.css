@@ -1,0 +1,106 @@
+/* The drawer's identity block, moved out of the app's quiet.css. The section's
+   own bottom margin travels with it (the drawer's rhythm is 24px between
+   sections and this block is never the last one), the +/− pair keeps
+   component-owned class names rather than the app's shared .qf-add/.qf-del,
+   and the title wraps rather than truncating — a drawer is for reading the
+   whole title, unlike the header's one-line version of it.
+
+   .qf-drawer-links holds the checks pill and the host link, the two handoffs
+   that used to crowd the top bar. */
+
+.qf-drawer-summary {
+  margin-bottom: 24px;
+}
+
+.qf-drawer-pr {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+  margin-bottom: 6px;
+}
+
+.qf-drawer-num {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  color: var(--faint);
+}
+
+.qf-drawer-pr-title {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+
+.qf-drawer-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.qf-drawer-add {
+  color: var(--add);
+}
+
+.qf-drawer-del {
+  color: var(--del);
+}
+
+.qf-drawer-when {
+  color: var(--muted);
+}
+
+.qf-drawer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.qf-drawer-link {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  max-width: 100%;
+  padding: 5px 10px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  transition:
+    color 120ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.qf-drawer-link-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qf-drawer-link svg {
+  flex-shrink: 0;
+  color: var(--faint);
+}
+
+.qf-drawer-link:hover {
+  color: var(--fg);
+  background: var(--surface-2);
+  border-color: var(--line-2);
+}
+
+.qf-drawer-link:hover svg {
+  color: var(--muted);
+}

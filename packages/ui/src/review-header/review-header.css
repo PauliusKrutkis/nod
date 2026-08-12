@@ -1,0 +1,350 @@
+/* The qf-header family, moved out of the app's quiet.css. The utility classes
+   the app got from Tailwind are real declarations here (the package has no
+   utility build), buttons and the h1 reset their own box, and the separators
+   use the system layer's .q-dot instead of the app's private .qf-dot.
+
+   Two responsive rules travelled with the header rather than with the parts
+   they hide, because the header is what does the hiding. .qf-header declares
+   a container so the row responds to its own width (main minus the file
+   column) rather than the viewport — which matters at the app's 900px floor
+   and under webview zoom, where 900px @ 1.5x behaves like ~600px; WebKitGTK
+   >= 2.40 supports it. Under 440px of HEADER width the action gap tightens
+   and the verdict pills go, which is also every 280/420px gallery specimen.
+   The branch chips go at 1100px of VIEWPORT width, as they did in the app.
+
+   The identity column shrinks to its floor so the actions are never clipped
+   past the header edge, and the meta row clips rather than letting a long
+   branch name widen the header. The branch group is the one part of that row
+   allowed to shrink, since branch names are unbounded and an ellipsis inside
+   the chip reads better than the row's hard clip — which needs all three of
+   the shrinkable group, the chip capped at the group, and a min-width: 0 text
+   child. The chip sits inside the tooltip's anchor span, the real flex item,
+   so .qf-branch-anchor has to be told it may shrink too.
+
+   The CI dot is ringed in the button's own background so it reads on both the
+   rest and pressed states. The keycap inside the submit button is .q-kbd (the
+   Kbd component's class); the app's stylesheet still carried a .qf-kbd
+   selector from before that component existed, which matched nothing and left
+   the cap muted on the accent fill. */
+
+.qf-header {
+  display: flex;
+  flex-shrink: 0;
+  gap: 16px;
+  align-items: center;
+  padding: 12px 24px;
+  background: linear-gradient(180deg, var(--surface-2), var(--bg));
+  border-bottom: 1px solid var(--line);
+  container: qf-header / inline-size;
+}
+
+.qf-header-id {
+  flex: 1;
+  min-width: 0;
+}
+
+.qf-header-title-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.qf-header-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 16px;
+  align-items: center;
+  min-width: 0;
+}
+
+@container qf-header (width < 440px) {
+  .qf-header .qf-header-actions {
+    gap: 12px;
+  }
+
+  .qf-header .qf-header-actions .qf-verdicts {
+    display: none;
+  }
+}
+
+.qf-pr-title {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fg);
+  text-overflow: ellipsis;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.qf-pr-sub {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+}
+
+.qf-pr-sub > * {
+  flex-shrink: 0;
+}
+
+.qf-pr-num {
+  font-family: var(--font-mono);
+  color: var(--faint);
+}
+
+.qf-header-author {
+  color: var(--muted);
+}
+
+.qf-branch {
+  display: inline-flex;
+  flex-shrink: 1;
+  gap: 5px;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+@media (max-width: 1100px) {
+  .qf-branch {
+    display: none;
+  }
+}
+
+.qf-arrow {
+  flex-shrink: 0;
+  color: var(--faint);
+}
+
+.qf-branch-chip {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  padding: 3px 7px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--fg);
+  cursor: pointer;
+  background: var(--surface-hi);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  transition:
+    color 120ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.qf-branch-anchor {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.qf-branch-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qf-branch-chip svg {
+  flex-shrink: 0;
+  color: var(--faint);
+}
+
+.qf-branch-chip:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+
+.qf-branch-chip:hover svg {
+  color: var(--accent);
+}
+
+.qf-branch-copied,
+.qf-branch-copied:hover {
+  color: var(--accent);
+  border-color: var(--accent-line);
+}
+
+.qf-branch-copied svg,
+.qf-branch-copied:hover svg {
+  color: var(--add);
+}
+
+.qf-state {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 5px;
+  align-items: center;
+  padding: 2px 8px 2px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border-radius: var(--r-pill);
+}
+
+.qf-state-dot {
+  width: 6px;
+  height: 6px;
+  background: currentcolor;
+  border-radius: var(--r-pill);
+}
+
+.qf-state-open {
+  color: var(--add);
+  background: var(--add-bg);
+  box-shadow: inset 0 0 0 1px rgba(95, 208, 138, 0.25);
+}
+
+.qf-state-draft {
+  color: var(--muted);
+  background: var(--surface-hi);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+
+.qf-state-merged {
+  color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+
+.qf-files-toggle {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  color: var(--muted);
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  transition:
+    color 120ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.qf-files-toggle:hover {
+  color: var(--fg);
+  background: var(--surface-2);
+  border-color: var(--line-2);
+}
+
+.qf-info-btn {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-style: italic;
+  color: var(--muted);
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  transition:
+    color 120ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.qf-info-btn:hover,
+.qf-info-btn[aria-pressed="true"] {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+
+.qf-info-count {
+  position: absolute;
+  top: -7px;
+  right: -8px;
+  padding: 2px 5px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--accent);
+  background: var(--surface);
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r-pill);
+}
+
+.qf-ci-dot {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 9px;
+  height: 9px;
+  border-radius: var(--r-pill);
+  box-shadow: 0 0 0 2px var(--bg);
+}
+
+.qf-ci-dot-success {
+  background: var(--add);
+}
+
+.qf-ci-dot-failure {
+  background: var(--del);
+}
+
+.qf-ci-dot-pending {
+  background: var(--warn);
+}
+
+.qf-submit {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px 6px 13px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-ink);
+  white-space: nowrap;
+  cursor: pointer;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-lg);
+  transition: filter 120ms ease;
+}
+
+.qf-submit:hover {
+  filter: brightness(1.08);
+}
+
+.qf-submit .q-kbd {
+  color: var(--accent-ink);
+  background: rgba(20, 17, 31, 0.16);
+  border-color: rgba(20, 17, 31, 0.22);
+  box-shadow: none;
+}
+
+.qf-submit-badge {
+  padding: 1px 7px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--accent);
+  background: var(--accent-ink);
+  border-radius: var(--r-pill);
+}

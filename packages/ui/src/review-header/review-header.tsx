@@ -1,80 +1,95 @@
 /**
  * The review screen's header: PR state pill, ticket-aware title, repo/author/
  * branch meta with copyable branch chips, the reviewer verdict row, the CI-dot
- * info toggle and the submit button. Owns its own derivations from the PR and
- * detail payloads; interaction state stays in the screen and arrives as
- * callbacks.
+ * info toggle and the submit button.
+ *
+ * Everything it shows is already decided by the host: the verdict rosters
+ * (collapsing a review timeline is the app's aggregateReviewVerdicts), the
+ * conversation count, and how many drafts are waiting. Clipboard, ticket
+ * links and the panels themselves are callbacks — this side of the boundary
+ * knows nothing about Tauri, the store, or where a branch name goes.
+ *
+ * The header is its own container query context, so it responds to its own
+ * width (main minus the file column) rather than the viewport: under 440px it
+ * tightens the action gap and drops the verdict pills, which is why that rule
+ * lives here rather than with review-verdicts — the header is what hides
+ * them, and only inside its own container.
+ *
+ * HeaderPullRequest is the package's own minimal shape, not an import from
+ * the app: the desktop's richer PullRequest satisfies it structurally.
  */
-
-import { Avatar } from "@nod/ui/avatar";
-import { Kbd } from "@nod/ui/kbd";
-import { ReviewVerdicts } from "@nod/ui/review-verdicts";
-import { TicketTitle } from "@nod/ui/ticket-title";
-import { Tooltip } from "@nod/ui/tooltip";
 import { Check, GitBranch, PanelLeft } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { copyTextToClipboard } from "../../lib/clipboard.ts";
-import { cn } from "../../lib/cn.ts";
-import { openExternal } from "../../lib/open-external.ts";
-import { aggregateReviewVerdicts } from "../../lib/reviews.ts";
-import { useAppStore } from "../../store/app-store.ts";
-import type {
-  CiStatus,
-  PullRequest,
-  PullRequestDetail,
-  ReviewSummary,
-} from "../../types.ts";
+import { Avatar } from "../avatar/avatar.tsx";
+import { cn } from "../cn/cn.ts";
+import { Kbd } from "../kbd/kbd.tsx";
+import {
+  type Reviewer,
+  ReviewVerdicts,
+} from "../review-verdicts/review-verdicts.tsx";
+import { TicketTitle } from "../ticket-title/ticket-title.tsx";
+import { Tooltip } from "../tooltip/tooltip.tsx";
+import "./review-header.css";
+
+export interface HeaderPullRequest {
+  author: string;
+  authorAvatarUrl?: string | null;
+  baseRef?: string;
+  draft: boolean;
+  headRef?: string;
+  merged: boolean;
+  number: number;
+  repo: string;
+  state: string;
+  title: string;
+}
 
 export function ReviewHeader({
-  detail,
+  approved = [],
+  changesRequested = [],
+  ciState,
+  convoCount = 0,
+  onCopyBranch,
   onOpenSubmit,
+  onOpenTicket,
   onToggleRightPanel,
   onToggleSidebar,
-  pendingCount,
+  pendingCount = 0,
   pr,
-  reviews,
-  rightOpen,
-  sidebarCompact,
-  sidebarOpen,
+  rightOpen = false,
+  showSidebarToggle = false,
+  sidebarOpen = false,
+  trackerBase,
 }: {
-  detail: PullRequestDetail;
+  approved?: readonly Reviewer[];
+  changesRequested?: readonly Reviewer[];
+  ciState?: string;
+  convoCount?: number;
+  onCopyBranch: (name: string) => void;
   onOpenSubmit: () => void;
+  onOpenTicket: (url: string) => void;
   onToggleRightPanel: () => void;
   onToggleSidebar: () => void;
-  pendingCount: number;
-  pr: PullRequest;
-  reviews: ReviewSummary[];
-  rightOpen: boolean;
-  sidebarCompact: boolean;
-  sidebarOpen: boolean;
+  pendingCount?: number;
+  pr: HeaderPullRequest;
+  rightOpen?: boolean;
+  showSidebarToggle?: boolean;
+  sidebarOpen?: boolean;
+  trackerBase?: string;
 }) {
-  const trackerBase = useAppStore((s) =>
-    s.activeAccountId ? s.issueTrackers[s.activeAccountId] : undefined
-  );
-
-  const { approved, changesRequested } = aggregateReviewVerdicts(reviews);
-
-  const stateClass = resolvePrStateClass(pr);
-  const stateLabel = resolvePrStateLabel(pr);
-
-  const convoCount =
-    (detail.issueComments?.length ?? 0) +
-    reviews.filter((r) => r.body.trim().length > 0).length +
-    detail.comments.filter((c) => c.inReplyToId === null).length;
-
-  const ciDot = ciDotClass(detail.ciStatus);
+  const ciDot = ciDotClass(ciState);
   const infoTitle = ciDot
-    ? `PR info & checks · ${ciDotLabel(detail.ciStatus)}`
+    ? `PR info & checks · ${ciDotLabel(ciState)}`
     : "PR description & conversation";
 
   return (
-    <header className="qf-header flex shrink-0 items-center gap-4 px-6 py-3">
-      {(sidebarCompact || !sidebarOpen) && (
+    <header className="qf-header">
+      {showSidebarToggle && (
         <Tooltip combo="b" label="Show files">
           <button
             aria-label="Show files"
             aria-pressed={sidebarOpen}
-            className="qf-files-toggle qf-focusable"
+            className="qf-files-toggle q-focus"
             onClick={onToggleSidebar}
             type="button"
           >
@@ -82,39 +97,41 @@ export function ReviewHeader({
           </button>
         </Tooltip>
       )}
-      <div className="qf-header-id min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className={cn("qf-state", stateClass)}>
+      <div className="qf-header-id">
+        <div className="qf-header-title-row">
+          <span className={cn("qf-state", stateClass(pr))}>
             <span className="qf-state-dot" />
-            {stateLabel}
+            {stateLabel(pr)}
           </span>
-          <h1 className="qf-pr-title truncate" title={pr.title}>
+          <h1 className="qf-pr-title" title={pr.title}>
             <TicketTitle
-              onOpenTicket={openExternal}
+              onOpenTicket={onOpenTicket}
               title={pr.title}
               trackerBase={trackerBase}
             />
           </h1>
         </div>
-        <div className="qf-pr-sub mt-1 flex min-w-0 items-center gap-2">
+        <div className="qf-pr-sub">
           <span className="qf-pr-num">#{pr.number}</span>
-          <span className="qf-dot">·</span>
+          <span className="q-dot">·</span>
           <span>{pr.repo}</span>
-          <span className="qf-dot">·</span>
+          <span className="q-dot">·</span>
           <Avatar name={pr.author} size={15} url={pr.authorAvatarUrl} />
-          <span className="qf-muted">{pr.author}</span>
+          <span className="qf-header-author">{pr.author}</span>
           {!!pr.baseRef && !!pr.headRef && (
             <>
-              <span className="qf-dot">·</span>
+              <span className="q-dot">·</span>
               <span className="qf-branch">
                 <BranchChip
                   label="Target branch · click to copy"
                   name={pr.baseRef}
+                  onCopy={onCopyBranch}
                 />
                 <span className="qf-arrow">←</span>
                 <BranchChip
                   label="PR branch · click to copy"
                   name={pr.headRef}
+                  onCopy={onCopyBranch}
                 />
               </span>
             </>
@@ -122,15 +139,16 @@ export function ReviewHeader({
         </div>
       </div>
 
-      <div className="qf-header-actions flex shrink-0 items-center gap-4">
+      <div className="qf-header-actions">
         <ReviewVerdicts
           approved={approved}
           changesRequested={changesRequested}
         />
         <Tooltip combo="i" label={infoTitle}>
           <button
+            aria-label={infoTitle}
             aria-pressed={rightOpen}
-            className="qf-info-btn qf-focusable"
+            className="qf-info-btn q-focus"
             onClick={onToggleRightPanel}
             type="button"
           >
@@ -141,7 +159,7 @@ export function ReviewHeader({
           </button>
         </Tooltip>
         <button
-          className="qf-submit qf-focusable"
+          className="qf-submit q-focus"
           onClick={onOpenSubmit}
           type="button"
         >
@@ -157,16 +175,17 @@ export function ReviewHeader({
 }
 
 /** Class for the small CI status dot on the info button, or null when a repo
- *  has no checks (state "none") — the dot should stay quiet then. */
-function ciDotClass(ci: CiStatus | undefined): string | null {
-  if (!ci || ci.state === "none") {
-    return null;
+ *  has no checks (state "none", or a state this build does not know) — the
+ *  dot should stay quiet then. */
+function ciDotClass(state: string | undefined): string | null {
+  if (state === "success" || state === "failure" || state === "pending") {
+    return `qf-ci-dot-${state}`;
   }
-  return `qf-ci-dot-${ci.state}`;
+  return null;
 }
 
-function ciDotLabel(ci: CiStatus | undefined): string {
-  switch (ci?.state) {
+function ciDotLabel(state: string | undefined): string {
+  switch (state) {
     case "success":
       return "checks passing";
     case "failure":
@@ -178,7 +197,7 @@ function ciDotLabel(ci: CiStatus | undefined): string {
   }
 }
 
-function resolvePrStateClass(pr: PullRequest): string {
+function stateClass(pr: HeaderPullRequest): string {
   if (pr.draft) {
     return "qf-state-draft";
   }
@@ -191,7 +210,7 @@ function resolvePrStateClass(pr: PullRequest): string {
   return "qf-state-draft";
 }
 
-function resolvePrStateLabel(pr: PullRequest): string {
+function stateLabel(pr: HeaderPullRequest): string {
   if (pr.draft) {
     return "Draft";
   }
@@ -205,7 +224,15 @@ function resolvePrStateLabel(pr: PullRequest): string {
 }
 
 /** A branch name as a copyable chip: click copies the name, the icon confirms. */
-function BranchChip({ name, label }: { name: string; label: string }) {
+function BranchChip({
+  name,
+  label,
+  onCopy,
+}: {
+  label: string;
+  name: string;
+  onCopy: (name: string) => void;
+}) {
   const [copied, setCopied] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
@@ -216,8 +243,8 @@ function BranchChip({ name, label }: { name: string; label: string }) {
     },
     []
   );
-  const onCopy = () => {
-    copyTextToClipboard(name);
+  const handleCopy = () => {
+    onCopy(name);
     setCopied(true);
     if (timerRef.current) {
       clearTimeout(timerRef.current);
@@ -225,10 +252,13 @@ function BranchChip({ name, label }: { name: string; label: string }) {
     timerRef.current = setTimeout(() => setCopied(false), 1200);
   };
   return (
-    <Tooltip label={copied ? "Copied" : label}>
+    <Tooltip
+      anchorClassName="qf-branch-anchor"
+      label={copied ? "Copied" : label}
+    >
       <button
-        className={cn("qf-branch-chip", copied && "qf-branch-copied")}
-        onClick={onCopy}
+        className={cn("qf-branch-chip q-focus", copied && "qf-branch-copied")}
+        onClick={handleCopy}
         type="button"
       >
         {copied ? (
@@ -236,7 +266,7 @@ function BranchChip({ name, label }: { name: string; label: string }) {
         ) : (
           <GitBranch aria-hidden size={11} />
         )}
-        {name}
+        <span className="qf-branch-name">{name}</span>
       </button>
     </Tooltip>
   );

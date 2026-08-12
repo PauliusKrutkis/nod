@@ -91,9 +91,9 @@ import type {
 } from "../../types.ts";
 import { parsePrKey } from "../../types.ts";
 import { DiffSearch } from "./diff-search.tsx";
-import { FileSidebar } from "./file-sidebar.tsx";
+import { FileSidebarLoader } from "./file-sidebar-loader.tsx";
 import { ReviewDiffPane } from "./review-diff-pane.tsx";
-import { ReviewHeader } from "./review-header.tsx";
+import { ReviewHeaderLoader } from "./review-header-loader.tsx";
 import type { MarkSpec, ReviewListHandle } from "./review-list.tsx";
 import { ReviewScreenPendingLoader } from "./review-screen-pending-loader.tsx";
 import { RightPanel, type RightPanelHandle } from "./right-panel.tsx";
@@ -957,7 +957,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   return (
     <div className="dir-quiet relative flex h-full min-h-0 overflow-hidden">
       <aside className={sidebarColumnClass(sidebarCompact, sidebarOpen)}>
-        <FileSidebar
+        <FileSidebarLoader
           changed={changedSinceViewed}
           comments={detail.comments}
           files={files}
@@ -980,7 +980,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
       />
 
       <main className="qf-main flex min-w-0 flex-1 flex-col">
-        <ReviewHeader
+        <ReviewHeaderLoader
           detail={detail}
           onOpenSubmit={openSubmit}
           onToggleRightPanel={onToggleRightPanel}
