@@ -24,10 +24,24 @@
  * input mode, which is an ancestor the package does not own, so a row
  * specimen is always at rest. `selected` paints the identical iris treatment
  * and is the row's own decision, so that is the one with pixels.
+ *
+ * The run-* fixtures are sequences, because a diff is never one row: the
+ * seams the single-row cases cannot show are del/add replacement pairs
+ * reading as one edit, indent guides continuing across neighbouring rows, a
+ * wrapped row pushing the rows after it, the threaded underline sitting
+ * between plain rows, and a hunk band separating two context runs. The
+ * app's run container is the desktop's review-list (store-fed, virtualized,
+ * outside this package) and its `.qf-diff` wrapper is app CSS, so the runs
+ * stack the real rows bare, exactly as honest as the row's own carried type
+ * (see diff-row.css). The sandwich borrows the real HunkRow between the
+ * runs; no run-only component exists to drift.
  */
 
-import { defineEntry } from "../fixtures/fixtures.ts";
-import { DiffRow } from "./diff-row.tsx";
+import { defineEntry, defineStep } from "../fixtures/fixtures.ts";
+import { HunkRow } from "../hunk-row/hunk-row.tsx";
+import { DiffRow, type DiffRowProps } from "./diff-row.tsx";
+
+const row = (props: DiffRowProps) => defineStep(DiffRow, props);
 
 const UNBREAKABLE = `const ${"nod".repeat(64)} = 1;`;
 
@@ -151,6 +165,256 @@ export const diffRowEntry = defineEntry(DiffRow, {
       kind: "add",
       newLine: 7,
     },
+  },
+  "run-context": {
+    sequence: [
+      row({
+        fileIndex: 0,
+        html: '<span class="hljs-keyword">const</span> entry = catalog[name];',
+        kind: "context",
+        newLine: 212,
+        oldLine: 212,
+      }),
+      row({
+        fileIndex: 0,
+        html: '<span class="hljs-keyword">const</span> fixtures = Object.keys(entry.fixtures);',
+        kind: "context",
+        newLine: 213,
+        oldLine: 213,
+      }),
+      row({
+        fileIndex: 0,
+        html: '<span class="hljs-keyword">const</span> first = fixtures[<span class="hljs-number">0</span>] ?? <span class="hljs-string">&quot;&quot;</span>;',
+        kind: "context",
+        newLine: 214,
+        oldLine: 214,
+      }),
+      row({
+        anchor: "RIGHT:215",
+        canComment: true,
+        fileIndex: 0,
+        html: '<span class="hljs-keyword">const</span> dialog = <span class="hljs-title">Boolean</span>(entry.dialog);',
+        kind: "add",
+        newLine: 215,
+      }),
+      row({
+        fileIndex: 0,
+        html: '<span class="hljs-keyword">return</span> { dialog, first, fixtures };',
+        kind: "context",
+        newLine: 216,
+        oldLine: 215,
+      }),
+      row({
+        fileIndex: 0,
+        html: "}",
+        kind: "context",
+        newLine: 217,
+        oldLine: 216,
+      }),
+    ],
+  },
+  "run-hunk-sandwich": {
+    sequence: [
+      row({
+        fileIndex: 0,
+        html: '  <span class="hljs-keyword">return</span> occurrences.length;',
+        kind: "context",
+        newLine: 118,
+        oldLine: 118,
+      }),
+      row({
+        fileIndex: 0,
+        html: "}",
+        kind: "context",
+        newLine: 119,
+        oldLine: 119,
+      }),
+      defineStep(HunkRow, {
+        fileIndex: 0,
+        header: "@@ -204,6 +204,31 @@ function renderItem(",
+      }),
+      row({
+        fileIndex: 0,
+        html: '<span class="hljs-keyword">function</span> <span class="hljs-title">renderItem</span>(item: ReviewItem) {',
+        kind: "context",
+        newLine: 204,
+        oldLine: 204,
+      }),
+      row({
+        fileIndex: 0,
+        html: '  <span class="hljs-keyword">const</span> key = computeReviewItemKey(item);',
+        kind: "context",
+        newLine: 205,
+        oldLine: 205,
+      }),
+    ],
+  },
+  "run-nesting": {
+    sequence: [
+      row({
+        fileIndex: 0,
+        guideLvl: 0,
+        html: '<span class="hljs-keyword">export</span> <span class="hljs-keyword">function</span> <span class="hljs-title">walkRuns</span>(model: RunModel) {',
+        kind: "context",
+        newLine: 140,
+        oldLine: 140,
+      }),
+      row({
+        fileIndex: 0,
+        guideLvl: 1,
+        html: '  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">const</span> run <span class="hljs-keyword">of</span> model.runs) {',
+        kind: "context",
+        newLine: 141,
+        oldLine: 141,
+      }),
+      row({
+        fileIndex: 0,
+        guideLvl: 2,
+        html: '    <span class="hljs-keyword">if</span> (run.kind === <span class="hljs-string">&quot;context&quot;</span>) {',
+        kind: "context",
+        newLine: 142,
+        oldLine: 142,
+      }),
+      row({
+        fileIndex: 0,
+        guideLvl: 3,
+        html: "      run.rows.forEach((row) =&gt; {",
+        kind: "context",
+        newLine: 143,
+        oldLine: 143,
+      }),
+      row({
+        fileIndex: 0,
+        guideLvl: 4,
+        html: "        paint(row, model.indent);",
+        kind: "context",
+        newLine: 144,
+        oldLine: 144,
+      }),
+    ],
+  },
+  "run-replacement": {
+    sequence: [
+      row({
+        anchor: "RIGHT:96",
+        canComment: true,
+        fileIndex: 0,
+        html: '<span class="hljs-keyword">function</span> <span class="hljs-title">flushPending</span>(queue: RowQueue) {',
+        kind: "context",
+        newLine: 96,
+        oldLine: 96,
+      }),
+      row({
+        anchor: "LEFT:97",
+        canComment: true,
+        fileIndex: 0,
+        html: "  queue.drain();",
+        kind: "del",
+        oldLine: 97,
+      }),
+      row({
+        anchor: "LEFT:98",
+        canComment: true,
+        fileIndex: 0,
+        html: "  markClean(queue);",
+        kind: "del",
+        oldLine: 98,
+      }),
+      row({
+        anchor: "RIGHT:97",
+        canComment: true,
+        fileIndex: 0,
+        html: '  <span class="hljs-keyword">const</span> drained = queue.drain();',
+        kind: "add",
+        newLine: 97,
+      }),
+      row({
+        anchor: "RIGHT:98",
+        canComment: true,
+        fileIndex: 0,
+        html: "  markClean(queue, drained.length);",
+        kind: "add",
+        newLine: 98,
+      }),
+      row({
+        anchor: "RIGHT:99",
+        canComment: true,
+        fileIndex: 0,
+        html: "}",
+        kind: "context",
+        newLine: 99,
+        oldLine: 99,
+      }),
+    ],
+  },
+  "run-threaded": {
+    sequence: [
+      row({
+        fileIndex: 0,
+        html: TYPICAL_HTML,
+        kind: "context",
+        newLine: 41,
+        oldLine: 41,
+      }),
+      row({
+        anchor: "RIGHT:42",
+        canComment: true,
+        fileIndex: 0,
+        html: '<span class="hljs-keyword">const</span> backoff = retries * <span class="hljs-number">250</span>;',
+        kind: "add",
+        newLine: 42,
+      }),
+      row({
+        anchor: "RIGHT:43",
+        canComment: true,
+        fileIndex: 0,
+        html: '<span class="hljs-keyword">await</span> sendReview(verdict, { backoff });',
+        kind: "context",
+        newLine: 43,
+        oldLine: 42,
+        threaded: true,
+      }),
+      row({
+        fileIndex: 0,
+        html: "queue.push(verdict);",
+        kind: "context",
+        newLine: 44,
+        oldLine: 43,
+      }),
+      row({
+        fileIndex: 0,
+        html: "}",
+        kind: "context",
+        newLine: 45,
+        oldLine: 44,
+      }),
+    ],
+  },
+  "run-wrapped": {
+    sequence: [
+      row({
+        fileIndex: 0,
+        html: '<span class="hljs-keyword">const</span> token = sign(payload);',
+        kind: "context",
+        newLine: 6,
+        oldLine: 6,
+      }),
+      row({
+        anchor: "RIGHT:7",
+        canComment: true,
+        fileIndex: 0,
+        html: UNBREAKABLE,
+        kind: "add",
+        newLine: 7,
+      }),
+      row({
+        fileIndex: 0,
+        html: '<span class="hljs-keyword">return</span> token;',
+        kind: "context",
+        newLine: 8,
+        oldLine: 7,
+      }),
+    ],
   },
   selected: {
     props: {

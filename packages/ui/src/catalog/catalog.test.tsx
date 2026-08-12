@@ -15,6 +15,7 @@
 import { cleanup, render } from "@testing-library/react";
 import { createElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";
+import { isSequence, sequenceElement } from "../fixtures/fixtures.ts";
 import { catalogManifest } from "../manifest/manifest.ts";
 import { catalog } from "./catalog.ts";
 
@@ -61,10 +62,15 @@ const cases = Object.entries(catalog).flatMap(([componentName, entry]) =>
   }))
 );
 
+const elementOf = (c: (typeof cases)[number]) =>
+  isSequence(c.fixture)
+    ? sequenceElement(c.fixture)
+    : createElement(c.component, c.fixture.props);
+
 describe("every fixture renders", () => {
   it.each(cases)("$componentName/$fixtureName", (c) => {
-    const { container } = render(createElement(c.component, c.fixture.props));
-    if (c.fixture.rendersNothing) {
+    const { container } = render(elementOf(c));
+    if (!isSequence(c.fixture) && c.fixture.rendersNothing) {
       expect(container.innerHTML).toBe("");
     } else {
       expect(container.innerHTML).not.toBe("");
@@ -74,11 +80,11 @@ describe("every fixture renders", () => {
 
 describe("markup-looking payloads stay text", () => {
   const markupCases = cases.filter(({ fixture }) =>
-    JSON.stringify(fixture.props).includes("<img")
+    JSON.stringify(fixture).includes("<img")
   );
 
   it.each(markupCases)("$componentName/$fixtureName", (c) => {
-    const { container } = render(createElement(c.component, c.fixture.props));
+    const { container } = render(elementOf(c));
     expect(container.querySelector("img[src='x']")).toBeNull();
   });
 });

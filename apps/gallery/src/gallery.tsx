@@ -42,6 +42,7 @@
  */
 import { Button } from "@nod/ui/button";
 import { catalog } from "@nod/ui/catalog";
+import { isSequence, sequenceElement } from "@nod/ui/fixtures";
 import { Kbd } from "@nod/ui/kbd";
 import { useEffect, useState } from "react";
 import { PENDING } from "./coverage.ts";
@@ -82,6 +83,9 @@ function ModalLauncher({ route }: { route: GalleryRoute }) {
     return null;
   }
   const fixture = entry.fixtures[route.fixture];
+  if (isSequence(fixture)) {
+    return null;
+  }
   const Specimen = entry.component;
   return (
     <div className={`qg-modal-launch qg-stage-${route.theme}`}>
@@ -107,9 +111,15 @@ function Frame({ route, small }: { route: GalleryRoute; small?: boolean }) {
   }
   const fixture = entry.fixtures[route.fixture];
   const Specimen = entry.component;
-  const specimenProps = entry.dialog
-    ? { ...fixture.props, inline: true, onOpenChange: noopOpenChange }
-    : fixture.props;
+  const specimen = isSequence(fixture) ? (
+    sequenceElement(fixture)
+  ) : (
+    <Specimen
+      {...(entry.dialog
+        ? { ...fixture.props, inline: true, onOpenChange: noopOpenChange }
+        : fixture.props)}
+    />
+  );
   return (
     <div className="qg-frame-wrap">
       <div
@@ -125,7 +135,7 @@ function Frame({ route, small }: { route: GalleryRoute; small?: boolean }) {
             className="qg-viewport"
             style={route.width ? { width: route.width } : { flex: 1 }}
           >
-            <Specimen {...specimenProps} />
+            {specimen}
           </div>
         </div>
       </div>
