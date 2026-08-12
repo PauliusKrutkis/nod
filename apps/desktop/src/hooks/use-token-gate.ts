@@ -1,3 +1,10 @@
+import {
+  type GitlabInstance,
+  shortHost,
+  type TokenGateBusy,
+  type TokenGateProvider,
+  type TokenGateView,
+} from "@nod/ui/token-gate";
 import { useQuery } from "@tanstack/react-query";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
@@ -11,23 +18,19 @@ import { api } from "../lib/api.ts";
 import { queryKeys } from "../lib/query-client.ts";
 import { useAppStore } from "../store/app-store.ts";
 
-type View = "identity" | "selfhosted" | "token";
-export type Busy = "idle" | "oauth" | "probe" | "pat";
-export type TokenProvider = "github" | "gitlab";
-
 interface GateFlow {
-  busy: Busy;
+  busy: TokenGateBusy;
   busyLabel: string;
   error: string | null;
-  tokenProvider: TokenProvider;
-  view: View;
+  tokenProvider: TokenGateProvider;
+  view: TokenGateView;
 }
 
 type GateFlowAction =
   | { error: string; type: "fail" }
-  | { provider: TokenProvider; type: "provider" }
-  | { type: "reset"; view: View }
-  | { kind: Busy; label: string; type: "start" }
+  | { provider: TokenGateProvider; type: "provider" }
+  | { type: "reset"; view: TokenGateView }
+  | { kind: TokenGateBusy; label: string; type: "start" }
   | { type: "stop" };
 
 function gateFlowReducer(state: GateFlow, action: GateFlowAction): GateFlow {
@@ -58,14 +61,7 @@ function gateFlowReducer(state: GateFlow, action: GateFlowAction): GateFlow {
   }
 }
 
-/** Remembered self-hosted instances (host + optional OAuth application id). */
-export interface GitlabInstance {
-  clientId?: string;
-  host: string;
-}
-
 const INSTANCES_KEY = "nod:gitlabInstances:v1";
-const HTTPS_PREFIX = /^https?:\/\//;
 const GH_TOKEN_URL =
   "https://github.com/settings/tokens/new?scopes=repo&description=Nod";
 
@@ -87,12 +83,6 @@ function saveInstance(inst: GitlabInstance) {
     /* ignore */
   }
 }
-
-function shortHost(host: string): string {
-  return host.replace(HTTPS_PREFIX, "");
-}
-
-export { shortHost };
 
 function glTokenUrl(host: string): string {
   return `${host}/-/user_settings/personal_access_tokens?name=Nod&scopes=api`;
@@ -147,7 +137,7 @@ export function useTokenGate() {
     return list;
   })();
 
-  const reset = (next: View) => {
+  const reset = (next: TokenGateView) => {
     dispatchFlow({ type: "reset", view: next });
   };
 
@@ -174,7 +164,7 @@ export function useTokenGate() {
 
   const run = async (
     label: string,
-    kind: Busy,
+    kind: TokenGateBusy,
     action: () => Promise<void>
   ) => {
     if (busy !== "idle") {
@@ -229,7 +219,7 @@ export function useTokenGate() {
       setProbedHost(normalized);
     });
 
-  const connectToken = (provider: TokenProvider, host: string | null) =>
+  const connectToken = (provider: TokenGateProvider, host: string | null) =>
     run("Checking the token…", "pat", async () => {
       await api.addAccount({ host, provider, token: token.trim() });
       if (provider === "gitlab" && host) {
@@ -307,7 +297,7 @@ export function useTokenGate() {
     onProbe: () => {
       runPromise(probe());
     },
-    onProviderChange: (provider: TokenProvider) => {
+    onProviderChange: (provider: TokenGateProvider) => {
       dispatchFlow({ provider, type: "provider" });
     },
     onSelfHosted: () => {
