@@ -1,6 +1,7 @@
 import { Kbd } from "@nod/ui/kbd";
 import { Spinner } from "@nod/ui/spinner";
 import {
+  Bell,
   Command as CommandIcon,
   HelpCircle,
   History,
@@ -21,6 +22,7 @@ import { GlobalSearch } from "./components/global-search.tsx";
 import { Inbox } from "./components/inbox/inbox.tsx";
 import { IssueTrackerSettings } from "./components/issue-tracker-settings.tsx";
 import { KeyboardHelp } from "./components/keyboard-help.tsx";
+import { NotificationCenterLoader } from "./components/notification-center-loader.tsx";
 import { PurchasePromptLoader } from "./components/purchase-prompt-loader.tsx";
 import { ReleaseHistoryLoader } from "./components/release-history-loader.tsx";
 import { ReviewScreen } from "./components/review/review-screen.tsx";
@@ -50,6 +52,7 @@ export default function App() {
   const closeAiSetup = useAppStore((s) => s.closeAiSetup);
   const [trackerOpen, setTrackerOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   const dismissToast = () => {
     setToast(null);
@@ -62,6 +65,9 @@ export default function App() {
   };
   const closeHistory = () => {
     setHistoryOpen(false);
+  };
+  const closeNotifications = () => {
+    setNotificationsOpen(false);
   };
   const runToastAction = () => {
     toast?.action?.();
@@ -225,6 +231,14 @@ export default function App() {
         keys: [],
         run: () => setHistoryOpen(true),
       },
+      {
+        description: "Notifications · what you were told about",
+        global: true,
+        group: "General",
+        icon: Bell,
+        keys: "mod+shift+n",
+        run: () => setNotificationsOpen((v) => !v),
+      },
       ...accountBindings,
     ],
     { activate: false }
@@ -305,6 +319,10 @@ export default function App() {
       <IssueTrackerSettings onClose={closeTracker} open={trackerOpen} />
       <AiSetupLoader onClose={closeAiSetup} open={aiSetupOpen} />
       <ReleaseHistoryLoader onClose={closeHistory} open={historyOpen} />
+      <NotificationCenterLoader
+        onClose={closeNotifications}
+        open={notificationsOpen}
+      />
       <CommandPaletteCommands baseScope={baseScope} />
       <KeyboardHelp baseScope={baseScope} />
       {showRouteChrome ? <GlobalSearch /> : null}

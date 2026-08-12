@@ -36,6 +36,8 @@ export const makePr = (
   title,
   updatedAt,
   url: `https://github.com/acme/rocket/pull/${n}`,
+  viewerDidAuthor: author === "me",
+  viewerLastReviewAt: undefined as string | undefined,
 });
 
 type PrFixture = ReturnType<typeof makePr>;
@@ -525,11 +527,14 @@ export const INBOX_UPDATED = {
  * on. `commentAuthor` decides whether that comment is the author answering a
  * review ("alice") or the viewer's own reply ("me"), and `createdAt` is what
  * the notifier dedupes on, so serving two of these with different timestamps
- * models a second reply on the same PR.
+ * models a second reply on the same PR. `reviewedAt` is when the viewer last
+ * reviewed it, and `null` — never `undefined`, which would take the default —
+ * models the PR you were only ever mentioned on and never reviewed.
  */
 export const inboxWithReply = (
   commentAuthor: string,
-  createdAt: string
+  createdAt: string,
+  reviewedAt: string | null = "2026-07-02T09:00:00Z"
 ): InboxFixture => ({
   ...INBOX,
   involved: {
@@ -544,6 +549,7 @@ export const inboxWithReply = (
           body: "Pushed the change you asked for.",
           createdAt,
         },
+        viewerLastReviewAt: reviewedAt ?? undefined,
       },
     ],
   },

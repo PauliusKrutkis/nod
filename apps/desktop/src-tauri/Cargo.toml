@@ -48,3 +48,4 @@ time = "0.3"
 # pure-Rust miniz_oxide backend, so this adds no C toolchain requirement.
 flate2 = "1"
 tar = "0.4"
+tauri-plugin-notification = "2.3.3"

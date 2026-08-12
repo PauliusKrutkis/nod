@@ -28,6 +28,7 @@ import { inboxZeroEntry } from "../inbox-zero/inbox-zero.fixtures.ts";
 import { issueTrackerDialogEntry } from "../issue-tracker-dialog/issue-tracker-dialog.fixtures.ts";
 import { kbdEntry } from "../kbd/kbd.fixtures.ts";
 import { markdownEntry } from "../markdown/markdown.fixtures.ts";
+import { notificationCenterEntry } from "../notification-center/notification-center.fixtures.ts";
 import { overviewRulerEntry } from "../overview-ruler/overview-ruler.fixtures.ts";
 import { prDrawerEntry } from "../pr-drawer/pr-drawer.fixtures.ts";
 import { prListItemEntry } from "../pr-list-item/pr-list-item.fixtures.ts";
@@ -81,6 +82,7 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   "issue-tracker-dialog": issueTrackerDialogEntry,
   kbd: kbdEntry,
   markdown: markdownEntry,
+  "notification-center": notificationCenterEntry,
   "overview-ruler": overviewRulerEntry,
   "pr-drawer": prDrawerEntry,
   "pr-list-item": prListItemEntry,

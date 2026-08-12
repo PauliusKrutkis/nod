@@ -25,6 +25,7 @@
     "@nod/ui": "workspace:*",
     "@tanstack/react-query": "^5.62.0",
     "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-notification": "^2.3.3",
     "@tauri-apps/plugin-opener": "^2",
     "@tiptap/core": "3.27.2",
     "@tiptap/pm": "3.27.3",

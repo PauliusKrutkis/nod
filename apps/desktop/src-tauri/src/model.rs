@@ -7,6 +7,12 @@
 //! disk. `MAX_REPO_SIZE_KB` keeps larger repos on the on-demand blob path
 //! entirely — the snapshot must degrade, never block or thrash the cache
 //! (BACKLOG §9).
+//!
+//! `PullRequest::viewer_did_author` and `viewer_last_review_at` are relative to
+//! the signed-in account, so they are only meaningful on a payload that account
+//! fetched. Both default when a provider cannot answer them — GitLab leaves
+//! them unset — and a `None` review timestamp means "not reviewed by you",
+//! never "reviewed at an unknown time".
 
 use serde::{Deserialize, Serialize};
 
@@ -50,6 +56,10 @@ pub struct PullRequest {
     pub body: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_comment: Option<LastComment>,
+    #[serde(default)]
+    pub viewer_did_author: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub viewer_last_review_at: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

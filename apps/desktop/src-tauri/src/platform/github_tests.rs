@@ -61,6 +61,37 @@ fn graphql_bucket_maps_states_and_counts() {
     assert_eq!(bucket.prs[0].state, "merged");
     assert_eq!(bucket.prs[0].head_ref, "feat/stacked");
     assert_eq!(bucket.prs[0].base_ref, "main");
+    assert!(!bucket.prs[0].viewer_did_author);
+    assert_eq!(bucket.prs[0].viewer_last_review_at, None);
+}
+
+#[test]
+fn graphql_maps_the_viewer_scoped_review_signal() {
+    let data = serde_json::json!({
+        "alias": {
+            "issueCount": 2,
+            "nodes": [
+                {
+                    "number": 1, "viewerDidAuthor": true,
+                    "viewerLatestReview": null,
+                    "repository": { "name": "r", "owner": { "login": "o" } }
+                },
+                {
+                    "number": 2, "viewerDidAuthor": false,
+                    "viewerLatestReview": { "submittedAt": "2026-07-02T09:00:00Z" },
+                    "repository": { "name": "r", "owner": { "login": "o" } }
+                }
+            ]
+        }
+    });
+    let bucket = bucket_from(&data, "alias");
+    assert!(bucket.prs[0].viewer_did_author);
+    assert_eq!(bucket.prs[0].viewer_last_review_at, None);
+    assert!(!bucket.prs[1].viewer_did_author);
+    assert_eq!(
+        bucket.prs[1].viewer_last_review_at.as_deref(),
+        Some("2026-07-02T09:00:00Z")
+    );
 }
 
 #[test]

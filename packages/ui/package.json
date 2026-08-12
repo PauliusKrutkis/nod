@@ -38,6 +38,7 @@
     "./kbd": "./src/kbd/kbd.tsx",
     "./manifest": "./src/manifest/manifest.ts",
     "./markdown": "./src/markdown/markdown.tsx",
+    "./notification-center": "./src/notification-center/notification-center.tsx",
     "./overview-ruler": "./src/overview-ruler/overview-ruler.tsx",
     "./pr-drawer": "./src/pr-drawer/pr-drawer.tsx",
     "./pr-list-item": "./src/pr-list-item/pr-list-item.tsx",

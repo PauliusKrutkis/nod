@@ -53,10 +53,19 @@ pub(crate) async fn fetch_user(client: &reqwest::Client) -> Result<GitHubUser, S
 /// Everything the inbox list AND its reading pane need: the diff-stat scalars
 /// and body are cheap to include, and `comments(last: 1)` doubles as the
 /// total count plus a "latest comment" teaser for the pane.
+///
+/// `viewerDidAuthor` and `viewerLatestReview` are what let the notifier tell
+/// "the author answered the review I left" from "someone commented on a PR I
+/// happen to be CC'd on". Bucket membership cannot: `involves:@me` is true for
+/// a mention, so without these two the app would announce replies on PRs the
+/// user never reviewed. Both are viewer-scoped server-side, so neither needs
+/// the login threaded down here.
 const FRAGMENT_P: &str = r#"fragment P on PullRequest {
   databaseId number title url state isDraft createdAt updatedAt
   headRefName baseRefName
   body additions deletions changedFiles
+  viewerDidAuthor
+  viewerLatestReview { submittedAt }
   author { login avatarUrl }
   repository { name owner { login } }
   comments(last: 1) { totalCount nodes { author { login avatarUrl } bodyText createdAt } }
@@ -145,6 +154,12 @@ fn pr_from_graphql(v: &Value) -> PullRequest {
         changed_files: fu64(v, "changedFiles"),
         body: fstr(v, "body"),
         last_comment,
+        viewer_did_author: fbool(v, "viewerDidAuthor"),
+        viewer_last_review_at: v
+            .get("viewerLatestReview")
+            .and_then(|r| r.get("submittedAt"))
+            .and_then(Value::as_str)
+            .map(str::to_string),
     }
 }
 
@@ -175,6 +190,8 @@ fn pr_from_pull(v: &Value, owner: &str, repo: &str) -> PullRequest {
         changed_files: fu64(v, "changed_files"),
         body: fstr(v, "body"),
         last_comment: None,
+        viewer_did_author: false,
+        viewer_last_review_at: None,
     }
 }
 
