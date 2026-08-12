@@ -38,6 +38,7 @@
     "./manifest": "./src/manifest/manifest.ts",
     "./markdown": "./src/markdown/markdown.tsx",
     "./overview-ruler": "./src/overview-ruler/overview-ruler.tsx",
+    "./pr-drawer": "./src/pr-drawer/pr-drawer.tsx",
     "./pr-list-item": "./src/pr-list-item/pr-list-item.tsx",
     "./pr-search": "./src/pr-search/pr-search.tsx",
     "./pr-summary": "./src/pr-summary/pr-summary.tsx",

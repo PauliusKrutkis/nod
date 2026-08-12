@@ -1,9 +1,10 @@
 /* The comment row, moved out of the app's quiet.css apart from the
-   .dir-quiet scope the package does not need. All of it but .qf-comment-reply
-   also stays behind: the diff's pending-comment card writes .qf-comment,
-   .qf-comment-head and .qf-comment-body by hand, the drawer's conversation
-   row writes .qf-comment-author and .qf-comment-time, and neither surface is
-   catalogued yet.
+   .dir-quiet scope the package does not need. Most of it also stays behind:
+   the diff's pending-comment card writes .qf-comment, .qf-comment-head and
+   .qf-comment-body by hand, and that surface is not catalogued yet. The
+   drawer's conversation row (pr-drawer, catalogued) writes
+   .qf-comment-author and .qf-comment-time and takes them from this sheet,
+   which loads with the CommentBody it imports.
 
    The author is the only unbounded string on the head, and it sits in a flex
    row with the time and the tool strip after it. Without min-width: 0 its

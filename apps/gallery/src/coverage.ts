@@ -67,6 +67,8 @@ export const CONTAINERS: Record<string, string> = {
     "virtuoso group geometry, the imperative scroll handle and the store reads its comment blocks need; its leaves are diff-row, hunk-row and file-section-header in @nod/ui",
   "review-diff-pane":
     "wires the review screen's state onto find-bar, the review-list container and overview-ruler; it owns no view of its own beyond the empty state",
+  "right-panel":
+    "detail-query payloads, the comment mutations, store reads for trackerBase and ownLogin, the app's Markdown pipeline, the Tauri opener and jump-to-thread routing; its view is pr-drawer, catalogued in @nod/ui",
 };
 
-export const PENDING = ["right-panel"];
+export const PENDING: string[] = [];

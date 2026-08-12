@@ -427,6 +427,21 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "unmeasured",
     ],
   },
+  "pr-drawer": {
+    fixtures: [
+      "ci-failing",
+      "crowd",
+      "draft-present",
+      "empty-conversation",
+      "foreign-comment",
+      "markup-as-text",
+      "no-verdicts",
+      "overflow",
+      "own-comment",
+      "typical",
+      "unicode",
+    ],
+  },
   "pr-list-item": {
     fixtures: [
       "ancient",

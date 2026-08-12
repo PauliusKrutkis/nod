@@ -28,6 +28,7 @@ import { issueTrackerDialogEntry } from "../issue-tracker-dialog/issue-tracker-d
 import { kbdEntry } from "../kbd/kbd.fixtures.ts";
 import { markdownEntry } from "../markdown/markdown.fixtures.ts";
 import { overviewRulerEntry } from "../overview-ruler/overview-ruler.fixtures.ts";
+import { prDrawerEntry } from "../pr-drawer/pr-drawer.fixtures.ts";
 import { prListItemEntry } from "../pr-list-item/pr-list-item.fixtures.ts";
 import { prSearchEntry } from "../pr-search/pr-search.fixtures.ts";
 import { prSummaryEntry } from "../pr-summary/pr-summary.fixtures.ts";
@@ -79,6 +80,7 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   kbd: kbdEntry,
   markdown: markdownEntry,
   "overview-ruler": overviewRulerEntry,
+  "pr-drawer": prDrawerEntry,
   "pr-list-item": prListItemEntry,
   "pr-search": prSearchEntry,
   "pr-summary": prSummaryEntry,
