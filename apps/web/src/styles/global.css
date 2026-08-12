@@ -597,27 +597,6 @@ a {
     0 1px 0 rgba(255, 255, 255, 0.04) inset;
 }
 
-.show__chord {
-  display: inline-flex;
-  gap: 3px;
-  vertical-align: bottom;
-}
-
-.keycap {
-  display: inline-grid;
-  place-items: center;
-  min-width: 1.7em;
-  height: 1.7em;
-  padding-inline: 0.4em;
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  color: var(--fg);
-  background: var(--surface-hi);
-  border: 1px solid var(--line-2);
-  border-radius: 5px;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
-}
-
 .locals {
   margin-top: clamp(64px, 14vw, 112px);
 }
