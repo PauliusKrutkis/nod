@@ -1,12 +1,3 @@
-import { FileSidebar } from "@nod/ui/file-sidebar";
-import { useState } from "react";
-import { useAppStore } from "../../store/app-store.ts";
-import type {
-  ChangedFile,
-  PendingComment,
-  ReviewComment,
-} from "../../types.ts";
-
 /**
  * Store and payload wiring for the file column; its view is file-sidebar,
  * catalogued in @nod/ui. Which files you have seen lives in the store keyed by
@@ -18,6 +9,15 @@ import type {
  * localStorage round trip) stays here: a component that reads storage cannot
  * be rendered from a fixture alone.
  */
+
+import { FileSidebar } from "@nod/ui/file-sidebar";
+import { useState } from "react";
+import { useAppStore } from "../../store/app-store.ts";
+import type {
+  ChangedFile,
+  PendingComment,
+  ReviewComment,
+} from "../../types.ts";
 
 const TREE_MODE_KEY = "nod:fileTreeMode";
 

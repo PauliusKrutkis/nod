@@ -1,3 +1,12 @@
+/**
+ * Store and payload wiring for the review header; its view is review-header,
+ * catalogued in @nod/ui. Three derivations live on this side because they are
+ * all about the app's payloads rather than about the row of controls: the
+ * account's issue tracker, the verdict rosters (aggregateReviewVerdicts, which
+ * decides who currently approves), and how much conversation the drawer holds
+ * — issue comments, reviews that said something, and inline thread roots.
+ */
+
 import { ReviewHeader } from "@nod/ui/review-header";
 import { copyTextToClipboard } from "../../lib/clipboard.ts";
 import { openExternal } from "../../lib/open-external.ts";
@@ -8,15 +17,6 @@ import type {
   PullRequestDetail,
   ReviewSummary,
 } from "../../types.ts";
-
-/**
- * Store and payload wiring for the review header; its view is review-header,
- * catalogued in @nod/ui. Three derivations live on this side because they are
- * all about the app's payloads rather than about the row of controls: the
- * account's issue tracker, the verdict rosters (aggregateReviewVerdicts, which
- * decides who currently approves), and how much conversation the drawer holds
- * — issue comments, reviews that said something, and inline thread roots.
- */
 
 export function ReviewHeaderLoader({
   detail,
