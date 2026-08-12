@@ -26,7 +26,7 @@
  * about the screen in front of you is noise, and the log still records it so
  * the list stays complete.
  */
-import { useCallback, useEffect } from "react";
+import { useEffect } from "react";
 import { detectEvents, notificationCopy } from "../lib/notification-events.ts";
 import { sendOsNotification } from "../lib/os-notification.ts";
 import { type Route, useAppStore } from "../store/app-store.ts";
@@ -95,11 +95,11 @@ export function useNotificationFeed() {
     return () => window.clearTimeout(t);
   }, [announcement]);
 
-  const dismiss = useCallback(() => {
+  const dismiss = () => {
     useNotificationStore.getState().setAnnouncement(null);
-  }, []);
+  };
 
-  const open = useCallback(() => {
+  const open = () => {
     const store = useNotificationStore.getState();
     const current = store.announcement;
     if (!current) {
@@ -111,7 +111,7 @@ export function useNotificationFeed() {
     const app = useAppStore.getState();
     app.markSeen(event.prKey, event.createdAt);
     app.openReview(event.owner, event.name, event.number);
-  }, []);
+  };
 
   return { announcement, dismiss, open };
 }
