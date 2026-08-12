@@ -52,8 +52,6 @@ export const CONTAINERS: Record<string, string> = {
 };
 
 export const PENDING = [
-  "add-comment-box",
-  "composer-editor",
   "file-sidebar",
   "inbox",
   "pr-search",

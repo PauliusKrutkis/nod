@@ -1,19 +1,50 @@
-import { Kbd } from "@nod/ui/kbd";
+/**
+ * The inline comment composer: a rich editor surface (see ComposerEditor)
+ * that submits markdown. When a secondary action is provided (the diff
+ * "add to review" vs. "comment now" choice) it shows a segmented control that
+ * makes the mode explicit, and the primary button + ⌘↵ follow the chosen
+ * mode. Replies and issue comments (no secondary) fall back to a single
+ * button. onEmptyChange mirrors the editor's empty state to the parent — the
+ * drawer's collapsed prompt uses it to advertise a surviving draft.
+ * `initialMode` seeds the segmented control the way `initialMarkdown` seeds
+ * the text: uncontrolled afterwards, since the choice is the composer's own
+ * for as long as it is open.
+ *
+ * `pending` alone cannot stop a double submit: it is a prop, so it only
+ * becomes true after a render, and two ⌘↵ dispatched in the same tick both
+ * pass it. `inFlightRef` is the synchronous lock that closes that window.
+ * It never holds the composer open — the actions stay fire-and-forget, per
+ * the optimistic-by-design contract in use-comments.ts. There is no error
+ * state here for the same reason: a failed submit rolls back and flashes at
+ * the mutation layer, and the composer's job is to keep the typed text. The
+ * lock is released after the try/catch rather than in a finally, because the
+ * React Compiler cannot lower try/catch/finally and the empty catch already
+ * guarantees the release is reached.
+ *
+ * Both button labels are caller text, so both clip: the mode labels through
+ * their own span and the primary through Button's, which is why neither can
+ * push the footer wider than the panel it sits in.
+ */
+import type { Extensions } from "@tiptap/core";
 import { Layers, Send } from "lucide-react";
 import { type Ref, useImperativeHandle, useRef, useState } from "react";
-import { cn } from "../../lib/cn.ts";
+import { Button } from "../button/button.tsx";
+import { cn } from "../cn/cn.ts";
 import {
   ComposerEditor,
   type ComposerEditorHandle,
-} from "./composer-editor.tsx";
+} from "../composer-editor/composer-editor.tsx";
+import "./add-comment-box.css";
 
 export interface AddCommentBoxHandle {
   focus: () => void;
 }
 
-interface AddCommentBoxProps {
+export interface AddCommentBoxProps {
   autoFocus?: boolean;
+  extensions?: Extensions;
   initialMarkdown?: string;
+  initialMode?: "batch" | "now";
   onCancel: () => void;
   onEmptyChange?: (empty: boolean) => void;
   onSecondary?: (body: string) => Promise<void> | void;
@@ -23,25 +54,9 @@ interface AddCommentBoxProps {
   ref?: Ref<AddCommentBoxHandle>;
   secondaryLabel?: string;
   submitLabel?: string;
-  suggestionFile?: string;
   suggestionText?: string;
 }
 
-/**
- * The inline comment composer: a rich editor surface (see ComposerEditor)
- * that submits markdown. When a secondary action is provided (the diff
- * "add to review" vs. "comment now" choice) it shows a segmented control that
- * makes the mode explicit, and the primary button + ⌘↵ follow the chosen mode.
- * Replies and issue comments (no secondary) fall back to a single button.
- * onEmptyChange mirrors the editor's empty state to the parent — the drawer's
- * collapsed prompt uses it to advertise a surviving draft.
- *
- * `pending` alone cannot stop a double submit: it is a prop, so it only
- * becomes true after a render, and two ⌘↵ dispatched in the same tick both
- * pass it. `inFlightRef` is the synchronous lock that closes that window.
- * It never holds the composer open — the actions stay fire-and-forget, per
- * the optimistic-by-design contract in use-comments.ts.
- */
 export function AddCommentBox({
   ref,
   onSubmit,
@@ -50,14 +65,15 @@ export function AddCommentBox({
   pending,
   placeholder,
   autoFocus,
+  extensions,
   initialMarkdown,
+  initialMode = "batch",
   submitLabel = "Comment",
   onSecondary,
   secondaryLabel = "Comment now",
-  suggestionFile,
   suggestionText,
 }: AddCommentBoxProps) {
-  const [mode, setMode] = useState<"batch" | "now">("batch");
+  const [mode, setMode] = useState(initialMode);
   const [empty, setEmpty] = useState(() => !initialMarkdown?.trim());
   const editorRef = useRef<ComposerEditorHandle>(null);
   const inFlightRef = useRef(false);
@@ -95,8 +111,6 @@ export function AddCommentBox({
     } catch {
       /* the mutation layer rolls back and flashes; keep the text */
     }
-    /* not a finally: React Compiler can't lower try/catch/finally, and the
-       empty catch already guarantees we reach this line */
     inFlightRef.current = false;
   };
 
@@ -124,6 +138,7 @@ export function AddCommentBox({
     <div className="qa-inline">
       <ComposerEditor
         autoFocus={autoFocus}
+        extensions={extensions}
         initialMarkdown={initialMarkdown}
         onCancel={onCancel}
         onEmptyChange={handleEmptyChange}
@@ -131,67 +146,55 @@ export function AddCommentBox({
         onSubmitRequest={handleSubmitRequest}
         placeholder={placeholder ?? "Leave a comment…  ⌘↵ to save"}
         ref={editorRef}
-        suggestionFile={suggestionFile}
         suggestionText={suggestionText}
       />
 
       <div className="qa-foot">
         {onSecondary ? (
-          <div aria-label="When to post" className="qa-seg" role="radiogroup">
+          <div aria-label="When to post" className="qa-mode" role="radiogroup">
             <label
-              className={cn(
-                "qa-seg-btn q-focus",
-                mode === "batch" && "qa-seg-on"
-              )}
+              className={cn("qa-mode-btn", mode === "batch" && "qa-mode-on")}
             >
               <input
                 aria-checked={mode === "batch"}
                 checked={mode === "batch"}
-                className="sr-only"
+                className="qa-mode-input"
                 name="post-mode"
                 onChange={handleBatchMode}
                 type="radio"
               />
               <Layers aria-hidden size={13} />
-              {submitLabel}
+              <span className="qa-mode-label">{submitLabel}</span>
             </label>
             <label
-              className={cn(
-                "qa-seg-btn q-focus",
-                mode === "now" && "qa-seg-on"
-              )}
+              className={cn("qa-mode-btn", mode === "now" && "qa-mode-on")}
             >
               <input
                 aria-checked={mode === "now"}
                 checked={mode === "now"}
-                className="sr-only"
+                className="qa-mode-input"
                 name="post-mode"
                 onChange={handleNowMode}
                 type="radio"
               />
               <Send aria-hidden size={13} />
-              {secondaryLabel}
+              <span className="qa-mode-label">{secondaryLabel}</span>
             </label>
           </div>
         ) : null}
 
         <div className="qa-actions">
-          <button
-            className="q-btn q-btn-ghost"
-            onClick={onCancel}
-            type="button"
-          >
+          <Button className="qa-cancel" onClick={onCancel} variant="ghost">
             Cancel
-          </button>
-          <button
-            className="q-btn q-btn-primary"
+          </Button>
+          <Button
+            combo="mod+enter"
             disabled={!canSubmit}
             onClick={handlePrimaryClick}
-            type="button"
+            variant="primary"
           >
             {pending ? "Submitting…" : (primaryLabel ?? "")}
-            <Kbd combo="mod+enter" />
-          </button>
+          </Button>
         </div>
       </div>
 

@@ -1,3 +1,4 @@
+import { AddCommentBox } from "@nod/ui/add-comment-box";
 import { AskNote, type AskNoteProps } from "@nod/ui/ask-note";
 import { Avatar } from "@nod/ui/avatar";
 import { CodeCell } from "@nod/ui/code-cell";
@@ -51,10 +52,10 @@ import {
   createStickyHeaderPush,
   type StickyHeaderPush,
 } from "../../lib/sticky-header-push.ts";
+import { suggestionHighlight } from "../../lib/suggestion-highlight.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type { AccountInfo, ChangedFile, PendingComment } from "../../types.ts";
 import { Markdown } from "../markdown-loader.tsx";
-import { AddCommentBox } from "./add-comment-box.tsx";
 import { ImageDiffLoader } from "./image-diff-loader.tsx";
 
 /**
@@ -601,6 +602,7 @@ function CommentAddBox({
   return (
     <AddCommentBox
       autoFocus
+      extensions={[suggestionHighlight(filename)]}
       initialMarkdown={draftText}
       onCancel={handleCancel}
       onSecondary={handleSecondary}
@@ -609,7 +611,6 @@ function CommentAddBox({
       placeholder="Add a review comment…"
       secondaryLabel="Comment now"
       submitLabel="Add to review"
-      suggestionFile={filename}
       suggestionText={
         target.side === "RIGHT"
           ? (item.rangeContent ?? item.rowContent ?? undefined)

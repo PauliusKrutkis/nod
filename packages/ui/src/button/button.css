@@ -6,6 +6,7 @@
 
 .q-btn {
   display: inline-flex;
+  min-width: 0;
   gap: 8px;
   align-items: center;
   justify-content: center;

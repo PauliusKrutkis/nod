@@ -11,6 +11,21 @@ export interface ManifestEntry {
 }
 
 export const catalogManifest: Record<string, ManifestEntry> = {
+  "add-comment-box": {
+    fixtures: [
+      "draft-with-text",
+      "empty-draft",
+      "long-draft",
+      "now-mode",
+      "overflow",
+      "raw-html",
+      "reply",
+      "submitting",
+      "suggestion",
+      "two-modes",
+      "unicode",
+    ],
+  },
   "ai-setup-dialog": {
     dialog: true,
     fixtures: [
@@ -165,6 +180,20 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "own",
       "own-with-kbd",
       "unknown-key",
+    ],
+  },
+  "composer-editor": {
+    fixtures: [
+      "empty",
+      "long-draft",
+      "markdown",
+      "minimal",
+      "overflow",
+      "placeholder-long",
+      "plain-text",
+      "raw-html",
+      "suggestion",
+      "unicode",
     ],
   },
   "find-bar": {

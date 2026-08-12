@@ -18,6 +18,10 @@
  * yanked back.
  */
 
+import {
+  AddCommentBox,
+  type AddCommentBoxHandle,
+} from "@nod/ui/add-comment-box";
 import { Avatar } from "@nod/ui/avatar";
 import { CiPill } from "@nod/ui/ci-pill";
 import { CommentBody } from "@nod/ui/comment-item";
@@ -52,7 +56,6 @@ import type {
   ReviewSummary,
 } from "../../types.ts";
 import { Markdown } from "../markdown-loader.tsx";
-import { AddCommentBox, type AddCommentBoxHandle } from "./add-comment-box.tsx";
 
 export interface RightPanelHandle {
   openComposer: () => void;

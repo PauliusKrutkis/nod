@@ -1,5 +1,34 @@
-import { Tooltip } from "@nod/ui/tooltip";
-import { type Editor, Extension } from "@tiptap/core";
+/**
+ * The rich comment surface: WYSIWYG in, markdown out. ⌘B/⌘I/⌘E toggle real
+ * formatting, ⌘K links the selection, and markdown typing shortcuts
+ * (`**bold**`, `- `, ``` …) autoconvert as you type — nothing is lost for
+ * markdown muscle memory, the symbols just resolve instead of sitting there.
+ * The toolbar below the surface is the familiar icon strip; each button's
+ * hotkey lives in its hover tooltip (the app-wide Tooltip + Kbd language),
+ * with a lit state following the selection. Suggestion keeps its text label —
+ * the one domain-specific tool with no universal glyph — and only renders
+ * when suggestionText (the commented line, its prefill) is provided:
+ * composers without line context (replies, edits, PR-level comments) have
+ * nowhere a suggestion could apply.
+ *
+ * `extensions` is the host seam, appended after the built-ins: syntax
+ * highlighting inside ```suggestion fences needs a language table and a
+ * highlighter, which are the app's, not this package's. Omitting it is a
+ * complete composer — the fence still round-trips, its tokens just stay
+ * unpainted.
+ *
+ * Toolbar buttons swallow mousedown so a click never steals the editor's
+ * focus (click still fires) — with focus on a button, every typed letter
+ * becomes a global hotkey (`s` = submit review…). The ⌘K url input takes the
+ * caret the moment it appears through a stable callback ref, which must not
+ * re-run on every keystroke's re-render.
+ *
+ * The suggestion tool inserts a real block, rendered like the shipped
+ * suggestion card and serialized to the ```suggestion fence both hosts apply
+ * natively. The caret lands at the end of the prefilled line — nothing
+ * pre-selected, it edits like code.
+ */
+import { type Editor, Extension, type Extensions } from "@tiptap/core";
 import { Placeholder } from "@tiptap/extensions";
 import { Markdown } from "@tiptap/markdown";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
@@ -19,8 +48,9 @@ import {
   useInsertionEffect,
   useState,
 } from "react";
-import { cn } from "../../lib/cn.ts";
-import { suggestionHighlight } from "../../lib/suggestion-highlight.ts";
+import { cn } from "../cn/cn.ts";
+import { Tooltip } from "../tooltip/tooltip.tsx";
+import "./composer-editor.css";
 
 export interface ComposerEditorHandle {
   clear: () => void;
@@ -28,8 +58,9 @@ export interface ComposerEditorHandle {
   getMarkdown: () => string;
 }
 
-interface ComposerEditorProps {
+export interface ComposerEditorProps {
   autoFocus?: boolean;
+  extensions?: Extensions;
   initialMarkdown?: string;
   onCancel: () => void;
   onEmptyChange: (empty: boolean) => void;
@@ -37,19 +68,13 @@ interface ComposerEditorProps {
   onSubmitRequest: () => void;
   placeholder: string;
   ref?: Ref<ComposerEditorHandle>;
-  suggestionFile?: string;
   suggestionText?: string;
 }
 
-/** Toolbar buttons swallow mousedown so a click never steals the editor's
-    focus (click still fires) — with focus on a button, every typed letter
-    becomes a global hotkey (`s` = submit review…). */
 function keepEditorFocus(e: { preventDefault: () => void }) {
   e.preventDefault();
 }
 
-/** The ⌘K url input takes the caret the moment it appears (stable identity —
-    the callback must not re-run on every keystroke's re-render). */
 function focusOnMount(el: HTMLInputElement | null) {
   el?.focus();
 }
@@ -198,26 +223,12 @@ const ComposerKeys = Extension.create({
   name: "composerKeys",
 });
 
-/**
- * The rich comment surface: WYSIWYG in, markdown out. ⌘B/⌘I/⌘E toggle real
- * formatting, ⌘K links the selection, and markdown typing shortcuts
- * (`**bold**`, `- `, ``` …) autoconvert as you type — nothing is lost for
- * markdown muscle memory, the symbols just resolve instead of sitting there.
- * The toolbar below the surface is the familiar icon strip; each button's
- * hotkey lives in its hover tooltip (the app-wide Tooltip + Kbd language),
- * with a lit state following the selection. Suggestion keeps its text label —
- * the one domain-specific tool with no universal glyph — and only renders
- * when suggestionText (the commented line, its prefill) is provided:
- * composers without line context (replies, edits, PR-level comments) have
- * nowhere a suggestion could apply. suggestionFile is that line's file path;
- * it drives syntax highlighting inside ```suggestion fences.
- */
 export function ComposerEditor({
   ref,
   placeholder,
   autoFocus,
   initialMarkdown,
-  suggestionFile,
+  extensions,
   suggestionText,
   onSubmitRequest,
   onCancel,
@@ -265,16 +276,11 @@ export function ComposerEditor({
       Placeholder.configure({ placeholder }),
       Markdown,
       ComposerKeys,
-      suggestionHighlight(suggestionFile),
+      ...(extensions ?? []),
     ],
     onUpdate: ({ editor: e }) => HANDLERS.get(e)?.emptyChange(e.isEmpty),
   });
 
-  /**
-   * A real block, rendered like the shipped suggestion card and serialized to
-   * the ```suggestion fence both hosts apply natively. The caret lands at the
-   * end of the prefilled line — nothing pre-selected, it edits like code.
-   */
   const insertSuggestion = () => {
     const line = suggestionText ?? "";
     editor
@@ -378,7 +384,7 @@ export function ComposerEditor({
         {linkOpen ? (
           <input
             aria-label="Link URL"
-            className="q-input qa-link-input"
+            className="qa-link-input"
             onChange={handleLinkChange}
             onKeyDown={handleLinkKeyDown}
             placeholder="https://…  ↵ applies · Esc backs out"
