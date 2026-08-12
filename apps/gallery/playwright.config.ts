@@ -7,11 +7,18 @@ import { defineConfig } from "@playwright/test";
  * the everyday proxy; the real Tauri window (gallery:desktop) stays the
  * ground truth.
  *
- * Determinism: reducedMotion pauses the stage animations (gallery.css honors
- * it), the spec awaits document.fonts.ready, and snapshot files carry the
- * platform suffix, so darwin baselines never claim to speak for the linux CI
- * image. Compare only against baselines produced on the same platform —
- * cross-OS font antialiasing turns any other comparison into noise.
+ * Determinism: reducedMotion stops the stage animations (gallery.css and the
+ * component stylesheets honor it), the spec awaits document.fonts.ready, and
+ * snapshot files carry the platform suffix, so darwin baselines never claim
+ * to speak for the linux CI image. Compare only against baselines produced on
+ * the same platform — cross-OS font antialiasing turns any other comparison
+ * into noise.
+ *
+ * timezoneId and locale are pinned for the same reason: anything that formats
+ * a date renders the host's offset and month names otherwise, so a fixture
+ * timestamped 09:00Z shifts a day on a machine far enough east or west and
+ * the baselines only reproduce where the author sat. UTC and en-US are the
+ * arbitrary-but-fixed pair darwin and the linux CI image both agree on.
  *
  * Own port (the app's dev port +1), same no-borrowed-server guarantee as the
  * desktop configs, and one worker for the same reason the capture config
@@ -35,7 +42,9 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${port}`,
     browserName: "webkit",
+    locale: "en-US",
     reducedMotion: "reduce",
+    timezoneId: "UTC",
     viewport: { height: 800, width: 1280 },
   },
   fullyParallel: true,

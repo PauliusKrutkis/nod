@@ -1,4 +1,9 @@
-/* Spinner disc and label; the disc shares the package's q-rot keyframes. */
+/* Spinner disc and label; the disc shares the package's q-rot keyframes.
+   Reduced motion stops the rotation outright rather than slowing it: a
+   slower spin is still continuous motion, and it leaves a frame-by-frame
+   changing transform for anything that captures the disc — the screenshot
+   suite included, where the label can shrink the disc to a few pixels wide
+   and half a degree of residual rotation redraws every antialiased edge. */
 
 .q-spinner {
   display: inline-flex;
@@ -23,6 +28,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .q-spinner-disc {
-    animation-duration: 2400ms;
+    animation: none;
   }
 }

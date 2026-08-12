@@ -1,6 +1,8 @@
 /* The q-btn family, its busy spinner, and the r-lg focus-ring override
    (#243's found defect). The .q-kbd override recolours the cap on a primary
-   fill. */
+   fill. Reduced motion stops the busy spinner rather than slowing it, for
+   the reason spinner.css spells out: a slow rotation is still motion, and
+   still a transform that differs between two captures of the same state. */
 
 .q-btn {
   display: inline-flex;
@@ -98,6 +100,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .q-btn-spin {
-    animation-duration: 2400ms;
+    animation: none;
   }
 }
