@@ -69,8 +69,14 @@ for (const cell of cells) {
     await page.locator("[data-frame]").first().waitFor();
     // The freeze must have taken or the capture lies: the linux bootstrap
     // wrote 45 baselines from pages where setFixedTime lost its race and
-    // relative timestamps rendered off the real clock. A failed assertion
-    // retries on a fresh page instead of writing a polluted baseline.
+    // relative timestamps rendered off the real clock. A raced page gets
+    // one salvage reload (the clock installer is already in place, so the
+    // second load reliably wakes frozen); if even that misses, the
+    // assertion fails the attempt rather than writing a polluted baseline.
+    if ((await page.evaluate(() => Date.now())) !== CAPTURE_INSTANT.getTime()) {
+      await page.reload();
+      await page.locator("[data-frame]").first().waitFor();
+    }
     expect(await page.evaluate(() => Date.now())).toBe(
       CAPTURE_INSTANT.getTime()
     );

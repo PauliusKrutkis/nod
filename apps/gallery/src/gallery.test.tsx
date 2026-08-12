@@ -129,6 +129,14 @@ describe("gallery", () => {
     expect(bare.querySelector(".qg-root.qg-capture")).toBeNull();
   });
 
+  it("marks the mat's corners with four slot ticks outside the specimen", () => {
+    render(<Gallery />);
+    const frame = document.querySelector("[data-frame]");
+    expect(frame?.querySelectorAll(".qg-slot-tick").length).toBe(4);
+    expect(document.querySelector(".qg-viewport .qg-slot-tick")).toBeNull();
+    expect(document.querySelector(".qg-mat .qg-slot-tick")).toBeNull();
+  });
+
   it("find selects the highlighted match on Enter", () => {
     render(<Gallery />);
     const find = screen.getByLabelText("Find a component");

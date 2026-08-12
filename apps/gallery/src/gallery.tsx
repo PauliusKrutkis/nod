@@ -130,6 +130,10 @@ function Frame({ route, small }: { route: GalleryRoute; small?: boolean }) {
         <i className="qg-tick qg-tr" />
         <i className="qg-tick qg-bl" />
         <i className="qg-tick qg-br" />
+        <i className="qg-slot-tick qg-tl" />
+        <i className="qg-slot-tick qg-tr" />
+        <i className="qg-slot-tick qg-bl" />
+        <i className="qg-slot-tick qg-br" />
         <div className="qg-mat">
           <div
             className="qg-viewport"
