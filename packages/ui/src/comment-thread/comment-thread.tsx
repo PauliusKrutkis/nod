@@ -283,7 +283,11 @@ export function CommentThread({
   }
 
   return (
-    <div className="qf-thread" data-comment-root={rootId} {...hoverProps}>
+    <div
+      className="qf-thread qf-thread-expanded"
+      data-comment-root={rootId}
+      {...hoverProps}
+    >
       <button
         aria-label="Collapse thread"
         className="qf-thread-fold qf-thread-fold-corner q-focus"

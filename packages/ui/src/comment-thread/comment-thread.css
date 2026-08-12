@@ -15,11 +15,14 @@
    doing — the row's other children hold their size.
 
    The fold control floats over the card's top right corner, so every comment
-   head inside a thread reserves its width: a long author fills the head row
-   and pushes the tool strip under the control otherwise, which is reachable
-   with the 39 characters a host login is allowed. Nothing moves for an
-   author that fits — the head is left-packed, and the reserve only takes
-   slack the row was not using. */
+   head inside the expanded card reserves its width: a long author fills the
+   head row and pushes the tool strip under the control otherwise, which is
+   reachable with the 39 characters a host login is allowed. Nothing moves
+   for an author that fits — the head is left-packed, and the reserve only
+   takes slack the row was not using. The reserve hangs off the
+   qf-thread-expanded modifier, not qf-thread itself, because the app's
+   pending-comment card writes the same head classes inside a hand-rolled
+   qf-thread that has no fold control to clear. */
 
 .qf-thread {
   position: relative;
@@ -59,7 +62,7 @@
   z-index: 1;
 }
 
-.qf-thread .qf-comment-head {
+.qf-thread-expanded .qf-comment-head {
   padding-right: 76px;
 }
 
