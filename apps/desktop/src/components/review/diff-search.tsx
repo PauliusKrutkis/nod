@@ -13,6 +13,7 @@
 import {
   PrSearch,
   type PrSearchFile,
+  type PrSearchLine,
   type PrSearchMode,
 } from "@nod/ui/pr-search";
 
@@ -31,7 +32,7 @@ function toSearchFiles(files: ChangedFile[]): PrSearchFile[] {
   return files.map((f) => ({
     filename: f.filename,
     hunks: parsePatch(f.patch).map((hunk) => {
-      const lines: PrSearchFile["hunks"][number] = [];
+      const lines: PrSearchLine[] = [];
       for (const row of hunk.rows) {
         if (row.type === "hunk") {
           continue;
