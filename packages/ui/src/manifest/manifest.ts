@@ -198,6 +198,48 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "unicode",
     ],
   },
+  "diff-row": {
+    fixtures: [
+      "add",
+      "blank",
+      "context",
+      "del",
+      "find-current",
+      "flash",
+      "huge-line-numbers",
+      "indent-guides",
+      "intraline",
+      "markup-as-text",
+      "minimal",
+      "occurrence",
+      "overflow",
+      "selected",
+      "synthetic",
+      "tabs",
+      "threaded",
+      "unicode",
+    ],
+  },
+  "file-section-header": {
+    fixtures: [
+      "added",
+      "copied",
+      "crowd",
+      "expanded",
+      "expanding",
+      "markup-as-text",
+      "minimal",
+      "no-extension",
+      "overflow",
+      "removed",
+      "renamed",
+      "root",
+      "unicode",
+      "unknown-status",
+      "updated",
+      "viewed",
+    ],
+  },
   "file-sidebar": {
     fixtures: [
       "collapsed",
@@ -212,6 +254,17 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "typical",
       "unicode",
       "viewed-all",
+    ],
+  },
+  "file-status-glyph": {
+    fixtures: [
+      "added",
+      "copied",
+      "empty-status",
+      "modified",
+      "removed",
+      "renamed",
+      "unknown-status",
     ],
   },
   "find-bar": {
@@ -242,6 +295,16 @@ export const catalogManifest: Record<string, ManifestEntry> = {
   },
   "highlight-indices": {
     fixtures: ["cjk", "empty-text", "every", "none", "out-of-range", "typical"],
+  },
+  "hunk-row": {
+    fixtures: [
+      "collapsed",
+      "empty",
+      "markup-as-text",
+      "overflow",
+      "typical",
+      "unicode",
+    ],
   },
   "image-diff": {
     fixtures: [

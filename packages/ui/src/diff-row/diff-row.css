@@ -1,0 +1,153 @@
+/* The diff row, moved out of the app's quiet.css unchanged apart from the
+   .dir-quiet scope the package does not need, plus the three type properties
+   the row used to inherit from its .qf-diff ancestor (mono family, 13px,
+   1.75) — the same values it already computed there, declared here so a
+   specimen outside a diff surface is the same object, exactly as the code
+   cell carries its own type.
+
+   What stayed behind in the app is everything the SURFACE decides rather than
+   the row: the cursor/hover wash (.qf-diff[data-mode] gates which of the two
+   lights up, and only one may), the "+" reveal (cursor row in the active file,
+   or the hovered row), the drag hand-off that walks the "+" to the moving end
+   of a range, and the expand swap-in animation. All of those select through
+   ancestors that are app surfaces, so a row specimen is always at rest.
+
+   Four columns: old gutter, new gutter, marker, code. The gutters are
+   unselectable so copying a diff yields code, not line numbers. The "+" is
+   positioned against the ROW rather than the gutter's one-line text box, so it
+   stays vertically centred on tinted and on wrapped multi-line rows alike.
+
+   NO content-visibility on the row — twice tried, twice retired: estimated
+   intrinsic heights accumulate into scrollbar drift / visible pop-in, and even
+   with a measured height, caretPositionFromPoint inside a skipped-content row
+   returns an ELEMENT instead of a text node (Chromium), which silently kills
+   occurrence clicks (wordAtPoint). The host's idle pre-mounter is what keeps
+   scrolling stall-free instead.
+
+   The selected wash is the multi-line comment range: the cursor's iris
+   treatment stretched over the run, in either input mode — a selection is a
+   commitment, not a hover. The flash is where a search jump landed, a brief
+   iris pulse that settles back. Intraline marks tint with the row's own side,
+   which is why they live here and the unscoped mark family lives with the
+   code cell that hosts it. */
+
+.qf-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 52px 52px 22px 1fr;
+  align-items: baseline;
+  padding: 1.5px 16px 1.5px 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.75;
+  border-left: 2px solid transparent;
+}
+
+.qf-gutter {
+  padding-right: 12px;
+  font-size: 11px;
+  color: var(--faint);
+  text-align: right;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.qf-marker {
+  color: var(--faint);
+  text-align: center;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.qf-row-add {
+  background: var(--add-bg);
+}
+
+.qf-row-del {
+  background: var(--del-bg);
+}
+
+.qf-row-add .qf-marker {
+  color: var(--add);
+}
+
+.qf-row-del .qf-marker {
+  color: var(--del);
+}
+
+.qf-row-add .qf-gutter-new {
+  color: var(--add-num);
+}
+
+.qf-row-del .qf-gutter-old {
+  color: var(--del-num);
+}
+
+.qf-row-xctx .qf-code {
+  opacity: 0.66;
+}
+
+.qf-row-xctx .qf-gutter {
+  opacity: 0.55;
+}
+
+.qf-row:not(.qf-row-hunk) {
+  cursor: text;
+}
+
+.qf-row-selected {
+  background: var(--accent-soft);
+  border-left-color: var(--accent);
+}
+
+.qf-row-selected .qf-gutter {
+  color: var(--fg);
+}
+
+.qf-row-threaded .qf-marker {
+  color: var(--accent);
+  opacity: 0.9;
+}
+
+.qf-row-flash {
+  animation: qf-flash 1.5s ease-out;
+}
+
+@keyframes qf-flash {
+  0% {
+    background-color: var(--accent-soft);
+    box-shadow: inset 0 0 0 1px var(--accent-line);
+  }
+  60% {
+    background-color: var(--accent-soft);
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
+.qf-add-btn {
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  display: none;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--accent-ink);
+  cursor: pointer;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--r-sm);
+  transform: translateY(-50%);
+}
+
+.qf-row-del mark.qf-intra-mark {
+  background: color-mix(in srgb, var(--del) 30%, transparent);
+}
+
+.qf-row-add mark.qf-intra-mark {
+  background: color-mix(in srgb, var(--add) 30%, transparent);
+}

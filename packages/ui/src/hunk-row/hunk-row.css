@@ -1,0 +1,31 @@
+/* The hunk band, moved out of the app's quiet.css unchanged apart from the
+   .dir-quiet scope the package does not need. It loads after diff-row.css by
+   construction (the component imports the row's sheet first), so these rules
+   win the ties they are meant to win: the taller padding and the pointer
+   cursor over the row's own text cursor.
+
+   The header reads as chrome rather than code — smaller, iris, slightly
+   dimmed — because it is a signpost between two blocks of the thing you are
+   actually reading. */
+
+.qf-row-hunk {
+  width: 100%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  margin: 4px 0;
+  text-align: left;
+  cursor: pointer;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.qf-row-hunk:hover {
+  background: var(--surface-2);
+}
+
+.qf-row-hunk .qf-code {
+  font-size: 11px;
+  color: var(--accent);
+  opacity: 0.85;
+}

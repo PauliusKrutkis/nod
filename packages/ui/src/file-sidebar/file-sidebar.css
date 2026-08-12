@@ -128,38 +128,6 @@
   color: var(--add);
 }
 
-.qf-file-glyph {
-  display: grid;
-  flex-shrink: 0;
-  place-items: center;
-  width: 17px;
-  height: 17px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 600;
-  border-radius: var(--r-sm);
-}
-
-.qf-st-add {
-  color: var(--add);
-  background: var(--add-bg);
-}
-
-.qf-st-mod {
-  color: var(--warn);
-  background: var(--warn-bg);
-}
-
-.qf-st-del {
-  color: var(--del);
-  background: var(--del-bg);
-}
-
-.qf-st-ren {
-  color: var(--accent);
-  background: var(--accent-soft);
-}
-
 .qf-file-name {
   display: flex;
   flex: 1;

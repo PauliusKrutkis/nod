@@ -1,7 +1,23 @@
+/**
+ * The whole PR as one virtualized scroll: files are react-virtuoso groups with
+ * sticky headers, and every hunk band, diff line and comment block is an item
+ * out of lib/review-items.ts. This file is the container for that surface —
+ * the list's geometry, the imperative scroll handle the keyboard drives, the
+ * one-off mono column measurement, and the store reads the comment blocks
+ * need. Everything it renders that is only structure lives in @nod/ui
+ * (diff-row, hunk-row, file-section-header) and arrives here as props.
+ *
+ * DiffLine stays a component rather than a call inside the item renderer
+ * because it is the memoization boundary: the React Compiler skips its body
+ * — including the per-line highlight — when a cursor move leaves its props
+ * untouched, which is what keeps a keystroke in the find bar from rebuilding
+ * every rendered row's code. The find-perf spec pins that by counting
+ * mutated `.qf-code` elements.
+ */
+
 import { AddCommentBox } from "@nod/ui/add-comment-box";
 import { AskNote, type AskNoteProps } from "@nod/ui/ask-note";
 import { Avatar } from "@nod/ui/avatar";
-import { CodeCell } from "@nod/ui/code-cell";
 import {
   CommentThread,
   type EditRequest,
@@ -9,15 +25,14 @@ import {
   type ThreadComposerProps,
   type ToggleRequest,
 } from "@nod/ui/comment-thread";
+import { DiffRow, type DiffRowKind } from "@nod/ui/diff-row";
+import { FileSectionHeader } from "@nod/ui/file-section-header";
+import { HunkRow } from "@nod/ui/hunk-row";
 import { Kbd } from "@nod/ui/kbd";
-import { Tooltip } from "@nod/ui/tooltip";
 import { useLatest } from "@nod/ui/use-latest";
-import { Check, FoldVertical, UnfoldVertical } from "lucide-react";
 import {
-  type CSSProperties,
   type HTMLAttributes,
   type MouseEvent,
-  type PointerEvent,
   type Ref,
   useEffect,
   useImperativeHandle,
@@ -208,29 +223,14 @@ const CURSOR_CONTEXT_ROWS = 4;
 /** Pre-measure fallback for one code row; see codeRowPx. */
 const ROW_FALLBACK_PX = 26;
 
-function glyphFor(status: string): { letter: string; cls: string } {
-  switch (status) {
-    case "added":
-      return { cls: "qf-st-add", letter: "A" };
-    case "removed":
-      return { cls: "qf-st-del", letter: "D" };
-    case "renamed":
-      return { cls: "qf-st-ren", letter: "R" };
-    case "copied":
-      return { cls: "qf-st-ren", letter: "C" };
-    default:
-      return { cls: "qf-st-mod", letter: "M" };
-  }
-}
-
-function diffRowMarker(type: ReviewRowItem["row"]["type"]): string {
+function diffRowKind(type: ReviewRowItem["row"]["type"]): DiffRowKind {
   if (type === "add") {
-    return "+";
+    return "add";
   }
   if (type === "del") {
-    return "-";
+    return "del";
   }
-  return " ";
+  return "context";
 }
 
 function rowIsMarked(item: ReviewRowItem, marks: MarkSpec): boolean {
@@ -293,13 +293,13 @@ function readAnchoredRow(
   return { anchor, fileIndex };
 }
 
-/** One diff line. The React Compiler memoizes it (and the element trees that
- *  feed it), so cursor moves flip `isCursor` on two rows without rebuilding
- *  the other rendered rows' innerHTML — the find-perf spec pins that. */
 function DiffLine({
   item,
   filename,
-  stateCls,
+  active,
+  selected,
+  selectionEnd,
+  flash,
   intra,
   guideLvl,
   indentVar,
@@ -316,7 +316,10 @@ function DiffLine({
 }: {
   item: ReviewRowItem;
   filename: string;
-  stateCls: string;
+  active: boolean;
+  selected: boolean;
+  selectionEnd: boolean;
+  flash: boolean;
   intra: IntralineRanges | null;
   guideLvl: number | null;
   indentVar: string;
@@ -332,92 +335,39 @@ function DiffLine({
   onPlusDragEnd: () => void;
 }) {
   const { row, anchor, fileIndex, hasAnchored } = item;
-  const canComment = item.target !== null;
-  const marker = diffRowMarker(row.type);
-  const lineHtml = highlightRowHtml(
-    row.content,
-    filename,
-    intra,
-    markKind,
-    markQuery,
-    markFlag,
-    findOrdinal,
-    startsInComment
-  );
-
-  const handleMouseEnter = (e: MouseEvent<HTMLDivElement>) => {
-    if (anchor !== null) {
-      onEnter(fileIndex, anchor, e.clientX, e.clientY);
-    }
-  };
-
-  const handleAddClick = (e: MouseEvent<HTMLButtonElement>) => {
-    if (e.detail === 0 && anchor !== null) {
-      onOpenBox(fileIndex, anchor);
-    }
-  };
-
-  const handleAddPointerDown = (e: PointerEvent<HTMLButtonElement>) => {
-    if (anchor === null) {
-      return;
-    }
-    e.preventDefault();
-    e.currentTarget.setPointerCapture(e.pointerId);
-    onPlusDragStart(fileIndex, anchor);
-  };
-
-  const handleAddPointerMove = (e: PointerEvent<HTMLButtonElement>) => {
-    if (e.buttons === 0) {
-      return;
-    }
-    const el = document.elementFromPoint(e.clientX, e.clientY);
-    const rowEl = el?.closest?.("[data-anchor]");
-    const a = rowEl?.getAttribute("data-anchor");
-    const f = rowEl?.getAttribute("data-file-index");
-    if (a && f !== null) {
-      onPlusDragOver(Number(f), a);
-    }
-  };
-
-  const rowHoverProps =
-    anchor === null ? {} : { onMouseEnter: handleMouseEnter };
 
   return (
-    <div
-      className={cn(
-        "qf-row",
-        row.type === "add" && "qf-row-add",
-        row.type === "del" && "qf-row-del",
-        row.synthetic && "qf-row-xctx",
-        stateCls,
-        hasAnchored && "qf-row-threaded"
+    <DiffRow
+      active={active}
+      anchor={anchor}
+      canComment={item.target !== null}
+      fileIndex={fileIndex}
+      flash={flash}
+      guideLvl={guideLvl}
+      html={highlightRowHtml(
+        row.content,
+        filename,
+        intra,
+        markKind,
+        markQuery,
+        markFlag,
+        findOrdinal,
+        startsInComment
       )}
-      data-anchor={anchor ?? undefined}
-      data-file-index={fileIndex}
-      style={{ "--qf-indent": indentVar } as CSSProperties}
-      {...rowHoverProps}
-    >
-      <span className="qf-gutter qf-gutter-old">
-        {row.oldLine ?? ""}
-        {canComment && anchor !== null && (
-          <button
-            aria-label="Add comment"
-            className="qf-add-btn"
-            onClick={handleAddClick}
-            onPointerCancel={onPlusDragEnd}
-            onPointerDown={handleAddPointerDown}
-            onPointerMove={handleAddPointerMove}
-            onPointerUp={onPlusDragEnd}
-            type="button"
-          >
-            +
-          </button>
-        )}
-      </span>
-      <span className="qf-gutter qf-gutter-new">{row.newLine ?? ""}</span>
-      <span className="qf-marker">{marker}</span>
-      <CodeCell guideLvl={guideLvl} html={lineHtml} />
-    </div>
+      indent={indentVar}
+      kind={diffRowKind(row.type)}
+      newLine={row.newLine}
+      oldLine={row.oldLine}
+      onEnter={onEnter}
+      onOpenBox={onOpenBox}
+      onPlusDragEnd={onPlusDragEnd}
+      onPlusDragOver={onPlusDragOver}
+      onPlusDragStart={onPlusDragStart}
+      selected={selected}
+      selectionEnd={selectionEnd}
+      synthetic={row.synthetic}
+      threaded={hasAnchored}
+    />
   );
 }
 
@@ -747,98 +697,30 @@ function GroupHeader({
   if (!file) {
     return <div className="qf-fsec-head" />;
   }
-  const glyph = glyphFor(file.status);
-  const slash = file.filename.lastIndexOf("/");
-  const dir = slash === -1 ? "" : file.filename.slice(0, slash + 1);
-  const basename =
-    slash === -1 ? file.filename : file.filename.slice(slash + 1);
-  const viewed = viewedSet.has(file.filename);
-  const copied = copiedPathIndex === groupIndex;
-  const expanded = expandedFiles.has(file.filename);
-  const expanding = expandingFiles.has(file.filename);
   return (
-    <header
-      className={cn(
-        "qf-fsec-head",
-        groupIndex === activeIndex && "qf-fsec-active"
-      )}
-      data-file-index={groupIndex}
-    >
-      <span aria-hidden className="qf-fsec-lead" ref={setLead} />
-      <span className={cn("qf-file-glyph", glyph.cls)}>{glyph.letter}</span>
-      <Tooltip
-        anchorClassName="flex-1 min-w-0"
-        label={copied ? "Copied" : `${file.filename} · click to copy path`}
-      >
-        <button
-          className="qf-fsec-name qf-fsec-copy"
-          onClick={handleCopyPath}
-          type="button"
-        >
-          {file.previousFilename && file.status === "renamed" && (
-            <span className="qf-filebar-prev">{file.previousFilename} → </span>
-          )}
-          <span className="qf-file-dir">{dir}</span>
-          <span className="qf-fsec-base">{basename}</span>
-          {copied && (
-            <span aria-live="polite" className="qf-fsec-copied">
-              <Check aria-hidden size={11} /> copied
-            </span>
-          )}
-        </button>
-      </Tooltip>
-      {changedSinceViewed.has(file.filename) && (
-        <span
-          className="qf-updated-chip"
-          title="Changed since you marked it viewed"
-        >
-          updated
-        </span>
-      )}
-      <span className="qf-filebar-stat">
-        <span className="qf-add">+{file.additions}</span>
-        <span className="qf-del">−{file.deletions}</span>
-      </span>
-      {canExpandFile(file) && (
-        <Tooltip
-          combo="shift+v"
-          label={expanded ? "Back to the diff" : "Expand to the full file"}
-        >
-          <button
-            aria-busy={expanding || undefined}
-            aria-pressed={expanded}
-            className={cn("qf-expand-btn", expanded && "qf-expand-on")}
-            onClick={handleToggleExpand}
-            type="button"
-          >
-            {expanded ? (
-              <FoldVertical aria-hidden size={12} />
-            ) : (
-              <UnfoldVertical aria-hidden size={12} />
-            )}
-            {expanded ? "Diff only" : "Full file"}
-          </button>
-        </Tooltip>
-      )}
-      <Tooltip
-        combo="v"
-        label={viewed ? "Viewed · click to unmark" : "Mark as viewed"}
-      >
-        <button
-          aria-pressed={viewed}
-          className={cn("qf-viewed-btn", viewed && "qf-viewed-on")}
-          onClick={handleToggleViewed}
-          type="button"
-        >
-          <Check aria-hidden size={12} />
-          Viewed
-        </button>
-      </Tooltip>
-    </header>
+    <FileSectionHeader
+      active={groupIndex === activeIndex}
+      additions={file.additions}
+      copied={copiedPathIndex === groupIndex}
+      deletions={file.deletions}
+      expandable={canExpandFile(file)}
+      expanded={expandedFiles.has(file.filename)}
+      expanding={expandingFiles.has(file.filename)}
+      fileIndex={groupIndex}
+      filename={file.filename}
+      leadRef={setLead}
+      onCopyPath={handleCopyPath}
+      onToggleExpand={handleToggleExpand}
+      onToggleViewed={handleToggleViewed}
+      previousFilename={file.previousFilename}
+      status={file.status}
+      updated={changedSinceViewed.has(file.filename)}
+      viewed={viewedSet.has(file.filename)}
+    />
   );
 }
 
-function HunkRow({
+function HunkBand({
   item,
   onToggleHunk,
 }: {
@@ -850,17 +732,12 @@ function HunkRow({
   };
 
   return (
-    <button
-      className="qf-row qf-row-hunk"
-      data-file-index={item.fileIndex}
-      onClick={handleClick}
-      type="button"
-    >
-      <span className="qf-gutter qf-gutter-old" />
-      <span className="qf-gutter qf-gutter-new" />
-      <span className="qf-marker">{item.collapsed ? "▸" : ""}</span>
-      <code className="qf-code">{item.header}</code>
-    </button>
+    <HunkRow
+      collapsed={item.collapsed}
+      fileIndex={item.fileIndex}
+      header={item.header}
+      onToggle={handleClick}
+    />
   );
 }
 
@@ -963,8 +840,10 @@ function renderRowItem(
 
   return (
     <DiffLine
+      active={key !== null && key === p.cursorKey}
       filename={file.filename}
       findOrdinal={findOrdinal}
+      flash={key !== null && key === p.flashKey}
       guideLvl={meta.guideByRow.get(item.row) ?? null}
       indentVar={indentVar}
       intra={meta.intraByRow.get(item.row) ?? null}
@@ -977,13 +856,9 @@ function renderRowItem(
       onPlusDragEnd={p.callbacks.onPlusDragEnd}
       onPlusDragOver={p.callbacks.onPlusDragOver}
       onPlusDragStart={p.callbacks.onPlusDragStart}
+      selected={inSel}
+      selectionEnd={inSel && index === sel.endItem}
       startsInComment={meta.commentByRow.get(item.row) ?? false}
-      stateCls={cn(
-        key !== null && key === p.cursorKey && "qf-row-active",
-        inSel && "qf-row-selected",
-        inSel && index === sel.endItem && "qf-row-sel-end",
-        key !== null && key === p.flashKey && "qf-row-flash"
-      )}
     />
   );
 }
@@ -1012,7 +887,7 @@ function renderItem(
     case "note":
       return renderNoteItem(item);
     case "hunk":
-      return <HunkRow item={item} onToggleHunk={p.callbacks.onToggleHunk} />;
+      return <HunkBand item={item} onToggleHunk={p.callbacks.onToggleHunk} />;
     case "comments":
       return renderCommentsItem(p, item, file);
     case "ask":

@@ -63,6 +63,10 @@ export const CONTAINERS: Record<string, string> = {
     "diffs each inbox poll against a localStorage ledger of announced PRs and owns the 12s expiry and the enter/esc scope; its card is review-toast, catalogued in @nod/ui",
   "review-screen":
     "the review route's whole state surface — detail query, comment mutations, cursor, selection, find, occurrences and every keyboard scope; the only markup it owns is the three-column frame and the sidebar scrim around file-sidebar, review-header, review-diff-pane, right-panel, submit-review-modal and pr-search",
+  "review-list":
+    "virtuoso group geometry, the imperative scroll handle and the store reads its comment blocks need; its leaves are diff-row, hunk-row and file-section-header in @nod/ui",
+  "review-diff-pane":
+    "wires the review screen's state onto find-bar, the review-list container and overview-ruler; it owns no view of its own beyond the empty state",
 };
 
-export const PENDING = ["review-diff-pane", "review-list", "right-panel"];
+export const PENDING = ["right-panel"];

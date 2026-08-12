@@ -1,0 +1,171 @@
+/* The file band, moved out of the app's quiet.css unchanged apart from the
+   .dir-quiet scope the package does not need. The status glyph, the dimmed
+   directory and the +/− churn pair are NOT here: those classes are shared with
+   the file sidebar and the PR drawer, so they moved to the package's system
+   layer (@nod/ui/styles.css) instead of being duplicated. The band's own type
+   is declared rather than inherited: in the app it sits inside .qf-diff and
+   picks up mono/13px/1.75 from it, so the values here move nothing — but a
+   specimen outside a diff surface would render its controls in the UI face.
+
+   The iris left edge marks the file the keyboard is talking to; it is an inset
+   shadow rather than a border so the band's height never changes when it
+   lights up. The lead strip is a zero-width probe reaching above the band —
+   the host measures the sticky hand-off against it, and it must never paint or
+   take a pointer.
+
+   The path anchor carries the flex sizing rather than the button: the tooltip
+   wraps its trigger, so a wrapper without it would collapse the path to its
+   content width and let a long path push the controls off the row.
+
+   The expand control breathes while a full file is being fetched — opacity
+   only, and under reduced-motion it simply sits dimmed. Both controls are
+   quiet at rest and read as chrome; "viewed" is the one that turns green,
+   because it is the only one that records a decision. */
+
+.qf-fsec-head {
+  position: relative;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 16px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.75;
+  background: var(--surface-hi);
+  border-top: 2px solid var(--line-2);
+  border-bottom: 1px solid var(--line);
+  box-shadow: inset 2px 0 0 transparent;
+  transition: box-shadow 120ms ease;
+}
+
+.qf-fsec-head.qf-fsec-active {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.qf-fsec-lead {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  width: 1px;
+  height: 72px;
+  pointer-events: none;
+}
+
+.qf-fsec-name-anchor {
+  flex: 1;
+  min-width: 0;
+}
+
+.qf-fsec-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.qf-fsec-base {
+  font-weight: 600;
+  color: var(--fg);
+}
+
+button.qf-fsec-copy {
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.qf-fsec-copy:hover .qf-fsec-base {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.qf-fsec-copied {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+  margin-left: 8px;
+  font-size: 11px;
+  color: var(--add);
+}
+
+.qf-updated-chip {
+  flex-shrink: 0;
+  padding: 3px 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+  color: var(--warn);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--warn-bg);
+  border-radius: var(--r-pill);
+}
+
+.qf-filebar-prev {
+  color: var(--faint);
+}
+
+.qf-filebar-stat {
+  display: flex;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.qf-viewed-btn,
+.qf-expand-btn {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-md);
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.qf-viewed-btn:hover,
+.qf-expand-btn:hover {
+  color: var(--fg);
+  background: var(--line);
+}
+
+.qf-viewed-btn.qf-viewed-on {
+  color: var(--add);
+}
+
+.qf-viewed-btn.qf-viewed-on:hover {
+  background: var(--add-bg);
+}
+
+.qf-expand-btn.qf-expand-on {
+  color: var(--accent);
+}
+
+.qf-expand-btn[aria-busy="true"] svg {
+  animation: qf-expand-wait 900ms ease-in-out infinite;
+}
+
+@keyframes qf-expand-wait {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qf-expand-btn[aria-busy="true"] svg {
+    animation: none;
+    opacity: 0.5;
+  }
+}
