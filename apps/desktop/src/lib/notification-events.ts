@@ -74,18 +74,18 @@ function eventFrom(
 }
 
 function reviewRequested(inbox: InboxData): NotificationEvent[] {
-  return inbox.reviewRequested.prs
-    .filter((pr) => !pr.viewerDidAuthor)
-    .map((pr) =>
-      eventFrom(
-        pr,
-        "reviewRequested",
-        pr.author,
-        pr.authorAvatarUrl,
-        pr.updatedAt,
-        pr.viewerLastReviewAt ?? ""
-      )
-    );
+  return inbox.reviewRequested.prs.flatMap((pr) =>
+    pr.viewerDidAuthor
+      ? []
+      : eventFrom(
+          pr,
+          "reviewRequested",
+          pr.author,
+          pr.authorAvatarUrl,
+          pr.updatedAt,
+          pr.viewerLastReviewAt ?? ""
+        )
+  );
 }
 
 /**
