@@ -15,7 +15,7 @@ import {
   type PrSearchFile,
   type PrSearchMode,
 } from "@nod/ui/pr-search";
-import { useMemo } from "react";
+
 import { type DiffRow, parsePatch } from "../../lib/diff.ts";
 import { highlightLineWithMatch } from "../../lib/highlight.ts";
 import type { ChangedFile } from "../../types.ts";
@@ -30,15 +30,20 @@ function rowAnchor(row: DiffRow): string | null {
 function toSearchFiles(files: ChangedFile[]): PrSearchFile[] {
   return files.map((f) => ({
     filename: f.filename,
-    hunks: parsePatch(f.patch).map((hunk) =>
-      hunk.rows
-        .filter((row) => row.type !== "hunk")
-        .map((row) => ({
+    hunks: parsePatch(f.patch).map((hunk) => {
+      const lines: PrSearchFile["hunks"][number] = [];
+      for (const row of hunk.rows) {
+        if (row.type === "hunk") {
+          continue;
+        }
+        lines.push({
           anchor: rowAnchor(row),
           num: row.newLine ?? row.oldLine,
           text: row.content,
-        }))
-    ),
+        });
+      }
+      return lines;
+    }),
   }));
 }
 
@@ -56,10 +61,7 @@ export function DiffSearch({
   onSelectLine: (index: number, anchor: string) => void;
 }) {
   const open = mode !== null;
-  const searchFiles = useMemo(
-    () => (open ? toSearchFiles(files) : []),
-    [open, files]
-  );
+  const searchFiles = open ? toSearchFiles(files) : [];
 
   const onOpenChange = (next: boolean) => {
     if (!next) {
