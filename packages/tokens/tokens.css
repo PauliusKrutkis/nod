@@ -9,8 +9,10 @@
   --line: #232334;
   --line-2: #2c2c40;
   --fg: #e8e8f3;
+  --fg-bright: #d6d6e6;
   --muted: #9a9ab2;
   --faint: #5f5f78;
+  --avatar-fg: #ffffff;
   --accent: #8b80ff;
   --accent-ink: #14111f;
   --accent-soft: color-mix(in srgb, #8b80ff 16%, transparent);
@@ -23,6 +25,14 @@
   --warn-bg: color-mix(in srgb, #e7c56a 12%, transparent);
   --add-num: color-mix(in srgb, #5fd08a 55%, transparent);
   --del-num: color-mix(in srgb, #ff7088 55%, transparent);
+  --syn-keyword: #c4b6ff;
+  --syn-string: #8fe3b0;
+  --syn-number: #ffc48a;
+  --syn-func: #7fc8ff;
+  --syn-type: #ffd9a0;
+  --syn-variable: #d6d6e6;
+  --syn-punct: #b6b6cf;
+  --syn-comment: #5f5f78;
   --r-xs: 2px;
   --r-sm: 4px;
   --r-md: 6px;

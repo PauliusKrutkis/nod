@@ -6,7 +6,7 @@
   place-items: center;
   overflow: hidden;
   font-weight: 600;
-  color: var(--avatar-fg, #fff);
+  color: var(--avatar-fg);
   object-fit: cover;
   border-radius: var(--r-pill);
 }

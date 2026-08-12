@@ -22,6 +22,21 @@
  * both apps. The translucent washes are derived with color-mix rather than
  * baked rgba so they follow a palette change — the same recipes as the
  * desktop :root block.
+ *
+ * `syntax` is a second palette, named by grammatical role rather than by
+ * surface, because a theme picks its code colours independently of its
+ * chrome. It lives here rather than in the desktop app because the code
+ * surfaces in @nod/ui (the .hljs-* retheme in styles.css, and the markdown
+ * bodies that follow it) have no other source for them. The comment slot is
+ * deliberately the chrome's `faint` — a comment is furniture, not a token —
+ * and `variable` happens to equal `fgBright` today without being tied to it:
+ * one is the shade of an identifier, the other the shade of prose.
+ *
+ * `avatarFg` stands outside both because it does not vary with the theme:
+ * initials sit on a disc coloured from the name, so their ink is white under
+ * any palette. Keeping it out of `palette` keeps that promise honest — and
+ * keeps the site's "never respell a Quiet colour" test from claiming plain
+ * white as one.
  */
 
 export const palette = {
@@ -32,6 +47,7 @@ export const palette = {
   line: "#232334",
   lineStrong: "#2c2c40",
   fg: "#e8e8f3",
+  fgBright: "#d6d6e6",
   muted: "#9a9ab2",
   faint: "#5f5f78",
   accent: "#8b80ff",
@@ -42,6 +58,21 @@ export const palette = {
 } as const;
 
 export type Palette = typeof palette;
+
+export const syntax = {
+  keyword: "#c4b6ff",
+  string: "#8fe3b0",
+  number: "#ffc48a",
+  func: "#7fc8ff",
+  type: "#ffd9a0",
+  variable: "#d6d6e6",
+  punct: "#b6b6cf",
+  comment: palette.faint,
+} as const;
+
+export type Syntax = typeof syntax;
+
+export const avatarFg = "#ffffff";
 
 export const radii = {
   xs: "2px",
@@ -64,8 +95,10 @@ export const cssVars: ReadonlyArray<readonly [string, string]> = [
   ["--line", palette.line],
   ["--line-2", palette.lineStrong],
   ["--fg", palette.fg],
+  ["--fg-bright", palette.fgBright],
   ["--muted", palette.muted],
   ["--faint", palette.faint],
+  ["--avatar-fg", avatarFg],
   ["--accent", palette.accent],
   ["--accent-ink", palette.accentInk],
   ["--accent-soft", mix(palette.accent, 16)],
@@ -78,6 +111,9 @@ export const cssVars: ReadonlyArray<readonly [string, string]> = [
   ["--warn-bg", mix(palette.warning, 12)],
   ["--add-num", mix(palette.success, 55)],
   ["--del-num", mix(palette.danger, 55)],
+  ...Object.entries(syntax).map(
+    ([role, value]) => [`--syn-${role}`, value] as const
+  ),
   ...Object.entries(radii).map(
     ([step, value]) => [`--r-${step}`, value] as const
   ),
