@@ -1,6 +1,4 @@
-import { Avatar } from "@nod/ui/avatar";
-import { Kbd } from "@nod/ui/kbd";
-import { X } from "lucide-react";
+import { ReviewToast } from "@nod/ui/review-toast";
 import { useEffect, useRef, useState } from "react";
 import { useInbox } from "../hooks/use-inbox.ts";
 import { useHotkeys } from "../keyboard/use-hotkeys.ts";
@@ -12,6 +10,11 @@ import { type PullRequest, prKey } from "../types.ts";
  * interception). Piggybacks on the existing 60s inbox poll — when a PR newly
  * appears in the Review-requests bucket, a keyboard-dismissable toast pops:
  * Enter opens it, Esc dismisses. No webhooks, no desktop-notification perms.
+ *
+ * Everything here is the decision of WHICH request to announce and for how
+ * long: the seen-key ledger in localStorage, the diff against the poll, the
+ * 12s expiry and the enter/esc scope. The card itself is review-toast in
+ * @nod/ui.
  */
 
 const KNOWN_KEY = "nod:knownReviewRequested:v1";
@@ -60,8 +63,6 @@ export function ReviewNotifier() {
   const [toast, setToast] = useState<{ pr: PullRequest; extra: number } | null>(
     null
   );
-  const cardRef = useRef<HTMLDialogElement>(null);
-  const prevFocusRef = useRef<HTMLElement | null>(null);
 
   /* Loaded lazily in the effect so render stays pure: `undefined` = not
      loaded yet, `null` = first ever run (seed silently, no toast). */
@@ -117,41 +118,6 @@ export function ReviewNotifier() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  useEffect(() => {
-    if (!toast) {
-      return;
-    }
-    const active = document.activeElement;
-    const typing =
-      active instanceof HTMLElement &&
-      (active.tagName === "INPUT" ||
-        active.tagName === "TEXTAREA" ||
-        active.isContentEditable);
-    if (typing) {
-      return;
-    }
-    prevFocusRef.current = active instanceof HTMLElement ? active : null;
-    cardRef.current?.focus();
-    return () => {
-      const prev = prevFocusRef.current;
-      prevFocusRef.current = null;
-      if (prev?.isConnected) {
-        prev.focus();
-      }
-    };
-  }, [toast]);
-
-  useEffect(() => {
-    if (!toast) {
-      return;
-    }
-    const card = cardRef.current;
-    card?.show();
-    return () => {
-      card?.close();
-    };
-  }, [toast]);
-
   const dismiss = () => {
     setToast(null);
   };
@@ -192,61 +158,12 @@ export function ReviewNotifier() {
     return null;
   }
 
-  const { pr, extra } = toast;
-
   return (
-    <dialog
-      aria-labelledby="review-notifier-title"
-      className="qb-toast"
-      onClose={dismiss}
-      ref={cardRef}
-      tabIndex={-1}
-    >
-      <span aria-hidden className="qb-toast-rail" />
-      <Avatar name={pr.author} size={30} url={pr.authorAvatarUrl} />
-      <div className="qb-toast-body">
-        <div className="qb-toast-head">
-          <span className="qb-toast-title" id="review-notifier-title">
-            New review request
-          </span>
-          <button
-            aria-label="Dismiss"
-            className="qb-x q-focus"
-            onClick={dismiss}
-            type="button"
-          >
-            <X aria-hidden size={13} />
-          </button>
-        </div>
-        <p className="qb-toast-text">
-          <b>{pr.author}</b> asked you to review{" "}
-          <span className="q-mono qb-toast-num">#{pr.number}</span>
-        </p>
-        <p className="qb-toast-sub" title={pr.title}>
-          {pr.title}
-        </p>
-        {extra > 0 ? (
-          <p className="qb-toast-sub">
-            +{extra} more review request{extra > 1 ? "s" : ""}
-          </p>
-        ) : null}
-        <div className="qb-toast-actions">
-          <button
-            className="qb-toast-open q-focus"
-            onClick={open}
-            type="button"
-          >
-            Open <Kbd combo="enter" />
-          </button>
-          <button
-            className="qb-toast-snooze q-focus"
-            onClick={dismiss}
-            type="button"
-          >
-            Dismiss
-          </button>
-        </div>
-      </div>
-    </dialog>
+    <ReviewToast
+      extraCount={toast.extra}
+      onDismiss={dismiss}
+      onOpen={open}
+      request={toast.pr}
+    />
   );
 }

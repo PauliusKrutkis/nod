@@ -16,15 +16,20 @@
  * rather than a ref, since Inbox unmounts/remounts on every Esc-to-inbox
  * visit and re-running the correction on each remount would boomerang a
  * deliberate visit to an empty tab back to whichever tab has content.
+ *
+ * What is left here is the wiring: the inbox and subscribed queries, the
+ * archive ledger, tab visibility and the hotkey scope. The views it arranges
+ * — inbox-tabs, inbox-zero, inbox-detail and the pr-list-item rows — are
+ * catalogued in @nod/ui, and the reading pane gets its markdown, tracker
+ * base and link opener from this side of the boundary.
  */
 
-import { Avatar } from "@nod/ui/avatar";
+import { InboxDetail } from "@nod/ui/inbox-detail";
+import { InboxTabs } from "@nod/ui/inbox-tabs";
+import { InboxZero } from "@nod/ui/inbox-zero";
 import { Kbd } from "@nod/ui/kbd";
 import { PRListItem } from "@nod/ui/pr-list-item";
 import { Spinner } from "@nod/ui/spinner";
-import { TicketTitle } from "@nod/ui/ticket-title";
-import { formatAbsolute, formatRelativeTime } from "@nod/ui/time";
-import { Tooltip } from "@nod/ui/tooltip";
 import {
   Archive,
   ArchiveRestore,
@@ -41,7 +46,6 @@ import { useInbox } from "../../hooks/use-inbox.ts";
 import { prefetchPullRequest } from "../../hooks/use-pull-request-detail.ts";
 import { useSubscribed } from "../../hooks/use-subscribed.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
-import { cn } from "../../lib/cn.ts";
 import { openExternal } from "../../lib/open-external.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type { InboxData, InboxTabKey, PullRequest } from "../../types.ts";
@@ -92,26 +96,6 @@ function inboxZeroTitle(tab: InboxTabKey, activeTabLabel: string): string {
     return "Not watching anything yet";
   }
   return `Nothing in “${activeTabLabel}”`;
-}
-
-function prStateClass(pr: PullRequest): string {
-  if (pr.draft) {
-    return "q-pill-draft";
-  }
-  if (pr.merged) {
-    return "q-pill-merged";
-  }
-  return "q-pill-open";
-}
-
-function prStateLabel(pr: PullRequest): string {
-  if (pr.draft) {
-    return "Draft";
-  }
-  if (pr.merged) {
-    return "Merged";
-  }
-  return "Open";
 }
 
 export function Inbox() {
@@ -207,6 +191,13 @@ export function Inbox() {
   const selectTab = (key: InboxTabKey) => {
     setTab(key);
     setSelectedKey(null);
+  };
+
+  const selectTabByKey = (key: string) => {
+    const target = TABS.find((t) => t.key === key);
+    if (target) {
+      selectTab(target.key);
+    }
   };
 
   const cycleTab = (dir: number) => {
@@ -358,15 +349,14 @@ export function Inbox() {
 
   return (
     <div className="flex h-full flex-col">
-      <InboxTabBar
+      <InboxTabs
+        activeKey={tab}
         archivedActive={showArchived}
         archivedCount={archivedList.length}
-        counts={visibleCounts}
-        onOpenWatch={openWatchDialog}
-        onSelectTab={selectTab}
+        onSelect={selectTabByKey}
         onToggleArchived={toggleArchived}
-        tab={tab}
-        tabs={visibleTabs}
+        onWatch={openWatchDialog}
+        tabs={visibleTabs.map((t) => ({ ...t, count: visibleCounts[t.key] }))}
       />
 
       <InboxMainContent
@@ -501,102 +491,6 @@ function useInboxHotkeys({
       run: openWatchDialog,
     },
   ]);
-}
-
-function InboxTabBar({
-  tab,
-  tabs,
-  counts,
-  onSelectTab,
-  archivedActive,
-  archivedCount,
-  onToggleArchived,
-  onOpenWatch,
-}: {
-  tab: InboxTabKey;
-  tabs: (typeof TABS)[number][];
-  counts: Record<InboxTabKey, number>;
-  onSelectTab: (key: InboxTabKey) => void;
-  archivedActive: boolean;
-  archivedCount: number;
-  onToggleArchived: () => void;
-  onOpenWatch: () => void;
-}) {
-  return (
-    <div className="qi-tabs shrink-0 border-line border-b px-3">
-      {tabs.map((t, slot) => (
-        <InboxTabButton
-          active={t.key === tab}
-          count={counts[t.key]}
-          index={slot}
-          key={t.key}
-          onSelectTab={onSelectTab}
-          tabDef={t}
-        />
-      ))}
-      <Tooltip anchorClassName="ml-auto" combo="w" label="Watch repositories…">
-        <button className="qi-watch-button" onClick={onOpenWatch} type="button">
-          <Eye size={14} />
-          Watch
-        </button>
-      </Tooltip>
-      <Tooltip
-        combo="u"
-        label={
-          archivedActive ? "Back to the inbox" : "Show archived pull requests"
-        }
-      >
-        <button
-          className="qi-archived-toggle"
-          data-state={archivedActive ? "active" : "inactive"}
-          onClick={onToggleArchived}
-          type="button"
-        >
-          {archivedActive ? (
-            <ArchiveRestore size={14} />
-          ) : (
-            <Archive size={14} />
-          )}
-          Archived
-          {archivedCount > 0 && (
-            <span className="qi-tab-count">{archivedCount}</span>
-          )}
-        </button>
-      </Tooltip>
-    </div>
-  );
-}
-
-function InboxTabButton({
-  tabDef,
-  index,
-  active,
-  count,
-  onSelectTab,
-}: {
-  tabDef: (typeof TABS)[number];
-  index: number;
-  active: boolean;
-  count: number;
-  onSelectTab: (key: InboxTabKey) => void;
-}) {
-  const handleClick = () => {
-    onSelectTab(tabDef.key);
-  };
-
-  return (
-    <Tooltip combo={String(index + 1)} label={tabDef.hint}>
-      <button
-        className="qi-tab"
-        data-state={active ? "active" : "inactive"}
-        onClick={handleClick}
-        type="button"
-      >
-        {tabDef.label}
-        <span className="qi-tab-count">{count}</span>
-      </button>
-    </Tooltip>
-  );
 }
 
 function inboxMainView(
@@ -804,7 +698,9 @@ function InboxListPane({
       </div>
 
       {selectedPR === undefined ? null : (
-        <InboxDetail pr={selectedPR} showArchived={showArchived} />
+        <div className="hidden min-[900px]:contents">
+          <InboxDetailPane archived={showArchived} pr={selectedPR} />
+        </div>
       )}
     </div>
   );
@@ -847,181 +743,30 @@ function InboxPrRow({
   );
 }
 
-/**
- * The empty inbox — a quiet full-bleed moment instead of an empty two-pane
- * layout. The return-key mark nods back at the app icon.
- */
-function InboxZero({
-  title,
-  hint,
-  action,
-}: {
-  title: string;
-  hint: string;
-  action?: { label: string; kbd: string; onClick: () => void };
-}) {
-  return (
-    <div className="qz-wrap flex flex-1 flex-col items-center justify-center px-6 text-center">
-      <div aria-hidden className="qz-glyph">
-        <svg
-          aria-label="Inbox zero"
-          fill="none"
-          height="26"
-          role="img"
-          viewBox="0 0 48 48"
-          width="26"
-        >
-          <title>Inbox zero</title>
-          <path
-            d="M34 12 v10 a5 5 0 0 1 -5 5 H14"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="4"
-          />
-          <path
-            d="M20 19 L12 27 L20 35"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="4"
-          />
-        </svg>
-      </div>
-      <p className="qz-title">{title}</p>
-      <p className="qz-hint">{hint}</p>
-      {action ? (
-        <button
-          className="q-btn q-btn-quiet q-focus mt-5"
-          onClick={action.onClick}
-          type="button"
-        >
-          {action.label} <Kbd combo={action.kbd} />
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-/**
- * The reading pane — a calm summary of the selected PR: one meta line, the
- * title carrying the weight, an author row, a single stat strip, and the
- * description. No boxes-in-boxes.
- */
-function InboxDetail({
+function InboxDetailPane({
   pr,
-  showArchived,
+  archived,
 }: {
+  archived: boolean;
   pr: PullRequest;
-  showArchived: boolean;
 }) {
-  const body = pr.body.trim();
   const trackerBase = useAppStore((s) =>
     s.activeAccountId ? s.issueTrackers[s.activeAccountId] : undefined
   );
-  const stateCls = prStateClass(pr);
-  const stateLabel = prStateLabel(pr);
+
+  const renderBody = (body: string) => (
+    <Markdown owner={pr.owner} repo={pr.name}>
+      {body}
+    </Markdown>
+  );
 
   return (
-    <aside
-      aria-label="Pull request detail"
-      className="qi-detail hidden bg-surface min-[900px]:flex"
-    >
-      <header className="qi-detail-head">
-        <div className="qi-detail-meta">
-          <span className={cn("q-pill", stateCls)}>
-            <span className="q-pill-dot" />
-            {stateLabel}
-          </span>
-          <span className="qi-detail-num">#{pr.number}</span>
-          <span className="q-dot">·</span>
-          <span className="qi-detail-repo" title={pr.repo}>
-            {pr.repo}
-          </span>
-        </div>
-        <h2 className="qi-detail-title">
-          <TicketTitle
-            onOpenTicket={openExternal}
-            title={pr.title}
-            trackerBase={trackerBase}
-          />
-        </h2>
-        <div className="qi-detail-author">
-          <Avatar name={pr.author} size={20} url={pr.authorAvatarUrl} />
-          <span className="qi-detail-author-name">{pr.author}</span>
-          <span className="qi-detail-time" title={formatAbsolute(pr.updatedAt)}>
-            updated {formatRelativeTime(pr.updatedAt)}
-          </span>
-        </div>
-        <div className="qi-detail-stats">
-          {pr.changedFiles > 0 ? (
-            <span>
-              {pr.changedFiles} file{pr.changedFiles === 1 ? "" : "s"}
-            </span>
-          ) : null}
-          {pr.additions + pr.deletions > 0 ? (
-            <>
-              {pr.changedFiles > 0 ? <span className="q-dot">·</span> : null}
-              <span>
-                <span className="qi-add">+{pr.additions}</span>{" "}
-                <span className="qi-del">−{pr.deletions}</span>
-              </span>
-            </>
-          ) : null}
-          {pr.changedFiles > 0 || pr.additions + pr.deletions > 0 ? (
-            <span className="q-dot">·</span>
-          ) : null}
-          <span>
-            {pr.commentsCount} comment{pr.commentsCount === 1 ? "" : "s"}
-          </span>
-        </div>
-      </header>
-
-      <div className="qi-detail-body">
-        {body ? (
-          <>
-            <div className="qi-detail-kicker">Description</div>
-            <Markdown owner={pr.owner} repo={pr.name}>
-              {body}
-            </Markdown>
-          </>
-        ) : (
-          <p className="qi-detail-none">No description provided.</p>
-        )}
-
-        {pr.lastComment === undefined ? null : (
-          <div className="qi-detail-comment">
-            <div className="qi-detail-kicker">Latest comment</div>
-            <div className="qi-detail-comment-meta">
-              <Avatar
-                name={pr.lastComment.author}
-                size={16}
-                url={pr.lastComment.authorAvatarUrl}
-              />
-              <span className="qi-detail-author-name">
-                {pr.lastComment.author}
-              </span>
-              <span
-                className="qi-detail-time"
-                title={formatAbsolute(pr.lastComment.createdAt)}
-              >
-                {formatRelativeTime(pr.lastComment.createdAt)}
-              </span>
-            </div>
-            <p className="qi-detail-comment-body">{pr.lastComment.body}</p>
-          </div>
-        )}
-      </div>
-
-      <footer className="qi-detail-foot">
-        <span className="qi-detail-hint">
-          <Kbd combo="enter" /> open review
-        </span>
-        <span className="q-dot">·</span>
-        <span className="qi-detail-hint">
-          <Kbd combo="e" /> {showArchived ? "restore" : "archive"}
-        </span>
-      </footer>
-    </aside>
+    <InboxDetail
+      archived={archived}
+      onOpenTicket={openExternal}
+      pr={pr}
+      renderBody={renderBody}
+      trackerBase={trackerBase}
+    />
   );
 }

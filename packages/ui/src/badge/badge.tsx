@@ -17,14 +17,17 @@ const toneClasses: Record<Tone, string> = {
 export function Badge({
   children,
   tone = "default",
+  dot = false,
   className,
 }: {
   children: ReactNode;
   tone?: Tone;
+  dot?: boolean;
   className?: string;
 }) {
   return (
     <span className={cn("q-pill", toneClasses[tone], className)}>
+      {dot ? <span aria-hidden className="q-pill-dot" /> : null}
       <span className="q-pill-label">{children}</span>
     </span>
   );

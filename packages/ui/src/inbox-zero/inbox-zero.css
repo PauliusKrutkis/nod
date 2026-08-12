@@ -1,0 +1,53 @@
+/* The qz family. The centring, the padding and the text alignment were
+   Tailwind utilities on the host's element; they belong to the moment, not to
+   whoever renders it, so they live here. `flex: 1` is the one thing the host
+   still has to honour — the wrap fills the column it is dropped into. */
+
+.qz-wrap {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24px;
+  text-align: center;
+  background: radial-gradient(
+    560px 320px at 50% 38%,
+    rgba(139, 128, 255, 0.07),
+    transparent 70%
+  );
+}
+
+.qz-glyph {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  color: var(--accent);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: 18px;
+  box-shadow:
+    0 0 40px -8px var(--accent-soft),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.qz-title {
+  margin: 18px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.qz-hint {
+  max-width: 380px;
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--faint);
+}
+
+.qz-action {
+  margin-top: 20px;
+}

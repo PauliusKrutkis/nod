@@ -17,6 +17,9 @@ import type { CatalogEntry } from "../fixtures/fixtures.ts";
 import { helpOverlayEntry } from "../help-overlay/help-overlay.fixtures.ts";
 import { highlightIndicesEntry } from "../highlight-indices/highlight-indices.fixtures.ts";
 import { imageDiffEntry } from "../image-diff/image-diff.fixtures.ts";
+import { inboxDetailEntry } from "../inbox-detail/inbox-detail.fixtures.ts";
+import { inboxTabsEntry } from "../inbox-tabs/inbox-tabs.fixtures.ts";
+import { inboxZeroEntry } from "../inbox-zero/inbox-zero.fixtures.ts";
 import { issueTrackerDialogEntry } from "../issue-tracker-dialog/issue-tracker-dialog.fixtures.ts";
 import { kbdEntry } from "../kbd/kbd.fixtures.ts";
 import { markdownEntry } from "../markdown/markdown.fixtures.ts";
@@ -28,6 +31,7 @@ import { purchasePromptEntry } from "../purchase-prompt/purchase-prompt.fixtures
 import { releaseHistoryEntry } from "../release-history/release-history.fixtures.ts";
 import { reviewHeaderEntry } from "../review-header/review-header.fixtures.ts";
 import { reviewScreenPendingEntry } from "../review-screen-pending/review-screen-pending.fixtures.ts";
+import { reviewToastEntry } from "../review-toast/review-toast.fixtures.ts";
 import { reviewVerdictsEntry } from "../review-verdicts/review-verdicts.fixtures.ts";
 import { searchPaneEntry } from "../search-pane/search-pane.fixtures.ts";
 import { spinnerEntry } from "../spinner/spinner.fixtures.ts";
@@ -60,6 +64,9 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   "help-overlay": helpOverlayEntry,
   "highlight-indices": highlightIndicesEntry,
   "image-diff": imageDiffEntry,
+  "inbox-detail": inboxDetailEntry,
+  "inbox-tabs": inboxTabsEntry,
+  "inbox-zero": inboxZeroEntry,
   "issue-tracker-dialog": issueTrackerDialogEntry,
   kbd: kbdEntry,
   markdown: markdownEntry,
@@ -71,6 +78,7 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   "release-history": releaseHistoryEntry,
   "review-header": reviewHeaderEntry,
   "review-screen-pending": reviewScreenPendingEntry,
+  "review-toast": reviewToastEntry,
   "review-verdicts": reviewVerdictsEntry,
   "search-pane": searchPaneEntry,
   spinner: spinnerEntry,
