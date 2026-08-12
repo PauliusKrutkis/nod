@@ -1,11 +1,22 @@
 /**
- * The purchase card, and the only licensing surface an evaluator ever sees:
- * evaluation is free and time-unlimited (Sublime-style — no countdown, no
- * lock), so nothing licensing-related renders at all until the backend's
- * grace window ends. Only "trialExpired" paints; every other status — trial,
- * licensed, or one this build has never heard of — renders nothing, which is
- * why `status` is a plain string rather than a union: the host decides what
- * it means to be licensed, and an unknown status must fail closed (quiet).
+ * The purchase card, and the only licensing surface an evaluator ever sees.
+ * The deal it represents: the app is never gated and never locks, licensed or
+ * not, so nothing licensing-related renders at all until the backend's 30-day
+ * grace window ends, after which the host shows this card once per launch.
+ * What a license actually buys is updates, which pause until one exists.
+ * Only "trialExpired" paints; every other status — trial, licensed, or one
+ * this build has never heard of — renders nothing, which is why `status` is a
+ * plain string rather than a union: the host decides what it means to be
+ * licensed, and an unknown status must fail closed (quiet).
+ *
+ * The model used to be called "Sublime-style" here, which described neither
+ * Sublime nor this app: Sublime nags forever and never stops an unlicensed
+ * copy updating, where Nod asks once per launch and stops updates the moment
+ * the grace window closes. That stop is currently total, patch releases
+ * included (`update.rs` refuses every release once the trial has expired, and
+ * only a verified license brings `updatesUntil` into it); letting patches
+ * through to unlicensed users is decided but unbuilt, so do not describe it
+ * here until it is.
  *
  * One button covers buying and re-activating, because the server treats them
  * as one flow: signing in as a subject that already holds a license returns
