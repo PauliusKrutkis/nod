@@ -1,0 +1,68 @@
+/* The qcs family — canned-comment completions under a composer. The panel is
+   a band across the composer's width rather than a floating popup: it sits in
+   flow between the editor surface and the toolbar, so it can never be clipped
+   by the diff column it lives in and never needs the caret's coordinates.
+
+   Rows carry data, not copy we control, so the text ellipsizes: a saved line
+   can be a paragraph, and the panel's height is fixed by MAX_ITEMS rather
+   than by the longest line anyone happened to save. */
+
+.qcs-panel {
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.qcs-list {
+  padding: 4px;
+  margin: 0;
+  list-style: none;
+}
+
+.qcs-row {
+  display: block;
+}
+
+.qcs-pick {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 5px 9px;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  color: var(--muted);
+  text-align: left;
+  cursor: default;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-md);
+}
+
+.qcs-row[data-selected="true"] .qcs-pick {
+  color: var(--fg);
+  background: var(--accent-soft);
+}
+
+.qcs-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The typed prefix: already on screen in the editor above, so it recedes
+   here rather than lighting up the way a search hit does. */
+.qcs-text .q-hl {
+  color: var(--faint);
+  background: transparent;
+}
+
+.qcs-row[data-selected="true"] .qcs-text .q-hl {
+  color: var(--muted);
+}
+
+.qcs-enter {
+  flex-shrink: 0;
+  color: var(--faint);
+}

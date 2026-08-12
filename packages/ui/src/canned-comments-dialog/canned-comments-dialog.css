@@ -1,0 +1,134 @@
+/* The qcd family — the ⌘; list editor. It owns its panel, input and row
+   chrome outright (the qw idiom) so the dialog renders outside the app with
+   no Tailwind and no app stylesheet; heading and paragraph margins are
+   declared here for the same reason.
+
+   A saved line is a whole sentence the reviewer wrote, so the row text wraps
+   rather than ellipsizing — the list is the one place the full text has to be
+   readable, since it is what the composer will insert. The list scrolls at a
+   fixed height instead: an unbounded one grows the dialog past the viewport
+   once a reviewer keeps twenty lines. */
+
+.q-dialog.qcd-panel {
+  width: min(480px, calc(100vw - 32px));
+  padding: 0;
+}
+
+.qcd-head {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.qcd-title {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.qcd-icon {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.qcd-sub {
+  margin: 3px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.qcd-body {
+  padding: 16px 20px;
+}
+
+.qcd-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 288px;
+  margin-top: 12px;
+  overflow-y: auto;
+}
+
+.qcd-none {
+  padding: 16px 0;
+  margin: 0;
+  font-size: 12px;
+  color: var(--faint);
+  text-align: center;
+}
+
+.qcd-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 7px 10px;
+  color: var(--fg);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+
+.qcd-text {
+  min-width: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.qcd-x {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  color: var(--faint);
+  cursor: default;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-md);
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.qcd-x:hover {
+  color: var(--fg);
+  background: var(--surface-hi);
+}
+
+.qcd-row-armed {
+  background: var(--surface-hi);
+  border-color: var(--line-2);
+}
+
+.qcd-row-armed .qcd-x {
+  color: var(--del);
+  background: var(--del-bg);
+}
+
+.qcd-foot {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-top: 1px solid var(--line);
+}
+
+.qcd-keys {
+  min-width: 0;
+  font-size: 12px;
+  color: var(--faint);
+}
+
+.q-btn.qcd-done-armed {
+  color: var(--fg);
+  background: var(--surface-hi);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}

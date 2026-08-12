@@ -17,6 +17,16 @@
  * complete composer — the fence still round-trips, its tokens just stay
  * unpainted.
  *
+ * `cannedComments` turns the saved lines a reviewer types on every pull
+ * request into completions: type the opening of one and the rest is offered
+ * below the surface, ↑↓ to pick, ↵ to take it, Esc to send it away. The list
+ * arrives as data because it is data — where it is stored, and the surface
+ * that edits it, are the host's. Offering only ever happens at the end of a
+ * paragraph with an empty selection, so it cannot fire in a code block, in
+ * the middle of a rewrite, or over a selection about to be replaced. Enter
+ * and Escape are borrowed only while the panel is up: with nothing offered
+ * they split the paragraph and back out of the composer as they always did.
+ *
  * Toolbar buttons swallow mousedown so a click never steals the editor's
  * focus (click still fires) — with focus on a button, every typed letter
  * becomes a global hotkey (`s` = submit review…). The ⌘K url input takes the
@@ -48,6 +58,10 @@ import {
   useInsertionEffect,
   useState,
 } from "react";
+import {
+  CannedSuggestions,
+  matchCanned,
+} from "../canned-suggestions/canned-suggestions.tsx";
 import { cn } from "../cn/cn.ts";
 import { Tooltip } from "../tooltip/tooltip.tsx";
 import "./composer-editor.css";
@@ -60,6 +74,7 @@ export interface ComposerEditorHandle {
 
 export interface ComposerEditorProps {
   autoFocus?: boolean;
+  cannedComments?: string[];
   extensions?: Extensions;
   initialMarkdown?: string;
   onCancel: () => void;
@@ -81,6 +96,10 @@ function focusOnMount(el: HTMLInputElement | null) {
 
 interface ComposerKeyHandlers {
   cancel: () => void;
+  cannedAccept: () => void;
+  cannedDismiss: () => void;
+  cannedMove: (dir: 1 | -1) => void;
+  cannedOpen: () => boolean;
   emptyChange: (empty: boolean) => void;
   flip: (() => void) | undefined;
   insertSuggestion: (() => void) | undefined;
@@ -157,6 +176,28 @@ function dedentCodeBlock(editor: Editor): boolean {
 }
 
 /**
+ * The line a canned completion would finish: the current paragraph's text,
+ * when the caret sits at its end with nothing selected. Null everywhere a
+ * completion could not honestly apply — inside a code block or any other
+ * node, mid-line, or over a selection the reviewer is about to replace —
+ * which is also what stops the panel appearing while a draft is edited.
+ */
+function cannedQueryOf(editor: Editor): string | null {
+  const { selection } = editor.state;
+  if (!selection.empty) {
+    return null;
+  }
+  const { $from } = selection;
+  if ($from.parent.type.name !== "paragraph") {
+    return null;
+  }
+  if ($from.parentOffset !== $from.parent.content.size) {
+    return null;
+  }
+  return $from.parent.textBetween(0, $from.parentOffset);
+}
+
+/**
  * Per-editor handlers for the shared keymap below, kept current by each
  * composer's insertion effect. A module WeakMap (the fileRenderMeta idiom)
  * instead of a ref: every shortcut receives its editor, so handlers key off
@@ -167,8 +208,37 @@ const HANDLERS = new WeakMap<Editor, ComposerKeyHandlers>();
 const ComposerKeys = Extension.create({
   addKeyboardShortcuts() {
     return {
+      ArrowDown: ({ editor }) => {
+        const h = HANDLERS.get(editor);
+        if (!h?.cannedOpen()) {
+          return false;
+        }
+        h.cannedMove(1);
+        return true;
+      },
+      ArrowUp: ({ editor }) => {
+        const h = HANDLERS.get(editor);
+        if (!h?.cannedOpen()) {
+          return false;
+        }
+        h.cannedMove(-1);
+        return true;
+      },
+      Enter: ({ editor }) => {
+        const h = HANDLERS.get(editor);
+        if (!h?.cannedOpen()) {
+          return false;
+        }
+        h.cannedAccept();
+        return true;
+      },
       Escape: ({ editor }) => {
-        HANDLERS.get(editor)?.cancel();
+        const h = HANDLERS.get(editor);
+        if (h?.cannedOpen()) {
+          h.cannedDismiss();
+          return true;
+        }
+        h?.cancel();
         return true;
       },
       "Mod-b": ({ editor }) => {
@@ -229,6 +299,7 @@ export function ComposerEditor({
   autoFocus,
   initialMarkdown,
   extensions,
+  cannedComments,
   suggestionText,
   onSubmitRequest,
   onCancel,
@@ -281,6 +352,57 @@ export function ComposerEditor({
     onUpdate: ({ editor: e }) => HANDLERS.get(e)?.emptyChange(e.isEmpty),
   });
 
+  const cannedQuery = useEditorState({
+    editor,
+    selector: ({ editor: e }) => cannedQueryOf(e),
+  });
+  const canned =
+    cannedQuery === null || !cannedComments
+      ? []
+      : matchCanned(cannedQuery, cannedComments);
+  // Esc records the line it dismissed rather than a flag, so the panel comes
+  // back on the next keystroke without an effect watching the text.
+  const [dismissed, setDismissed] = useState<string | null>(null);
+  const [selected, setSelected] = useState(0);
+  const [offered, setOffered] = useState(cannedQuery);
+  if (cannedQuery !== offered) {
+    setOffered(cannedQuery);
+    setSelected(0);
+  }
+  const cannedShown = canned.length > 0 && dismissed !== cannedQuery;
+
+  const acceptCanned = (text: string) => {
+    const raw = cannedQueryOf(editor);
+    if (raw === null) {
+      return;
+    }
+    // Keep whatever indent the list or quote put in front of the line; only
+    // the typed opening is replaced.
+    const lead = raw.length - raw.trimStart().length;
+    const { $from } = editor.state.selection;
+    editor
+      .chain()
+      .focus()
+      .deleteRange({ from: $from.start() + lead, to: $from.pos })
+      .insertContent(text)
+      .run();
+  };
+
+  const moveCanned = (dir: 1 | -1) => {
+    setSelected((s) => (s + dir + canned.length) % canned.length);
+  };
+
+  const dismissCanned = () => {
+    setDismissed(cannedQuery);
+  };
+
+  const takeSelected = () => {
+    const text = canned[selected];
+    if (text !== undefined) {
+      acceptCanned(text);
+    }
+  };
+
   const insertSuggestion = () => {
     const line = suggestionText ?? "";
     editor
@@ -297,6 +419,10 @@ export function ComposerEditor({
   useInsertionEffect(() => {
     HANDLERS.set(editor, {
       cancel: onCancel,
+      cannedAccept: takeSelected,
+      cannedDismiss: dismissCanned,
+      cannedMove: moveCanned,
+      cannedOpen: () => cannedShown,
       emptyChange: onEmptyChange,
       flip: onModeFlip,
       insertSuggestion:
@@ -379,6 +505,15 @@ export function ComposerEditor({
   return (
     <div className="qa-editor">
       <EditorContent editor={editor} />
+
+      {cannedShown && (
+        <CannedSuggestions
+          items={canned}
+          onPick={acceptCanned}
+          query={cannedQuery ?? ""}
+          selected={selected}
+        />
+      )}
 
       <div className="qa-tools">
         {linkOpen ? (

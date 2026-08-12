@@ -12,6 +12,8 @@
     "./avatar": "./src/avatar/avatar.tsx",
     "./badge": "./src/badge/badge.tsx",
     "./button": "./src/button/button.tsx",
+    "./canned-comments-dialog": "./src/canned-comments-dialog/canned-comments-dialog.tsx",
+    "./canned-suggestions": "./src/canned-suggestions/canned-suggestions.tsx",
     "./catalog": "./src/catalog/catalog.ts",
     "./ci-pill": "./src/ci-pill/ci-pill.tsx",
     "./code-cell": "./src/code-cell/code-cell.tsx",

@@ -45,6 +45,7 @@ import {
   type GroupedVirtuosoHandle,
   type StateSnapshot,
 } from "react-virtuoso";
+import { useCannedComments } from "../../hooks/use-canned-comments.ts";
 import { cn } from "../../lib/cn.ts";
 import { canExpandFile } from "../../lib/expand-file.ts";
 import { findMatchRangesInLine } from "../../lib/find-in-diff.ts";
@@ -417,11 +418,12 @@ function MappedCommentThread({
   repo: string;
 }) {
   const rootId = thread[0].id;
+  const canned = useCannedComments();
   const handleHoverChange = (hovering: boolean) => {
     callbacks.onThreadHover(hovering ? { path: filename, rootId } : null);
   };
   const renderComposer = (props: ThreadComposerProps) => (
-    <AddCommentBox autoFocus {...props} />
+    <AddCommentBox autoFocus cannedComments={canned} {...props} />
   );
   const renderMarkdown = (body: string) => (
     <Markdown owner={owner} repo={repo}>
@@ -544,6 +546,7 @@ function CommentAddBox({
     callbacks.onCloseBox(item.fileIndex, item.anchor);
   };
 
+  const canned = useCannedComments();
   const draftText =
     askDraft?.key === fileAnchorKey(item.fileIndex, item.anchor)
       ? askDraft.text
@@ -552,6 +555,7 @@ function CommentAddBox({
   return (
     <AddCommentBox
       autoFocus
+      cannedComments={canned}
       extensions={[suggestionHighlight(filename)]}
       initialMarkdown={draftText}
       onCancel={handleCancel}
