@@ -25,6 +25,21 @@ function askNote(page: Page) {
     .getByRole("complementary", { name: "Ask about code" });
 }
 
+/** Seat the cursor on "// tuned" (RIGHT:2). The first j only reveals the
+ *  cursor (rAF-coalesced moves discard the delta on reveal), so wait for it
+ *  before stepping. */
+async function cursorToTuned(page: Page) {
+  await page.keyboard.press("j");
+  await expect(
+    page.locator('.qf-row-active[data-anchor="RIGHT:1"]')
+  ).toBeVisible();
+  await page.keyboard.press("j");
+  await page.keyboard.press("j");
+  await expect(
+    page.locator('.qf-row-active[data-anchor="RIGHT:2"]')
+  ).toBeVisible();
+}
+
 test("a with no cursor opens the whole-PR note; question round-trips", async ({
   page,
 }) => {
@@ -77,6 +92,35 @@ test("cursor line: the note anchors under the row and code rides along", async (
   expect(sent.context.filePath).toContain("fuzzy.ts");
   expect(sent.context.code).not.toBeNull();
   expect(sent.context.diffSummary).toBeNull();
+});
+
+test("a shift+j range asks about every selected line", async ({ page }) => {
+  await setupApp(page, CONFIGURED);
+  await openReview(page);
+
+  await cursorToTuned(page);
+  await page.keyboard.press("Shift+j");
+  await page.keyboard.press("Shift+j");
+  await expect(page.locator(".qf-row-selected")).toHaveCount(3);
+
+  await page.keyboard.press("a");
+  const note = askNote(page);
+  await expect(note.getByText("src/lib/fuzzy.ts:2–4")).toBeVisible();
+
+  await note.getByLabel("Question").fill("What do these lines do?");
+  await page.keyboard.press("Enter");
+  await expect(note.getByText("renames the retry knob")).toBeVisible();
+
+  const sent = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("e2e:aiAsk") ?? "null")
+  );
+  expect(sent.context.filePath).toBe("src/lib/fuzzy.ts");
+  expect(sent.context.lineRange).toBe("2–4");
+  expect(sent.context.code.split("\n")).toEqual([
+    "  // tuned",
+    "  return 2;",
+    "}",
+  ]);
 });
 
 test("provider errors surface inline and asking again works", async ({
