@@ -13,6 +13,16 @@
  * cell is a frame shot and the narrow rule applies uniformly; the modal
  * variant is a gallery interaction, not a capture target.
  *
+ * Every goto carries the ?capture query flag (before the hash — the gallery
+ * reads location.search, not the hash). At rest the gallery draws a faint
+ * dot grid on the frame's ring around the specimen's solid mat, so a
+ * specimen whose surface matches the frame still reads without the x-ray;
+ * under the flag the grid is suppressed and the shot sees exactly the
+ * pre-mat pixels. The mat itself stays in both modes — its background
+ * matches the frame's, so it is invisible here, and its presence under the
+ * flag is precisely what guarantees the mat cannot shift specimen layout:
+ * these baselines would diff if it did.
+ *
  * Waiting for the frame is the whole readiness contract: the app itself
  * mounts only once the webfonts have loaded (src/main.tsx), so a frame on
  * screen means the specimen already measured itself against final metrics.
@@ -55,7 +65,7 @@ for (const [component, entry] of Object.entries(catalogManifest)) {
 for (const cell of cells) {
   test(captureName(cell), async ({ page }) => {
     await page.clock.setFixedTime(CAPTURE_INSTANT);
-    await page.goto(`/${formatGalleryHash(cell)}`);
+    await page.goto(`/?capture${formatGalleryHash(cell)}`);
     await page.locator("[data-frame]").first().waitFor();
     await expect(page.locator("[data-frame]")).toHaveScreenshot(
       captureName(cell),

@@ -15,8 +15,14 @@
    their line box to whole pixels (19px, not a unitless factor): the topbar
    sits above the stage, so a fractional chrome height pushes every capture
    frame off the integer pixel grid and shifts antialiasing in every
-   baseline. Animations pause under prefers-reduced-motion so webkit
-   captures are deterministic. */
+   baseline. The capture frame is layered: a faint dot grid on the frame
+   marks gallery territory, and the solid mat (.qg-mat) under the specimen
+   is exactly the surface that stood behind specimens before, so a specimen
+   whose own surface matches the frame still reads at rest. Under the
+   ?capture query flag (qg-capture on the root) the grid is suppressed and
+   the mat vanishes into the frame background — the screenshot suite sees
+   the pre-mat pixels. Animations pause under prefers-reduced-motion so
+   webkit captures are deterministic. */
 
 .qg-root {
   display: flex;
@@ -300,13 +306,36 @@
   min-height: 110px;
   padding: 34px 38px;
   background: var(--surface);
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--line) 70%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 10px 10px;
   border: 1px solid var(--line);
   border-radius: var(--r-xl);
   overflow: hidden;
 }
 
+.qg-capture .qg-frame {
+  background-image: none;
+}
+
 .qg-frame-fit {
   display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+}
+
+.qg-mat {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  min-width: 0;
+}
+
+.qg-frame-fit .qg-mat {
+  flex: initial;
   width: max-content;
   max-width: 100%;
 }
@@ -481,7 +510,7 @@ dialog.q-dialog-top:modal {
   }
 }
 
-.qg-xray [data-frame] > * {
+.qg-xray .qg-mat > * {
   outline: 1px dashed var(--accent-line);
   outline-offset: -1px;
 }

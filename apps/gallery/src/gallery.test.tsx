@@ -1,10 +1,12 @@
 /**
  * What jsdom can prove about the gallery: the rail mirrors the catalog, the
  * hash names the visible cell (deep links land, interactions write back),
- * keys drive it without a pointer, and the matrix renders one frame per
- * fixture × theme. What the specimens look like is the screenshot suite's
- * job, not this file's. The retrofit-notice test only runs while something
- * is PENDING: an empty ratchet has no uncatalogued specimen to show.
+ * keys drive it without a pointer, the matrix renders one frame per
+ * fixture × theme, every frame mounts its specimen on the mat, and the
+ * ?capture query flag lands as qg-capture on the root. What the specimens
+ * look like is the screenshot suite's job, not this file's. The
+ * retrofit-notice test only runs while something is PENDING: an empty
+ * ratchet has no uncatalogued specimen to show.
  */
 import { catalog } from "@nod/ui/catalog";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
@@ -102,9 +104,29 @@ describe("gallery", () => {
   it("renders one frame per fixture × theme in matrix view", () => {
     window.location.hash = `#/gallery/${first}/${firstFixtures[0]}/quiet/420/matrix`;
     const { container } = render(<Gallery />);
-    expect(container.querySelectorAll("[data-frame]").length).toBe(
-      firstFixtures.length * 2
-    );
+    const frames = container.querySelectorAll("[data-frame]");
+    expect(frames.length).toBe(firstFixtures.length * 2);
+    for (const frame of frames) {
+      expect(frame.querySelector(":scope > .qg-mat")).not.toBeNull();
+    }
+  });
+
+  it("mounts the specimen on a mat that is the frame's direct child", () => {
+    window.location.hash = "#/gallery/search-pane/typical/quiet/420/specimen";
+    const { container } = render(<Gallery />);
+    const mat = container.querySelector("[data-frame] > .qg-mat");
+    expect(mat).not.toBeNull();
+    expect(mat?.querySelector("dialog.qsp-inline")).not.toBeNull();
+  });
+
+  it("wears qg-capture only when the query carries the capture flag", () => {
+    history.replaceState(null, "", "/?capture#/gallery");
+    const { container } = render(<Gallery />);
+    expect(container.querySelector(".qg-root.qg-capture")).not.toBeNull();
+    cleanup();
+    history.replaceState(null, "", "/#/gallery");
+    const { container: bare } = render(<Gallery />);
+    expect(bare.querySelector(".qg-root.qg-capture")).toBeNull();
   });
 
   it("find selects the highlighted match on Enter", () => {
@@ -175,6 +197,15 @@ describe("gallery", () => {
     expect(container.querySelector(".qg-xray")).not.toBeNull();
     fireEvent.keyDown(window, { key: "x" });
     expect(container.querySelector(".qg-xray")).toBeNull();
+  });
+
+  it("x-ray outlines the mat's child, never the corner ticks", () => {
+    const { container } = render(<Gallery />);
+    fireEvent.keyDown(window, { key: "x" });
+    const stage = container.querySelector(".qg-xray");
+    expect(stage).not.toBeNull();
+    expect(stage?.querySelectorAll(".qg-mat > *").length).toBe(1);
+    expect(stage?.querySelector(".qg-mat .qg-tick")).toBeNull();
   });
 
   it("blurs specimen focus unless clicked into, Escape hands it back", () => {
