@@ -16,13 +16,15 @@
    sits above the stage, so a fractional chrome height pushes every capture
    frame off the integer pixel grid and shifts antialiasing in every
    baseline. The capture frame is layered: a faint dot grid on the frame
-   marks gallery territory, and the solid mat (.qg-mat) under the specimen
-   is exactly the surface that stood behind specimens before, so a specimen
-   whose own surface matches the frame still reads at rest. Under the
-   ?capture query flag (qg-capture on the root) the grid is suppressed and
-   the mat vanishes into the frame background — the screenshot suite sees
-   the pre-mat pixels. Animations pause under prefers-reduced-motion so
-   webkit captures are deterministic. */
+   marks gallery territory: the frame ring sits in a well dimmed below the
+   stage (color-mix toward black works on both themes) and the solid mat
+   (.qg-mat) rides on it as a sheet — its fill is exactly the surface that
+   stood behind specimens before, with a hairline box-shadow seam (shadow,
+   never border: a border would shift specimen layout). Under the ?capture
+   query flag (qg-capture on the root) the well, the grid and the seam are
+   all suppressed and the mat vanishes into the frame background — the
+   screenshot suite sees the pre-mat pixels. Animations pause under
+   prefers-reduced-motion so webkit captures are deterministic. */
 
 .qg-root {
   display: flex;
@@ -305,7 +307,7 @@
   align-items: center;
   min-height: 110px;
   padding: 34px 38px;
-  background: var(--surface);
+  background: color-mix(in srgb, var(--bg) 85%, black);
   background-image: radial-gradient(
     color-mix(in srgb, var(--line) 70%, transparent) 1px,
     transparent 1px
@@ -317,6 +319,7 @@
 }
 
 .qg-capture .qg-frame {
+  background: var(--surface);
   background-image: none;
 }
 
@@ -332,6 +335,13 @@
   align-items: center;
   background: var(--surface);
   min-width: 0;
+  border-radius: var(--r-lg);
+  box-shadow: 0 0 0 1px var(--line-2);
+}
+
+.qg-capture .qg-mat {
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .qg-frame-fit .qg-mat {
