@@ -561,6 +561,115 @@ fn message_answer(message: &Value) -> Option<String> {
     Some(content.to_string())
 }
 
+/// The completion prompt is deliberately narrow. The model is finishing a
+/// sentence a reviewer has already started, not writing a review: it sees the
+/// opening and, when the comment is anchored to a line, the code under it.
+/// Anything longer than a sentence is worse than nothing here — a ghost that
+/// runs past the end of the line is noise the reviewer has to read and reject.
+const COMPLETE_SYSTEM_PROMPT: &str = "You finish a code reviewer's half-typed comment. \
+Reply with the continuation only: no quotes, no preamble, no restatement of what they typed. \
+Stay on the same sentence, at most one short sentence more. \
+Match their voice and register. If nothing sensible continues the text, reply with nothing at all.";
+
+/// What the composer knows about where the comment is being written. Both
+/// halves are optional: a pull-request-level comment is anchored to no file,
+/// and a reply carries no code.
+#[derive(Deserialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct CompleteContext {
+    #[serde(default)]
+    pub file_path: Option<String>,
+    #[serde(default)]
+    pub code: Option<String>,
+}
+
+fn build_complete_prompt(prefix: &str, context: &CompleteContext) -> String {
+    let mut out = String::new();
+    if let Some(path) = &context.file_path {
+        out.push_str(&format!("File: {path}\n"));
+    }
+    if let Some(code) = &context.code {
+        out.push_str(&format!("Line under review:\n{code}\n\n"));
+    }
+    out.push_str(&format!("The reviewer has typed:\n{prefix}"));
+    out
+}
+
+/// The first choice's message content, or None when the provider answered with
+/// a shape we do not recognize — a completion is an optional courtesy, so an
+/// unreadable answer is silence rather than an error in the composer.
+fn completion_text(body: &Value) -> Option<String> {
+    body.get("choices")?
+        .as_array()?
+        .first()?
+        .get("message")?
+        .get("content")?
+        .as_str()
+        .map(str::to_string)
+}
+
+const MAX_COMPLETION_CHARS: usize = 160;
+
+/// Models ignore instructions. This keeps the ghost to something that can
+/// actually sit at the end of the line: one line, no surrounding quotes, and
+/// never a repeat of what the reviewer already typed.
+fn clean_completion(raw: &str, prefix: &str) -> String {
+    let first_line = raw.trim().lines().next().unwrap_or("").trim();
+    let unquoted = first_line
+        .strip_prefix('"')
+        .and_then(|rest| rest.strip_suffix('"'))
+        .unwrap_or(first_line);
+    let typed = prefix.trim_start();
+    let deduped = if unquoted.len() >= typed.len()
+        && unquoted.to_lowercase().starts_with(&typed.to_lowercase())
+    {
+        unquoted[typed.len()..].trim_start()
+    } else {
+        unquoted
+    };
+    if deduped.chars().count() > MAX_COMPLETION_CHARS {
+        return String::new();
+    }
+    deduped.to_string()
+}
+
+/// Finish the reviewer's half-typed comment. Unconfigured AI is not an error
+/// here: the composer asks on every pause, and a reviewer who never set a key
+/// would otherwise collect a failure per keystroke.
+#[tauri::command]
+pub async fn ai_complete(
+    app: AppHandle,
+    prefix: String,
+    context: CompleteContext,
+) -> Result<String, String> {
+    let Some(config) = load(&app)? else {
+        return Ok(String::new());
+    };
+    let Some(model) = config.model else {
+        return Ok(String::new());
+    };
+    let body = serde_json::json!({
+        "model": model,
+        "messages": [
+            { "role": "system", "content": COMPLETE_SYSTEM_PROMPT },
+            { "role": "user", "content": build_complete_prompt(&prefix, &context) },
+        ],
+        "max_completion_tokens": 64,
+        "temperature": 0.2,
+    });
+    let resp = client()?
+        .post(format!("{}/v1/chat/completions", config.base_url))
+        .bearer_auth(&config.api_key)
+        .json(&body)
+        .send()
+        .await
+        .map_err(net_err)?;
+    let parsed = read_ai_body(resp).await?;
+    Ok(completion_text(&parsed)
+        .map(|raw| clean_completion(&raw, &prefix))
+        .unwrap_or_default())
+}
+
 #[tauri::command]
 pub async fn ai_ask(
     app: AppHandle,

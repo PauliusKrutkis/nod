@@ -35,6 +35,10 @@ export const api = {
 
   aiAsk: (args: { question: string; context: AiAskContext; askId: string }) =>
     invoke<string>("ai_ask", args),
+  aiComplete: (args: {
+    prefix: string;
+    context: { filePath?: string; code?: string };
+  }) => invoke<string>("ai_complete", args),
   aiListModels: () => invoke<AiModel[]>("ai_list_models"),
 
   checkForUpdate: () => invoke<UpdateInfo | null>("check_for_update"),

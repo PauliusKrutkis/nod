@@ -1,0 +1,12 @@
+/* The qgt family — the AI continuation offered after the caret. It is a
+   guess, so it reads as one: the same size and family as the text it
+   continues, at the weight of a placeholder, never the foreground colour.
+   Nothing here is selectable or clickable — the only way to take it is Tab,
+   which keeps a stray click from turning a guess into typed text. */
+
+.qgt-ghost {
+  color: var(--faint);
+  pointer-events: none;
+  user-select: none;
+  white-space: pre-wrap;
+}
