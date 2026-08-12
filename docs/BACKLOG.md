@@ -59,10 +59,25 @@ that keeps getting re-asked. Anything not listed was implementation detail;
   virtual list. CodeMirror 6 per file was considered and ruled out: purpose-built
   but a much deeper integration for marginal gain.
 - **shadcn / Radix are ruled out** (2026-08-05). The app carries zero Radix,
-  shadcn or cmdk dependencies; the Quiet tokens in `quiet.css` are the design
-  system. `apps/design-lab` keeps shadcn-on-Radix as a **mocking tool only** and
-  that implies no migration path. Revisit only per-primitive (popover, combobox,
-  context menu), never as a phase.
+  shadcn or cmdk dependencies; the Quiet tokens are the design system.
+  `apps/design-lab` kept shadcn-on-Radix as a **mocking tool only** and was
+  deleted 2026-07-07 once Quiet was fully ported into the app, so it implies no
+  migration path and is no longer there to point at. Revisit only per-primitive
+  (popover, combobox, context menu), never as a phase.
+- **The palette is a package; the gallery replaced the playground**
+  (2026-08-09). `@nod/tokens` declares the Quiet palette once. A shared
+  stylesheet could not have: the Worker-rendered purchase pages cannot link a
+  build-hashed file, so the package emits the same tokens as CSS, as a string
+  for the Worker, and as an object for anything needing values in JS.
+  `@nod/ui` holds the shared `q-*` primitives and `apps/gallery` renders each
+  one against fixtures at `#/gallery`. **Storybook was rejected**, on grounds
+  specific to this repo rather than general distaste: it checks Chromium, the
+  one engine that has never been the problem; there is no single framework to
+  host it, since desktop is React, the site is Astro and the purchase pages are
+  Worker-rendered strings; and a separate playground had already been deleted
+  once for drifting from the app it described. The gallery renders the shipped
+  components instead, and its screenshots turn a token change into a pixel diff
+  across every primitive at once.
 - **Perf budgets run on Chromium *and* WebKit.** The app ships on WebKitGTK and
   Chromium-only budgets hid engine-shaped lag. A `chromium-perf-prod` project
   runs the same specs against the production build at roughly half the bounds.
@@ -2022,12 +2037,25 @@ one interaction, not seven separate defects.
       collapse into their neighbours and that is the whole point. Only then is
       "tighter everywhere" one edit to four numbers, and reversible in one
       commit.
+      *The radius half shipped as #224* and the scale now lives in
+      `@nod/tokens`, so any direction that touches radius is an edit to named
+      tokens.
       *The button half is a design question, not a CSS one*, and needs a
       decision before code: `.q-btn` today is 8px radius, 600 weight, 13px,
-      `7px 13px` padding, with four variants. Generic is a fair reading. Take
-      it to `apps/design-lab` and confirm a direction against real screens
-      before touching the app — this is the most visible surface in the
-      product and the least testable, so it earns a mock first.
+      `7px 13px` padding, with four variants. Generic is a fair reading.
+      *Designed 2026-08-09:*
+      [buttons](https://claude.ai/code/artifact/cee3902c-d861-476c-8b44-4a8687ed0481)
+      renders three directions inside the real screens (submit modal, purchase
+      card, the two-step danger arm) rather than as swatches.
+      **Recommendation: C, quieter type** — weight 600 → 500 with a breath of
+      tracking, shape untouched — on the claim that the type is what reads
+      loud, not the shape; the fill already does the primary-action work.
+      Direction A (tighter radius) is not the cheap option it looks like,
+      because `.q-input` shares `--r-lg` and buttons never appear alone, so
+      re-shaping buttons means re-shaping every control or accepting a
+      mismatched pair in every footer. Confirm the final call in the gallery
+      against real screens before touching the app — this is the most visible
+      surface in the product and the least testable.
 
 ### Ask about code
 
