@@ -1826,6 +1826,26 @@ wanted instead of a quick win.
 
 ---
 
+## Inbox (2026-08-12)
+
+One item raised by the owner while judging launch-post readiness. Checked
+against the code before writing.
+
+- [ ] 🟡 **`/restore` is a 501 stub while the product is live** — the normal
+      restore path works: a license is keyed to the buyer's GitHub identity,
+      so "Activate my license" on a new machine finds the purchase and
+      re-activates without charging again. The email fallback for everyone
+      *outside* that path — self-hosted GitLab buyers by design, plus anyone
+      who lost access to the GitHub account they bought with — returns a
+      hardcoded `501 not yet configured` (`apps/web/functions/restore.ts`).
+      The dependency the 2026-08-02 audit named is gone: `POLAR_API_KEY` has
+      been a production Pages secret since 2026-08-04, so the Polar Customer
+      API lookup by email is buildable now. Until it lands, support for those
+      cases is manual token issuance via hello@ — fine at current volume,
+      worth building before a launch post drives purchases at scale.
+
+---
+
 ## Inbox (2026-08-11)
 
 Four items raised by the owner. Checked against the code before writing, and
