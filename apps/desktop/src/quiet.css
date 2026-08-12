@@ -1228,6 +1228,13 @@ textarea.q-input {
   padding: 0 16px 6px 70px;
   background: var(--bg);
 }
+/* What stays behind after comment-item and comment-thread moved to @nod/ui:
+   the card and comment rules the diff still writes by hand around a pending
+   comment and around the open composer, and that the drawer's conversation
+   rows still share; plus the reveal, which belongs to those surfaces rather
+   than to the components inside them — the tool strip and the key hints are
+   hidden at rest and shown on hover, on focus-within, or when the keyboard
+   cursor is on the thread, and the ancestors doing that are all app-side. */
 .dir-quiet .qf-thread {
   position: relative;
   margin: 6px 0 10px;
@@ -1238,31 +1245,6 @@ textarea.q-input {
   border-radius: var(--r-xl);
 }
 
-.dir-quiet .qf-thread-fold {
-  display: inline-flex;
-  gap: 5px;
-  align-items: center;
-  padding: 2px 6px;
-  font-size: 11px;
-  color: var(--faint);
-  cursor: pointer;
-  background: transparent;
-  border: none;
-  border-radius: var(--r-md);
-  transition:
-    color 120ms ease,
-    background-color 120ms ease;
-}
-.dir-quiet .qf-thread-fold:hover {
-  color: var(--fg);
-  background: var(--surface-2);
-}
-.dir-quiet .qf-thread-fold-corner {
-  position: absolute;
-  top: 6px;
-  right: 8px;
-  z-index: 1;
-}
 .dir-quiet .qf-thread-fold .qf-key-hint {
   opacity: 0;
   transition: opacity 120ms ease;
@@ -1275,10 +1257,6 @@ textarea.q-input {
 .dir-quiet .qf-comment {
   padding: 11px 14px;
 }
-.dir-quiet .qf-comment-reply {
-  background: var(--surface-2);
-  border-top: 1px solid var(--line);
-}
 .dir-quiet .qf-comment-head {
   display: flex;
   gap: 8px;
@@ -1286,11 +1264,16 @@ textarea.q-input {
   margin-bottom: 6px;
 }
 .dir-quiet .qf-comment-author {
+  min-width: 0;
+  overflow: hidden;
   font-size: 12.5px;
   font-weight: 600;
   color: var(--fg);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .dir-quiet .qf-comment-time {
+  flex-shrink: 0;
   font-family: var(--font-mono);
   font-size: 10.5px;
   color: var(--faint);
@@ -1314,44 +1297,6 @@ textarea.q-input {
   .dir-quiet .qf-comment-tools {
     transition: none;
   }
-}
-
-.dir-quiet .qf-reply-btn {
-  display: flex;
-  gap: 7px;
-  align-items: center;
-  width: 100%;
-  padding: 8px 14px;
-  font-size: 12px;
-  color: var(--muted);
-  text-align: left;
-  cursor: pointer;
-  background: transparent;
-  border-top: 1px solid var(--line);
-  transition:
-    color 120ms ease,
-    background-color 120ms ease;
-}
-.dir-quiet .qf-reply-btn:hover {
-  color: var(--fg);
-  background: var(--surface-2);
-}
-
-.dir-quiet .qf-thread-actions {
-  display: flex;
-  gap: 2px;
-  border-top: 1px solid var(--line);
-}
-.dir-quiet .qf-thread-actions .qf-reply-btn {
-  flex: 0 0 auto;
-  width: auto;
-  border-top: none;
-}
-.dir-quiet .qf-resolve-btn {
-  flex: 0 0 auto;
-}
-.dir-quiet .qf-resolve-btn:hover {
-  color: var(--add);
 }
 
 .dir-quiet .qf-thread-actions .qf-key-hint {
@@ -1382,70 +1327,6 @@ textarea.q-input {
   }
 }
 
-.dir-quiet .qf-thread-collapsed {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-  padding-right: 6px;
-}
-.dir-quiet .qf-thread-collapsed-lead {
-  display: flex;
-  flex: 1;
-  gap: 8px;
-  align-items: center;
-  min-width: 0;
-  padding: 8px 8px 8px 14px;
-  font-size: 12px;
-  color: var(--muted);
-  text-align: left;
-  cursor: pointer;
-  background: transparent;
-  border: none;
-  border-radius: var(--r-lg);
-  transition: background-color 120ms ease;
-}
-.dir-quiet .qf-thread-collapsed-lead:hover {
-  background: var(--surface-2);
-}
-.dir-quiet .qf-thread-collapsed svg {
-  flex-shrink: 0;
-  color: var(--add);
-}
-.dir-quiet .qf-thread-collapsed-open svg {
-  color: var(--muted);
-}
-.dir-quiet .qf-thread-collapsed-actions {
-  display: flex;
-  flex-shrink: 0;
-  gap: 2px;
-  align-items: center;
-}
-.dir-quiet .qf-resolved-tag {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--add);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.dir-quiet .qf-resolved-snip {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--faint);
-  white-space: nowrap;
-}
-.dir-quiet .qf-thread-resolved-bar {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 7px 14px;
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--line);
-}
-.dir-quiet .qf-thread-resolved-bar svg {
-  color: var(--add);
-}
 /* whole-PR slot: above the first file, same comment-column inset */
 .dir-quiet .qf-ask-pr {
   padding: 10px 16px 0 70px;

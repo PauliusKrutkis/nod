@@ -1,26 +1,44 @@
 /**
+ * An inline code thread: a root comment, its replies, and the fold/resolve
+ * affordances around them. A resolved thread arrives collapsed to one line;
+ * `z` toggles it, and re-resolving from elsewhere re-collapses it, which is
+ * what the wasResolved mirror is for.
+ *
+ * The three *Request props are keyboard commands addressed to one thread by
+ * root id and made idempotent by a nonce — the surface owning the hotkeys is
+ * far above this component, and a re-render must not replay the last one.
  * `shift+e` always edits your last comment in the thread — even one buried
- * under someone else's reply — but its `editKbdId` hint chip only shows when
- * that comment is also the thread's last word, since otherwise the chip
- * would misleadingly suggest it's still the next thing you'd act on.
- * `composerOpen` hides Edit/Delete on every comment while a reply or edit
- * composer is open here: those hotkeys (`r`/`x`/`z`/`shift+e`) are inert
- * while a text input has focus, so showing them would advertise dead
+ * under someone else's reply — but its hint chip only shows when that comment
+ * is also the thread's last word, since otherwise the chip would misleadingly
+ * suggest it's still the next thing you'd act on. While any composer is open
+ * every comment hides its tools: those hotkeys (`r`/`x`/`z`/`shift+e`) are
+ * inert while a text input has focus, so showing them would advertise dead
  * shortcuts.
+ *
+ * Two host seams keep the thread renderable from a fixture. `composer` is
+ * asked for the editor that replies and edits use — a rich text editor the
+ * package does not own — and a thread without one simply never opens it.
+ * `renderMarkdown` is the body renderer, passed through to each comment.
+ * `ownLogin` decides which comments are yours, so the account lookup stays
+ * with the surface that has the store.
  */
 
-import { Avatar } from "@nod/ui/avatar";
-import { CommentTools } from "@nod/ui/comment-tools";
-import { Kbd } from "@nod/ui/kbd";
-import { formatAbsolute, formatRelativeTime } from "@nod/ui/time";
 import { CheckCircle2, MessageSquare } from "lucide-react";
-import { useState } from "react";
-import { cn } from "../../lib/cn.ts";
-import { firstLine } from "../../lib/comment-format.ts";
-import { useAppStore } from "../../store/app-store.ts";
-import type { ReviewComment } from "../../types.ts";
-import { AddCommentBox } from "./add-comment-box.tsx";
-import { CommentBody } from "./comment-item.tsx";
+import { type ReactNode, useState } from "react";
+import { cn } from "../cn/cn.ts";
+import { CommentItem } from "../comment-item/comment-item.tsx";
+import { Kbd } from "../kbd/kbd.tsx";
+import "./comment-thread.css";
+
+export interface ThreadComment {
+  body: string;
+  createdAt: string;
+  id: number;
+  resolved?: boolean;
+  threadId?: string | null;
+  user: string;
+  userAvatarUrl?: string;
+}
 
 export interface ReplyRequest {
   nonce: number;
@@ -37,19 +55,34 @@ export interface EditRequest {
   rootId: number;
 }
 
-interface CommentThreadProps {
-  comments: ReviewComment[];
+export interface ThreadComposerProps {
+  initialMarkdown?: string;
+  onCancel: () => void;
+  onSubmit: (body: string) => void;
+  pending: boolean;
+  placeholder: string;
+  submitLabel: string;
+}
+
+export interface CommentThreadProps {
+  comments: ThreadComment[];
+  composer?: (props: ThreadComposerProps) => ReactNode;
   editRequest?: EditRequest | null;
   onDelete?: (a: { commentId: number }) => Promise<void>;
   onEdit?: (a: { commentId: number; body: string }) => Promise<void>;
   onHoverChange?: (hovering: boolean) => void;
   onReply: (a: { inReplyTo: number; body: string }) => Promise<void>;
   onResolve?: (a: { threadId: string; resolved: boolean }) => void;
-  owner: string;
+  ownLogin?: string;
+  renderMarkdown?: (body: string) => ReactNode;
   replyPending: boolean;
   replyRequest?: ReplyRequest | null;
-  repo: string;
   toggleRequest?: ToggleRequest | null;
+}
+
+/** The first line of a comment body — the snippet a folded thread shows. */
+function firstLine(body: string): string {
+  return body.trim().split("\n")[0] ?? "";
 }
 
 function applyCommand(
@@ -68,25 +101,23 @@ function applyCommand(
 
 export function CommentThread({
   comments,
+  composer,
   onReply,
   replyPending,
   onResolve,
   onEdit,
   onDelete,
   onHoverChange,
+  ownLogin,
+  renderMarkdown,
   replyRequest,
   toggleRequest,
   editRequest,
-  owner,
-  repo,
 }: CommentThreadProps) {
   const [root] = comments;
   const rootId = root?.id;
   const threadId = root?.threadId ?? null;
   const resolved = root?.resolved ?? false;
-  const ownLogin = useAppStore(
-    (s) => s.accounts.find((a) => a.id === s.activeAccountId)?.login
-  );
   const ownComments = comments.filter((c) => c.user === ownLogin);
   const lastOwnId = ownComments.at(-1)?.id;
   const editKbdId =
@@ -206,7 +237,7 @@ export function CommentThread({
         {...hoverProps}
       >
         <button
-          className="qf-thread-collapsed-lead qf-focusable"
+          className="qf-thread-collapsed-lead q-focus"
           onClick={expand}
           title="Expand (z)"
           type="button"
@@ -224,7 +255,7 @@ export function CommentThread({
         <div className="qf-thread-collapsed-actions">
           {resolved && canResolve && (
             <button
-              className="qf-thread-fold qf-focusable"
+              className="qf-thread-fold q-focus"
               onClick={handleResolve}
               type="button"
             >
@@ -236,7 +267,7 @@ export function CommentThread({
           )}
           <button
             aria-label="Expand thread"
-            className="qf-thread-fold qf-focusable"
+            className="qf-thread-fold q-focus"
             onClick={expand}
             title="Expand (z)"
             type="button"
@@ -252,10 +283,14 @@ export function CommentThread({
   }
 
   return (
-    <div className="qf-thread" data-comment-root={rootId} {...hoverProps}>
+    <div
+      className="qf-thread qf-thread-expanded"
+      data-comment-root={rootId}
+      {...hoverProps}
+    >
       <button
         aria-label="Collapse thread"
-        className="qf-thread-fold qf-thread-fold-corner qf-focusable"
+        className="qf-thread-fold qf-thread-fold-corner q-focus"
         onClick={collapse}
         title="Collapse (z)"
         type="button"
@@ -272,58 +307,49 @@ export function CommentThread({
         </div>
       )}
       {comments.map((c, i) => (
-        <div
-          className={i > 0 ? "qf-comment qf-comment-reply" : "qf-comment"}
+        <CommentItem
+          body={c.body}
+          commentId={c.id}
+          composer={
+            editingId === c.id
+              ? composer?.({
+                  initialMarkdown: c.body,
+                  onCancel: handleCancelEdit,
+                  onSubmit: submitEdit,
+                  pending: false,
+                  placeholder: "Edit your comment…",
+                  submitLabel: "Save",
+                })
+              : undefined
+          }
+          createdAt={c.createdAt}
+          editKbd={c.id === editKbdId ? "shift+e" : undefined}
           key={c.id}
-        >
-          <div className="qf-comment-head">
-            <Avatar name={c.user} size={20} url={c.userAvatarUrl} />
-            <span className="qf-comment-author">{c.user}</span>
-            <span
-              className="qf-comment-time"
-              title={formatAbsolute(c.createdAt)}
-            >
-              {formatRelativeTime(c.createdAt)}
-            </span>
-            {!composerOpen && (
-              <CommentTools
-                body={c.body}
-                commentId={c.id}
-                editKbd={c.id === editKbdId ? "shift+e" : undefined}
-                onDelete={
-                  c.user === ownLogin && onDelete ? handleDelete : undefined
-                }
-                onStartEdit={
-                  c.user === ownLogin && onEdit ? handleStartEdit : undefined
-                }
-              />
-            )}
-          </div>
-          <CommentBody
-            body={c.body}
-            editing={editingId === c.id}
-            onCancelEdit={handleCancelEdit}
-            onSubmitEdit={submitEdit}
-            owner={owner}
-            repo={repo}
-          />
-        </div>
+          onDelete={c.user === ownLogin && onDelete ? handleDelete : undefined}
+          onStartEdit={
+            c.user === ownLogin && onEdit ? handleStartEdit : undefined
+          }
+          renderMarkdown={renderMarkdown}
+          reply={i > 0}
+          tools={!composerOpen}
+          user={c.user}
+          userAvatarUrl={c.userAvatarUrl}
+        />
       ))}
       {replying ? (
         <div className="qf-comment qf-comment-reply">
-          <AddCommentBox
-            autoFocus
-            onCancel={handleCancelReply}
-            onSubmit={submitReply}
-            pending={replyPending}
-            placeholder="Reply…"
-            submitLabel="Reply"
-          />
+          {composer?.({
+            onCancel: handleCancelReply,
+            onSubmit: submitReply,
+            pending: replyPending,
+            placeholder: "Reply…",
+            submitLabel: "Reply",
+          })}
         </div>
       ) : (
         <div className="qf-thread-actions">
           <button
-            className="qf-reply-btn qf-focusable"
+            className="qf-reply-btn q-focus"
             onClick={handleStartReply}
             type="button"
           >
@@ -334,7 +360,7 @@ export function CommentThread({
           </button>
           {threadId !== null && onResolve && (
             <button
-              className="qf-reply-btn qf-resolve-btn qf-focusable"
+              className="qf-reply-btn qf-resolve-btn q-focus"
               onClick={handleResolve}
               type="button"
             >
