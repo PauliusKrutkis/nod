@@ -41,8 +41,6 @@ jobs:
       - name: Site e2e
         run: pnpm e2e:web
         env:
-          # The build reads GitHub Releases; the default token lifts the
-          # unauthenticated rate limit that shared CI IPs run into.
           GITHUB_TOKEN: ${{ github.token }}
       - uses: actions/upload-artifact@v4
         if: failure()
