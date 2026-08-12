@@ -3,7 +3,8 @@
  * hash names the visible cell (deep links land, interactions write back),
  * keys drive it without a pointer, and the matrix renders one frame per
  * fixture × theme. What the specimens look like is the screenshot suite's
- * job, not this file's.
+ * job, not this file's. The retrofit-notice test only runs while something
+ * is PENDING: an empty ratchet has no uncatalogued specimen to show.
  */
 import { catalog } from "@nod/ui/catalog";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
@@ -125,10 +126,12 @@ describe("gallery", () => {
     expect(window.location.hash).toContain("/button/");
   });
 
-  it("shows the retrofit notice for an uncatalogued component", () => {
-    window.location.hash = `#/gallery/${firstPending}`;
-    render(<Gallery />);
-    expect(screen.getByText("Not catalogued yet")).toBeDefined();
+  describe.runIf(firstPending !== undefined)("with a pending component", () => {
+    it("shows the retrofit notice for an uncatalogued component", () => {
+      window.location.hash = `#/gallery/${firstPending}`;
+      render(<Gallery />);
+      expect(screen.getByText("Not catalogued yet")).toBeDefined();
+    });
   });
 
   it("renders dialog entries inline, inside the capture frame", () => {

@@ -1,8 +1,8 @@
 /* The thread rows moved out of the app's quiet.css keeping their class names —
    the desktop's end-to-end specs locate threads by .qf-thread-row and its
-   resolved tick. The section heading and its count are new names under this
+   resolved tick. The section heading and its count are names under this
    component's own prefix, because the drawer's other headings (.qf-drawer-h,
-   .qf-drawer-count) still belong to sections that have not moved: one class,
+   .qf-drawer-count) belong to pr-drawer and travel in its sheet: one class,
    one owner.
 
    The section carries no bottom margin: it is always the drawer's last
