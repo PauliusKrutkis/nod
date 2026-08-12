@@ -5,6 +5,8 @@ import type { Page } from "./types.ts";
 const ASK_ABOUT_CODE = "Ask about code";
 const SAVE_KEY = "Save key";
 
+const UNLISTED_OPTION_PATTERN = /Use "some-unlisted-model" as typed/;
+
 const CONFIGURED = {
   aiInfo: {
     baseUrl: "https://api.nexos.ai",
@@ -25,6 +27,7 @@ async function openSetupFromPalette(page: Page) {
   await page.keyboard.press("Enter");
   const dialog = page.getByRole("dialog", { name: ASK_ABOUT_CODE });
   await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel("Model")).toBeFocused();
   return dialog;
 }
 
@@ -61,7 +64,8 @@ test("pasting a key saves config and loads the model picker", async ({
   const picker = dialog.getByLabel("Model");
   await expect(picker).toBeVisible();
   await expect(dialog.getByLabel("API key")).toHaveCount(0);
-  await picker.selectOption("gpt-4o");
+  await picker.fill("gpt-4o");
+  await page.keyboard.press("Enter");
 
   await expect(dialog.getByRole("button", { name: "Done" })).toBeVisible();
   await expect(picker).toBeVisible();
@@ -195,7 +199,7 @@ test("saving a replacement key hands the keyboard back to the picker", async ({
   await expect(dialog.getByRole("status")).toContainText("replace key");
 });
 
-test("a provider that will not list models says so, not that there are none", async ({
+test("a provider that will not list models says so, and still takes a typed id", async ({
   page,
 }) => {
   await setupApp(page, {
@@ -211,4 +215,91 @@ test("a provider that will not list models says so, not that there are none", as
     })
   ).toBeVisible();
   await expect(dialog.getByText("No chat models found")).toHaveCount(0);
+
+  await dialog.getByLabel("Model").fill("gpt-4o");
+  await page.keyboard.press("Enter");
+  await expect(dialog.getByLabel("Model")).toHaveValue("gpt-4o");
+});
+
+test("typing filters the models and enter commits the highlighted one", async ({
+  page,
+}) => {
+  await setupApp(page, CONFIGURED);
+  await openReview(page);
+  const dialog = await openSetupFromPalette(page);
+
+  const picker = dialog.getByLabel("Model");
+  await picker.fill("sonnet");
+  const options = dialog.getByRole("option");
+  await expect(options).toHaveCount(2);
+  await expect(options.first()).toContainText("claude-sonnet");
+  await expect(options.nth(1)).toContainText('Use "sonnet" as typed');
+
+  await page.keyboard.press("Enter");
+  await expect(picker).toHaveValue("claude-sonnet");
+  await expect(options).toHaveCount(0);
+
+  const saved = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("e2e:aiConfig") ?? "null")
+  );
+  expect(saved).toMatchObject({ model: "claude-sonnet" });
+});
+
+test("a model the provider never listed is still pickable", async ({
+  page,
+}) => {
+  await setupApp(page, CONFIGURED);
+  await openReview(page);
+  const dialog = await openSetupFromPalette(page);
+
+  const picker = dialog.getByLabel("Model");
+  await picker.fill("some-unlisted-model");
+  const freeText = dialog.getByRole("option", {
+    name: UNLISTED_OPTION_PATTERN,
+  });
+  await expect(freeText).toBeVisible();
+
+  await freeText.click();
+  await expect(picker).toHaveValue("some-unlisted-model");
+
+  const saved = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("e2e:aiConfig") ?? "null")
+  );
+  expect(saved).toMatchObject({ model: "some-unlisted-model" });
+});
+
+test("escape closes the list before it closes the dialog", async ({ page }) => {
+  await setupApp(page, CONFIGURED);
+  await openReview(page);
+  const dialog = await openSetupFromPalette(page);
+
+  await dialog.getByLabel("Model").fill("sonnet");
+  await expect(dialog.getByRole("option").first()).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(dialog.getByRole("option")).toHaveCount(0);
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel("Model")).toHaveValue("gpt-4o");
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+});
+
+test("clicking away closes the model list without committing", async ({
+  page,
+}) => {
+  await setupApp(page, CONFIGURED);
+  await openReview(page);
+  const dialog = await openSetupFromPalette(page);
+
+  await dialog.getByLabel("Model").fill("sonnet");
+  await expect(dialog.getByRole("option").first()).toBeVisible();
+
+  await dialog.getByText("Provider", { exact: true }).click();
+  await expect(dialog.getByRole("option")).toHaveCount(0);
+
+  const saved = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("e2e:aiConfig") ?? "null")
+  );
+  expect(saved).toBeNull();
 });

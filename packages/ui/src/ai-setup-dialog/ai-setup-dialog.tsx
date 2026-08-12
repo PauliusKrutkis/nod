@@ -21,6 +21,12 @@
  * `editingKey` is the host's because the save that flips it is the host's: the
  * mutation resolves there, and the face must change with it.
  *
+ * The picker itself is ai-model-combobox: this file keeps the label and the
+ * hint, because those describe the fetch (`models` in its three states) rather
+ * than the control, and hands the control the flat list. It also keeps the
+ * ring's Enter/Tab handler and passes it down as the combobox's fallthrough,
+ * so the picker answers its own keys and the ring still sees everything else.
+ *
  * Keyboard follows the watch-repos pattern: DOM focus stays on the model
  * picker, Tab arms an action instead of wandering focus, and the footer names
  * what Enter will do so pressing it is never a guess. Remove is a two-step arm
@@ -36,6 +42,10 @@
  */
 import { Sparkles } from "lucide-react";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
+import {
+  AiModelCombobox,
+  type AiSetupModel,
+} from "../ai-model-combobox/ai-model-combobox.tsx";
 import { Button } from "../button/button.tsx";
 import { cn } from "../cn/cn.ts";
 import { Kbd } from "../kbd/kbd.tsx";
@@ -43,17 +53,14 @@ import { useArmedRing } from "../use-armed-ring/use-armed-ring.ts";
 import { useModalDialog } from "../use-modal-dialog/use-modal-dialog.ts";
 import "./ai-setup-dialog.css";
 
+export type { AiSetupModel } from "../ai-model-combobox/ai-model-combobox.tsx";
+
 export const AI_PRESETS = [
   { id: "nexos", label: "Nexos AI", url: "https://api.nexos.ai" },
   { id: "openrouter", label: "OpenRouter", url: "https://openrouter.ai/api" },
 ] as const;
 
 export const AI_DEFAULT_BASE_URL = AI_PRESETS[0].url;
-
-export interface AiSetupModel {
-  contextLength: number | null;
-  id: string;
-}
 
 type ArmedAction = "done" | "remove" | "replace" | null;
 
@@ -73,13 +80,6 @@ function providerHost(baseUrl: string): string {
   } catch {
     return baseUrl;
   }
-}
-
-function contextLabel(model: AiSetupModel): string {
-  if (!model.contextLength) {
-    return model.id;
-  }
-  return `${model.id} · ${Math.round(model.contextLength / 1000)}k context`;
 }
 
 function armedEnterLabel(armed: ArmedAction, removeArmed: boolean): string {
@@ -162,7 +162,7 @@ function AiSetupDialogContent({
   inline = false,
 }: Omit<AiSetupDialogProps, "open">) {
   const keyRef = useRef<HTMLInputElement>(null);
-  const modelRef = useRef<HTMLSelectElement>(null);
+  const modelRef = useRef<HTMLInputElement>(null);
   const [draftBaseUrl, setDraftBaseUrl] = useState(baseUrl);
   const [apiKey, setApiKey] = useState("");
   const [preset, setPreset] = useState(() => presetFor(baseUrl));
@@ -435,35 +435,22 @@ function ModelField({
   models: readonly AiSetupModel[] | null | undefined;
   onKeyDown: (e: KeyboardEvent<HTMLElement>) => void;
   onPick: (id: string) => void;
-  ref: React.Ref<HTMLSelectElement>;
+  ref: React.Ref<HTMLInputElement>;
 }) {
   const list = models ?? [];
   const selected = list.find((m) => m.id === model);
 
-  const onChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    onPick(e.target.value);
-  };
-
   return (
     <div className="qai-field">
       <span className="qai-label">Model</span>
-      <select
-        aria-label="Model"
-        className="qai-select"
-        onChange={onChange}
-        onKeyDown={onKeyDown}
+      <AiModelCombobox
+        loading={models === undefined}
+        models={list}
+        onCommit={onPick}
+        onKeyDownFallthrough={onKeyDown}
         ref={ref}
-        value={model ?? ""}
-      >
-        <option disabled value="">
-          {models === undefined ? "Loading models…" : "Choose a model…"}
-        </option>
-        {list.map((m) => (
-          <option key={m.id} value={m.id}>
-            {contextLabel(m)}
-          </option>
-        ))}
-      </select>
+        value={model}
+      />
       <span className="qai-hint">{modelHint({ models, selected })}</span>
     </div>
   );

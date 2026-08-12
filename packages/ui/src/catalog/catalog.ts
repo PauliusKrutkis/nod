@@ -1,4 +1,5 @@
 import { addCommentBoxEntry } from "../add-comment-box/add-comment-box.fixtures.ts";
+import { aiModelComboboxEntry } from "../ai-model-combobox/ai-model-combobox.fixtures.ts";
 import { aiSetupDialogEntry } from "../ai-setup-dialog/ai-setup-dialog.fixtures.ts";
 import { askNoteEntry } from "../ask-note/ask-note.fixtures.ts";
 import { avatarEntry } from "../avatar/avatar.fixtures.ts";
@@ -52,6 +53,7 @@ import { whatsNewEntry } from "../whats-new/whats-new.fixtures.ts";
 // biome-ignore lint/suspicious/noExplicitAny: heterogeneous registry; each entry is fully typed at its definition site
 export const catalog: Record<string, CatalogEntry<any>> = {
   "add-comment-box": addCommentBoxEntry,
+  "ai-model-combobox": aiModelComboboxEntry,
   "ai-setup-dialog": aiSetupDialogEntry,
   "ask-note": askNoteEntry,
   avatar: avatarEntry,

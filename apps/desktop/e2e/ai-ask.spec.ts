@@ -195,7 +195,8 @@ test("a lands in setup when unconfigured, ask after configuring", async ({
   await expect(dialog).toBeVisible();
   await dialog.getByLabel("API key").fill("nexos-test-key");
   await page.keyboard.press("Enter");
-  await dialog.getByLabel("Model").selectOption("gpt-4o");
+  await dialog.getByLabel("Model").fill("gpt-4o");
+  await page.keyboard.press("Enter");
   await dialog.getByRole("button", { name: "Done" }).click();
 
   await page.keyboard.press("a");

@@ -6,6 +6,7 @@
   "type": "module",
   "exports": {
     "./add-comment-box": "./src/add-comment-box/add-comment-box.tsx",
+    "./ai-model-combobox": "./src/ai-model-combobox/ai-model-combobox.tsx",
     "./ai-setup-dialog": "./src/ai-setup-dialog/ai-setup-dialog.tsx",
     "./ask-note": "./src/ask-note/ask-note.tsx",
     "./avatar": "./src/avatar/avatar.tsx",

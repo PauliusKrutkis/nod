@@ -5,10 +5,12 @@
  * four fetch states (loading, unreachable, none found, the long tail).
  *
  * `overflow` is the pair that has broken this panel — a model id with no
- * break opportunity and a base URL that is one unbreakable token — because a
- * <select> is sized by its widest option and used to drag the panel wider
- * than the screen. `markup-as-text` is the security case: a provider that
- * names a model `<img …>` must render the tag, never mount it.
+ * break opportunity and a base URL that is one unbreakable token — which used
+ * to drag the panel wider than the screen. The picker's own hostile cases
+ * moved down to ai-model-combobox with the control; what stays here is the
+ * panel around it, which is why the same names appear at both levels.
+ * `markup-as-text` is the security case: a provider that names a model
+ * `<img …>` must render the tag, never mount it.
  *
  * No fixture carries an API key, and none can: the key is component state
  * that leaves only through onSaveKey, which is the same promise the
