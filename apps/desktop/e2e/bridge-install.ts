@@ -290,6 +290,12 @@ export function installBridge(cfg: BridgeConfig) {
         : cfg.subscribed,
     "plugin:opener|open": () => null,
     "plugin:opener|open_url": () => null,
+    // No native zoom without Tauri. Reject the way a refusing platform
+    // webview does, so lib/zoom.ts engages its CSS-zoom fallback — resolving
+    // null here made the app believe zoom had worked, and the browser demo
+    // could not zoom at all.
+    "plugin:webview|set_webview_zoom": () =>
+      Promise.reject(new Error("no native zoom outside Tauri")),
     resolve_thread: (args) => {
       for (const c of cfg.detail.comments as Array<{
         threadId: string | null;
