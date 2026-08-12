@@ -74,15 +74,26 @@ jobs:
       # baseline after an intended visual change (darwin has shots:update
       # locally; linux only has this job). Publishing is not merging — the
       # change still lands only when someone commits the artifact.
+      # Stage ONLY what this shard regenerated: uploading the whole snapshot
+      # dir made every shard's artifact carry stale copies of every OTHER
+      # shard's cells, and the merge action's same-path conflicts then
+      # clobbered one shard's fresh files with another's stale ones.
       - name: Generate the linux baselines this tree renders
         if: steps.classify.outputs.missing == 'true' || steps.classify.outputs.changed == 'true'
-        run: pnpm --filter @nod/gallery shots:update --shard=${{ matrix.shard }}/4
+        run: |
+          pnpm --filter @nod/gallery shots:update --shard=${{ matrix.shard }}/4
+          mkdir -p /tmp/shard-baselines
+          git -C . diff --name-only -- 'apps/gallery/e2e/gallery.shots.ts-snapshots/*-linux.png' \
+            | while read -r f; do cp "$f" /tmp/shard-baselines/; done
+          git ls-files --others --exclude-standard -- 'apps/gallery/e2e/gallery.shots.ts-snapshots/*-linux.png' \
+            | while read -r f; do cp "$f" /tmp/shard-baselines/; done
+          ls /tmp/shard-baselines | wc -l
       - name: Publish the linux baselines to commit
         if: steps.classify.outputs.missing == 'true' || steps.classify.outputs.changed == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: gallery-linux-baselines-shard-${{ matrix.shard }}
-          path: apps/gallery/e2e/gallery.shots.ts-snapshots/*-linux.png
+          path: /tmp/shard-baselines/*-linux.png
       - name: Fail when the comparison did not pass
         if: steps.shots.outputs.status != '0'
         run: |

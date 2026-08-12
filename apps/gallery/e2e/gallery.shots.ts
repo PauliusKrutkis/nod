@@ -67,6 +67,13 @@ for (const cell of cells) {
     await page.clock.setFixedTime(CAPTURE_INSTANT);
     await page.goto(`/?capture${formatGalleryHash(cell)}`);
     await page.locator("[data-frame]").first().waitFor();
+    // The freeze must have taken or the capture lies: the linux bootstrap
+    // wrote 45 baselines from pages where setFixedTime lost its race and
+    // relative timestamps rendered off the real clock. A failed assertion
+    // retries on a fresh page instead of writing a polluted baseline.
+    expect(await page.evaluate(() => Date.now())).toBe(
+      CAPTURE_INSTANT.getTime()
+    );
     await expect(page.locator("[data-frame]")).toHaveScreenshot(
       captureName(cell),
       { animations: "disabled" }
