@@ -74,13 +74,55 @@ test("the submitted review payload carries the range start", async ({
     });
 });
 
-test("extension never crosses a side boundary", async ({ page }) => {
+test("extension steps over the other side instead of dead-ending on it", async ({
+  page,
+}) => {
+  await page.keyboard.press("j");
+  await expect(
+    page.locator('.qf-row-active[data-anchor="RIGHT:1"]')
+  ).toBeVisible();
+
+  await page.keyboard.press("Shift+j");
+  await expect(
+    page.locator('.qf-row-selected[data-anchor="RIGHT:1"]')
+  ).toBeVisible();
+  await expect(
+    page.locator('.qf-row-selected[data-anchor="RIGHT:2"]')
+  ).toBeVisible();
+
+  await page.keyboard.press("c");
+  await expect(page.locator(".qf-range-head")).toHaveText("Lines 1–2");
+});
+
+test("a range that stepped over a deletion sends one side to the host", async ({
+  page,
+}) => {
   await page.keyboard.press("j");
   await expect(
     page.locator('.qf-row-active[data-anchor="RIGHT:1"]')
   ).toBeVisible();
   await page.keyboard.press("Shift+j");
-  await expect(page.locator(".qf-row-selected")).toHaveCount(0);
+
+  await page.keyboard.press("c");
+  const ed = page.getByRole("textbox", { name: "Add a review comment…" });
+  await expect(ed).toBeFocused();
+  await page.keyboard.type("both of these");
+  await page.keyboard.press("ControlOrMeta+Enter");
+  await expect(page.getByText("Pending")).toBeVisible();
+
+  await page.keyboard.press("s");
+  await page.keyboard.press("ControlOrMeta+Enter");
+  await expect
+    .poll(async () =>
+      page.evaluate(() =>
+        JSON.parse(localStorage.getItem("e2e:lastReview") ?? "null")
+      )
+    )
+    .toMatchObject({
+      comments: [
+        { line: 2, path: "src/lib/fuzzy.ts", side: "RIGHT", startLine: 1 },
+      ],
+    });
 });
 
 test("shift+k shrinks back over the anchor and the range collapses", async ({
