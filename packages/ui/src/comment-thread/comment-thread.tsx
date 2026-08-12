@@ -17,7 +17,9 @@
  *
  * Two host seams keep the thread renderable from a fixture. `composer` is
  * asked for the editor that replies and edits use — a rich text editor the
- * package does not own — and a thread without one simply never opens it.
+ * package does not own — and a thread without one simply never opens it:
+ * Reply and Edit render but stay inert, rather than swapping the card into a
+ * composer state nothing can fill or leave.
  * `renderMarkdown` is the body renderer, passed through to each comment.
  * `ownLogin` decides which comments are yours, so the account lookup stays
  * with the surface that has the store.
@@ -142,6 +144,9 @@ export function CommentThread({
   }
 
   applyCommand(replyRequest, rootId, lastReplyNonce, setLastReplyNonce, () => {
+    if (!composer) {
+      return;
+    }
     setCollapsed(false);
     setReplying(true);
     setEditingId(null);
@@ -158,7 +163,7 @@ export function CommentThread({
     }
   );
   applyCommand(editRequest, rootId, lastEditNonce, setLastEditNonce, () => {
-    if (lastOwnId === undefined || !onEdit) {
+    if (lastOwnId === undefined || !onEdit || !composer) {
       return;
     }
     setCollapsed(false);
@@ -181,6 +186,9 @@ export function CommentThread({
   };
 
   const handleStartEdit = (commentId: number) => {
+    if (!composer) {
+      return;
+    }
     setEditingId(commentId);
     setReplying(false);
   };
@@ -207,6 +215,9 @@ export function CommentThread({
   };
 
   const handleStartReply = () => {
+    if (!composer) {
+      return;
+    }
     setReplying(true);
   };
 

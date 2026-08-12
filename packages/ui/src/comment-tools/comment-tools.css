@@ -3,7 +3,11 @@
    the reveal: the strip is hidden at rest and fades in on hover/focus-within
    of the thread or drawer row around it, and those ancestors are still app
    surfaces. Here the strip is simply visible, which is the only thing a
-   specimen of it can be. */
+   specimen of it can be.
+
+   The tool button spells out its font-family: a <button> does not inherit
+   font, the desktop only looked right through Tailwind's preflight, and the
+   package may only assume the host's border-box reset (styles.css). */
 
 .qf-comment-tools {
   display: inline-flex;
@@ -16,6 +20,7 @@
   gap: 5px;
   align-items: center;
   padding: 2px 6px;
+  font-family: var(--font-ui);
   font-size: 11px;
   color: var(--faint);
   cursor: pointer;
