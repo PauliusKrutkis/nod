@@ -15,17 +15,20 @@
    their line box to whole pixels (19px, not a unitless factor): the topbar
    sits above the stage, so a fractional chrome height pushes every capture
    frame off the integer pixel grid and shifts antialiasing in every
-   baseline. The capture frame is layered: a faint dot grid on the frame
-   marks gallery territory: the frame ring sits in a well dimmed below the
-   stage (color-mix toward black works on both themes) and the solid mat
-   (.qg-mat) rides on it as a sheet — its fill is exactly the surface that
-   stood behind specimens before. The sheet's edge is the tonal step alone,
-   no seam line: a hairline there doubled against specimens that carry
-   their own border at fluid width (ask-note's dotted hairline reads as the
-   component; a second line around it read as gallery noise). Under the
-   ?capture query flag (qg-capture on the root) the well and the grid are
-   suppressed and the mat vanishes into the frame background — the
-   screenshot suite sees the pre-mat pixels. Animations pause under
+   baseline. The capture frame is layered: the frame ring is a flat well
+   dimmed below the stage (color-mix toward black works on both themes;
+   a dot texture was tried and read as a rendering artifact at reading
+   zoom) and the solid mat (.qg-mat) rides on it — its fill is exactly the
+   surface that stood behind specimens before. The mat fills the frame's
+   whole content box, so the well is a constant ring at the frame's edge
+   and never an edge tracking the specimen: every earlier tighter boundary
+   (hairline seam, then the hugging sheet's tonal step) read as a second
+   border on specimens that draw their own. Where the component's box
+   begins is marked instead by the slot's corner ticks (.qg-slot-tick),
+   the frame ticks' language one size down. Under the ?capture query flag
+   (qg-capture on the root) the well and the slot ticks are suppressed and
+   the mat vanishes into the frame background — the screenshot suite sees
+   the pre-mat pixels. Animations pause under
    prefers-reduced-motion so webkit captures are deterministic. */
 
 .qg-root {
@@ -310,11 +313,6 @@
   min-height: 110px;
   padding: 34px 38px;
   background: color-mix(in srgb, var(--bg) 85%, black);
-  background-image: radial-gradient(
-    color-mix(in srgb, var(--line) 70%, transparent) 1px,
-    transparent 1px
-  );
-  background-size: 10px 10px;
   border: 1px solid var(--line);
   border-radius: var(--r-xl);
   overflow: hidden;
@@ -322,7 +320,6 @@
 
 .qg-capture .qg-frame {
   background: var(--surface);
-  background-image: none;
 }
 
 .qg-frame-fit {
@@ -335,6 +332,7 @@
   flex: 1;
   display: flex;
   align-items: center;
+  align-self: stretch;
   background: var(--surface);
   min-width: 0;
   border-radius: var(--r-lg);
@@ -342,6 +340,73 @@
 
 .qg-capture .qg-mat {
   border-radius: 0;
+}
+
+/* Corner ticks at the mat's corners: the frame ticks' language one size
+   down, marking where the component's canvas begins without a continuous
+   line a specimen border could double against. They are FRAME children at
+   the padding insets, never elements inside the specimen's ancestor chain:
+   a positioned wrapper around the slot re-anchored absolutely positioned
+   specimens (find-bar, overview-ruler, review-toast) and shifted 90
+   captures. They hide under ?capture so no baseline ever carries them. */
+.qg-slot-tick {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  pointer-events: none;
+  border: 0 solid color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.qg-slot-tick.qg-tl {
+  top: 34px;
+  left: 38px;
+  border-top-width: 1px;
+  border-left-width: 1px;
+}
+
+.qg-slot-tick.qg-tr {
+  top: 34px;
+  right: 38px;
+  border-top-width: 1px;
+  border-right-width: 1px;
+}
+
+.qg-slot-tick.qg-bl {
+  bottom: 34px;
+  left: 38px;
+  border-bottom-width: 1px;
+  border-left-width: 1px;
+}
+
+.qg-slot-tick.qg-br {
+  bottom: 34px;
+  right: 38px;
+  border-bottom-width: 1px;
+  border-right-width: 1px;
+}
+
+.qg-matrix .qg-slot-tick.qg-tl,
+.qg-matrix .qg-slot-tick.qg-tr {
+  top: 26px;
+}
+
+.qg-matrix .qg-slot-tick.qg-bl,
+.qg-matrix .qg-slot-tick.qg-br {
+  bottom: 26px;
+}
+
+.qg-matrix .qg-slot-tick.qg-tl,
+.qg-matrix .qg-slot-tick.qg-bl {
+  left: 28px;
+}
+
+.qg-matrix .qg-slot-tick.qg-tr,
+.qg-matrix .qg-slot-tick.qg-br {
+  right: 28px;
+}
+
+.qg-capture .qg-slot-tick {
+  display: none;
 }
 
 .qg-frame-fit .qg-mat {
