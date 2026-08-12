@@ -192,7 +192,7 @@ body {
   user-select: none;
 }
 
-/* Diff line backgrounds and markdown (.md) live in quiet.css, and the hljs
-   retheme in @nod/ui/styles.css, so the ported q- and qf- CSS, the package
-   components and the Tailwind utilities share one source of truth for the
-   Quiet look. */
+/* Diff line backgrounds live in quiet.css, the hljs retheme in
+   @nod/ui/styles.css and the markdown prose (.md) in @nod/ui/markdown, so the
+   ported q- and qf- CSS, the package components and the Tailwind utilities
+   share one source of truth for the Quiet look. */
