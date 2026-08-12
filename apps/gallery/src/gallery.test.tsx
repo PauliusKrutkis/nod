@@ -147,13 +147,15 @@ describe("gallery", () => {
   });
 
   it("find walks matches with the arrows", () => {
-    render(<Gallery />);
+    const { container } = render(<Gallery />);
     const find = screen.getByLabelText("Find a component");
     fireEvent.change(find, { target: { value: "b" } });
+    const third = container.querySelectorAll(".qg-rail-item .qg-name")[2];
+    expect(third).toBeDefined();
     fireEvent.keyDown(find, { key: "ArrowDown" });
     fireEvent.keyDown(find, { key: "ArrowDown" });
     fireEvent.keyDown(find, { key: "Enter" });
-    expect(window.location.hash).toContain("/button/");
+    expect(window.location.hash).toContain(`/${third?.textContent}/`);
   });
 
   describe.runIf(firstPending !== undefined)("with a pending component", () => {

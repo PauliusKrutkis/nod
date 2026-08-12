@@ -1,0 +1,122 @@
+/* The qmc family — the picker used to be Tailwind utilities over the app's
+   .q-input, so none of it survived outside the desktop bundle. Owned here for
+   the same reason the qai family is: importing the component brings its look,
+   and the gallery renders it with no Tailwind and no app stylesheet.
+
+   The option rows are <button>, so they carry the full native chrome reset —
+   appearance, background, border, font, and the UA's centred text — and take
+   their own hover treatment from the highlight class instead. Pointer hover is
+   deliberately not a :hover rule: the highlight is keyboard state that the
+   mouse writes through onMouseMove, and a separate :hover would light a second
+   row whenever the pointer rested somewhere the arrows had not.
+
+   The list is capped in height and scrolls, because a provider that returns
+   hundreds of models would otherwise push the dialog past the viewport. The
+   row's id column is min-width: 0 so it ellipsizes rather than shoving the
+   context chip out — flex items default to min-width: auto, and OpenRouter
+   routinely ships ids with no break opportunity. */
+
+.qmc {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.qmc-field {
+  position: relative;
+  min-width: 0;
+}
+
+.qmc-input {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 9px 32px 9px 12px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.qmc-input::placeholder {
+  color: var(--faint);
+}
+
+.qmc-input:focus {
+  outline: none;
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.qmc-chevron {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  color: var(--faint);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.qmc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 224px;
+  padding: 4px;
+  overflow-y: auto;
+  background: var(--surface-hi);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-lg);
+}
+
+.qmc-opt {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  width: 100%;
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: var(--r-md);
+  appearance: none;
+}
+
+.qmc-opt-on {
+  color: var(--fg);
+  background: var(--accent-soft);
+}
+
+.qmc-opt-free {
+  color: var(--accent);
+}
+
+.qmc-opt-id {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qmc-opt-meta {
+  flex-shrink: 0;
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qmc-input {
+    transition: none;
+  }
+}

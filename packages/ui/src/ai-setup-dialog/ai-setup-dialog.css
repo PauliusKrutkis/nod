@@ -4,10 +4,11 @@
    paragraph margins are declared rather than inherited from a preflight for
    the same reason.
 
-   Every column in the body is min-width: 0, and the model picker is capped at
-   100%: a <select> sizes itself to its widest option, and flex items default
-   to min-width: auto, so one long model id (OpenRouter routinely ships them)
-   pushed the whole panel wider than the viewport instead of clipping.
+   Every column in the body is min-width: 0. Flex items default to min-width:
+   auto, so one long model id (OpenRouter routinely ships them) pushed the
+   whole panel wider than the viewport instead of clipping — first through a
+   <select> sizing itself to its widest option, and the constraint outlived it
+   because the base URL field is the same shape of problem.
 
    The connection row wraps, and its text column carries a 150px flex-basis
    rather than a bare flex: 1. With unshrinkable buttons beside it, "shrink to
@@ -154,8 +155,7 @@
   box-shadow: inset 0 0 0 1px var(--line-2);
 }
 
-.qai-input,
-.qai-select {
+.qai-input {
   width: 100%;
   min-width: 0;
   max-width: 100%;
@@ -175,8 +175,7 @@
   color: var(--faint);
 }
 
-.qai-input:focus,
-.qai-select:focus {
+.qai-input:focus {
   outline: none;
   border-color: var(--accent-line);
   box-shadow: 0 0 0 3px var(--accent-soft);
@@ -237,8 +236,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .qai-input,
-  .qai-select {
+  .qai-input {
     transition: none;
   }
 }

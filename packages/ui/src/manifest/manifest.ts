@@ -26,6 +26,19 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "unicode",
     ],
   },
+  "ai-model-combobox": {
+    fixtures: [
+      "closed",
+      "crowd-120",
+      "filtered",
+      "free-text",
+      "loading",
+      "markup-as-text",
+      "open-typical",
+      "overflow",
+      "unicode",
+    ],
+  },
   "ai-setup-dialog": {
     dialog: true,
     fixtures: [
