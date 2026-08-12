@@ -5,6 +5,7 @@ import FeatureShowcase from "../components/FeatureShowcase.astro";
 import LocalStrip from "../components/LocalStrip.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteNav from "../components/SiteNav.astro";
+import { Kbd } from "@nod/ui/kbd";
 import { CONTACT_EMAIL } from "../lib/site";
 
 // The buy button appears only when a checkout exists (build-time env, set
@@ -55,9 +56,9 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
           scene="loop"
           label="Real footage of Nod: triaging the inbox with j and k, opening a pull request, marking files viewed, and submitting the review."
         >
-          <kbd class="keycap">j</kbd>
-          <kbd class="keycap">k</kbd> triage · <kbd class="keycap">e</kbd>
-          viewed · <kbd class="keycap">s</kbd> submit
+          <Kbd combo="j" />{" "}<Kbd combo="k" /> triage ·{" "}<Kbd
+            combo="e"
+          /> viewed ·{" "}<Kbd combo="s" /> submit
         </FeatureShowcase>
         <FeatureShowcase
           keys={["c"]}
@@ -66,10 +67,8 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
           scene="comments"
           label="Real footage of Nod: opening an inline composer on the cursor line, typing a comment, and adding it to a pending review."
         >
-          <kbd class="keycap">c</kbd> comment ·{" "}<span
-            class="show__chord"
-            ><kbd class="keycap">⌘</kbd><kbd class="keycap">↵</kbd></span
-          >{" "}add to review
+          <Kbd combo="c" /> comment ·{" "}<Kbd combo="mod+enter" />{" "}add to
+          review
         </FeatureShowcase>
         <FeatureShowcase
           keys={["⌘", "F"]}
@@ -78,9 +77,7 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
           scene="scan"
           label="Real footage of Nod: occurrence marks lighting up on a clicked token, then find-in-diff stepping through matches marked on the overview ruler."
         >
-          double-click marks ·{" "}<span class="show__chord"
-            ><kbd class="keycap">⌘</kbd><kbd class="keycap">F</kbd></span
-          >{" "}find in the diff
+          double-click marks ·{" "}<Kbd combo="mod+f" />{" "}find in the diff
         </FeatureShowcase>
       </div>
     </section>

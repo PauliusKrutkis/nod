@@ -9,7 +9,10 @@
 // Coarse pointers and narrow viewports open /demo/ in its own tab instead
 // of embedding a keyboard app where there is no keyboard. Nothing from the
 // 780KB demo bundle loads until the visitor asks for it — idle visitors pay
-// only for the poster.
+// only for the poster. The keycaps are the app's real Kbd component from
+// @nod/ui, server-rendered at build time (no client: directive, no client
+// JS): they depict the app's keys 1:1, so they are the app's keys.
+import { Kbd } from "@nod/ui/kbd";
 ---
 
 <figure
@@ -30,16 +33,16 @@
     />
     <button class="hd__start" type="button">
       <span class="hd__when-embedded"
-        >Try the real app: press <kbd class="hd__kbd mono">j</kbd></span
+        >Try the real app: press <Kbd combo="j" /></span
       >
       <span class="hd__when-tab">Try the real app</span>
     </button>
   </div>
   <figcaption class="hd__caption mono">
     <span class="hd__when-embedded"
-      >the actual Nod frontend on fixture PRs ·
-      <kbd class="keycap">⇧F</kbd> full screen ·
-      <kbd class="keycap">esc</kbd> exits from the inbox · click outside
+      >the actual Nod frontend on fixture PRs ·{" "}<Kbd combo="shift+f" />
+      {" "}full screen ·{" "}<Kbd combo="esc" />
+      {" "}exits from the inbox · click outside
       releases the keyboard</span
     >
     <span class="hd__when-tab"
@@ -295,17 +298,6 @@
 
   :global(.hd-scroll-lock) {
     overflow: hidden;
-  }
-
-  .hd__kbd {
-    display: inline-grid;
-    place-items: center;
-    min-width: 1.7em;
-    height: 1.7em;
-    padding-inline: 0.4em;
-    border-radius: 5px;
-    background: rgba(20, 17, 31, 0.18);
-    font-size: 0.75rem;
   }
 
   :global(.hd__iframe) {
