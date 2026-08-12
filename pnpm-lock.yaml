@@ -74,24 +74,9 @@ importers:
       react-dom:
         specifier: ^19.1.0
         version: 19.2.7(react@19.2.7)
-      react-markdown:
-        specifier: ^9.0.1
-        version: 9.1.0(@types/react@19.2.17)(react@19.2.7)
       react-virtuoso:
         specifier: ^4.18.10
         version: 4.18.10(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      rehype-raw:
-        specifier: ^7.0.0
-        version: 7.0.0
-      rehype-sanitize:
-        specifier: ^6.0.0
-        version: 6.0.0
-      remark-breaks:
-        specifier: ^4.0.0
-        version: 4.0.0
-      remark-gfm:
-        specifier: ^4.0.0
-        version: 4.0.1
       zustand:
         specifier: ^5.0.2
         version: 5.0.14(@types/react@19.2.17)(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))
@@ -245,6 +230,21 @@ importers:
       lucide-react:
         specifier: ^1.22.0
         version: 1.23.0(react@19.2.7)
+      react-markdown:
+        specifier: ^9.0.1
+        version: 9.1.0(@types/react@19.2.17)(react@19.2.7)
+      rehype-raw:
+        specifier: ^7.0.0
+        version: 7.0.0
+      rehype-sanitize:
+        specifier: ^6.0.0
+        version: 6.0.0
+      remark-breaks:
+        specifier: ^4.0.0
+        version: 4.0.0
+      remark-gfm:
+        specifier: ^4.0.0
+        version: 4.0.1
     devDependencies:
       '@testing-library/react':
         specifier: ^16.3.2

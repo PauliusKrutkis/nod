@@ -2,7 +2,7 @@
    The "Quiet" design system.
 
    Two layers:
-     1. Shared primitives (`q-*`, `.md`, syntax) — unscoped, used everywhere.
+     1. Shared primitives (`q-*`, syntax) — unscoped, used everywhere.
      2. The Review screen (`qf-*`) — scoped under `.dir-quiet`, applied on the
         ReviewScreen root.
 
@@ -10,7 +10,9 @@
    kept in sync with the Tailwind `@theme` `--color-*` values. The highlight.js
    output retheme (`.hljs-*`) used to be a third layer here; it lives in
    @nod/ui/styles.css now, because the package's own code surfaces render the
-   same token spans.
+   same token spans. The `.md` prose family left for the same reason — it
+   travels with @nod/ui/markdown — leaving only the two host overrides
+   gathered under "markdown bridges" below.
    =========================================================================== */
 
 /* ===========================================================================
@@ -202,205 +204,19 @@ textarea.q-input {
   border-color: var(--accent-line);
 }
 
-/* ---- markdown (global; the review drawer's scoped copy overrides inside .dir-quiet) ---- */
-.md {
-  font-family: var(--font-ui);
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--fg-bright);
-}
-.md > *:first-child {
-  margin-top: 0;
-}
-.md > *:last-child {
-  margin-bottom: 0;
-}
-.md h1 {
-  margin: 18px 0 8px;
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--fg);
-}
-.md h2 {
-  margin: 18px 0 8px;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--fg);
-}
-.md h3 {
-  margin: 16px 0 6px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--fg);
-  letter-spacing: 0.02em;
-}
-.md h4 {
-  margin: 12px 0 4px;
+/* ---- markdown bridges: the app's only .md rules, ordered by specificity ----
+   The prose family itself is @nod/ui/markdown's. These two say where this app
+   wants it quieter than the component's default: an AI answer is aside-weight
+   text, and the release timeline would otherwise get a second 13px/bright
+   body inside its own. Both hosts are package components, but pairing them
+   with Markdown is this app's choice, so the bridges live here. */
+.qrh-notes .md {
   font-size: 12px;
-  font-weight: 600;
+  line-height: 1.5;
   color: var(--muted);
 }
-.md p {
-  margin: 8px 0;
-}
-.md ul {
-  padding-left: 18px;
-  margin: 8px 0;
-  list-style: none;
-}
-.md ol {
-  padding-left: 22px;
-  margin: 8px 0;
-}
-.md li {
-  position: relative;
-  margin: 4px 0;
-}
-.md ul > li::before {
-  position: absolute;
-  top: 9px;
-  left: -14px;
-  width: 4px;
-  height: 4px;
-  content: "";
-  background: var(--accent);
-  border-radius: var(--r-pill);
-  opacity: 0.7;
-}
-.md a {
-  color: var(--accent);
-  text-decoration: none;
-  border-bottom: 1px solid var(--accent-line);
-}
-.md a:hover {
-  border-bottom-color: var(--accent);
-}
-.md strong {
-  font-weight: 600;
-  color: var(--fg);
-}
-.md em {
-  font-style: italic;
+.dir-quiet .qf-ask-a .md {
   color: var(--muted);
-}
-.md code {
-  padding: 1px 5px;
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  color: var(--syn-keyword);
-  background: var(--surface-hi);
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-}
-.md pre {
-  padding: 12px;
-  margin: 10px 0;
-  overflow-x: auto;
-  font-family: var(--font-mono);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-}
-.md pre code {
-  padding: 0;
-  color: var(--fg);
-  background: none;
-  border: none;
-}
-.md blockquote {
-  padding: 4px 0 4px 14px;
-  margin: 10px 0;
-  color: var(--muted);
-  border-left: 2px solid var(--accent-line);
-}
-.md table {
-  margin: 10px 0;
-  font-size: 12.5px;
-  border-collapse: collapse;
-}
-.md th,
-.md td {
-  padding: 5px 10px;
-  text-align: left;
-  border: 1px solid var(--line);
-}
-.md th {
-  font-weight: 600;
-  color: var(--fg);
-  background: var(--surface-hi);
-}
-.md hr {
-  margin: 16px 0;
-  border: none;
-  border-top: 1px solid var(--line);
-}
-.md img,
-.md video {
-  max-width: 100%;
-  border-radius: var(--r-lg);
-}
-
-/* ```suggestion fences render as a proposed change, not a code sample: the
-   suggested lines wear the diff's "added" tokens. */
-.md-suggestion {
-  margin: 10px 0;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-}
-.md-suggestion-head {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  justify-content: space-between;
-  padding: 5px 10px;
-  font-family: var(--font-ui);
-  font-size: 11px;
-  color: var(--muted);
-  background: var(--surface-hi);
-  border-bottom: 1px solid var(--line);
-}
-.md-suggestion-copy {
-  display: inline-flex;
-  gap: 5px;
-  align-items: center;
-  padding: 2px 8px;
-  font-size: 11px;
-  color: var(--muted);
-  cursor: pointer;
-  background: transparent;
-  border: 1px solid var(--line-2);
-  border-radius: var(--r-md);
-  transition:
-    color 120ms ease,
-    border-color 120ms ease;
-}
-.md-suggestion-copy:hover {
-  color: var(--fg);
-}
-.md-suggestion-copied {
-  color: var(--add);
-  border-color: var(--add);
-}
-.md-suggestion-body {
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  background: var(--bg);
-}
-.md-suggestion-line {
-  position: relative;
-  min-height: 1.6em;
-  padding: 1.5px 10px 1.5px 24px;
-  color: var(--fg);
-  word-break: break-word;
-  white-space: pre-wrap;
-  background: var(--add-bg);
-}
-.md-suggestion-line::before {
-  position: absolute;
-  left: 9px;
-  color: var(--add);
-  content: "+";
 }
 
 /* ---- syntax tokens (lab tokenizer; harmless if unused by hljs) ---- */
@@ -1638,9 +1454,6 @@ textarea.q-input {
 .dir-quiet .qf-ask-pr .qf-ask {
   margin: 0;
 }
-.dir-quiet .qf-ask-a .md {
-  color: var(--muted);
-}
 
 /* pending */
 .dir-quiet .qf-pending {
@@ -2044,12 +1857,10 @@ textarea.q-input {
   min-width: 0;
   padding: 18px;
   /* Never sideways: long unbroken content (inline code, URLs) wraps instead
-     of widening the column, and <pre> blocks scroll internally (.md pre). */
+     of widening the column — @nod/ui/markdown wraps prose anywhere and
+     scrolls <pre> internally, this is the backstop for everything else. */
   overflow-x: hidden;
   overflow-y: auto;
-}
-.dir-quiet .qf-drawer-body .md {
-  overflow-wrap: anywhere;
 }
 .dir-quiet .qf-drawer-body > .qf-drawer-section:last-child {
   margin-bottom: 0;
@@ -3108,16 +2919,6 @@ textarea.q-input {
 }
 .qb-whatsnew-notes section:first-child .qb-whatsnew-tag {
   margin-top: 0;
-}
-
-/* The release timeline lives in @nod/ui/release-history and renders its notes
-   through whatever the host supplies; here that is <Markdown>, whose .md
-   block would otherwise re-assert its own 13px/bright body inside the
-   timeline. This is the only rule that bridges the two. */
-.qrh-notes .md {
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--muted);
 }
 
 @keyframes qb-rise {

@@ -46,7 +46,7 @@ import { openExternal } from "../../lib/open-external.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type { InboxData, InboxTabKey, PullRequest } from "../../types.ts";
 import { prKey } from "../../types.ts";
-import { Markdown } from "../markdown.tsx";
+import { Markdown } from "../markdown-loader.tsx";
 import { WatchReposDialog } from "./watch-repos-dialog.tsx";
 
 const TABS: { key: InboxTabKey; label: string; hint: string }[] = [

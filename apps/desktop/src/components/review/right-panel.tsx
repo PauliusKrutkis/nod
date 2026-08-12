@@ -50,7 +50,7 @@ import type {
   ReviewComment,
   ReviewSummary,
 } from "../../types.ts";
-import { Markdown } from "../markdown.tsx";
+import { Markdown } from "../markdown-loader.tsx";
 import { AddCommentBox, type AddCommentBoxHandle } from "./add-comment-box.tsx";
 import { CommentBody } from "./comment-item.tsx";
 

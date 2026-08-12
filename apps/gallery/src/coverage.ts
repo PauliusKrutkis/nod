@@ -25,6 +25,8 @@ export const CONTAINERS: Record<string, string> = {
     "store and query wiring only; its view is search-pane, catalogued in @nod/ui",
   "image-diff-loader":
     "blob fetching only; its view is image-diff, catalogued in @nod/ui",
+  "markdown-loader":
+    "the Tauri link opener, GitLab source rewriting and the authenticated upload query; its view is markdown, catalogued in @nod/ui",
   "purchase-prompt-loader":
     "license query, activation command and once-per-launch dismissal; its card is purchase-prompt in @nod/ui",
   "review-screen-pending-loader":
@@ -50,7 +52,6 @@ export const PENDING = [
   "composer-editor",
   "file-sidebar",
   "inbox",
-  "markdown",
   "pr-search",
   "review-diff-pane",
   "review-header",

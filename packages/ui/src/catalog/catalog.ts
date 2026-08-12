@@ -12,6 +12,7 @@ import { highlightIndicesEntry } from "../highlight-indices/highlight-indices.fi
 import { imageDiffEntry } from "../image-diff/image-diff.fixtures.ts";
 import { issueTrackerDialogEntry } from "../issue-tracker-dialog/issue-tracker-dialog.fixtures.ts";
 import { kbdEntry } from "../kbd/kbd.fixtures.ts";
+import { markdownEntry } from "../markdown/markdown.fixtures.ts";
 import { overviewRulerEntry } from "../overview-ruler/overview-ruler.fixtures.ts";
 import { prListItemEntry } from "../pr-list-item/pr-list-item.fixtures.ts";
 import { purchasePromptEntry } from "../purchase-prompt/purchase-prompt.fixtures.ts";
@@ -40,6 +41,7 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   "image-diff": imageDiffEntry,
   "issue-tracker-dialog": issueTrackerDialogEntry,
   kbd: kbdEntry,
+  markdown: markdownEntry,
   "overview-ruler": overviewRulerEntry,
   "pr-list-item": prListItemEntry,
   "purchase-prompt": purchasePromptEntry,

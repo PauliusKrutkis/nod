@@ -46,7 +46,7 @@ import {
 } from "../../lib/sticky-header-push.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type { AccountInfo, ChangedFile, PendingComment } from "../../types.ts";
-import { Markdown } from "../markdown.tsx";
+import { Markdown } from "../markdown-loader.tsx";
 import { AddCommentBox } from "./add-comment-box.tsx";
 import {
   CommentThread,

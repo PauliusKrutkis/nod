@@ -1,0 +1,224 @@
+/* Markdown prose, loaded by importing the component. The `.md` family is the
+   only place host-authored prose is styled, so it stays deliberately flat:
+   headings step down in size rather than shouting, links carry a hairline
+   instead of an underline, and inline code borrows the syntax palette's
+   keyword shade while fenced blocks scroll internally rather than widening
+   their column.
+
+   Bodies come from strangers, so three rules here are structural rather than
+   cosmetic. `overflow-wrap: anywhere` stops an unbroken 2,000-character token
+   (a base64 blob, a stack frame, a signed URL) from setting the block's
+   min-content width and pushing every ancestor open. Cells opt back out and
+   the table scrolls instead, because breaking mid-word to fit a column turns
+   `5.62.0` into two lines. And an image clamped by `max-width` needs
+   `height: auto` beside it or the intrinsic width/height attributes hosts
+   emit squash it out of aspect.
+
+   The ```suggestion family renders a proposed change rather than a code
+   sample: the suggested lines wear the diff's "added" tokens. */
+
+.md {
+  min-width: 0;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--fg-bright);
+  overflow-wrap: anywhere;
+}
+.md > *:first-child {
+  margin-top: 0;
+}
+.md > *:last-child {
+  margin-bottom: 0;
+}
+.md h1 {
+  margin: 18px 0 8px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.md h2 {
+  margin: 18px 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.md h3 {
+  margin: 16px 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+  letter-spacing: 0.02em;
+}
+.md h4 {
+  margin: 12px 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.md p {
+  margin: 8px 0;
+}
+.md ul {
+  padding-left: 18px;
+  margin: 8px 0;
+  list-style: none;
+}
+.md ol {
+  padding-left: 22px;
+  margin: 8px 0;
+}
+.md li {
+  position: relative;
+  margin: 4px 0;
+}
+.md ul > li::before {
+  position: absolute;
+  top: 9px;
+  left: -14px;
+  width: 4px;
+  height: 4px;
+  content: "";
+  background: var(--accent);
+  border-radius: var(--r-pill);
+  opacity: 0.7;
+}
+.md a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent-line);
+}
+.md a:hover {
+  border-bottom-color: var(--accent);
+}
+.md strong {
+  font-weight: 600;
+  color: var(--fg);
+}
+.md em {
+  font-style: italic;
+  color: var(--muted);
+}
+.md code {
+  padding: 1px 5px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--syn-keyword);
+  background: var(--surface-hi);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+.md pre {
+  padding: 12px;
+  margin: 10px 0;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+.md pre code {
+  padding: 0;
+  color: var(--fg);
+  background: none;
+  border: none;
+}
+.md blockquote {
+  padding: 4px 0 4px 14px;
+  margin: 10px 0;
+  color: var(--muted);
+  border-left: 2px solid var(--accent-line);
+}
+.md table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  margin: 10px 0;
+  overflow-x: auto;
+  font-size: 12.5px;
+  border-collapse: collapse;
+}
+.md th,
+.md td {
+  padding: 5px 10px;
+  overflow-wrap: normal;
+  text-align: left;
+  border: 1px solid var(--line);
+}
+.md th {
+  font-weight: 600;
+  color: var(--fg);
+  background: var(--surface-hi);
+}
+.md hr {
+  margin: 16px 0;
+  border: none;
+  border-top: 1px solid var(--line);
+}
+.md img,
+.md video {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--r-lg);
+}
+
+.md-suggestion {
+  margin: 10px 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+.md-suggestion-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 10px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--surface-hi);
+  border-bottom: 1px solid var(--line);
+}
+.md-suggestion-copy {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--muted);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-md);
+  transition:
+    color 120ms ease,
+    border-color 120ms ease;
+}
+.md-suggestion-copy:hover {
+  color: var(--fg);
+}
+.md-suggestion-copied {
+  color: var(--add);
+  border-color: var(--add);
+}
+.md-suggestion-body {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  background: var(--bg);
+}
+.md-suggestion-line {
+  position: relative;
+  min-height: 1.6em;
+  padding: 1.5px 10px 1.5px 24px;
+  color: var(--fg);
+  word-break: break-word;
+  white-space: pre-wrap;
+  background: var(--add-bg);
+}
+.md-suggestion-line::before {
+  position: absolute;
+  left: 9px;
+  color: var(--add);
+  content: "+";
+}
