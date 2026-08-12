@@ -33,13 +33,12 @@ field — Tauri uses it in the built binary, and `get_app_version` in
 is what the What's-new gate and release-history "current" dot compare
 against.
 
-`package.json` and `apps/desktop/src-tauri/Cargo.toml` also carry a `version` field but
-**past releases only bumped `tauri.conf.json`** (check `git show --stat` on
-any `release: vX.Y.Z` commit — one file changes). As a result they're
-currently stale (`0.1.0`) while `tauri.conf.json` is at `0.2.0`. Bump all
-three in lockstep going forward — it's more correct and costs nothing — but
-don't be surprised the first time this skill runs that it's also fixing
-pre-existing drift.
+`package.json`, `apps/desktop/package.json` and `apps/desktop/src-tauri/Cargo.toml`
+also carry a `version` field. Releases before v0.6.0 only bumped
+`tauri.conf.json`, so those three drifted; v0.6.0 converged all four and
+`Cargo.lock`. They are in lockstep as of v0.6.0, so a run that finds them
+disagreeing should treat that as a signal something went wrong, not as the
+expected state.
 
 ## Procedure
 
@@ -71,11 +70,11 @@ git log <lastTag>..HEAD --no-merges --oneline
 gh pr list --state merged --search "merged:>=<lastReleaseDate>" --json number,title,body
 ```
 
-Write 3-8 bullets in the voice of past releases (read a couple with
-`gh release view vX.Y.Z --json body` for calibration): short noun phrases for
-features, `Fixed: ...` for bug fixes, newest/most-user-visible first. Only
-include things a user would notice — skip refactors, test/CI/docs-only
-changes, internal chores. End with the standard closing line:
+Write 3-8 bullets: short noun phrases for features, `Fixed: ...` for bug
+fixes, newest/most-user-visible first. Follow [Voice](#voice) to the letter,
+and read it before writing the first bullet, not after. Only include things a
+user would notice — skip refactors, test/CI/docs-only changes, internal
+chores. End with the standard closing line:
 
 ```
 See the assets below to install this version. The app auto-updates from here on.
@@ -87,7 +86,7 @@ update — it's worth a quick edit pass, not a rubber stamp.
 
 ### 3. Bump the version
 
-Update all three files to the agreed `X.Y.Z` (no `v` prefix in these files,
+Update all four files to the agreed `X.Y.Z` (no `v` prefix in these files,
 tags get the `v`):
 
 - `apps/desktop/src-tauri/tauri.conf.json` → `"version"`
@@ -166,10 +165,23 @@ EOF
 
 ### 9. Refresh the downloads page
 
-The `/downloads` page reads the release list at build time, so POST the
-Cloudflare deploy hook after step 8 — never from `release.yml` — or the page
-keeps serving the previous release (full rationale: docs/RELEASING.md →
+The `/downloads` page reads the release list at build time, so the Cloudflare
+deploy hook must be POSTed after step 8, or the page keeps serving stale
+content (full rationale: docs/RELEASING.md →
 [Downloads page](../../../docs/RELEASING.md#downloads-page)).
+
+`release.yml` now has a `refresh-site` job that POSTs the hook itself, but it
+runs on `needs: build`, which is **before** step 8 posts the notes. The site
+therefore rebuilds against the placeholder body and `/downloads` renders an
+empty notes list for the new version. Until that job is gated on the notes
+existing, re-run it after step 8 (it holds the secret and does nothing else):
+
+```sh
+gh run rerun <runId> --job $(gh run view <runId> --json jobs \
+  -q '.jobs[] | select(.name=="refresh-site") | .databaseId')
+```
+
+If you have the hook in your own environment, this works too:
 
 ```sh
 if [ -n "$CF_PAGES_DEPLOY_HOOK" ]; then
@@ -203,6 +215,48 @@ At this point the release is fully live: existing installs will see it via
 `check_for_update`, and on next launch `WhatsNew` will show these exact notes
 because `releasesSince` reads this release's `body`.
 
+## Voice
+
+Release notes are the most-read copy the project ships: the What's-new card
+puts them in front of every user on their next update. They must not read as
+generated. Do not calibrate by imitating whichever release you happen to
+read; the rules below are the calibration, and every release from v0.1.0 to
+v0.6.0 was rewritten on 2026-08-12 to obey them.
+
+**Never use an em dash or an en dash.** Use a comma, a colon, a full stop, or
+rewrite the sentence. This is the same rule the site copy follows.
+
+**No bold lead-ins.** `- **Nod is for sale.** A license is $59...` is the
+house style of AI-written changelogs, not of this project. Plain bullets.
+
+**State the change; do not sell it.** The justification is what reads as
+slop, because it is the part a model invents.
+
+> Yes: `The free evaluation is now 30 days instead of 14.`
+> No: `The free evaluation is now 30 days, up from 14. Review tools get used
+> in bursts, and one sprint is not an evaluation.`
+
+**Cut the flourishes.** No "so a changed icon reads as an icon", no "it isn't
+X, it's Y", no "nothing is lost", no three-item lists that exist for rhythm
+rather than because there are three things.
+
+**Name the concrete thing**: the key (`shift+j`), the file type (`.deb` or
+`.rpm`), the button label (`Restart & update`), the number (30 days). Vague
+verbs like "improved", "enhanced", "streamlined" mean the bullet has no
+content.
+
+**One fact per bullet.** If a bullet needs a second sentence, spend it on
+what the user can still do, not on why the change is good. Example from
+v0.6.0: `SVG files in a diff now show a before/after preview above the
+markup. The path data is still there to read, search and comment on.`
+
+**Verify each bullet is user-visible before writing it.** v0.6.0 had 70
+commits and 8 bullets. Most of the rest were the component gallery, the
+website, tests and CI. Watch for package-level fixes that the desktop app
+never showed: PR #304 fixed real `@nod/ui` button defects that Tailwind's
+preflight already masked in the desktop, so it belonged in no release note.
+Read the PR body when a commit subject is ambiguous.
+
 ## Judgment calls
 
 - **Version drift on first run**: if `package.json`/`Cargo.toml` are behind
@@ -219,4 +273,5 @@ because `releasesSince` reads this release's `body`.
 - **Notes quality over speed**: past release notes are hand-curated,
   user-facing prose, not commit-log dumps. A generated draft that reads like
   `git log` output is a worse outcome than pausing to ask the user which
-  changes actually matter.
+  changes actually matter. A draft that reads like marketing copy is the
+  other failure, and the more likely one: see [Voice](#voice).
