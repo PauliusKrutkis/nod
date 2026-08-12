@@ -12,8 +12,12 @@
  * the gallery is a screenshot target first and a showroom second.
  *
  * Interaction is keyboard-first like the rest of the app: j/k, Tab, or the
- * arrows switch component, f fixture, t theme, w width, m view, / find
- * (arrows walk matches, Enter jumps), mod +/-/0 zoom. Zoom is a transform
+ * arrows switch component, f fixture, t theme, w width, m view (shift
+ * reverses the cycling keys), x the component-boundary outline, / find
+ * (arrows walk matches, Enter jumps), mod +/-/0 zoom. Specimens only keep
+ * focus when clicked into: stray autofocus is blurred back to the gallery
+ * so the keys keep working, and Escape hands focus back from a specimen
+ * (a top-layer modal keeps its own). Zoom is a transform
  * scale on #root with compensated dimensions — CSS `zoom` skips form
  * controls in webkit, and the Tauri shell has no native browser zoom. The
  * effects synchronize with things outside React (the URL hash, the window
@@ -207,13 +211,110 @@ function ignoreGalleryKeys(event: KeyboardEvent): boolean {
   if (event.metaKey || event.ctrlKey || event.altKey) {
     return true;
   }
-  if (event.target instanceof HTMLInputElement) {
+  if (
+    event.target instanceof HTMLInputElement ||
+    event.target instanceof HTMLTextAreaElement
+  ) {
     return true;
   }
   return (
     event.target instanceof HTMLElement &&
-    event.target.closest("dialog") !== null
+    (event.target.isContentEditable || event.target.closest("dialog") !== null)
   );
+}
+
+const FRAME_FOCUS_GRACE_MS = 500;
+
+function inModalDialog(element: Element): boolean {
+  return element.closest("dialog")?.matches(":modal") ?? false;
+}
+
+function releaseSpecimenFocus(): boolean {
+  const active = document.activeElement;
+  if (
+    active instanceof HTMLElement &&
+    active.closest("[data-frame]") &&
+    !inModalDialog(active)
+  ) {
+    active.blur();
+    return true;
+  }
+  return false;
+}
+
+function routePatchForKey(
+  key: string,
+  dir: 1 | -1,
+  route: GalleryRoute
+): Partial<GalleryRoute> | null {
+  switch (key) {
+    case "j":
+    case "ArrowDown":
+      return { component: cycle(allNames, route.component, 1) };
+    case "k":
+    case "ArrowUp":
+      return { component: cycle(allNames, route.component, -1) };
+    case "Tab":
+      return { component: cycle(allNames, route.component, dir) };
+    case "f": {
+      const fixtures = fixturesOf(route.component);
+      return fixtures.length > 0
+        ? { fixture: cycle(fixtures, route.fixture, dir) }
+        : null;
+    }
+    case "t":
+      return { theme: cycle(GALLERY_THEMES, route.theme, dir) };
+    case "w":
+      return { width: cycle(GALLERY_WIDTHS, route.width, dir) };
+    case "m":
+      return { mode: cycle(GALLERY_MODES, route.mode, dir) };
+    default:
+      return null;
+  }
+}
+
+interface GalleryKeyActions {
+  setRoute: React.Dispatch<React.SetStateAction<GalleryRoute>>;
+  setXray: React.Dispatch<React.SetStateAction<boolean>>;
+  setZoom: React.Dispatch<React.SetStateAction<number>>;
+}
+
+function handleGalleryKey(
+  event: KeyboardEvent,
+  route: GalleryRoute,
+  { setRoute, setXray, setZoom }: GalleryKeyActions
+): void {
+  if (
+    (event.metaKey || event.ctrlKey) &&
+    !event.altKey &&
+    handleZoomKey(event.key, setZoom)
+  ) {
+    event.preventDefault();
+    return;
+  }
+  if (event.key === "Escape" && releaseSpecimenFocus()) {
+    return;
+  }
+  if (ignoreGalleryKeys(event)) {
+    return;
+  }
+  const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+  if (key === "x") {
+    setXray((on) => !on);
+    return;
+  }
+  if (key === "/") {
+    event.preventDefault();
+    document.querySelector<HTMLInputElement>(".qg-find input")?.focus();
+    return;
+  }
+  const patch = routePatchForKey(key, event.shiftKey ? -1 : 1, route);
+  if (patch) {
+    if (key === "Tab") {
+      event.preventDefault();
+    }
+    setRoute((r) => normalize({ ...r, ...patch }));
+  }
 }
 
 function handleZoomKey(
@@ -242,10 +343,45 @@ export function Gallery() {
   const [filter, setFilter] = useState("");
   const [findSel, setFindSel] = useState(0);
   const [zoom, setZoom] = useState(loadGalleryZoom);
+  const [xray, setXray] = useState(false);
 
   useEffect(() => {
     applyGalleryZoom(zoom);
   }, [zoom]);
+
+  useEffect(() => {
+    let framePressAt = Number.NEGATIVE_INFINITY;
+    const onPointerDown = (event: PointerEvent) => {
+      if (
+        event.target instanceof Element &&
+        event.target.closest("[data-frame]")
+      ) {
+        framePressAt = performance.now();
+      }
+    };
+    const onFocusIn = (event: FocusEvent) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) {
+        return;
+      }
+      if (!target.closest("[data-frame]")) {
+        return;
+      }
+      if (performance.now() - framePressAt < FRAME_FOCUS_GRACE_MS) {
+        return;
+      }
+      if (inModalDialog(target)) {
+        return;
+      }
+      target.blur();
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("focusin", onFocusIn);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("focusin", onFocusIn);
+    };
+  }, []);
 
   const entry = catalog[route.component];
   const fixtureNames = fixturesOf(route.component);
@@ -256,54 +392,7 @@ export function Gallery() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (
-        (event.metaKey || event.ctrlKey) &&
-        !event.altKey &&
-        handleZoomKey(event.key, setZoom)
-      ) {
-        event.preventDefault();
-        return;
-      }
-      if (ignoreGalleryKeys(event)) {
-        return;
-      }
-      const move = (patch: Partial<GalleryRoute>) =>
-        setRoute((r) => normalize({ ...r, ...patch }));
-      const routeFixtures = fixturesOf(route.component);
-      const step = event.shiftKey ? -1 : 1;
-      switch (event.key) {
-        case "j":
-        case "ArrowDown":
-          move({ component: cycle(allNames, route.component, 1) });
-          break;
-        case "k":
-        case "ArrowUp":
-          move({ component: cycle(allNames, route.component, -1) });
-          break;
-        case "Tab":
-          event.preventDefault();
-          move({ component: cycle(allNames, route.component, step) });
-          break;
-        case "f":
-          if (routeFixtures.length > 0) {
-            move({ fixture: cycle(routeFixtures, route.fixture, 1) });
-          }
-          break;
-        case "t":
-          move({ theme: cycle(GALLERY_THEMES, route.theme, 1) });
-          break;
-        case "w":
-          move({ width: cycle(GALLERY_WIDTHS, route.width, 1) });
-          break;
-        case "m":
-          move({ mode: cycle(GALLERY_MODES, route.mode, 1) });
-          break;
-        case "/":
-          event.preventDefault();
-          document.querySelector<HTMLInputElement>(".qg-find input")?.focus();
-          break;
-        default:
-      }
+      handleGalleryKey(event, route, { setRoute, setXray, setZoom });
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -404,8 +493,10 @@ export function Gallery() {
           </div>
           {entry ? (
             <div className="qg-controls">
-              <div className="qg-ctl">
-                <span className="qg-ctl-label">fixture</span>
+              <div className="qg-ctl qg-ctl-fixtures">
+                <span className="qg-ctl-label">
+                  fixture · {fixtureNames.length}
+                </span>
                 {fixtureNames.map((name) => (
                   <button
                     className={`qg-chip ${name === route.fixture ? "qg-on" : ""}`}
@@ -478,7 +569,7 @@ export function Gallery() {
           ) : null}
         </header>
 
-        <main className="qg-stage">
+        <main className={xray ? "qg-stage qg-xray" : "qg-stage"}>
           <StageContent route={route} />
         </main>
 
@@ -488,6 +579,7 @@ export function Gallery() {
           <span>t theme</span>
           <span>w width</span>
           <span>m view</span>
+          <span>x outline</span>
           <span>/ find</span>
           <span>mod ± zoom</span>
           <span className="qg-hash">{formatGalleryHash(route)}</span>

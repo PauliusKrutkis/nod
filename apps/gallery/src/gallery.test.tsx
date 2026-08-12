@@ -162,6 +162,53 @@ describe("gallery", () => {
     );
   });
 
+  it("cycles fixtures backwards on shift+f", () => {
+    render(<Gallery />);
+    fireEvent.keyDown(window, { key: "F", shiftKey: true });
+    expect(window.location.hash).toContain(`/${firstFixtures.at(-1)}/`);
+  });
+
+  it("toggles the x-ray outline on x, never on mount", () => {
+    const { container } = render(<Gallery />);
+    expect(container.querySelector(".qg-xray")).toBeNull();
+    fireEvent.keyDown(window, { key: "x" });
+    expect(container.querySelector(".qg-xray")).not.toBeNull();
+    fireEvent.keyDown(window, { key: "x" });
+    expect(container.querySelector(".qg-xray")).toBeNull();
+  });
+
+  it("blurs specimen focus unless clicked into, Escape hands it back", () => {
+    window.location.hash = "#/gallery/search-pane/typical/quiet/420/specimen";
+    const { container } = render(<Gallery />);
+    const input = container.querySelector(
+      "[data-frame] input"
+    ) as HTMLInputElement;
+    input.focus();
+    input.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    expect(document.activeElement).toBe(document.body);
+    fireEvent.pointerDown(input);
+    input.focus();
+    input.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    expect(document.activeElement).toBe(input);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it("never navigates on keys typed into a textarea or editable", () => {
+    render(<Gallery />);
+    const before = window.location.hash;
+    const textarea = document.createElement("textarea");
+    document.body.appendChild(textarea);
+    fireEvent.keyDown(textarea, { key: "f" });
+    const editable = document.createElement("div");
+    Object.defineProperty(editable, "isContentEditable", { value: true });
+    document.body.appendChild(editable);
+    fireEvent.keyDown(editable, { key: "f" });
+    expect(window.location.hash).toBe(before);
+    textarea.remove();
+    editable.remove();
+  });
+
   it("switches components with Tab and the arrows", () => {
     const [, second, third] = componentNames;
     render(<Gallery />);

@@ -7,8 +7,16 @@
    qg-stage-quiet mirror of the @nod/tokens palette — the root wears the
    selected set so the whole view switches, and matrix columns re-assert
    their own set per frame; a parity test holds the mirror to the package.
-   Animations pause under prefers-reduced-motion so webkit captures are
-   deterministic. */
+   The chrome's accent washes (--accent-soft, --accent-line) resolve from
+   the @nod/tokens :root set rather than the stage blocks: redefining them
+   per stage would repaint the specimens' own washes and break the day
+   baselines, so the stage blocks deliberately leave them alone. The
+   fixture chips pin
+   their line box to whole pixels (19px, not a unitless factor): the topbar
+   sits above the stage, so a fractional chrome height pushes every capture
+   frame off the integer pixel grid and shifts antialiasing in every
+   baseline. Animations pause under prefers-reduced-motion so webkit
+   captures are deterministic. */
 
 .qg-root {
   display: flex;
@@ -200,6 +208,12 @@
   gap: 5px;
 }
 
+.qg-ctl-fixtures {
+  flex: 1 0 100%;
+  flex-wrap: wrap;
+  row-gap: 3px;
+}
+
 .qg-ctl-label {
   font-size: 11px;
   color: var(--faint);
@@ -207,12 +221,15 @@
 }
 
 .qg-chip {
-  padding: 3px 9px;
+  padding: 2px 8px;
   border-radius: var(--r-pill);
-  border: 1px solid var(--line);
+  border: 1px solid transparent;
   background: none;
   color: var(--muted);
-  font-size: 11.5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 19px;
+  white-space: nowrap;
   cursor: pointer;
   transition:
     color 120ms,
@@ -226,10 +243,9 @@
 }
 
 .qg-chip.qg-on {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-ink);
-  font-weight: 550;
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--accent);
 }
 
 .qg-seg {
@@ -463,4 +479,9 @@ dialog.q-dialog-top:modal {
     animation-play-state: paused !important;
     transition: none !important;
   }
+}
+
+.qg-xray [data-frame] > * {
+  outline: 1px dashed var(--accent-line);
+  outline-offset: -1px;
 }
