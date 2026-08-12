@@ -1,11 +1,17 @@
 # Compares gallery screenshots against the committed linux baselines. The job
 # is always red when the comparison fails, but it distinguishes the two
-# reasons: a cell that CHANGED gets its diffs published for review, while
-# cells that are merely MISSING (every migration PR adds some) get generated
-# and published as an artifact to commit. Baselines are platform-suffixed, so
-# the darwin files in the repo never stand in for this image — comparing
-# across font-rendering stacks is pure noise. A visual change therefore only
-# merges via an explicit baseline update, never by drifting silently.
+# reasons per test from Playwright's JSON report, judging each failing test
+# by its FINAL attempt only (e2e/classify-shots.mjs): a cell that CHANGED
+# gets its diffs published for review, while cells that are merely MISSING
+# (every migration PR adds some) get generated and published as an artifact
+# to commit — and a mixed run publishes both, so bootstrap never blocks
+# behind unrelated diffs. The log is never grepped for the verdict: when a
+# baseline is missing, Playwright writes the actual and the retry emits
+# phantom "Screenshot comparison failed" lines, which used to misclassify
+# missing-only runs as changed. Baselines are platform-suffixed, so the
+# darwin files in the repo never stand in for this image — comparing across
+# font-rendering stacks is pure noise. A visual change therefore only merges
+# via an explicit baseline update, never by drifting silently.
 #
 # The suite runs 900+ cells on a single worker (parallel vite requests add
 # frame latency and shots flake — see apps/gallery/playwright.config.ts), so
@@ -46,24 +52,28 @@ jobs:
         id: shots
         run: |
           set +e
-          pnpm --filter @nod/gallery shots --shard=${{ matrix.shard }}/4 2>&1 | tee shots.log
-          echo "status=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+          PLAYWRIGHT_JSON_OUTPUT_NAME=shots-report.json \
+            pnpm --filter @nod/gallery shots --shard=${{ matrix.shard }}/4 --reporter=line,json
+          echo "status=$?" >> "$GITHUB_OUTPUT"
           exit 0
-      - name: Generate the linux baselines new cells still lack
-        id: fill
+      - name: Classify the failures from the JSON report
+        id: classify
         if: steps.shots.outputs.status != '0'
-        run: |
-          if grep -q "Screenshot comparison failed" shots.log; then
-            echo "A committed cell rendered differently. Review the diffs artifact;"
-            echo "if the change is intended, run shots:update locally and commit."
-            exit 0
-          fi
-          if grep -q "snapshot doesn't exist" shots.log; then
-            echo "missing-only=true" >> "$GITHUB_OUTPUT"
-            pnpm --filter @nod/gallery shots:update --shard=${{ matrix.shard }}/4
-          fi
+        run: node apps/gallery/e2e/classify-shots.mjs apps/gallery/shots-report.json >> "$GITHUB_OUTPUT"
+      # Before the baseline generation below — that run wipes test-results.
+      - name: Publish diffs for review
+        if: ${{ !cancelled() && steps.shots.outputs.status != '0' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: gallery-shot-diffs-shard-${{ matrix.shard }}
+          path: |
+            apps/gallery/test-results
+            apps/gallery/shots-report.json
+      - name: Generate the linux baselines new cells still lack
+        if: steps.classify.outputs.missing == 'true'
+        run: pnpm --filter @nod/gallery shots:update --shard=${{ matrix.shard }}/4
       - name: Publish the linux baselines to commit
-        if: steps.fill.outputs.missing-only == 'true'
+        if: steps.classify.outputs.missing == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: gallery-linux-baselines-shard-${{ matrix.shard }}
@@ -71,16 +81,20 @@ jobs:
       - name: Fail when the comparison did not pass
         if: steps.shots.outputs.status != '0'
         run: |
-          echo "::error::Gallery shots did not pass. New cells: download the"
-          echo "::error::gallery-linux-baselines artifact and commit it. Changed"
-          echo "::error::cells: review gallery-shot-diffs before updating."
+          if [ "${{ steps.classify.outputs.changed }}" = "true" ]; then
+            echo "::error::A committed cell rendered differently. Review the"
+            echo "::error::gallery-shot-diffs artifact; if the change is intended,"
+            echo "::error::run shots:update locally and commit."
+          fi
+          if [ "${{ steps.classify.outputs.missing }}" = "true" ]; then
+            echo "::error::New cells lack linux baselines. Download the"
+            echo "::error::gallery-linux-baselines artifact and commit it."
+          fi
+          if [ "${{ steps.classify.outputs.changed }}" != "true" ] && [ "${{ steps.classify.outputs.missing }}" != "true" ]; then
+            echo "::error::Gallery shots did not pass and no per-test verdict"
+            echo "::error::was reached — read the job log and the diffs artifact."
+          fi
           exit 1
-      - name: Publish diffs on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: gallery-shot-diffs-shard-${{ matrix.shard }}
-          path: apps/gallery/test-results
 
   # Folds the per-shard baseline artifacts into the single download the shard
   # jobs' error message names. continue-on-error because the merge action
