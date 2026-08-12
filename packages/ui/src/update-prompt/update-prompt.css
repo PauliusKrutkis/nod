@@ -1,6 +1,7 @@
 /* Update-prompt's own layer over the shared notice-card chrome: the release
-   notes get their own gap under the lede, and the install action carries an
-   icon. The icon means the button's label is a flex row, so the label needs
+   notes get their own gap under the lede, and the primary action carries an
+   icon on the faces that have one — "Restart & update" and "Open downloads".
+   The icon means the button's label is a flex row, so the label needs
    its own ellipsis floor — a flex container cannot ellipsize its own text,
    only a min-width:0 child can. */
 
@@ -8,18 +9,18 @@
   margin-top: 6px;
 }
 
-.qb-update-install .q-btn-label {
+.qb-update-action .q-btn-label {
   display: inline-flex;
   gap: 6px;
   align-items: center;
   max-width: 100%;
 }
 
-.qb-update-install .q-btn-label > svg {
+.qb-update-action .q-btn-label > svg {
   flex-shrink: 0;
 }
 
-.qb-update-install .q-btn-label > span {
+.qb-update-action .q-btn-label > span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

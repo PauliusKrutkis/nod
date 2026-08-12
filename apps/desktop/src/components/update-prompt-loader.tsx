@@ -1,5 +1,6 @@
 import { UpdatePrompt as UpdatePromptCard } from "@nod/ui/update-prompt";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { useState } from "react";
 import {
   useLicenseState,
@@ -21,11 +22,16 @@ import { queryKeys } from "../lib/query-client.ts";
  * that state, and two differently-worded cards selling the same license would
  * race each other. That gate is here rather than in the card because it is a
  * decision about which of two surfaces the app is showing.
+ *
+ * `selfInstallable` comes off the backend's update info and rides through to
+ * the card, which drops the install button when it is false. Opening the
+ * downloads page is a shell call, so it stays here too.
  */
 
 const RECHECK_MS = 4 * 60 * 60 * 1000;
 const FOCUS_STALE_MS = 30 * 60 * 1000;
 const PRICE = "$59";
+const DOWNLOADS_URL = "https://nodreview.com/downloads";
 
 export function UpdatePromptLoader() {
   const [dismissed, setDismissed] = useState(false);
@@ -75,6 +81,10 @@ export function UpdatePromptLoader() {
     }
   };
 
+  const openDownloads = () => {
+    openUrl(DOWNLOADS_URL).catch(() => undefined);
+  };
+
   if (!update) {
     return null;
   }
@@ -92,8 +102,10 @@ export function UpdatePromptLoader() {
       onBuyLicense={buyLicense}
       onDismiss={() => setDismissed(true)}
       onInstall={install}
+      onOpenDownloads={openDownloads}
       price={PRICE}
       purchasing={purchasing}
+      selfInstallable={update.selfInstallable}
       version={update.version}
     />
   );

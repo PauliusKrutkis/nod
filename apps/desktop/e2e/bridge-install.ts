@@ -46,19 +46,23 @@ export interface AppOptions {
   repoHits?: { fullName: string; description: string }[];
   subscribed?: BucketFixture;
   subscribedDelayMs?: number;
-  update?: {
-    currentVersion: string;
-    eligible: boolean;
-    notes: string | null;
-    version: string;
-  } | null;
-  updateAfterActivation?: {
-    currentVersion: string;
-    eligible: boolean;
-    notes: string | null;
-    version: string;
-  } | null;
+  update?: UpdateFixture | null;
+  updateAfterActivation?: UpdateFixture | null;
   watchedRepos?: string[];
+}
+
+interface UpdateFixture {
+  currentVersion: string;
+  eligible: boolean;
+  notes: string | null;
+  selfInstallable?: boolean;
+  version: string;
+}
+
+function updateDefaults(update: UpdateFixture | null | undefined) {
+  return update
+    ? { ...update, selfInstallable: update.selfInstallable ?? true }
+    : null;
 }
 
 function aiDefaults(opts: AppOptions) {
@@ -105,8 +109,8 @@ export function buildBridgeConfig(opts: AppOptions = {}) {
     repoHits: opts.repoHits ?? [],
     subscribed: opts.subscribed ?? { count: 0, prs: [] },
     subscribedDelayMs: opts.subscribedDelayMs ?? 0,
-    update: opts.update ?? null,
-    updateAfterActivation: opts.updateAfterActivation ?? null,
+    update: updateDefaults(opts.update),
+    updateAfterActivation: updateDefaults(opts.updateAfterActivation),
     watchedRepos: opts.watchedRepos ?? [],
   };
 }
@@ -289,7 +293,10 @@ export function installBridge(cfg: BridgeConfig) {
           )
         : cfg.subscribed,
     "plugin:opener|open": () => null,
-    "plugin:opener|open_url": () => null,
+    "plugin:opener|open_url": (args) => {
+      localStorage.setItem("e2e:lastOpenUrl", JSON.stringify(args));
+      return null;
+    },
     // No native zoom without Tauri. Reject the way a refusing platform
     // webview does, so lib/zoom.ts engages its CSS-zoom fallback — resolving
     // null here made the app believe zoom had worked, and the browser demo

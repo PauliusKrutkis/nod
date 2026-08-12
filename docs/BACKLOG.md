@@ -462,7 +462,7 @@ worth it after validation.
 
 ### 11b. Auto-updates
 
-- [ ] 🟡 **Don't offer an install CTA on `.deb`/`.rpm`** — Tauri's updater can
+- [x] 🟡 **Don't offer an install CTA on `.deb`/`.rpm`** — Tauri's updater can
       only self-update the Linux AppImage; it replaces a bundled `.tar.gz`, and
       there's no in-place update path for system packages. On `.deb`/`.rpm`
       installs, `check_for_update` still reports a newer version (it only
@@ -473,10 +473,19 @@ worth it after validation.
       running as an AppImage, swap `UpdatePrompt`'s CTA for a passive "New
       version available — reinstall the package to update" notice with no
       install button.
-- [ ] 🟢 **Update install failure on Linux** — user on 0.2.0 saw "Failed to
+      *Shipped: `update.rs` reports `selfInstallable` (false when `APPIMAGE` is
+      unset on Linux) and refuses `install_update` in that case; the card swaps
+      to a notice linking nodreview.com/downloads.*
+- [x] 🟢 **Update install failure on Linux** — user on 0.2.0 saw "Failed to
       install package" from the in-app updater ("You're on 0.2.0. Installs on
       the next restart..." then install fails). Likely the same AppImage vs.
       package-manager install-format mismatch as the item above; investigate.
+      *Confirmed: "Failed to install package" is `PackageInstallFailed` from
+      the plugin's `.deb` path (`pkexec dpkg -i`, then zenity/kdialog, then
+      `sudo`), which no GUI session answers reliably. `latest.json` does carry
+      `linux-x86_64-deb`, so the download was fine and only the privileged
+      install failed. Fixed by the item above: that button no longer exists on
+      a package install.*
 - [ ] ⏸ Crash reporting — see [July 2026 batch · Sentry](#july-2026-batch).
 
 > Linux does not use this updater. Only the AppImage can self-update, and

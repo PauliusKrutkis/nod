@@ -667,6 +667,8 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "ineligible-purchasing",
       "installing",
       "overflow",
+      "packaged",
+      "packaged-ineligible",
       "ready-to-restart",
       "with-notes",
     ],
