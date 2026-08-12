@@ -419,6 +419,14 @@ Three layers, three separate decision points — only layer 3 is a real bet:
       `ai_ask`** — `grep_repo` is *not* in the `invoke_handler` list, so no
       user-facing repo search exists and the free lunch is unclaimed. What is
       left is registering the commands and building the UI, not the search.
+      *Designed 2026-08-09:* [code navigation](https://claude.ai/code/artifact/731bd994-2d83-46e3-91f1-e7d8348a9c42) makes the key point that
+      this is **not a new surface**. The app already searches within the pull
+      request (`mod+t` changed paths, `mod+f` diff text), so repo search is the
+      same pane with the scope widened, and it should be a **scope switch**
+      rather than a fourth keystroke against a nearly full key space. Every hit
+      is tagged by whether it is in this PR, because a result outside it cannot
+      be commented on and landing there must not feel like the app lost your
+      place. Opening one shows it in the peek rather than a new file screen.
 - [ ] ⏸ **Layer 3 — symbol index** (tree-sitter): go-to-definition from the
       diff (peek popover → full-file modal at line), find references for a
       changed symbol. ~50–100k lines/sec/core to parse, index cached per SHA,
@@ -2135,9 +2143,17 @@ and `a` opens a surface the composer already almost is.
       symbols and plain prose then degrade to exactly today's behaviour instead
       of dead-ending. `n`/`p` keep meaning occurrences either way.
 
-      *Note the peek surface is the blocker nobody has costed.* There is no
-      floating primitive in the app, and a references peek with snippets is a
-      popover — which [§8](#8-shadcnui--closed-decided-against-2026-08-05)
-      names as one of the three primitives that legitimately reopen the shadcn
-      question. Decide that before the index work, not after: it is the part
-      that can turn into a second design language.
+      *Designed 2026-08-09:* [code navigation](https://claude.ai/code/artifact/731bd994-2d83-46e3-91f1-e7d8348a9c42) answers the peek question
+      **inline, not floating**: the definition opens under the row like the AI
+      note and comment threads already do, so the diff never moves and Escape
+      puts you back. The app has no floating primitive, the list is virtualised
+      so anchoring a floater is expensive, and going inline sidesteps reopening
+      the [§8](#8-shadcnui--closed-decided-against-2026-08-05) shadcn question
+      for one component. The mock also draws the honest limitation of
+      name-based lookup: two same-named definitions are shown as **two
+      candidates**, never guessed between, because a confident wrong jump is
+      worse than a two-item list.
+      *Sequencing (recommended):* **repo search first, by a distance.** Its
+      engine already exists so it is a UI item, and it is the cheapest way to
+      learn whether anyone reaches past the diff at all. If they do not, a
+      symbol index is a large thing nobody asked for.
