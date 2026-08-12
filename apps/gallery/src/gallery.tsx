@@ -9,7 +9,16 @@
  * design-lab did. The chrome stays quieter than the specimens on purpose:
  * dim mono metadata, iris only on selection, and a capture frame whose
  * printed filename is exactly what the webkit screenshot suite snapshots —
- * the gallery is a screenshot target first and a showroom second.
+ * the gallery is a screenshot target first and a showroom second. Inside
+ * each frame the specimen sits on a solid mat (.qg-mat) whose background is
+ * exactly the surface that stood behind specimens before, while the frame
+ * itself wears a faint dot grid: patterned ring = gallery territory, solid
+ * mat = the component's canvas, so a specimen whose own surface matches the
+ * frame still reads at rest, without reaching for the x-ray. The screenshot
+ * suite must see exactly the pre-mat pixels, so it loads the app with a
+ * ?capture query flag (read once at mount, worn as qg-capture on the root)
+ * that suppresses the dot grid; the mat itself stays in both modes — its
+ * background matches the frame's, which is the layout-neutrality guarantee.
  *
  * Interaction is keyboard-first like the rest of the app: j/k, Tab, or the
  * arrows switch component, f fixture, t theme, w width, m view (shift
@@ -111,11 +120,13 @@ function Frame({ route, small }: { route: GalleryRoute; small?: boolean }) {
         <i className="qg-tick qg-tr" />
         <i className="qg-tick qg-bl" />
         <i className="qg-tick qg-br" />
-        <div
-          className="qg-viewport"
-          style={route.width ? { width: route.width } : { flex: 1 }}
-        >
-          <Specimen {...specimenProps} />
+        <div className="qg-mat">
+          <div
+            className="qg-viewport"
+            style={route.width ? { width: route.width } : { flex: 1 }}
+          >
+            <Specimen {...specimenProps} />
+          </div>
         </div>
       </div>
       <div className="qg-meta">
@@ -170,6 +181,9 @@ function StageContent({ route }: { route: GalleryRoute }) {
     </div>
   );
 }
+
+const isCaptureRun = () =>
+  new URLSearchParams(window.location.search).has("capture");
 
 const ZOOM_KEY = "nod-gallery:zoom";
 
@@ -344,6 +358,7 @@ export function Gallery() {
   const [findSel, setFindSel] = useState(0);
   const [zoom, setZoom] = useState(loadGalleryZoom);
   const [xray, setXray] = useState(false);
+  const [capture] = useState(isCaptureRun);
 
   useEffect(() => {
     applyGalleryZoom(zoom);
@@ -436,7 +451,13 @@ export function Gallery() {
   };
 
   return (
-    <div className={`qg-root qg-stage-${route.theme}`}>
+    <div
+      className={[
+        "qg-root",
+        `qg-stage-${route.theme}`,
+        capture ? "qg-capture" : "",
+      ].join(" ")}
+    >
       <aside className="qg-rail">
         <div className="qg-rail-head">
           <span className="qg-brand">Nod</span>
