@@ -17,13 +17,17 @@
  * Type carries the same split: gallery metadata is mono because a machine
  * wrote it, and note bodies are the UI face because a person did.
  *
- * The composer submits with the button or mod+Enter, and Escape hands focus
- * back to the gallery so the single-key routing works again. The caller keys
- * this component by component name: a half-written draft belongs to the
- * component it was written against, and carrying it across a j/k press would
- * file it under whatever you landed on.
+ * The draft and the scope are the caller's state, not this component's: `c`
+ * closes and reopens the margin constantly, and a note half-written when you
+ * glance at another cell has to survive that. The caller also keeps drafts
+ * per component, so a draft can never be filed under whatever you landed on
+ * after a j/k press.
+ *
+ * Keys reach the composer while you are typing in it, which is why the scope
+ * toggle is a chord here (mod+S) and a bare `s` outside — a single letter in
+ * a textarea belongs to the text. mod+Enter submits, Escape closes.
  */
-import { useState } from "react";
+import { Kbd } from "@nod/ui/kbd";
 import {
   NOTE_SCOPES,
   type Note,
@@ -36,7 +40,12 @@ interface NotesMarginProps {
   cell: string;
   file: NotesFile;
   error: string;
-  onAdd: (draft: { note: string; scope: NoteScope; cell: string }) => void;
+  draft: string;
+  scope: NoteScope;
+  onDraftChange: (text: string) => void;
+  onScopeChange: (scope: NoteScope) => void;
+  onSubmit: () => void;
+  onClose: () => void;
   onRemove: (id: string) => void;
 }
 
@@ -50,19 +59,15 @@ export function NotesMargin({
   cell,
   file,
   error,
-  onAdd,
+  draft,
+  scope,
+  onDraftChange,
+  onScopeChange,
+  onSubmit,
+  onClose,
   onRemove,
 }: NotesMarginProps) {
-  const [draft, setDraft] = useState("");
-  const [scope, setScope] = useState<NoteScope>("component");
-
-  const submit = () => {
-    if (!draft.trim()) {
-      return;
-    }
-    onAdd({ cell, note: draft.trim(), scope });
-    setDraft("");
-  };
+  const otherScope = scope === "component" ? "cell" : "component";
 
   return (
     <aside className="qg-margin">
@@ -100,21 +105,29 @@ export function NotesMargin({
         className="qg-compose"
         onSubmit={(event) => {
           event.preventDefault();
-          submit();
+          onSubmit();
         }}
       >
         <textarea
           aria-label={`Note on ${component}`}
           onChange={(event) => {
-            setDraft(event.target.value);
+            onDraftChange(event.target.value);
           }}
           onKeyDown={(event) => {
             if (event.key === "Escape") {
-              event.currentTarget.blur();
+              onClose();
+              return;
             }
-            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+            if (!(event.metaKey || event.ctrlKey)) {
+              return;
+            }
+            if (event.key === "Enter") {
               event.preventDefault();
-              submit();
+              onSubmit();
+            }
+            if (event.key.toLowerCase() === "s") {
+              event.preventDefault();
+              onScopeChange(otherScope);
             }
           }}
           placeholder="What should change?"
@@ -129,7 +142,7 @@ export function NotesMargin({
                 className={`q-focus ${option === scope ? "qg-on" : ""}`}
                 key={option}
                 onClick={() => {
-                  setScope(option);
+                  onScopeChange(option);
                 }}
                 type="button"
               >
@@ -141,7 +154,16 @@ export function NotesMargin({
             Leave note
           </button>
         </div>
-        <p className="qg-compose-hint">{cell}</p>
+        <div className="qg-compose-hint">
+          <span className="qg-compose-cell" title={cell}>
+            {cell}
+          </span>
+          <span className="qg-compose-keys">
+            <Kbd combo="mod+enter" /> leave
+            <Kbd combo="mod+s" /> scope
+            <Kbd combo="esc" /> close
+          </span>
+        </div>
       </form>
     </aside>
   );

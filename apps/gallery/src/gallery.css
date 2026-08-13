@@ -834,11 +834,30 @@ dialog.q-dialog-top:modal {
 }
 
 .qg-compose-hint {
-  margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--faint);
+}
+
+.qg-compose-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qg-compose-keys {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.qg-compose-keys .q-kbd-combo {
+  margin-left: 6px;
+}
+
+.qg-compose-keys .q-kbd-combo:first-child {
+  margin-left: 0;
 }

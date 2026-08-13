@@ -23,7 +23,8 @@
  * Interaction is keyboard-first like the rest of the app: j/k, Tab, or the
  * arrows switch component, f fixture, t theme, w width, m view (shift
  * reverses the cycling keys), x the component-boundary outline, c the notes
- * margin, / find (arrows walk matches, Enter jumps), mod +/-/0 zoom.
+ * margin (mod+S scope, mod+Enter leave, Escape close), / find (arrows walk
+ * matches, Enter jumps), mod +/-/0 zoom.
  * Specimens only keep focus when clicked into: stray autofocus is blurred
  * back to the gallery
  * so the keys keep working, and Escape hands focus back from a specimen
@@ -56,6 +57,18 @@
  * band, so one more key there rewrites every tall baseline on both
  * platforms. Anything that only chrome needs to say belongs above the stage,
  * where ?capture can suppress it.
+ *
+ * `c` opens and focuses the composer rather than toggling, because the key
+ * you press to write a note should leave you writing; it preventDefaults for
+ * the same reason `/` does, or the letter lands in the field it just focused.
+ * Escape is what closes the margin. Since opening always puts the caret in
+ * the composer, the composer's own chords are the scope and submit keys —
+ * a bare letter would only ever reach the gallery after a mouse click, which
+ * is not worth spending one on.
+ *
+ * The draft and scope live here rather than in the margin so that closing
+ * cannot destroy half a sentence, and drafts are held per component so one
+ * can never be filed under whatever a j/k press landed on.
  */
 import { Button } from "@nod/ui/button";
 import { catalog } from "@nod/ui/catalog";
@@ -343,12 +356,13 @@ interface GalleryKeyActions {
   setXray: React.Dispatch<React.SetStateAction<boolean>>;
   setZoom: React.Dispatch<React.SetStateAction<number>>;
   setNotesOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  notesOpen: boolean;
 }
 
 function handleGalleryKey(
   event: KeyboardEvent,
   route: GalleryRoute,
-  { setRoute, setXray, setZoom, setNotesOpen }: GalleryKeyActions
+  { setRoute, setXray, setZoom, setNotesOpen, notesOpen }: GalleryKeyActions
 ): void {
   if (
     (event.metaKey || event.ctrlKey) &&
@@ -369,8 +383,13 @@ function handleGalleryKey(
     setXray((on) => !on);
     return;
   }
+  if (key === "Escape" && notesOpen) {
+    setNotesOpen(false);
+    return;
+  }
   if (key === "c") {
-    setNotesOpen((open) => !open);
+    event.preventDefault();
+    setNotesOpen(true);
     return;
   }
   if (key === "/") {
@@ -418,6 +437,8 @@ export function Gallery() {
   const [notes, setNotes] = useState<NotesByComponent>({});
   const [notesOpen, setNotesOpen] = useState(false);
   const [notesError, setNotesError] = useState("");
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
+  const [noteScope, setNoteScope] = useState<NoteScope>("component");
 
   useEffect(() => {
     applyGalleryZoom(zoom);
@@ -439,6 +460,9 @@ export function Gallery() {
     fetchAllNotes().then((all) => {
       setNotes(all);
     });
+    document
+      .querySelector<HTMLTextAreaElement>(".qg-compose textarea")
+      ?.focus();
   }, [capture, notesOpen]);
 
   useEffect(() => {
@@ -485,6 +509,7 @@ export function Gallery() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       handleGalleryKey(event, route, {
+        notesOpen,
         setNotesOpen,
         setRoute,
         setXray,
@@ -493,7 +518,7 @@ export function Gallery() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [route]);
+  }, [route, notesOpen]);
 
   const visibleNames = allNames.filter((name) =>
     name.includes(filter.trim().toLowerCase())
@@ -512,12 +537,22 @@ export function Gallery() {
     }
   };
 
-  const onAddNote = (draft: {
-    note: string;
-    scope: NoteScope;
-    cell: string;
-  }) => {
-    postNote(route.component, draft).then(applyNotes);
+  const onSubmitNote = () => {
+    const note = (noteDrafts[route.component] ?? "").trim();
+    if (!note) {
+      return;
+    }
+    postNote(route.component, {
+      cell: cellAnchor(route),
+      note,
+      scope: noteScope,
+    }).then((result) => {
+      applyNotes(result);
+      if (!result.error) {
+        setNoteDrafts((drafts) => ({ ...drafts, [route.component]: "" }));
+        setNoteScope("component");
+      }
+    });
   };
 
   const onRemoveNote = (id: string) => {
@@ -729,11 +764,19 @@ export function Gallery() {
         <NotesMargin
           cell={cellAnchor(route)}
           component={route.component}
+          draft={noteDrafts[route.component] ?? ""}
           error={notesError}
           file={notes[route.component] ?? emptyNotes()}
-          key={route.component}
-          onAdd={onAddNote}
+          onClose={() => {
+            setNotesOpen(false);
+          }}
+          onDraftChange={(text) => {
+            setNoteDrafts((drafts) => ({ ...drafts, [route.component]: text }));
+          }}
           onRemove={onRemoveNote}
+          onScopeChange={setNoteScope}
+          onSubmit={onSubmitNote}
+          scope={noteScope}
         />
       ) : null}
     </div>
