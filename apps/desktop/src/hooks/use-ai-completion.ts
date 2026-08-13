@@ -1,8 +1,10 @@
 /**
  * Builds the composer's ghost-text extension. Two gates decide whether it ever
  * asks for anything: the reviewer turned completion on, and a model is
- * actually configured. Neither is checked when the extension is built — they
- * are read at request time, through a ref.
+ * actually configured. Neither is checked when the extension is built — both
+ * are read at request time, straight from the stores that own them: the
+ * preference from its snapshot-and-subscribe module, the config from the query
+ * cache the hook's own useQuery keeps filled.
  *
  * That indirection is not decoration. The editor is created once, on mount,
  * from the extensions it is handed then; handing it a different list later
@@ -18,7 +20,6 @@
  * enough to see an answer.
  */
 import { ghostText } from "@nod/ui/ghost-text";
-import { useLatest } from "@nod/ui/use-latest";
 import { useQuery } from "@tanstack/react-query";
 import type { Extensions } from "@tiptap/core";
 import { useMemo, useSyncExternalStore } from "react";
@@ -27,10 +28,16 @@ import {
   subscribeAiCompletion,
 } from "../lib/ai-completion.ts";
 import { api } from "../lib/api.ts";
-import { queryKeys } from "../lib/query-client.ts";
+import { queryClient, queryKeys } from "../lib/query-client.ts";
+import type { AiInfo } from "../types.ts";
 
 export function useAiCompletionEnabled(): boolean {
   return useSyncExternalStore(subscribeAiCompletion, getAiCompletionEnabled);
+}
+
+function bothGatesOpen(): boolean {
+  const info = queryClient.getQueryData<AiInfo>(queryKeys.aiConfig);
+  return getAiCompletionEnabled() && !!info?.configured && !!info.model;
 }
 
 export function useAiCompletion(context: {
@@ -38,23 +45,22 @@ export function useAiCompletion(context: {
   filePath?: string;
 }): Extensions {
   const enabled = useAiCompletionEnabled();
-  const { data: info } = useQuery({
+  useQuery({
     enabled,
     queryFn: api.getAiConfig,
     queryKey: queryKeys.aiConfig,
   });
-  const readyRef = useLatest(enabled && !!info?.configured && !!info.model);
   const { code, filePath } = context;
 
   return useMemo(
     () => [
       ghostText({
         request: (prefix) =>
-          readyRef.current
+          bothGatesOpen()
             ? api.aiComplete({ context: { code, filePath }, prefix })
             : Promise.resolve(""),
       }),
     ],
-    [code, filePath, readyRef]
+    [code, filePath]
   );
 }
