@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "notes": "node notes/digest.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "shots": "playwright test",
