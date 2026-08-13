@@ -268,6 +268,32 @@ review complete after it. Complementary — their output can be facts here.
   the CI action appears, dual-license the thin CLI shim MIT; engine stays
   FSL.
 
+### LLM economics: BYOK at every tier, inference never in the sub
+
+- **The indexer stays LLM-free.** Classification, clustering, and batch
+  pre-review are pipeline jobs whose outputs are facts — they run in the
+  customer's CI at merge time with a key from repo secrets, and write
+  facts to refs/ledger. The dashboard renders derivations; it never calls
+  a model. Hosting costs stay flat, which is what the sub prices.
+- **Interactive AI (browser ask-about-code, on-demand pre-review) uses an
+  org-level key** — Anthropic, OpenRouter, or a corporate gateway —
+  pasted once in org settings; the indexer passes through to the
+  customer's account. No metering, no rate limits, no cost-spike risk on
+  our side. For AI-heavy teams BYOK is the compliance-shaped option, not
+  the budget one, and it matches the desktop app (ask-about-code already
+  runs on the user's own key) and the trust story: your repo, your model
+  provider, we sell the window.
+- **The sub prices seats + infrastructure, never inference.** No included
+  AI-action tiers, no abuse detection, no token-drain exposure.
+- **Keyless degradation is mandatory.** The LLM is stage 4 of the
+  cascade; without a key, hunks fall to provenance buckets and AI
+  features grey out — queue, coverage, ratchet, and review all still
+  work. No tier requires a key to be useful.
+- **Managed inference (bundled credits via a gateway, per-org pool, hard
+  cap) is a later convenience upsell built on demand** — it is the only
+  piece that drags in quotas and abuse control, so it must earn its way
+  in. Playground AI runs on our key against the fixture repo only.
+
 ## 10. Distribution & marketing
 
 Sell the idea before the product; ship the number before the tool.
