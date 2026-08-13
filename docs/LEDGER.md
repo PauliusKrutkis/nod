@@ -268,31 +268,37 @@ review complete after it. Complementary — their output can be facts here.
   the CI action appears, dual-license the thin CLI shim MIT; engine stays
   FSL.
 
-### LLM economics: BYOK at every tier, inference never in the sub
+### LLM economics: bundled where bounded, BYOK where open-ended
 
-- **The indexer stays LLM-free.** Classification, clustering, and batch
-  pre-review are pipeline jobs whose outputs are facts — they run in the
-  customer's CI at merge time with a key from repo secrets, and write
-  facts to refs/ledger. The dashboard renders derivations; it never calls
-  a model. Hosting costs stay flat, which is what the sub prices.
-- **Interactive AI (browser ask-about-code, on-demand pre-review) uses an
-  org-level key** — Anthropic, OpenRouter, or a corporate gateway —
-  pasted once in org settings; the indexer passes through to the
-  customer's account. No metering, no rate limits, no cost-spike risk on
-  our side. For AI-heavy teams BYOK is the compliance-shaped option, not
-  the budget one, and it matches the desktop app (ask-about-code already
-  runs on the user's own key) and the trust story: your repo, your model
-  provider, we sell the window.
-- **The sub prices seats + infrastructure, never inference.** No included
-  AI-action tiers, no abuse detection, no token-drain exposure.
-- **Keyless degradation is mandatory.** The LLM is stage 4 of the
-  cascade; without a key, hunks fall to provenance buckets and AI
-  features grey out — queue, coverage, ratchet, and review all still
-  work. No tier requires a key to be useful.
-- **Managed inference (bundled credits via a gateway, per-org pool, hard
-  cap) is a later convenience upsell built on demand** — it is the only
-  piece that drags in quotas and abuse control, so it must earn its way
-  in. Playground AI runs on our key against the fixture repo only.
+The two kinds of AI have opposite cost shapes, and the tiering follows
+from that — a paying customer must never need a key for the core product
+to work well.
+
+- **Pipeline AI** (classification of novel hunks, clustering, session
+  narration) is merge-triggered and bounded: its rate is the team's merge
+  rate, a few thousand tokens on a cheap fast model per merge — cents per
+  day, scaling with repo activity, which correlates with seats. **Paid
+  tier: bundled in the sub**, runs on the indexer (it receives the merge
+  webhooks) with our gateway key, per-org daily budget as backstop —
+  past the cap, the deterministic cascade stages carry alone until the
+  budget resets. Free/local tier: BYOK, or keyless with
+  deterministic-only grouping.
+- **Interactive AI** (browser ask-about-code, on-demand deep agent
+  reviews) is user-triggered and open-ended — the real cost-spike and
+  abuse surface. **BYOK at every tier** (org-level key: Anthropic,
+  OpenRouter, corporate gateway; pass-through, no metering). Managed
+  credits (per-org pool, hard cap) remain a later on-demand upsell.
+- **BYOK is an override, not a toll:** an org setting flips all AI —
+  pipeline included — to the customer's key, for compliance-sensitive
+  orgs whose code must not transit our provider, and for power users
+  pinning models. Default paid experience: subscribe, connect repo, done.
+- **The sub prices seats + infrastructure + bounded pipeline inference;
+  it never meters.** The daily budget is a backstop, not a billing meter;
+  there is no per-action pricing and no reselling margin to defend.
+- **Keyless degradation stays mandatory.** The LLM is stage 4 of the
+  cascade; queue, coverage, ratchet, and review work with no key and no
+  budget. This is what makes the cap graceful and the free tier honest.
+- Playground AI runs on our key against the fixture repo only.
 
 ## 10. Distribution & marketing
 
