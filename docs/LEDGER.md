@@ -129,8 +129,10 @@ packages/ledger/
   desktop app ships the CLI as a Tauri **sidecar binary**; the webview
   talks to it through a thin Tauri command, same as every other seam. The
   Ledger tab is just another consumer.
-- **Sync: git is the server.** Facts live in `refs/ledger` — append-only
-  sets merge as a union, no semantic conflicts possible. Auth and hosting
+- **Sync: git is the server.** Facts live in `refs/ledger/facts` (two path
+  levels are mandatory: receive-pack rejects single-level refs like
+  `refs/ledger` as "funny refnames") — append-only sets merge as a union,
+  no semantic conflicts possible. Auth and hosting
   are inherited from the repo (humans, CI, and agents already hold git
   credentials). Precedent: Gerrit NoteDB, git-appraise.
 - **Indexer service (later, on demand):** stateless; clones the repo,
@@ -223,6 +225,12 @@ later is a backend binding, not an extraction project.
   this repo; assert anchors survive the renames/refactors that actually
   happened. This is the acceptance test for the risky module and the tool
   that finds the moved-vs-rewritten boundary.
+  *Measured 2026-08-13 (20 merges, 341 anchors, 8.8k signed lines):
+  90.4% alive, 9.5% stale, 0.2% gone; unexplained-vs-blame (false churn)
+  0.4%, all of it 1–4-line stale-rounding residue. Normalization levels
+  (exact/rtrim/ws) were indistinguishable on this history — a
+  formatter-disciplined repo never exercises them; fixture tests pin
+  where they diverge. Default: ws, stale threshold 0.35.*
 - **Probe scripts as living benchmarks.** The blame-mining probe reports
   what fraction of tip lines resolve cleanly to an approved PR; tracked
   over time as repos and heuristics change.
