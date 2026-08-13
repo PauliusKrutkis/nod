@@ -218,6 +218,7 @@ export function AiModelCombobox({
               onMouseMove={() => setSel(i)}
               ref={row === active ? revealRow : undefined}
               role="option"
+              tabIndex={-1}
               type="button"
             >
               <span className="qmc-opt-id">

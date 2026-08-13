@@ -11,7 +11,10 @@
  * re-selects an already-open bar.
  *
  * Buttons don't steal focus from the input (onMouseDown preventDefault), so
- * clicking a chevron then pressing Enter keeps stepping through matches.
+ * clicking a chevron then pressing Enter keeps stepping through matches. They
+ * are mouse affordances for keys the input already owns, which is why they sit
+ * outside the tab order and why the input swallows Tab: with the bar open,
+ * every key belongs to the search, and focus has nowhere else to go.
  */
 import { CaseSensitive, ChevronDown, ChevronUp, X } from "lucide-react";
 import type { ChangeEvent, KeyboardEvent } from "react";
@@ -82,6 +85,8 @@ export function FindBar({
     } else if (mod && e.key.toLowerCase() === "f") {
       e.preventDefault();
       e.currentTarget.select();
+    } else if (e.key === "Tab") {
+      e.preventDefault();
     }
   };
 
@@ -118,6 +123,7 @@ export function FindBar({
           className={cn("qf-findbar-btn", caseSensitive && "qf-findbar-btn-on")}
           onClick={onToggleCase}
           onMouseDown={keepFocus}
+          tabIndex={-1}
           type="button"
         >
           <CaseSensitive aria-hidden size={15} />
@@ -130,6 +136,7 @@ export function FindBar({
         disabled={total === 0}
         onClick={onPrev}
         onMouseDown={keepFocus}
+        tabIndex={-1}
         title="Previous match (Shift+Enter)"
         type="button"
       >
@@ -141,6 +148,7 @@ export function FindBar({
         disabled={total === 0}
         onClick={onNext}
         onMouseDown={keepFocus}
+        tabIndex={-1}
         title="Next match (Enter)"
         type="button"
       >
@@ -152,6 +160,7 @@ export function FindBar({
           className="qf-findbar-btn"
           onClick={onClose}
           onMouseDown={keepFocus}
+          tabIndex={-1}
           type="button"
         >
           <X aria-hidden size={15} />

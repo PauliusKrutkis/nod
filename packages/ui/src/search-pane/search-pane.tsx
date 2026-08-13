@@ -244,24 +244,17 @@ function SearchResultRow<T extends SearchablePr>({
     onSelect(index);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      onOpen(pr);
-    }
-  };
-
   return (
-    <div
+    <button
       aria-selected={selected}
       className={cn("qsp-row", selected && "qsp-row-on")}
       data-active={selected}
       data-index={index}
       onClick={handleClick}
-      onKeyDown={handleKeyDown}
       onMouseMove={handleMouseMove}
       role="option"
-      tabIndex={0}
+      tabIndex={-1}
+      type="button"
     >
       <span aria-hidden className="qsp-rail" />
       <span className="qsp-num">
@@ -298,6 +291,6 @@ function SearchResultRow<T extends SearchablePr>({
       <span className="qsp-time q-mono">
         {formatRelativeTime(pr.updatedAt)}
       </span>
-    </div>
+    </button>
   );
 }

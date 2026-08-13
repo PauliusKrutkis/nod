@@ -72,10 +72,6 @@
   transform: translateX(0);
 }
 
-.qf-drawer:focus {
-  outline: none;
-}
-
 .qf-drawer-head {
   display: flex;
   align-items: center;

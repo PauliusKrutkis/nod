@@ -131,7 +131,6 @@
   padding-left: 34px;
 }
 .q-input:focus {
-  outline: none;
   border-color: var(--accent-line);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
@@ -271,7 +270,6 @@ textarea.q-input {
 
 /* ---- focus ring (single, consistent treatment) ---- */
 .dir-quiet .qf-focusable:focus-visible {
-  outline: none;
   border-radius: var(--r-md);
   box-shadow:
     0 0 0 1.5px var(--bg),
@@ -712,15 +710,6 @@ textarea.q-input {
   color: var(--fg);
   background: var(--surface-hi);
   box-shadow: inset 0 0 0 1px var(--line-2);
-}
-
-/* ============ INFO DRAWER ============ */
-/* The drawer moved to @nod/ui/pr-drawer and carries its own stylesheet; the
-   reveal of its rows' tool strips stays with the comment rules above. What
-   remains here is the diff's scroll host, which was never the drawer's: the
-   drawer only hands focus back to it on close. */
-.dir-quiet .qf-scrollhost:focus {
-  outline: none;
 }
 
 /* ============ REDUCED MOTION ============ */

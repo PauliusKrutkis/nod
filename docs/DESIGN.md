@@ -169,6 +169,31 @@ keypress promotes it to `:focus-visible`, and a ring appears out of nowhere
 instead. The existing `blur()` calls are tactical fixes pending the
 selection-model refactor (backlog).
 
+#### No browser outline, anywhere
+
+The UA focus outline is removed once, unscoped, in the system layer
+(`@nod/ui/styles.css`), and a test in that package fails on any other `outline`
+declaration. Nothing in Nod ever paints the browser's ring.
+
+The reasoning is the same as the two models above. What a key moves in this app
+is the armed or selected item, which the component styles itself; a UA ring
+lands wherever the browser happened to put DOM focus, so it reads as a second
+cursor competing with the real one — usually parked on some chrome button
+beside the list you are actually looking at. And a per-component `outline:
+none` is a decision with as many owners as there are components: one is always
+missing, which is how a stray ring turns up in the inbox after a dialog closes.
+
+It costs no affordance, because the app never relied on the browser to draw
+one. Selection surfaces show their armed state; focus-model controls take
+`q-focus` / `qf-focusable`, whose ring is a `box-shadow` and survives the
+reset. So the rule for anything new is the one that reset implies:
+
+> If `Tab` can reach a control, it carries `q-focus`. If it can't carry the
+> ring — a mouse affordance for a key the surrounding input already owns, a
+> row in a selection list — it leaves the tab order (`tabIndex={-1}`), and the
+> keys stay with the input or the keyboard layer. Never a control that `Tab`
+> reaches and nothing marks.
+
 ---
 
 ## What the rework will address
