@@ -300,6 +300,27 @@ to work well.
   budget. This is what makes the cap graceful and the free tier honest.
 - Playground AI runs on our key against the fixture repo only.
 
+### Self-hosting
+
+Supported by construction, kept deliberate:
+
+- The free tier is already serverless-by-design — engine, CLI, desktop,
+  facts in refs/ledger; git is the server. Nothing of ours to host.
+- The indexer is the only server and must stay trivially self-hostable —
+  a written design constraint, not an accident: **one container, embedded
+  storage (SQLite), no queue, env-var config**. Every infra dependency
+  the hosted version picks up is a self-host installation step; do not
+  pick them up.
+- Self-host auth: configurable GitHub OAuth app (self-hosters register
+  their own). Pipeline AI runs in BYOK mode via the existing org-level
+  override.
+- FSL already permits internal self-hosting and forbids the only
+  dangerous actor (competing hosted service). No license-key gating now.
+- Business line: the sub sells ops-free (uptime, updates, webhooks,
+  bundled AI); free internal self-host is the enterprise on-ramp —
+  compliance-bound orgs adopt anyway, and SSO/audit/support becomes a
+  paid enterprise self-host tier when demand appears.
+
 ## 10. Distribution & marketing
 
 Sell the idea before the product; ship the number before the tool.
