@@ -165,6 +165,41 @@ Interactive mockup (Quiet system): three screens — queue, session, topic.
 Surface rollout order: desktop tab (dogfood) → CLI/CI check → web
 read-only dashboard (via the indexer) → MCP.
 
+### The two-app split
+
+Both desktop and web, split by capability — never by duplicating
+features:
+
+| Surface | Owns |
+| ------- | ---- |
+| Desktop | Reviewer's cockpit: queue, sessions, topics, comments; clone-powered features — go-to-definition (LSP against the checkout), ask-AI with whole-repo context, AI pre-review and AI-drafted comments |
+| Web | Dashboard, org settings, login, subscription/billing, playground |
+| CLI/CI | `ledger check` ratchet, rules engine, backfill |
+
+**The clone is the pivot.** Nod today is API + JSON cache; the ledger
+requires a real local clone (blame at tip, refs/ledger, net diffs). That
+same clone is the prerequisite for the desktop AI/navigation features, so
+they ride in on infrastructure the ledger needs anyway — one new
+architectural tier (clone + sidecar) beside the existing API tier, and
+the ask-about-code work should target it. AI actions need no new model:
+"review with AI" / "comment with AI" invoke an agent that writes agent
+facts; the human accepts or discards, and acceptance is the human fact
+the ratchet counts.
+
+**Identity — two layers.** The data plane needs no accounts: facts carry
+GitHub identity and repo access is authorization (the free tier has
+nothing to sign up for). Accounts exist only for the hosted service, via
+the existing GitHub OAuth app; billing lives exclusively on web and the
+desktop app reads entitlements.
+
+**Settings — three scopes.** Repo-versioned (`.ledger/`: epoch, ratchet
+thresholds, topic seeds, rules — reviewable like code), personal-local
+(desktop prefs), org-hosted (seats, webhooks, API tokens — web).
+
+**Playground.** The indexer serving a read-only fixture repo in the
+browser — queue/session/topic with no install. Primarily a marketing
+asset: the landing page's "try it" moment.
+
 ## 7. Testing
 
 - **Fixture repos.** Synthetic git histories (scripted: commits, squash
