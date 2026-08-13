@@ -47,7 +47,6 @@
   font-family: var(--font-ui);
   font-size: 16px;
   color: var(--fg);
-  outline: none;
   background: transparent;
   border: none;
 }
@@ -74,6 +73,20 @@
   letter-spacing: 0.08em;
 }
 
+/* A row is a button in both panes — choosing a result is an action, and the
+   element says so without a role having to. The font/background/border trio
+   is the reset the app's Tailwind preflight hands every control: the package
+   ships no preflight, and without it a row renders with the browser's grey
+   button fill, its border, and 13px Arial.
+
+   Two details are load-bearing. The reset sits on .qsp-row rather than on
+   `button.qsp-row`, because the qualified selector outranks .qsp-row-on and
+   the selected row loses its fill. And the font comes in as longhands rather
+   than `font: inherit`, because the shorthand also resets what it does not
+   name — font-variation-settings among them, which is how the variable mono
+   the numbers are set in gets rendered. `text-align` is part of the same
+   reset: a button centres its text, and the fixed-width number column is wide
+   enough for that to show. */
 .qsp-row {
   position: relative;
   display: flex;
@@ -81,8 +94,14 @@
   gap: 12px;
   align-items: center;
   padding: 10px 12px 10px 14px;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
   color: var(--muted);
+  text-align: left;
   cursor: pointer;
+  background: transparent;
+  border: 0;
   border-radius: var(--r-xl);
 }
 

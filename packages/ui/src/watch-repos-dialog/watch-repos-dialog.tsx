@@ -419,6 +419,7 @@ function WatchHitRow({
       onClick={handleClick}
       onMouseMove={handleMouseMove}
       role="option"
+      tabIndex={-1}
       type="button"
     >
       <span className="qw-hit-name">{hit.fullName}</span>

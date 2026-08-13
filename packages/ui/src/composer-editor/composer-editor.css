@@ -35,7 +35,6 @@
   line-height: 1.55;
   color: var(--fg);
   overflow-wrap: anywhere;
-  outline: none;
 }
 
 .qa-editor-content p.is-editor-empty:first-child::before {
@@ -162,7 +161,6 @@
 
 .qa-link-input:focus {
   border-color: var(--accent-line);
-  outline: none;
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 

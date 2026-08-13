@@ -674,7 +674,6 @@ function InboxListPane({
         onMouseMove={handleListMouseMove}
         ref={listRef}
         role="listbox"
-        tabIndex={0}
       >
         {showArchived && (
           <div className="qi-archived-banner">

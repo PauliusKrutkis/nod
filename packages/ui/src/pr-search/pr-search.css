@@ -8,11 +8,6 @@
    would make the winner depend on stylesheet order, which broke this panel
    once already.
 
-   These rows are buttons where search-pane's are divs, so they carry the
-   reset the app's Tailwind preflight hands every control — the package ships
-   no preflight, and without it a row renders with the browser's grey button
-   fill and border.
-
    `.qsp-snip-code` carries `min-width: 0` because it is a flex item: without
    it a long context line cannot shrink below its own text (the lines are
    `white-space: pre`), so it blows past the snippet and gets hard-clipped
@@ -25,12 +20,6 @@
 
 .q-dialog.qsp-panel.qsp-panel-code.qsp-inline {
   width: 100%;
-}
-
-button.qsp-row {
-  font: inherit;
-  background: transparent;
-  border: 0;
 }
 
 .qsp-snippet {

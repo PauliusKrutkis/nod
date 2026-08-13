@@ -90,11 +90,6 @@
 
 .qg-find input:focus {
   border-color: var(--accent-line);
-  outline: none;
-}
-
-.qg-root :focus {
-  outline: none;
 }
 
 .qg-rail-list {

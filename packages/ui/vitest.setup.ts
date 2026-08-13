@@ -7,43 +7,50 @@
  * observable contract the components rely on: show/showModal open, close
  * closes and fires "close", scrollIntoView is a no-op because jsdom has no
  * scroll geometry at all, and the observer never fires for the same reason.
+ *
+ * Setup runs for every test in the package, including the ones that read the
+ * stylesheets from disk under `@vitest-environment node`, where none of these
+ * globals exist — hence the guard around the whole block rather than a
+ * per-shim check.
  */
 
-if (typeof HTMLDialogElement.prototype.showModal !== "function") {
-  HTMLDialogElement.prototype.showModal = function showModal() {
-    this.setAttribute("open", "");
-  };
-}
+if (typeof HTMLDialogElement !== "undefined") {
+  if (typeof HTMLDialogElement.prototype.showModal !== "function") {
+    HTMLDialogElement.prototype.showModal = function showModal() {
+      this.setAttribute("open", "");
+    };
+  }
 
-if (typeof HTMLDialogElement.prototype.show !== "function") {
-  HTMLDialogElement.prototype.show = function show() {
-    this.setAttribute("open", "");
-  };
-}
+  if (typeof HTMLDialogElement.prototype.show !== "function") {
+    HTMLDialogElement.prototype.show = function show() {
+      this.setAttribute("open", "");
+    };
+  }
 
-if (typeof Element.prototype.scrollIntoView !== "function") {
-  Element.prototype.scrollIntoView = function scrollIntoView() {
-    return;
-  };
-}
-
-if (typeof HTMLDialogElement.prototype.close !== "function") {
-  HTMLDialogElement.prototype.close = function close() {
-    this.removeAttribute("open");
-    this.dispatchEvent(new Event("close"));
-  };
-}
-
-if (typeof globalThis.ResizeObserver === "undefined") {
-  globalThis.ResizeObserver = class ResizeObserverShim {
-    observe(): void {
+  if (typeof Element.prototype.scrollIntoView !== "function") {
+    Element.prototype.scrollIntoView = function scrollIntoView() {
       return;
-    }
-    unobserve(): void {
-      return;
-    }
-    disconnect(): void {
-      return;
-    }
-  } as unknown as typeof ResizeObserver;
+    };
+  }
+
+  if (typeof HTMLDialogElement.prototype.close !== "function") {
+    HTMLDialogElement.prototype.close = function close() {
+      this.removeAttribute("open");
+      this.dispatchEvent(new Event("close"));
+    };
+  }
+
+  if (typeof globalThis.ResizeObserver === "undefined") {
+    globalThis.ResizeObserver = class ResizeObserverShim {
+      observe(): void {
+        return;
+      }
+      unobserve(): void {
+        return;
+      }
+      disconnect(): void {
+        return;
+      }
+    } as unknown as typeof ResizeObserver;
+  }
 }

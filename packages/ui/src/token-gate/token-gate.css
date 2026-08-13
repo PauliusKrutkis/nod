@@ -216,7 +216,6 @@
 }
 .qg-input:focus {
   border-color: var(--accent-line);
-  outline: none;
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .qg-input-gap {
@@ -319,7 +318,6 @@
   color: var(--accent);
 }
 .qg-provider-btn:focus-within {
-  outline: none;
   box-shadow:
     0 0 0 1.5px var(--bg),
     0 0 0 3px var(--accent);

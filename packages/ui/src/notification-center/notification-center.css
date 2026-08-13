@@ -165,8 +165,9 @@
   box-shadow: 0 1px 2px rgb(0 0 0 / 18%);
 }
 .qnc-choice:has(.qnc-choice-input:focus-visible) {
-  outline: 1px solid var(--accent);
-  outline-offset: 1px;
+  box-shadow:
+    0 0 0 1.5px var(--bg),
+    0 0 0 3px var(--accent);
 }
 
 .qnc-list {

@@ -339,13 +339,6 @@ function PrSearchContent({
     setSel(index);
   };
 
-  const handleRowKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      handleRowClick(e as unknown as MouseEvent<HTMLButtonElement>);
-    }
-  };
-
   const displayQ = query.trim();
   const empty = displayQ.length > 0 && items.length === 0;
   const placeholder =
@@ -398,9 +391,9 @@ function PrSearchContent({
             data-index={i}
             key={itemKey(it, i)}
             onClick={handleRowClick}
-            onKeyDown={handleRowKeyDown}
             onMouseMove={handleRowMouseMove}
             role="option"
+            tabIndex={-1}
             type="button"
           >
             <span aria-hidden className="qsp-rail" />

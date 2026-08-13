@@ -27,7 +27,6 @@
   font-family: var(--font-ui);
   font-size: 15px;
   color: var(--fg);
-  outline: none;
   background: transparent;
   border: none;
 }
