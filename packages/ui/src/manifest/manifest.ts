@@ -432,6 +432,22 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "unicode",
     ],
   },
+  "notification-center": {
+    dialog: true,
+    fixtures: [
+      "all-off",
+      "all-read",
+      "cjk",
+      "empty",
+      "markup-as-text",
+      "no-avatar",
+      "os-only",
+      "overflow",
+      "rtl",
+      "scrolling",
+      "typical",
+    ],
+  },
   "overview-ruler": {
     fixtures: [
       "all-unmeasured",
@@ -573,6 +589,9 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "no-avatar",
       "one-more",
       "overflow",
+      "reply",
+      "reply-many",
+      "reply-one-more",
       "rtl",
       "typical",
     ],

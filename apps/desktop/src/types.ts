@@ -8,6 +8,10 @@
  * handle — null hides the resolve affordance. PendingComment.line is the
  * range end for multi-line drafts; startLine is the start when present.
  * ViewedFileMap maps filename → content fingerprint ("?" = legacy mark).
+ * PullRequest.viewerDidAuthor and viewerLastReviewAt are relative to the
+ * signed-in account; an absent viewerLastReviewAt means you have not reviewed
+ * the PR, and providers that cannot answer (GitLab) leave both at their
+ * defaults, which reads as "not yours, not reviewed".
  * LicenseState.updatesUntil bounds update eligibility, not app function —
  * a licensed app never stops working, it stops receiving newer releases.
  * UpdateInfo.selfInstallable is false on a Linux .deb/.rpm install, where the
@@ -46,6 +50,8 @@ export interface PullRequest {
   title: string;
   updatedAt: string;
   url: string;
+  viewerDidAuthor: boolean;
+  viewerLastReviewAt?: string;
 }
 
 interface LastComment {

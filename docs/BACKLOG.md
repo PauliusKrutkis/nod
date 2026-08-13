@@ -389,7 +389,11 @@ inline by design). These are cleanups, not new scope.
       as a floor (notifications don't cover every review-requested PR). Do NOT
       move the GitHub inbox to REST search — its separate 30 req/min limit +
       loss of the single-query rich fields makes it worse.
-- [ ] ⏸ Webhooks — post-MVP.
+- [ ] ⏸ Webhooks — post-MVP. Now a **transport** swap rather than a feature:
+      detection, dedupe, read state and the sinks live behind
+      `lib/notification-events.ts` + `store/notification-store.ts`, so a
+      webhook (or the Notifications-API detector above) only has to produce
+      `NotificationEvent`s with stable ids and call `ingest`.
 
 ---
 
@@ -994,7 +998,7 @@ already used in `keyboard-provider.tsx`), React Compiler enabled,
 | 9 | `components/inbox/inbox.tsx:270` (+ cleanup at 273) | Mirrors render-derived `paneVisible` into zustand one render late | Let consumers derive it from the shared query + selection (small `useInboxPaneVisible()` hook), or move selection into the store and make it a selector; the 273 cleanup effect then disappears | Med |
 | 10 | `hooks/use-viewed-file-reconcile.ts:46` | Chained state-in-effect (`lastReconcileKey` dedupe + `setChangedSinceViewed`); only the toast is a real side effect | setState-during-render "previous key" pattern for the dedupe/derived set; keep a minimal effect for the toast. Consider merging with the effect at line 68 (same key) | Med |
 | 11 | `components/review/comment-thread.tsx:40` | Parent command (`ReplyRequest` nonce object) converted to state in an effect | Imperative handle registry keyed by `rootId` that the parent calls from its event handler; removes the nonce + rAF machinery. Borderline: virtuoso row mount/unmount is why the nonce pattern exists | Med |
-| 12 | `components/review-notifier.tsx:71` | Diff-on-data-arrival effect (known-set compare, localStorage persist, toast) | Move to the query layer: `queryClient.getQueryCache().subscribe(...)` pushing notifications into the store. Borderline; defensible as-is since data arrives from a background poll | Med |
+| 12 | ~~`components/review-notifier.tsx:71`~~ | ~~Diff-on-data-arrival effect (known-set compare, localStorage persist, toast)~~ | **Done** — detection is pure (`lib/notification-events.ts`) and memory lives in a persisted log (`store/notification-store.ts`); the notifier holds no keys, no diff and no persistence. The query-cache subscriber was tried and reverted: the cache notifies synchronously, so ingesting from it lands a store write on the notification list mid-render. A commit-phase effect is the right seam, and `ingest` being idempotent makes a double run harmless | — |
 | 13 | `hooks/use-inbox-detail-nudge.ts:18` | Cross-cache invalidation on data arrival, ref-based dedupe | Optional: query-cache subscriber registered once at bootstrap (would cover all stale details, not just the open one). Acceptable as a component effect; at minimum narrow deps to `pr?.updatedAt` | Med |
 
 ### Justified usages
@@ -1772,14 +1776,33 @@ wanted instead of a quick win.
       couldn't be posted" review. *Recommendation: surface them*, always; a
       review tool that loses your writing is worse than one that cannot work
       offline.
-- [ ] 🟢 **"Author responded" notifications** — `review-notifier.tsx` fires
-      only on `reviewRequested` (`data.reviewRequested.prs`), so the app
-      announces work arriving but never announces **your** review being
-      addressed: the author pushed after you requested changes, or replied to
-      your thread. That is the higher-signal event and the one most likely to
-      be dropped, because nothing pulls you back. Cheapest item here that
-      changes daily behaviour — the polling, the toast and the seen-set
-      persistence all exist; this adds a second source to the same notifier.
+- [x] 🟢 **"Author responded" notifications** — shipped, and it grew into a
+      notification *system* rather than a second `if` in the notifier, because
+      review asked the right question: how do we know the person being notified
+      actually reviewed the PR? Bucket membership cannot answer that —
+      `involves:@me` is equally true for a PR you were only mentioned on — so
+      the inbox query now carries `viewerDidAuthor` and `viewerLatestReview`,
+      and a reply announces only when the author's newest comment is **newer
+      than your latest review**.
+      *What landed:* pure detectors (`lib/notification-events.ts`, unit-tested
+      with no React and no clock), a capped persisted event log that is the one
+      place repeats die (`store/notification-store.ts`), a settings home
+      (`store/settings-store.ts`) with a channel per kind (off / in app /
+      system / both), an OS banner sink on `tauri-plugin-notification`, and a
+      notification list catalogued as `notification-center` in @nod/ui.
+      **Still partial by data limit** — the inbox payload cannot show a push
+      (list items carry no `headSha`) or a reply inside a review thread
+      (`lastComment` is conversation comments only), and GitLab fills neither
+      `lastComment` nor the viewer fields, so it never fires. Covering those
+      needs the list query to carry `headSha` plus the newest review-thread
+      comment (author + timestamp); `updatedAt` is not a substitute, since
+      labels, CI and your own actions all move it. Each is a new detector
+      behind the same seam, not a rewrite.
+      *Deliberately not built:* webhooks and the Notifications-API change
+      detector (both §7, both transport under that seam), and snooze —
+      "schedule this review for later" is a field on a logged event plus a
+      detector that re-emits when it passes, which is only possible now that
+      events are persisted at all.
 - [ ] 🟡 **Cost-to-review estimate in the inbox** — a quiet "~4 min" / "~40
       min" on each row, from changed lines, file count, test-vs-source ratio
       and generated share. Reviewers procrastinate partly because they cannot

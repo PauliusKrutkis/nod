@@ -1,0 +1,260 @@
+/* The qnc family — the notification list and its two channel dials. Close and
+   segmented controls repeat the app's dialog look under this prefix rather
+   than borrowing another component's classes, so importing this one never
+   depends on another being on the page. Every string in a row is remote data
+   (actor, title, repo): the title breaks inside unbroken tokens and clamps to
+   two lines, and the repo takes an ellipsis on one, so neither can grow the
+   panel or bury the rows under one pathological string. Fixed UI labels are
+   deliberately NOT set to break anywhere — "Review requested" splitting into
+   three lines mid-word is worse than the header and setting rows wrapping,
+   which is what the flex-wrap on both is for. The row is a button, so its text
+   alignment and colour are declared rather than inherited. */
+
+.qnc-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(640px, calc(100vh - 96px));
+}
+.q-dialog.qnc-panel.qnc-inline {
+  position: static;
+  width: 100%;
+  max-height: 520px;
+  margin: 0;
+  transform: none;
+  animation: none;
+}
+.qnc-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.qnc-title {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.qnc-title svg {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.qnc-badge {
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-radius: 999px;
+}
+.qnc-head-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+  align-items: center;
+}
+.qnc-read-all {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  font-size: 11px;
+  color: var(--muted);
+  cursor: pointer;
+  background: var(--surface-hi);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-md);
+  transition: color 120ms ease;
+}
+.qnc-read-all:hover:not(:disabled) {
+  color: var(--fg);
+}
+.qnc-read-all:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+.qnc-close {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--muted);
+  cursor: pointer;
+  background: var(--surface-hi);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-md);
+  transition: color 120ms ease;
+}
+.qnc-close:hover {
+  color: var(--fg);
+}
+.qnc-close[data-armed="true"] {
+  color: var(--accent);
+  border-color: var(--accent-line);
+}
+
+.qnc-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.qnc-setting {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+.qnc-setting-label {
+  min-width: 0;
+  font-size: 12px;
+  color: var(--fg);
+}
+.qnc-choices {
+  display: flex;
+  flex-shrink: 0;
+  padding: 2px;
+  margin: 0;
+  background: var(--surface-hi);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-md);
+}
+.qnc-legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+.qnc-choice {
+  padding: 3px 9px;
+  font-size: 11px;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: calc(var(--r-md) - 2px);
+  transition:
+    color 120ms ease,
+    background 120ms ease;
+}
+.qnc-choice:hover {
+  color: var(--fg);
+}
+.qnc-choice-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  clip-path: inset(50%);
+}
+.qnc-choice:has(.qnc-choice-input:checked) {
+  color: var(--fg);
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 18%);
+}
+.qnc-choice:has(.qnc-choice-input:focus-visible) {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.qnc-list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 6px 12px 14px;
+  overflow-y: auto;
+}
+.qnc-empty {
+  padding: 30px 8px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+.qnc-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  width: 100%;
+  padding: 10px 10px 10px 6px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: var(--r-md);
+  transition: background 120ms ease;
+}
+.qnc-item:hover {
+  background: var(--surface-hi);
+}
+.qnc-dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  margin-top: 10px;
+  background: none;
+  border-radius: 50%;
+}
+.qnc-item-unread .qnc-dot {
+  background: var(--accent);
+}
+.qnc-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.qnc-item-head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.qnc-kind {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.qnc-item-unread .qnc-kind {
+  color: var(--accent);
+}
+.qnc-when {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--muted);
+}
+.qnc-item-text {
+  display: -webkit-box;
+  font-size: 12px;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.qnc-num {
+  color: var(--muted);
+}
+.qnc-repo {
+  overflow: hidden;
+  font-size: 10px;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

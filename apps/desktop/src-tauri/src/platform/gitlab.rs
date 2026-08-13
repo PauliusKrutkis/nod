@@ -154,6 +154,8 @@ fn mr_to_pr(v: &Value) -> PullRequest {
             .unwrap_or(0),
         body: fstr(v, "description"),
         last_comment: None,
+        viewer_did_author: false,
+        viewer_last_review_at: None,
     }
 }
 

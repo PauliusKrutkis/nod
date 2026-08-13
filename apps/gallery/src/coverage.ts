@@ -37,6 +37,8 @@ export const CONTAINERS: Record<string, string> = {
     "version gate, releases query and markdown pipeline; its card is whats-new in @nod/ui",
   "issue-tracker-settings":
     "reads and writes the per-account tracker URL in the store; its view is issue-tracker-dialog, catalogued in @nod/ui",
+  "notification-center-loader":
+    "reads the event log and notification channels from the stores and requests the OS permission on change; its view is notification-center, catalogued in @nod/ui",
   "keyboard-help":
     "flattens the live keyboard registry into sections; its view is help-overlay, catalogued in @nod/ui",
   "release-history-loader":

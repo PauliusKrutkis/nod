@@ -36,6 +36,8 @@ export const makePr = (
   title,
   updatedAt,
   url: `https://github.com/acme/rocket/pull/${n}`,
+  viewerDidAuthor: author === "me",
+  viewerLastReviewAt: undefined as string | undefined,
 });
 
 type PrFixture = ReturnType<typeof makePr>;
@@ -519,6 +521,39 @@ export const INBOX_UPDATED = {
     ],
   },
 };
+
+/**
+ * INBOX plus one Involved PR that alice wrote and someone has just commented
+ * on. `commentAuthor` decides whether that comment is the author answering a
+ * review ("alice") or the viewer's own reply ("me"), and `createdAt` is what
+ * the notifier dedupes on, so serving two of these with different timestamps
+ * models a second reply on the same PR. `reviewedAt` is when the viewer last
+ * reviewed it, and `null` — never `undefined`, which would take the default —
+ * models the PR you were only ever mentioned on and never reviewed.
+ */
+export const inboxWithReply = (
+  commentAuthor: string,
+  createdAt: string,
+  reviewedAt: string | null = "2026-07-02T09:00:00Z"
+): InboxFixture => ({
+  ...INBOX,
+  involved: {
+    count: 1,
+    prs: [
+      {
+        ...makePr(5, "Tighten the retry backoff", "alice", createdAt),
+        commentsCount: 3,
+        lastComment: {
+          author: commentAuthor,
+          authorAvatarUrl: "",
+          body: "Pushed the change you asked for.",
+          createdAt,
+        },
+        viewerLastReviewAt: reviewedAt ?? undefined,
+      },
+    ],
+  },
+});
 
 /**
  * A synthetic large PR for the performance specs: `fileCount` files of one
