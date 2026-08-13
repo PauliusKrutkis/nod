@@ -14,15 +14,17 @@
  * installed and always inert until both gates open — the cost of inert is one
  * cleared timer per keystroke, and no request ever leaves the app.
  *
- * The extension is memoized on the context it closes over for the same reason
- * in reverse: a new plugin each render would tear down the debounce and the
+ * The extension has to stay stable across renders for the same reason in
+ * reverse: a new plugin each render would tear down the debounce and the
  * in-flight request, so a reviewer typing steadily would never hold still long
- * enough to see an answer.
+ * enough to see an answer. That stability is the compiler's now — it memoizes
+ * the returned list on the context it closes over, which is what a useMemo
+ * here used to spell out by hand.
  */
 import { ghostText } from "@nod/ui/ghost-text";
 import { useQuery } from "@tanstack/react-query";
 import type { Extensions } from "@tiptap/core";
-import { useMemo, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import {
   getAiCompletionEnabled,
   subscribeAiCompletion,
@@ -52,15 +54,12 @@ export function useAiCompletion(context: {
   });
   const { code, filePath } = context;
 
-  return useMemo(
-    () => [
-      ghostText({
-        request: (prefix) =>
-          bothGatesOpen()
-            ? api.aiComplete({ context: { code, filePath }, prefix })
-            : Promise.resolve(""),
-      }),
-    ],
-    [code, filePath]
-  );
+  return [
+    ghostText({
+      request: (prefix) =>
+        bothGatesOpen()
+          ? api.aiComplete({ context: { code, filePath }, prefix })
+          : Promise.resolve(""),
+    }),
+  ];
 }
