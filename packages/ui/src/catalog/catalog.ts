@@ -5,6 +5,8 @@ import { askNoteEntry } from "../ask-note/ask-note.fixtures.ts";
 import { avatarEntry } from "../avatar/avatar.fixtures.ts";
 import { badgeEntry } from "../badge/badge.fixtures.ts";
 import { buttonEntry } from "../button/button.fixtures.ts";
+import { cannedCommentsDialogEntry } from "../canned-comments-dialog/canned-comments-dialog.fixtures.ts";
+import { cannedSuggestionsEntry } from "../canned-suggestions/canned-suggestions.fixtures.ts";
 import { ciPillEntry } from "../ci-pill/ci-pill.fixtures.ts";
 import { codeCellEntry } from "../code-cell/code-cell.fixtures.ts";
 import { commandPaletteEntry } from "../command-palette/command-palette.fixtures.ts";
@@ -60,6 +62,8 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   avatar: avatarEntry,
   badge: badgeEntry,
   button: buttonEntry,
+  "canned-comments-dialog": cannedCommentsDialogEntry,
+  "canned-suggestions": cannedSuggestionsEntry,
   "ci-pill": ciPillEntry,
   "code-cell": codeCellEntry,
   "command-palette": commandPaletteEntry,

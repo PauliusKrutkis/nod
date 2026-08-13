@@ -113,6 +113,31 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "quiet",
     ],
   },
+  "canned-comments-dialog": {
+    dialog: true,
+    fixtures: [
+      "empty",
+      "many",
+      "markup-as-text",
+      "minimal",
+      "overflow",
+      "typical",
+      "unicode",
+    ],
+  },
+  "canned-suggestions": {
+    fixtures: [
+      "empty",
+      "full",
+      "markup-as-text",
+      "minimal",
+      "overflow",
+      "query-nearly-whole-line",
+      "second-selected",
+      "typical",
+      "unicode",
+    ],
+  },
   "ci-pill": {
     fixtures: [
       "failure",

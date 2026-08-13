@@ -42,6 +42,7 @@ export interface AddCommentBoxHandle {
 
 export interface AddCommentBoxProps {
   autoFocus?: boolean;
+  cannedComments?: string[];
   extensions?: Extensions;
   initialMarkdown?: string;
   initialMode?: "batch" | "now";
@@ -66,6 +67,7 @@ export function AddCommentBox({
   placeholder,
   autoFocus,
   extensions,
+  cannedComments,
   initialMarkdown,
   initialMode = "batch",
   submitLabel = "Comment",
@@ -138,6 +140,7 @@ export function AddCommentBox({
     <div className="qa-inline">
       <ComposerEditor
         autoFocus={autoFocus}
+        cannedComments={cannedComments}
         extensions={extensions}
         initialMarkdown={initialMarkdown}
         onCancel={onCancel}
