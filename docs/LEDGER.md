@@ -200,6 +200,20 @@ thresholds, topic seeds, rules — reviewable like code), personal-local
 browser — queue/session/topic with no install. Primarily a marketing
 asset: the landing page's "try it" moment.
 
+**One review surface, three backends.** The frontend is already
+browser-native (Tauri webview; the webview never does I/O — everything
+crosses the typed wrapper seam). Ship the same React review surface as
+three builds behind one interface: desktop (Tauri → Rust → local clone +
+sidecar; free/solo/power tier), playground (fixture data — the existing
+demo build), and browser app (HTTP → indexer; hosted team tier). The
+indexer's server-side clone makes the browser app fully featured — real
+sessions, net diffs, topics — not a lite dashboard. Desktop stays the
+flagship because keyboard-first degrades in browsers (Tab and focus are
+contested), local-clone latency is zero, and it needs no service.
+Discipline from phase 3: the Ledger tab's surface lives in a shared
+workspace package talking only to the seam interface, so the browser app
+later is a backend binding, not an extraction project.
+
 ## 7. Testing
 
 - **Fixture repos.** Synthetic git histories (scripted: commits, squash
