@@ -1,26 +1,11 @@
 import { Kbd } from "@nod/ui/kbd";
 import { Spinner } from "@nod/ui/spinner";
-import {
-  Bell,
-  Command as CommandIcon,
-  HelpCircle,
-  History,
-  MessageSquareQuote,
-  Search,
-  Sparkles,
-  Ticket,
-  User,
-  UserPlus,
-  X,
-  ZoomIn,
-  ZoomOut,
-} from "lucide-react";
+import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AiSetupLoader } from "./components/ai-setup-loader.tsx";
 import { CannedCommentsLoader } from "./components/canned-comments-loader.tsx";
 import { CommandPaletteCommands } from "./components/command-palette-commands.tsx";
 import { GlobalSearch } from "./components/global-search.tsx";
-
 import { Inbox } from "./components/inbox/inbox.tsx";
 import { IssueTrackerSettings } from "./components/issue-tracker-settings.tsx";
 import { KeyboardHelp } from "./components/keyboard-help.tsx";
@@ -32,23 +17,17 @@ import { ReviewNotifier } from "./components/review-notifier.tsx";
 import { TokenGateFlow } from "./components/token-gate-flow.tsx";
 import { UpdatePromptLoader } from "./components/update-prompt-loader.tsx";
 import { WhatsNewLoader } from "./components/whats-new-loader.tsx";
-import { useLicenseCommand } from "./hooks/use-license-command.ts";
-import type { Binding } from "./keyboard/types.ts";
-import { useHotkeys } from "./keyboard/use-hotkeys.ts";
+import { useGlobalBindings } from "./keyboard/use-global-bindings.ts";
 import { api } from "./lib/api.ts";
-import { applyZoom, clampZoom, loadZoom, ZOOM_STEP } from "./lib/zoom.ts";
+import { applyZoom, loadZoom } from "./lib/zoom.ts";
 import { loadLastRoute, useAppStore } from "./store/app-store.ts";
 
 export default function App() {
   const route = useAppStore((s) => s.route);
   const setRoute = useAppStore((s) => s.setRoute);
-  const accounts = useAppStore((s) => s.accounts);
-  const activeAccountId = useAppStore((s) => s.activeAccountId);
   const setAccounts = useAppStore((s) => s.setAccounts);
-  const switchAccount = useAppStore((s) => s.switchAccount);
   const toast = useAppStore((s) => s.toast);
   const setToast = useAppStore((s) => s.setToast);
-  const licenseCommand = useLicenseCommand();
   const inboxPaneVisible = useAppStore((s) => s.inboxPaneVisible);
   const aiSetupOpen = useAppStore((s) => s.aiSetupOpen);
   const closeAiSetup = useAppStore((s) => s.closeAiSetup);
@@ -59,6 +38,9 @@ export default function App() {
 
   const dismissToast = () => {
     setToast(null);
+  };
+  const openTracker = () => {
+    setTrackerOpen(true);
   };
   const closeTracker = () => {
     setTrackerOpen(false);
@@ -71,6 +53,12 @@ export default function App() {
   };
   const closeNotifications = () => {
     setNotificationsOpen(false);
+  };
+  const toggleNotifications = () => {
+    setNotificationsOpen((v) => !v);
+  };
+  const openCannedDialog = () => {
+    setCannedOpen(true);
   };
   const closeCanned = () => {
     setCannedOpen(false);
@@ -131,132 +119,12 @@ export default function App() {
       .catch(() => undefined);
   }, [setRoute, setAccounts]);
 
-  const accountBindings: Binding[] = [
-    ...accounts.slice(0, 9).map(
-      (a, i): Binding => ({
-        description:
-          a.id === activeAccountId
-            ? `Account: ${a.login} · ${a.provider} (current)`
-            : `Switch to ${a.login} · ${a.provider}`,
-        global: true,
-        group: "Accounts",
-        icon: User,
-        keys: `mod+${i + 1}`,
-        run: () => switchAccount(a.id),
-      })
-    ),
-    {
-      description: "Add account (GitHub / GitLab)",
-      global: true,
-      group: "Accounts",
-      icon: UserPlus,
-      keys: "mod+shift+a",
-      run: () => setRoute({ name: "token" }),
-    },
-  ];
-
-  useHotkeys(
-    "global",
-    [
-      {
-        description: "Open command palette",
-        global: true,
-        group: "General",
-        icon: CommandIcon,
-        keys: "mod+k",
-        run: () => useAppStore.getState().togglePalette(),
-      },
-      {
-        description: "Show keyboard shortcuts",
-        global: true,
-        group: "General",
-        icon: HelpCircle,
-        keys: "?",
-        run: () => useAppStore.getState().toggleHelp(),
-      },
-      {
-        description: "Canned comments…",
-        global: true,
-        group: "Comments",
-        icon: MessageSquareQuote,
-        keys: "mod+;",
-        run: () => setCannedOpen(true),
-      },
-      {
-        description: "Search pull requests",
-        global: true,
-        group: "General",
-        icon: Search,
-        keys: "/",
-        run: () => useAppStore.setState({ searchOpen: true }),
-      },
-      {
-        description: "Zoom in",
-        global: true,
-        group: "View",
-        icon: ZoomIn,
-        keys: ["mod+=", "mod++"],
-        run: () => {
-          applyZoom(clampZoom(loadZoom() + ZOOM_STEP));
-        },
-      },
-      {
-        description: "Zoom out",
-        global: true,
-        group: "View",
-        icon: ZoomOut,
-        keys: "mod+-",
-        run: () => {
-          applyZoom(clampZoom(loadZoom() - ZOOM_STEP));
-        },
-      },
-      {
-        description: "Reset zoom",
-        global: true,
-        group: "View",
-        icon: Search,
-        keys: "mod+0",
-        run: () => {
-          applyZoom(1);
-        },
-      },
-      {
-        description: "Issue tracker links (Jira)…",
-        global: true,
-        group: "General",
-        icon: Ticket,
-        keys: [],
-        run: () => setTrackerOpen(true),
-      },
-      {
-        description: "Ask about code · AI settings…",
-        global: true,
-        group: "General",
-        icon: Sparkles,
-        keys: [],
-        run: () => useAppStore.getState().openAiSetup(),
-      },
-      licenseCommand,
-      {
-        description: "Release history · what's new",
-        global: true,
-        group: "General",
-        icon: History,
-        keys: [],
-        run: () => setHistoryOpen(true),
-      },
-      {
-        description: "Notifications · what you were told about",
-        global: true,
-        group: "General",
-        icon: Bell,
-        keys: "mod+shift+n",
-        run: () => setNotificationsOpen((v) => !v),
-      },
-      ...accountBindings,
-    ],
-    { activate: false }
-  );
+  useGlobalBindings({
+    openCanned: openCannedDialog,
+    openHistory,
+    openTracker,
+    toggleNotifications,
+  });
 
   const baseScope = route.name === "review" ? "review" : "inbox";
   const showRouteChrome = route.name === "inbox" || route.name === "review";
