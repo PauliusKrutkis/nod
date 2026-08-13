@@ -309,7 +309,42 @@ before a month is invested.
   colleague reviewing weekly; ≥3 external repos wearing the badge; ≥1
   design-partner team asking for the hosted tier unprompted.
 
-## 15. Open questions
+## 15. Extended capabilities
+
+Everything below is either a new fact type or a new consumer of the fact
+stream — additive, never structural. Deferred until a phase demands it,
+but the model supports all of it by construction.
+
+- **Inline comments.** A fact `(actor, anchor, body, at-sha)`. Anchored to
+  content, comments travel with code through moves/rebases and degrade
+  gracefully when code is rewritten ("commented on a previous version;
+  here's the net change since") instead of orphaning like diff-positioned
+  comments. Threads are facts referencing a parent fact; resolving is a
+  fact.
+- **Global comments.** The fact subject is a union — anchor | topic |
+  delta | fact. Topic comments are feature-level discussion; no new
+  machinery.
+- **Agent API.** Agents write facts and read derivations: MCP over the
+  local index, HTTP via the indexer. Agent facts never satisfy the
+  ratchet; they are triage signal.
+- **Pipelines (rules).** Two trigger classes: raw events (fact appended)
+  and derived transitions (delta spawned, topic went stale, coverage
+  dropped, item aged past N days). Rules live versioned in the repo
+  (`.ledger/rules`); day one they evaluate in CI via `ledger check`,
+  later the indexer evaluates the same rules in real time. Same format,
+  two runtimes.
+- **Webhooks.** Outbound from the indexer (fact appended / transition
+  fired). Note: GitHub Actions' `on: push` does not trigger on custom
+  refs, so real-time eventing belongs to the indexer; CI polling covers
+  the local tier.
+- **Limits, stated plainly:** real-time (presence, live threads, instant
+  hooks) is a service-tier property — the git data plane syncs at
+  push/fetch cadence. Append-only means comment edits are
+  supersede-facts and deletes are tombstones. Pre-merge review stays
+  GitHub's and Nod's job; the ledger consumes it (approvals become
+  facts) rather than competing with it.
+
+## 16. Open questions
 
 - Working name. "Ledger" is a placeholder; the badge/action needs a real
   one before phase 8.
@@ -321,3 +356,6 @@ before a month is invested.
   tree-sitter). Hunks first; blocks are a possible phase-5 upgrade.
 - Multi-repo topics (one feature spanning app + service repos) — out of
   scope until a design partner forces it.
+- Purging abusive comment content from refs/ledger requires rewriting the
+  ref (doable — it's not code history — but distributed clones may retain
+  copies). Moderation story needed before comments ship to teams.
