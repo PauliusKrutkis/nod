@@ -29,7 +29,18 @@
    (qg-capture on the root) the well and the slot ticks are suppressed and
    the mat vanishes into the frame background — the screenshot suite sees
    the pre-mat pixels. Animations pause under
-   prefers-reduced-motion so webkit captures are deterministic. */
+   prefers-reduced-motion so webkit captures are deterministic.
+   The notes margin (.qg-margin) mirrors the rail on the right and remaps
+   --accent to --warn for the whole region: violet is the system talking
+   (selection, ticks, the x-ray), amber is a human mark, which is what the
+   frame's provenance caption already meant by it. Nothing inside hardcodes
+   a second accent — the region override carries the focus ring, the note
+   rules and the fills. Note bodies are set in the UI face while every other
+   piece of gallery metadata is mono, because the mono is machine-written
+   and a note is not. Neither the margin nor the topbar's note toggle
+   renders under ?capture, so no baseline can move with them; the toggle's
+   line box still matches the component name's so the topbar keeps its
+   height at rest too. */
 
 .qg-root {
   display: flex;
@@ -589,4 +600,264 @@ dialog.q-dialog-top:modal {
 .qg-xray .qg-mat > * {
   outline: 1px dashed var(--accent-line);
   outline-offset: -1px;
+}
+
+.qg-mark {
+  margin-left: auto;
+  padding: 2px 5px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+  color: var(--warn);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.qg-note-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 1px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: none;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 14px;
+  cursor: pointer;
+  transition:
+    color 120ms,
+    border-color 120ms,
+    background 120ms;
+}
+
+.qg-note-toggle:hover {
+  color: var(--fg);
+  border-color: var(--line-2);
+}
+
+.qg-note-toggle.qg-on {
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  border-color: color-mix(in srgb, var(--warn) 40%, transparent);
+  color: var(--warn);
+}
+
+.qg-margin {
+  --accent: var(--warn);
+  --mark-soft: color-mix(in srgb, var(--warn) 14%, transparent);
+  --mark-line: color-mix(in srgb, var(--warn) 40%, transparent);
+
+  width: 300px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-left: 1px solid var(--line);
+}
+
+.qg-margin-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 14px 14px 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.qg-margin-title {
+  font-weight: 640;
+}
+
+.qg-margin-on {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--faint);
+}
+
+.qg-margin-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px;
+}
+
+.qg-margin-empty {
+  margin: 0;
+  color: var(--faint);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.qg-note-card {
+  padding-left: 10px;
+  border-left: 2px solid var(--mark-line);
+}
+
+.qg-note-card.qg-scope-cell {
+  border-left-style: dashed;
+}
+
+.qg-note-text {
+  margin: 0;
+  color: var(--fg);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.qg-note-stamp {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--faint);
+}
+
+.qg-note-where {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qg-note-remove {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--faint);
+  font: inherit;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 120ms,
+    color 120ms;
+}
+
+.qg-note-card:hover .qg-note-remove,
+.qg-note-remove:focus-visible {
+  opacity: 1;
+}
+
+.qg-note-remove:hover {
+  color: var(--warn);
+}
+
+.qg-decided {
+  border-top: 1px dashed var(--line);
+  padding-top: 12px;
+}
+
+.qg-decided h2 {
+  margin: 0 0 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--faint);
+}
+
+.qg-decided p {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.qg-decided-why {
+  display: block;
+  color: var(--faint);
+}
+
+.qg-compose {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  padding: 12px 14px 14px;
+}
+
+.qg-compose textarea {
+  width: 100%;
+  resize: vertical;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  color: var(--fg);
+  font: 12.5px / 1.5 var(--font-ui);
+  padding: 7px 9px;
+}
+
+.qg-compose textarea::placeholder {
+  color: var(--faint);
+}
+
+.qg-compose textarea:focus {
+  border-color: var(--mark-line);
+}
+
+.qg-compose-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.qg-compose-save {
+  margin-left: auto;
+  padding: 3px 12px;
+  border: 1px solid var(--mark-line);
+  border-radius: var(--r-lg);
+  background: var(--mark-soft);
+  color: var(--warn);
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: background 120ms;
+}
+
+.qg-compose-save:hover {
+  background: color-mix(in srgb, var(--warn) 24%, transparent);
+}
+
+.qg-compose-error {
+  margin: 0;
+  color: var(--del);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.qg-compose-hint {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--faint);
+}
+
+.qg-compose-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qg-compose-keys {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.qg-compose-keys .q-kbd-combo {
+  margin-left: 6px;
+}
+
+.qg-compose-keys .q-kbd-combo:first-child {
+  margin-left: 0;
 }
