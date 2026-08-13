@@ -17,6 +17,7 @@ export interface AppOptions {
   detail?: unknown;
   activateLicense?: "hang" | "error" | "licensed";
   appVersion?: string;
+  aiCompletion?: string;
   aiInfo?: {
     configured: boolean;
     baseUrl: string | null;
@@ -69,6 +70,7 @@ function aiDefaults(opts: AppOptions) {
   return {
     aiAnswer:
       opts.aiAnswer ?? "It renames the retry knob — see `src/retry.ts:2`.",
+    aiCompletion: opts.aiCompletion ?? "",
     aiInfo: opts.aiInfo ?? { baseUrl: null, configured: false, model: null },
     aiModelsError: opts.aiModelsError ?? null,
     aiModels: opts.aiModels ?? [
@@ -146,6 +148,14 @@ export function installBridge(cfg: BridgeConfig) {
         throw new Error("AI provider error (402): out of credits");
       }
       return cfg.aiAnswer;
+    },
+    ai_complete: (args) => {
+      countCall("ai_complete");
+      localStorage.setItem("e2e:aiComplete", JSON.stringify(args));
+      if (cfg.aiCompletion === "error") {
+        throw new Error("AI provider error (402): out of credits");
+      }
+      return cfg.aiCompletion ?? "";
     },
     ai_list_models: () => {
       countCall("ai_list_models");

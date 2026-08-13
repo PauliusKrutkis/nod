@@ -54,6 +54,7 @@ import {
   type ChangeEvent,
   type KeyboardEvent,
   type Ref,
+  useEffect,
   useImperativeHandle,
   useInsertionEffect,
   useState,
@@ -63,6 +64,7 @@ import {
   matchCanned,
 } from "../canned-suggestions/canned-suggestions.tsx";
 import { cn } from "../cn/cn.ts";
+import { setGhostSuppressed } from "../ghost-text/ghost-text.ts";
 import { Tooltip } from "../tooltip/tooltip.tsx";
 import "./composer-editor.css";
 
@@ -402,6 +404,12 @@ export function ComposerEditor({
       acceptCanned(text);
     }
   };
+
+  // The canned panel wins outright while it is up: those lines are the
+  // reviewer's own, and two offers competing for one caret is one too many.
+  useEffect(() => {
+    setGhostSuppressed(editor, cannedShown);
+  }, [editor, cannedShown]);
 
   const insertSuggestion = () => {
     const line = suggestionText ?? "";

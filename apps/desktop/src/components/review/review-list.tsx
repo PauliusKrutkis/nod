@@ -45,6 +45,7 @@ import {
   type GroupedVirtuosoHandle,
   type StateSnapshot,
 } from "react-virtuoso";
+import { useAiCompletion } from "../../hooks/use-ai-completion.ts";
 import { useCannedComments } from "../../hooks/use-canned-comments.ts";
 import { cn } from "../../lib/cn.ts";
 import { canExpandFile } from "../../lib/expand-file.ts";
@@ -547,6 +548,10 @@ function CommentAddBox({
   };
 
   const canned = useCannedComments();
+  const aiCompletion = useAiCompletion({
+    code: item.rangeContent ?? item.rowContent ?? undefined,
+    filePath: filename,
+  });
   const draftText =
     askDraft?.key === fileAnchorKey(item.fileIndex, item.anchor)
       ? askDraft.text
@@ -556,7 +561,7 @@ function CommentAddBox({
     <AddCommentBox
       autoFocus
       cannedComments={canned}
-      extensions={[suggestionHighlight(filename)]}
+      extensions={[suggestionHighlight(filename), ...aiCompletion]}
       initialMarkdown={draftText}
       onCancel={handleCancel}
       onSecondary={handleSecondary}

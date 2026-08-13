@@ -29,6 +29,7 @@
     "./find-bar": "./src/find-bar/find-bar.tsx",
     "./fixtures": "./src/fixtures/fixtures.ts",
     "./fuzzy": "./src/fuzzy/fuzzy.ts",
+    "./ghost-text": "./src/ghost-text/ghost-text.ts",
     "./help-overlay": "./src/help-overlay/help-overlay.tsx",
     "./highlight-indices": "./src/highlight-indices/highlight-indices.tsx",
     "./hunk-row": "./src/hunk-row/hunk-row.tsx",

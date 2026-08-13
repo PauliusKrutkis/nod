@@ -1,7 +1,7 @@
 use super::{
-    apply_stream_line, build_ask_prompt, execute_tool, extract_error_message, info_of,
-    message_answer, normalize_base_url, parse_models, resolve_api_key, AiConfig, AskContext,
-    StreamedMessage,
+    apply_stream_line, build_ask_prompt, build_complete_prompt, clean_completion, completion_text,
+    execute_tool, extract_error_message, info_of, message_answer, normalize_base_url, parse_models,
+    resolve_api_key, AiConfig, AskContext, CompleteContext, StreamedMessage,
 };
 use crate::snapshot::store::{partial_dir, promote, SnapshotKey};
 use serde_json::json;
@@ -265,4 +265,71 @@ fn extract_error_message_reads_openai_and_flat_shapes() {
     );
 
     assert_eq!(extract_error_message(&json!({ "detail": "?" })), None);
+}
+
+#[test]
+fn complete_prompt_carries_only_what_the_composer_knows() {
+    let bare = build_complete_prompt(
+        "nit: this reads better as",
+        &CompleteContext::default(),
+    );
+    assert_eq!(
+        bare,
+        "The reviewer has typed:\nnit: this reads better as"
+    );
+
+    let anchored = build_complete_prompt(
+        "this drops the",
+        &CompleteContext {
+            file_path: Some("src/retry.ts".to_string()),
+            code: Some("const parsed = JSON.parse(body);".to_string()),
+        },
+    );
+    assert!(anchored.starts_with("File: src/retry.ts\n"));
+    assert!(anchored.contains("const parsed = JSON.parse(body);"));
+    assert!(anchored.ends_with("The reviewer has typed:\nthis drops the"));
+}
+
+#[test]
+fn completion_text_reads_the_first_choice_and_tolerates_junk() {
+    let ok = json!({ "choices": [ { "message": { "content": " an early return." } } ] });
+    assert_eq!(completion_text(&ok), Some(" an early return.".to_string()));
+
+    assert_eq!(completion_text(&json!({ "choices": [] })), None);
+    assert_eq!(completion_text(&json!({ "error": "nope" })), None);
+    assert_eq!(
+        completion_text(&json!({ "choices": [ { "message": {} } ] })),
+        None
+    );
+}
+
+#[test]
+fn clean_completion_keeps_one_line_and_drops_a_repeated_prefix() {
+    assert_eq!(
+        clean_completion("an early return.", "Prefer "),
+        "an early return."
+    );
+
+    // The model restated what was typed instead of continuing it.
+    assert_eq!(
+        clean_completion("Prefer an early return.", "Prefer "),
+        "an early return."
+    );
+    assert_eq!(
+        clean_completion("PREFER an early return.", "Prefer "),
+        "an early return."
+    );
+
+    assert_eq!(clean_completion("\"quoted answer\"", "x"), "quoted answer");
+    assert_eq!(
+        clean_completion("first line\nsecond line", "x"),
+        "first line"
+    );
+    assert_eq!(clean_completion("   ", "x"), "");
+}
+
+#[test]
+fn clean_completion_refuses_an_essay() {
+    let essay = "a".repeat(200);
+    assert_eq!(clean_completion(&essay, "x"), "");
 }

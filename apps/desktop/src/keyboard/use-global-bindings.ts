@@ -1,7 +1,7 @@
 /**
  * Every binding that works wherever you are: the palette and help, the two
- * canned comments, search, zoom, notifications, the settings dialogs and the
- * account switcher. They live here rather than in App because App renders routes and
+ * the two comment preferences, search, zoom, notifications, the settings
+ * dialogs and the account switcher. They live here rather than in App because App renders routes and
  * chrome — this is a list of what the keyboard can do, and it is long enough
  * that keeping it inline buried the render.
  *
@@ -24,7 +24,9 @@ import {
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
+import { useAiCompletionEnabled } from "../hooks/use-ai-completion.ts";
 import { useLicenseCommand } from "../hooks/use-license-command.ts";
+import { setAiCompletionEnabled } from "../lib/ai-completion.ts";
 import { applyZoom, clampZoom, loadZoom, ZOOM_STEP } from "../lib/zoom.ts";
 import { useAppStore } from "../store/app-store.ts";
 import type { Binding } from "./types.ts";
@@ -40,7 +42,9 @@ export function useGlobalBindings(dialogs: {
   const accounts = useAppStore((s) => s.accounts);
   const activeAccountId = useAppStore((s) => s.activeAccountId);
   const switchAccount = useAppStore((s) => s.switchAccount);
+  const setToast = useAppStore((s) => s.setToast);
   const licenseCommand = useLicenseCommand();
+  const aiCompletionOn = useAiCompletionEnabled();
   const { openCanned, openHistory, openTracker, toggleNotifications } = dialogs;
 
   const accountBindings: Binding[] = [
@@ -93,6 +97,25 @@ export function useGlobalBindings(dialogs: {
         icon: MessageSquareQuote,
         keys: "mod+;",
         run: openCanned,
+      },
+      {
+        description: aiCompletionOn
+          ? "Turn off AI comment completion"
+          : "Turn on AI comment completion",
+        global: true,
+        group: "Comments",
+        icon: Sparkles,
+        keys: "mod+shift+u",
+        run: () => {
+          const next = !aiCompletionOn;
+          setAiCompletionEnabled(next);
+          setToast({
+            message: next
+              ? "The composer will offer a continuation after you pause. Tab takes it."
+              : "The composer will stop asking the model to finish your sentences.",
+            title: next ? "AI completion on" : "AI completion off",
+          });
+        },
       },
       {
         description: "Search pull requests",
