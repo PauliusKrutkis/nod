@@ -1,0 +1,18 @@
+{
+  "name": "@nod/ledger",
+  "version": "0.0.0",
+  "private": true,
+  "license": "FSL-1.1-Apache-2.0",
+  "type": "module",
+  "exports": {
+    "./facts/schema": "./src/facts/schema.ts",
+    "./facts/store": "./src/facts/store.ts",
+    "./git/exec": "./src/git/exec.ts"
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.9"
+  }
+}
