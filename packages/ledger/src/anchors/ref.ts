@@ -27,7 +27,7 @@ export const anchorRefOf = (anchor: Anchor): AnchorRef => ({
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-export const isAnchorRef = (value: unknown): value is AnchorRef =>
+const isAnchorRef = (value: unknown): value is AnchorRef =>
   isRecord(value) &&
   typeof value.id === "string" &&
   typeof value.atSha === "string" &&

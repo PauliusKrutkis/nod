@@ -90,7 +90,7 @@ const blameOracle = async (
   return oracle;
 };
 
-export interface ConfigReplay {
+interface ConfigReplay {
   config: ResolveConfig;
   anchors: number;
   /** All line counts are anchor-line-weighted. */
@@ -127,7 +127,7 @@ interface SignedAnchor {
   renamedTo: string | undefined;
 }
 
-export interface UnexplainedEntry {
+interface UnexplainedEntry {
   pr: number;
   path: string;
   lines: number;

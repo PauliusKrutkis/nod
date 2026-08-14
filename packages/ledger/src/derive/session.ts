@@ -20,7 +20,7 @@ export interface SessionRegion {
   endLine: number;
 }
 
-export interface SessionFile {
+interface SessionFile {
   path: string;
   /** Non-null iff `patch` is the real diff from this sha to tip. */
   baseline: QueueBaseline | null;
@@ -39,7 +39,7 @@ const CONTEXT = 8;
 const TARGET = /^(.+):(\d+)-(\d+)$/;
 
 /** Same grammar and overlap semantics as `ledger review` targets. */
-export const matchesTarget = (item: QueueItem, target: string): boolean => {
+const matchesTarget = (item: QueueItem, target: string): boolean => {
   const range = TARGET.exec(target);
   if (!range) {
     return item.path === target;

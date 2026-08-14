@@ -4,7 +4,7 @@ import type { GitRun } from "./exec.ts";
 const LINE_RECORD = /^([0-9a-f]{40}) \d+ (\d+)/;
 
 /** Introducing sha per 0-based line of one file at rev. */
-export const blameFile = async (
+const blameFile = async (
   git: GitRun,
   rev: string,
   path: string

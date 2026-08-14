@@ -9,7 +9,7 @@ const GENERATED_PATH = /(^|\/)(pnpm-lock\.yaml|.*\.lock|.*\.snap)$/;
 export const isTrackablePath = (path: string): boolean =>
   !(BINARY_PATH.test(path) || GENERATED_PATH.test(path));
 
-export const listTrackableFiles = async (
+const listTrackableFiles = async (
   git: GitRun,
   rev: string
 ): Promise<string[]> => {

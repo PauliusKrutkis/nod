@@ -6,14 +6,14 @@
  * measures survival under each level; the default is chosen from those
  * numbers, not from taste.
  */
-export const NORMALIZATIONS = ["exact", "rtrim", "ws"] as const;
+const NORMALIZATIONS = ["exact", "rtrim", "ws"] as const;
 
 export type Normalization = (typeof NORMALIZATIONS)[number];
 
 const TRAILING_WS = /\s+$/;
 const WS_RUN = /\s+/g;
 
-export const normalizeLine = (line: string, mode: Normalization): string => {
+const normalizeLine = (line: string, mode: Normalization): string => {
   if (mode === "exact") {
     return line;
   }

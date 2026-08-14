@@ -237,19 +237,19 @@ export interface ReleaseInfo {
  * falls back to the bare commit. Line spans are 1-based and inclusive;
  * `newLines` counts only unreviewed post-epoch lines inside the span.
  */
-export interface LedgerProvenance {
+interface LedgerProvenance {
   pr: number | null;
   sha: string;
   subject: string;
 }
 
-export interface LedgerActor {
+interface LedgerActor {
   id: string;
   kind: "agent" | "human";
 }
 
 /** The last attestation a region decayed from; `sha` is the diff baseline. */
-export interface LedgerBaseline {
+interface LedgerBaseline {
   actor: LedgerActor;
   atTime: string;
   /** The signed anchor's path at `sha`; differs from the item's across a rename. */
@@ -270,13 +270,13 @@ export interface LedgerQueueItem {
   topic: string;
 }
 
-export interface LedgerTopicApproval {
+interface LedgerTopicApproval {
   actor: LedgerActor;
   atTime: string;
   sha: string;
 }
 
-export interface LedgerTopicStatus {
+interface LedgerTopicStatus {
   /** Distinct human actors with a resolvable approval. */
   approvals: number;
   /** Null until the threshold is met. */

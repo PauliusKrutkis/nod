@@ -26,7 +26,7 @@ import { readTreeLines } from "../git/files.ts";
  * of the coverage fraction.
  */
 
-export interface Provenance {
+interface Provenance {
   sha: string;
   pr: number | null;
   subject: string;
@@ -50,13 +50,13 @@ export interface QueueBaseline {
 }
 
 /** The effective approval a topic's deltas are baselined against. */
-export interface TopicApproval {
+interface TopicApproval {
   sha: string;
   atTime: string;
   actor: Actor;
 }
 
-export interface TopicStatus {
+interface TopicStatus {
   id: string;
   /** Post-epoch tip lines classified into this topic. */
   totalLines: number;
@@ -140,7 +140,7 @@ const markRange = (
 };
 
 /** One signed anchor joined against tip: where its content ended up. */
-export interface ResolvedAnchor {
+interface ResolvedAnchor {
   ref: AnchorRef;
   fact: Fact;
   resolution: Resolution;

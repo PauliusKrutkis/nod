@@ -407,22 +407,23 @@ function PickerRow({
     onOpen(repoKey);
   };
   return (
-    <div
+    <button
       aria-selected={selected}
       className={cn(
-        "flex cursor-default items-baseline gap-3 px-6 py-1.5",
+        "flex w-full cursor-default items-baseline gap-3 px-6 py-1.5 text-left",
         selected && "bg-surface-2"
       )}
       data-index={index}
       onClick={handleClick}
       role="option"
       tabIndex={-1}
+      type="button"
     >
       <span className="shrink-0 font-medium text-fg text-sm">{repoKey}</span>
       <span className="truncate font-mono text-faint text-xs">
         {path ?? "no local clone yet — enter sets one"}
       </span>
-    </div>
+    </button>
   );
 }
 
@@ -508,10 +509,10 @@ function GroupRow({
     onOpen(index);
   };
   return (
-    <div
+    <button
       aria-selected={selected}
       className={cn(
-        "flex cursor-default items-center gap-3 px-6 py-1.5",
+        "flex w-full cursor-default items-center gap-3 px-6 py-1.5 text-left",
         selected && "bg-surface-2"
       )}
       data-index={index}
@@ -519,6 +520,7 @@ function GroupRow({
       onDoubleClick={handleDoubleClick}
       role="option"
       tabIndex={-1}
+      type="button"
     >
       <span className="shrink-0 font-medium text-fg">{group.label}</span>
       <span className="shrink-0 text-faint text-xs tabular-nums">
@@ -534,7 +536,7 @@ function GroupRow({
           </span>
         ))}
       <span className="truncate text-muted text-xs">{group.subject}</span>
-    </div>
+    </button>
   );
 }
 
