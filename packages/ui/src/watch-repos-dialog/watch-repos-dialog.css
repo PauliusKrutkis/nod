@@ -40,8 +40,35 @@
   color: var(--muted);
 }
 
+/* The body is a column that never scrolls itself; its two lists are the
+   scrollers. It used to scroll too, and the watched list had a fixed 224px
+   window inside it — one scroller nested in another. Inline in the gallery
+   the panel is short enough that neither ever ran out of room, but in the app
+   a search (eight hits) plus a handful of watched repos overruns the panel's
+   max-height: the body scrolled, so the last watched row was cut off behind
+   the footer with nothing to say it continued, and reaching it meant
+   scrolling the body to find a second scrollbar.
+
+   Now the search box is fixed, the results take the height they need, and the
+   watched list takes whatever is left and scrolls inside it. Both can shrink
+   (min-height: 0 — a flex item won't go below its content otherwise), so the
+   footer stays put and the panel only grows to fit content up to its cap.
+   The body keeps overflow-y: auto as a floor, not as the plan: the lists give
+   their space up first, so it only ever scrolls in the short window at the
+   bottom of this file, where they have nothing left to give.
+
+   `flex: 1 1 auto`, never the `flex: 1` shorthand: that expands to a 0%
+   flex-basis, and a percentage basis has to resolve against the panel's
+   height, which is auto — max-height caps a height, it does not make one
+   definite. Chromium reads the basis as the content height and everything
+   looks right; WebKit resolves it to 0, so the body contributed nothing to
+   the panel and the app collapsed the whole dialog to its head, a clipped
+   search input and its footer. Nod ships on WebKit, so this line is the
+   difference between a dialog and a strip. */
 .qw-body {
-  flex: 1;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
   min-height: 0;
   padding: 16px 20px;
   overflow-y: auto;
@@ -49,6 +76,7 @@
 
 .qw-search {
   position: relative;
+  flex: none;
 }
 
 .qw-search-icon {
@@ -86,9 +114,12 @@
 
 .qw-results {
   display: flex;
+  flex: 0 1 auto;
   flex-direction: column;
   gap: 2px;
+  min-height: 0;
   margin-top: 8px;
+  overflow-y: auto;
 }
 
 .qw-none {
@@ -99,12 +130,35 @@
   overflow-wrap: anywhere;
 }
 
+/* Two elements for one list, because the 224px window has to be the height
+   this box REPORTS, not just the height it draws at. A flex shrink is split
+   by flex basis, and with the basis left as the content height sixty watched
+   repos outweighed the search results ten to one and collapsed them to a
+   single row. The cap therefore belongs to an inner scroller: the outer box
+   sizes to the inner one, so its basis is at most 224px, and a two-repo list
+   is still two repos tall rather than a 224px box with a hole in it.
+
+   The obvious one-element spellings both fail. `flex-basis: 224px` alone
+   makes the short lists 224px tall; clamping that back with
+   `max-height: max-content` is an intrinsic keyword on max-height, which is
+   the kind of thing engines disagree about — and this dialog ships on
+   WebKit. Two boring boxes beat one clever one. */
 .qw-list {
   display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  margin-top: 12px;
+  overflow: hidden;
+}
+
+.qw-list-rows {
+  display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 4px;
+  min-height: 0;
   max-height: 224px;
-  margin-top: 12px;
   overflow-y: auto;
 }
 
@@ -116,17 +170,15 @@
   text-align: center;
 }
 
-.qw-note .q-spinner {
-  justify-content: center;
-}
-
 .qw-saving {
+  flex: none;
   margin-top: 10px;
   font-size: 12px;
   color: var(--faint);
 }
 
 .qw-error {
+  flex: none;
   margin: 10px 0 0;
   font-size: 12px;
   color: var(--del);
@@ -305,6 +357,47 @@
   margin: 0;
   transform: none;
   animation: none;
+}
+
+/* A short viewport — a window dragged down to a strip, or the app zoomed in,
+   which divides the CSS viewport by the zoom factor. The panel's budget is
+   78vh, and the head and footer are a fixed 144px of it: below ~560px of
+   viewport that is the whole panel, so the lists shrank to nothing and the
+   search input was clipped by a body shorter than one row.
+
+   The panel takes the window instead of 78% of it, the head gives up its
+   subtitle (the tab it describes is already on screen), and the paddings
+   tighten. What is left is divided between two lists that stop at two rows
+   each rather than vanishing — the point past which the body finally scrolls,
+   because by then there genuinely is nowhere else for the space to come from.
+   Everything here is bounded by the query: at a normal window height not one
+   of these declarations applies. */
+@media (max-height: 560px) {
+  .q-dialog.qw-panel {
+    top: 8px;
+    max-height: calc(100vh - 16px);
+  }
+
+  .qw-sub {
+    display: none;
+  }
+
+  .qw-head {
+    padding: 10px 20px;
+  }
+
+  .qw-body {
+    padding: 12px 20px;
+  }
+
+  .qw-results,
+  .qw-list {
+    min-height: 76px;
+  }
+
+  .qw-foot {
+    padding: 8px 20px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

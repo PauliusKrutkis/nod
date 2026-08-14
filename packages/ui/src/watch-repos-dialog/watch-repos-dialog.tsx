@@ -12,7 +12,9 @@
  * request is in flight), an array (possibly empty) once one arrives.
  * `repos` reads the same way: `undefined` while the list loads, `null` when
  * it could not be read and nothing was cached, an array once resolved. An
- * empty array is "nothing watched", which is a different sentence.
+ * empty array is "nothing watched", which is a different sentence. Loading
+ * shows on the search input — the sweep that a search in flight already draws
+ * — rather than as a second spinner inside the list it is loading.
  *
  * Saves are optimistic and coalesced upstream, so `saving` is a status line
  * rather than a blocker: the list already shows the edit, and this only says
@@ -170,6 +172,7 @@ function WatchReposDialogContent({
   const listId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
   const { dialogRef, onDialogCancel, onDialogClose } = useModalDialog(
     () => {
       onOpenChange(false);
@@ -181,6 +184,10 @@ function WatchReposDialogContent({
 
   const watched = repos ?? [];
   const results = hits ?? [];
+  // One in-flight affordance for the whole panel, on the input: the search and
+  // the first read of the watched list are both "the provider has not answered
+  // yet", and the list used to say so a second time with a spinner of its own.
+  const busy = searching || repos === undefined;
   const sel = Math.max(0, Math.min(selRequest, results.length - 1));
   const armOrder: Armed[] = [
     null,
@@ -189,6 +196,15 @@ function WatchReposDialogContent({
   ];
   const { armed, cycle, setArmed } = useArmedRing<Armed>(armOrder, null);
   const repoSet = new Set(watched);
+
+  // Both lists have their own scroll window once the panel runs out of room,
+  // so walking either one has to bring the row it lands on into view — arrows
+  // through the results and Tab through the watched rows alike.
+  useEffect(() => {
+    resultsRef.current
+      ?.querySelectorAll("[role='option']")
+      [sel]?.scrollIntoView({ block: "nearest" });
+  }, [sel]);
 
   useEffect(() => {
     if (armed === null) {
@@ -265,6 +281,7 @@ function WatchReposDialogContent({
         <div className="qw-search">
           <Search aria-hidden className="qw-search-icon" size={14} />
           <input
+            aria-busy={busy}
             aria-controls={listId}
             aria-expanded={results.length > 0}
             aria-label="Search repositories"
@@ -278,11 +295,16 @@ function WatchReposDialogContent({
             spellCheck={false}
             value={query}
           />
-          {searching ? <span aria-hidden className="qw-scan" /> : null}
+          {busy ? <span aria-hidden className="qw-scan" /> : null}
         </div>
 
         {hits === null ? null : (
-          <div className="qw-results" id={listId} role="listbox">
+          <div
+            className="qw-results"
+            id={listId}
+            ref={resultsRef}
+            role="listbox"
+          >
             {results.map((hit, i) => (
               <WatchHitRow
                 hit={hit}
@@ -304,12 +326,14 @@ function WatchReposDialogContent({
           </div>
         )}
 
-        <div className="qw-list" ref={listRef}>
-          <WatchedList
-            armed={armed}
-            onStopWatching={stopWatching}
-            repos={repos}
-          />
+        <div className="qw-list">
+          <div className="qw-list-rows" ref={listRef}>
+            <WatchedList
+              armed={armed}
+              onStopWatching={stopWatching}
+              repos={repos}
+            />
+          </div>
         </div>
 
         {saving ? (
@@ -354,12 +378,11 @@ function WatchedList({
   onStopWatching: (repo: string) => void;
   repos: readonly string[] | null | undefined;
 }) {
+  // Loading says nothing here — the input is sweeping, and an empty box under
+  // it is not mistakable for "nothing watched", which arrives with its own
+  // sentence the moment the list resolves.
   if (repos === undefined) {
-    return (
-      <div className="qw-note">
-        <Spinner label="Loading watched repositories…" />
-      </div>
-    );
+    return null;
   }
   if (repos === null) {
     return (

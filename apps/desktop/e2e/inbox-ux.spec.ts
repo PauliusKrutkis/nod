@@ -282,6 +282,80 @@ test("watch dialog search shows a border sweep in flight, no empty box", async (
   await expect(page.locator(".qw-scan")).toHaveCount(0);
 });
 
+test("watch dialog keeps both lists inside the panel", async ({ page }) => {
+  // A full page of hits over a watched list that already wants the whole
+  // panel: the panel is at its max-height, so the only question is which of
+  // the two lists gives space up. It used to be neither — the body itself
+  // scrolled, which put the last watched row behind the footer and the
+  // watched list's own scrollbar out of reach below it.
+  await setupApp(page, {
+    repoHits: Array.from({ length: 8 }, (_, i) => ({
+      description: `Service ${i}`,
+      fullName: `acme/service-${i}-fork`,
+    })),
+    watchedRepos: Array.from({ length: 40 }, (_, i) => `acme/service-${i}`),
+  });
+  await expect(page.getByRole("option").first()).toBeVisible();
+
+  await page.keyboard.press("w");
+  await page.getByPlaceholder(SEARCH_REPOSITORIES).fill("service");
+  await expect(page.locator(".qw-hit").first()).toBeVisible();
+
+  const layout = await page.evaluate(() => {
+    const panel = document.querySelector("dialog.qw-panel") as HTMLElement;
+    const at = (sel: string) => panel.querySelector(sel) as HTMLElement;
+    const body = at(".qw-body");
+    return {
+      bodyOverflow: body.scrollHeight - body.clientHeight,
+      footBelowPanel:
+        at(".qw-foot").getBoundingClientRect().bottom -
+        panel.getBoundingClientRect().bottom,
+      listScrolls:
+        at(".qw-list-rows").scrollHeight > at(".qw-list-rows").clientHeight,
+      resultsScroll:
+        at(".qw-results").scrollHeight > at(".qw-results").clientHeight,
+    };
+  });
+
+  expect(layout.bodyOverflow).toBeLessThanOrEqual(0);
+  expect(layout.footBelowPanel).toBeLessThanOrEqual(0);
+  expect(layout.listScrolls).toBe(true);
+  expect(layout.resultsScroll).toBe(true);
+});
+
+test("watch dialog stays usable in a short window", async ({ page }) => {
+  // 240px of viewport is a window dragged down to a strip, or the app zoomed
+  // in — the zoom divides the CSS viewport, which is how this was found. The
+  // panel's 78vh budget left less than one row after the head and footer, so
+  // the lists shrank to nothing and the search input itself was clipped.
+  await page.setViewportSize({ height: 240, width: 1312 });
+  await setupApp(page, {
+    watchedRepos: ["acme/rocket", "acme/comet", "nod-dev/nod"],
+  });
+  await expect(page.getByRole("option").first()).toBeVisible();
+
+  await page.keyboard.press("w");
+  await expect(page.locator(".qw-row").first()).toBeVisible();
+
+  const compact = await page.evaluate(() => {
+    const panel = document.querySelector("dialog.qw-panel") as HTMLElement;
+    const at = (sel: string) => panel.querySelector(sel) as HTMLElement;
+    const body = at(".qw-body").getBoundingClientRect();
+    const input = at(".qw-input").getBoundingClientRect();
+    return {
+      inputClipped: input.top < body.top - 1 || input.bottom > body.bottom + 1,
+      listHeight: at(".qw-list").getBoundingClientRect().height,
+      panelHeight: panel.getBoundingClientRect().height,
+      subtitleShown: at(".qw-sub").getBoundingClientRect().height > 0,
+    };
+  });
+
+  expect(compact.inputClipped).toBe(false);
+  expect(compact.listHeight).toBeGreaterThanOrEqual(70);
+  expect(compact.panelHeight).toBeGreaterThan(200);
+  expect(compact.subtitleShown).toBe(false);
+});
+
 test("watch dialog input clears its leading icon", async ({ page }) => {
   await setupApp(page);
   await expect(page.getByRole("option").first()).toBeVisible();

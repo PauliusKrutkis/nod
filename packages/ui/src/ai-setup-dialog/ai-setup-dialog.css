@@ -53,9 +53,15 @@
   color: var(--muted);
 }
 
+/* `flex: 1 1 auto`, not `flex: 1` — see watch-repos-dialog.css. The shorthand
+   means a 0% flex-basis, which WebKit resolves to 0 against the panel's auto
+   height, and the body then contributes nothing to a panel that has no
+   min-height to fall back on: head, footer, nothing in between. The command
+   palette and the search pane survive the same shorthand only because their
+   panels carry a min-height floor for the body to grow into. */
 .qai-body {
   display: flex;
-  flex: 1;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 12px;
   min-height: 0;

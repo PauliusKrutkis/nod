@@ -739,6 +739,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
     dialog: true,
     fixtures: [
       "crowd-60",
+      "crowd-60-hits",
       "empty",
       "failed",
       "loading",

@@ -2,7 +2,10 @@
  * Two lists that arrive from different places, so the cases are their states
  * crossed: the watched list loading, unreadable, empty, one, and the long
  * tail that has to scroll inside its own 224px box; the search null (nothing
- * asked yet), in flight, answered with hits, and answered with none. Every
+ * asked yet), in flight, answered with hits, and answered with none. Both
+ * long at once is its own case (`crowd-60-hits`): it is the only one that
+ * overruns the panel, and while it was missing the app cut the last watched
+ * row off behind the footer with no way to reach it. Every
  * repo name is provider-supplied text, hence CJK/RTL/emoji and a name that is
  * one unbreakable token — `overflow` is the case that decides whether a row
  * ellipsizes or shoves the panel off screen.
@@ -50,10 +53,27 @@ const HITS: RepoHit[] = [
   },
 ];
 
+// A full page of hits (the provider returns eight) over a watched list that
+// already wants the whole panel — the one cross the other cases missed, and
+// the only one that asks the panel what it gives up when both lists want more
+// room than there is.
+const FULL_PAGE_OF_HITS: RepoHit[] = Array.from({ length: 8 }, (_, i) => ({
+  description: `Service ${i}, described at the length these descriptions run`,
+  fullName: `acme/service-${String(i).padStart(3, "0")}-fork`,
+}));
+
 export const watchReposDialogEntry = defineEntry(
   WatchReposDialog,
   {
     "crowd-60": { props: { ...shared, repos: MANY } },
+    "crowd-60-hits": {
+      props: {
+        ...shared,
+        hits: FULL_PAGE_OF_HITS,
+        query: "service",
+        repos: MANY,
+      },
+    },
     empty: { props: { ...shared, repos: [] } },
     failed: { props: { ...shared, repos: null } },
     loading: { props: { ...shared, repos: undefined } },
