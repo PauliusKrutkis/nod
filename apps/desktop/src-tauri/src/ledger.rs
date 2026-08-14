@@ -83,3 +83,11 @@ pub async fn ledger_review(repo_path: String, target: String) -> Result<(), Stri
         .map_err(|e| format!("ledger review failed: {e}"))??;
     Ok(())
 }
+
+#[tauri::command]
+pub async fn ledger_approve(repo_path: String, topic: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || run_cli(&repo_path, &["approve", &topic]))
+        .await
+        .map_err(|e| format!("ledger approve failed: {e}"))??;
+    Ok(())
+}

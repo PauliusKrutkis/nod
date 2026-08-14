@@ -23,6 +23,7 @@ const REAL: LedgerSessionFile = {
     atTime: "2026-08-13T12:00:00.000Z",
     refPath: "b.ts",
     sha: "b".repeat(40),
+    source: "anchor",
   },
   patch: "@@ -1,3 +1,3 @@\n ctx1\n-old\n+new\n ctx2",
   path: "b.ts",
@@ -115,57 +116,33 @@ describe("initialAnchorFor", () => {
 describe("groupQueueByProvenance", () => {
   const item = (
     path: string,
-    startLine: number,
+    topic: string,
     pr: number | null,
     sha: string,
     subject: string
   ): LedgerQueueItem => ({
     baseline: null,
-    endLine: startLine + 5,
+    endLine: 6,
     newLines: 6,
     path,
     provenance: [{ pr, sha, subject }],
-    startLine,
+    startLine: 1,
+    topic,
   });
 
-  it("groups by first PR with sha fallback, in first-appearance order", () => {
+  it("groups by the engine topic, in first-appearance order", () => {
     const queue = [
-      item("a.ts", 1, 321, "a".repeat(40), "feat: one (#321)"),
-      item("b.ts", 1, null, "d1eec70aa".padEnd(40, "0"), "direct push"),
-      item("c.ts", 1, 321, "a".repeat(40), "feat: one (#321)"),
+      item("a.ts", "ledger", 321, "a".repeat(40), "feat(ledger): a (#321)"),
+      item("b.ts", "d1eec70", null, "d1eec70aa".padEnd(40, "0"), "direct"),
+      item("c.ts", "ledger", 322, "b".repeat(40), "docs(ledger): c (#322)"),
     ];
     const { flat, groups } = groupQueueByProvenance(queue);
-    expect(groups.map((g) => g.label)).toEqual(["#321", "d1eec70"]);
+    expect(groups.map((g) => g.label)).toEqual(["ledger", "d1eec70"]);
     expect(groups[0].items.map((i) => i.path)).toEqual(["a.ts", "c.ts"]);
     expect(flat.map((i) => i.path)).toEqual(["a.ts", "c.ts", "b.ts"]);
-    expect(groups[0].subject).toBe("feat: one (#321)");
-  });
-
-  it("pools PRs sharing a conventional-commit scope into one feature group", () => {
-    const queue = [
-      item("a.ts", 1, 321, "a".repeat(40), "feat(ledger): anchors (#321)"),
-      item("b.ts", 1, 322, "b".repeat(40), "docs(ledger): spec (#322)"),
-      item("c.ts", 1, 400, "c".repeat(40), "fix(ui): dialog (#400)"),
-    ];
-    const { groups } = groupQueueByProvenance(queue);
-    expect(groups.map((g) => g.label)).toEqual(["ledger", "ui"]);
-    expect(groups[0].items.map((i) => i.path)).toEqual(["a.ts", "b.ts"]);
+    expect(groups[0].subject).toBe("feat(ledger): a (#321)");
     expect(groups[0].chips).toEqual(["#321", "#322"]);
     expect(groups[0].fileCount).toBe(2);
     expect(groups[0].newLines).toBe(12);
-  });
-
-  it("a breaking-change marker still parses the scope", () => {
-    const queue = [
-      item("a.ts", 1, 9, "a".repeat(40), "feat(api)!: new shape (#9)"),
-    ];
-    expect(groupQueueByProvenance(queue).groups[0].label).toBe("api");
-  });
-
-  it("handles empty provenance", () => {
-    const bare = item("a.ts", 1, null, "x".repeat(40), "");
-    bare.provenance = [];
-    const { groups } = groupQueueByProvenance([bare]);
-    expect(groups[0].label).toBe("unknown");
   });
 });

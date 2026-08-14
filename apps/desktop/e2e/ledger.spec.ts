@@ -1,5 +1,10 @@
 import { setupApp } from "./bridge.ts";
-import { LEDGER, LEDGER_AFTER_REVIEW, LEDGER_SESSION } from "./fixtures.ts";
+import {
+  LEDGER,
+  LEDGER_AFTER_APPROVE,
+  LEDGER_AFTER_REVIEW,
+  LEDGER_SESSION,
+} from "./fixtures.ts";
 import { expect, test } from "./test.ts";
 import type { Page } from "./types.ts";
 
@@ -176,6 +181,48 @@ test("a session shows the net diff for a signed-then-edited file", async ({
   ).toBeVisible();
 });
 
+test("approving is gated on viewed: v unlocks a, which stamps the topic", async ({
+  page,
+}) => {
+  await seedKnownClone(page);
+  await setupApp(page, {
+    ledger: LEDGER,
+    ledgerAfterApprove: LEDGER_AFTER_APPROVE,
+    ledgerSession: LEDGER_SESSION,
+    watchedRepos: ["me/nod"],
+  });
+  await expect(page.getByRole("option").first()).toBeVisible();
+
+  await openLedger(page);
+  await expect(page.getByRole("option")).toHaveCount(2);
+  await page.keyboard.press("Enter");
+  await expect(page.locator('[data-testid="review-scroller"]')).toBeVisible();
+  await expect(page.getByText("viewed (0/1)")).toBeVisible();
+
+  // Before every file is viewed, a records nothing.
+  await page.keyboard.press("a");
+  expect(
+    await page.evaluate(() => localStorage.getItem("e2e:ledgerApprove"))
+  ).toBeNull();
+
+  await page.keyboard.press("v");
+  await expect(page.getByText("viewed (1/1)")).toBeVisible();
+
+  await page.keyboard.press("a");
+  const approve = await page.evaluate(() =>
+    localStorage.getItem("e2e:ledgerApprove")
+  );
+  expect(JSON.parse(approve ?? "{}")).toMatchObject({
+    repoPath: "/repo/nod",
+    topic: "ledger",
+  });
+  await expect(
+    page.getByRole("listbox", { name: "Review sessions" })
+  ).toBeVisible();
+  await expect(page.getByText("87.0%")).toBeVisible();
+  await expect(page.getByRole("option")).toHaveCount(1);
+});
+
 test("a multi-file group shows the file tree; clicking a file jumps to it", async ({
   page,
 }) => {
@@ -187,6 +234,7 @@ test("a multi-file group shows the file tree; clicking a file jumps to it", asyn
     path: "src/anchors/anchor.ts",
     provenance: LEDGER.queue[0].provenance,
     startLine: 1,
+    topic: "ledger",
   };
   const extraSession = {
     baseline: null,

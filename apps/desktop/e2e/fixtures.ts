@@ -632,6 +632,7 @@ export const EMPTY_LEDGER = {
   queue: [],
   reviewedLines: 0,
   tip: "e9017aa000000000000000000000000000000000",
+  topics: [],
   totalLines: 0,
 };
 
@@ -652,6 +653,7 @@ export const LEDGER = {
         },
       ],
       startLine: 1,
+      topic: "ledger",
     },
     {
       baseline: {
@@ -659,6 +661,7 @@ export const LEDGER = {
         atTime: "2026-08-13T09:00:00.000Z",
         refPath: "src/facts/store.ts",
         sha: "ba5e100000000000000000000000000000000000",
+        source: "anchor",
       },
       endLine: 12,
       newLines: 6,
@@ -671,10 +674,29 @@ export const LEDGER = {
         },
       ],
       startLine: 7,
+      topic: "d1eec70",
     },
   ],
   reviewedLines: 0,
   tip: "71b0000000000000000000000000000000000000",
+  topics: [
+    {
+      approvals: 0,
+      approvedAt: null,
+      id: "d1eec70",
+      requiredApprovals: 1,
+      reviewedLines: 0,
+      totalLines: 6,
+    },
+    {
+      approvals: 0,
+      approvedAt: null,
+      id: "ledger",
+      requiredApprovals: 1,
+      reviewedLines: 0,
+      totalLines: 40,
+    },
+  ],
   totalLines: 46,
 };
 
@@ -684,6 +706,32 @@ export const LEDGER_AFTER_REVIEW = {
   queue: [LEDGER.queue[1]],
   reviewedLines: 40,
   tip: "71b0000000000000000000000000000000000000",
+  topics: LEDGER.topics,
+  totalLines: 46,
+};
+
+/** After approving "ledger": its lines covered, only the direct push queued. */
+export const LEDGER_AFTER_APPROVE = {
+  coverage: 40 / 46,
+  epoch: "e9017aa000000000000000000000000000000000",
+  queue: [LEDGER.queue[1]],
+  reviewedLines: 40,
+  tip: "71b0000000000000000000000000000000000000",
+  topics: [
+    LEDGER.topics[0],
+    {
+      approvals: 1,
+      approvedAt: {
+        actor: { id: "me", kind: "human" },
+        atTime: "2026-08-14T12:00:00.000Z",
+        sha: "71b0000000000000000000000000000000000000",
+      },
+      id: "ledger",
+      requiredApprovals: 1,
+      reviewedLines: 40,
+      totalLines: 40,
+    },
+  ],
   totalLines: 46,
 };
 
@@ -708,6 +756,7 @@ export const LEDGER_SESSION = {
         atTime: "2026-08-13T09:00:00.000Z",
         refPath: "src/facts/store.ts",
         sha: "ba5e100000000000000000000000000000000000",
+        source: "anchor",
       },
       patch:
         "@@ -5,7 +5,7 @@\n const RETRIES = 5;\n \n-const casUpdate = (ref) => {\n+const casUpdate = (ref, attempt = 0) => {\n   const lock = takeLock(ref);\n   if (!lock) {\n     return retry(ref);\n   }",

@@ -142,6 +142,7 @@ pub fn run() {
             ledger::ledger_status,
             ledger::ledger_session,
             ledger::ledger_review,
+            ledger::ledger_approve,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

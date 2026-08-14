@@ -51,6 +51,7 @@ export interface AppOptions {
   inbox?: InboxFixture;
   inboxByCall?: unknown[];
   ledger?: unknown;
+  ledgerAfterApprove?: unknown;
   ledgerAfterReview?: unknown;
   ledgerSession?: unknown;
   repoHits?: { fullName: string; description: string }[];
@@ -118,6 +119,7 @@ export function buildBridgeConfig(opts: AppOptions = {}) {
     inbox: opts.inbox ?? INBOX,
     inboxByCall: opts.inboxByCall ?? null,
     ledger: opts.ledger ?? EMPTY_LEDGER,
+    ledgerAfterApprove: opts.ledgerAfterApprove ?? null,
     ledgerAfterReview: opts.ledgerAfterReview ?? null,
     ledgerSession: opts.ledgerSession ?? null,
     repoHits: opts.repoHits ?? [],
@@ -152,6 +154,7 @@ export function installBridge(cfg: BridgeConfig) {
 
   let aiInfo = cfg.aiInfo;
   let ledgerReviews = 0;
+  let ledgerApprovals = 0;
 
   const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
     ai_ask: (args) => {
@@ -297,6 +300,12 @@ export function installBridge(cfg: BridgeConfig) {
       JSON.parse(localStorage.getItem("e2e:viewed") ?? "{}"),
     get_watched_repos: () => cfg.watchedRepos,
     has_token: () => cfg.hasToken,
+    ledger_approve: (args) => {
+      countCall("ledger_approve");
+      localStorage.setItem("e2e:ledgerApprove", JSON.stringify(args));
+      ledgerApprovals += 1;
+      return null;
+    },
     ledger_review: (args) => {
       countCall("ledger_review");
       localStorage.setItem("e2e:ledgerReview", JSON.stringify(args));
@@ -330,6 +339,9 @@ export function installBridge(cfg: BridgeConfig) {
     },
     ledger_status: () => {
       countCall("ledger_status");
+      if (ledgerApprovals > 0 && cfg.ledgerAfterApprove) {
+        return cfg.ledgerAfterApprove;
+      }
       if (ledgerReviews > 0 && cfg.ledgerAfterReview) {
         return cfg.ledgerAfterReview;
       }

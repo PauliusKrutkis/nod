@@ -119,6 +119,8 @@ export const api = {
   isGitlabOAuthConfigured: () => invoke<boolean>("is_gitlab_oauth_configured"),
   isOAuthConfigured: () => invoke<boolean>("is_oauth_configured"),
 
+  ledgerApprove: (repoPath: string, topic: string) =>
+    invoke<void>("ledger_approve", { repoPath, topic }),
   ledgerReview: (repoPath: string, target: string) =>
     invoke<void>("ledger_review", { repoPath, target }),
   ledgerSession: (repoPath: string, targets: string[]) =>

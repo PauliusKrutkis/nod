@@ -248,13 +248,15 @@ export interface LedgerActor {
   kind: "agent" | "human";
 }
 
-/** The last signature a region decayed from; `sha` is the diff baseline. */
+/** The last attestation a region decayed from; `sha` is the diff baseline. */
 export interface LedgerBaseline {
   actor: LedgerActor;
   atTime: string;
   /** The signed anchor's path at `sha`; differs from the item's across a rename. */
   refPath: string;
   sha: string;
+  /** What was attested: a signed region, or the whole topic at a sha. */
+  source: "anchor" | "approval";
 }
 
 export interface LedgerQueueItem {
@@ -264,6 +266,25 @@ export interface LedgerQueueItem {
   path: string;
   provenance: LedgerProvenance[];
   startLine: number;
+  /** Engine-derived feature label: conventional scope, #pr, or short sha. */
+  topic: string;
+}
+
+export interface LedgerTopicApproval {
+  actor: LedgerActor;
+  atTime: string;
+  sha: string;
+}
+
+export interface LedgerTopicStatus {
+  /** Distinct human actors with a resolvable approval. */
+  approvals: number;
+  /** Null until the threshold is met. */
+  approvedAt: LedgerTopicApproval | null;
+  id: string;
+  requiredApprovals: number;
+  reviewedLines: number;
+  totalLines: number;
 }
 
 export interface LedgerStatus {
@@ -272,6 +293,7 @@ export interface LedgerStatus {
   queue: LedgerQueueItem[];
   reviewedLines: number;
   tip: string;
+  topics: LedgerTopicStatus[];
   totalLines: number;
 }
 

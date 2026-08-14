@@ -173,20 +173,12 @@ export interface ProvenanceGroup {
   subject: string;
 }
 
-/** `feat(ledger): …` → "ledger"; null when the subject carries no scope. */
-const CONVENTIONAL_SCOPE = /^[a-z]+\(([^)]+)\)!?:/;
-
-function scopeOf(subject: string): string | null {
-  return CONVENTIONAL_SCOPE.exec(subject)?.[1]?.trim() || null;
-}
-
 /**
- * The queue as feature-ish groups, in first-appearance order. The key is the
- * conventional-commit scope of the headline provenance when there is one —
- * `feat(ledger)` and `docs(ledger)` pool into "ledger" — falling back to the
- * PR number, then the bare sha. Deterministic by design: this is the cheap
- * stage before phase-5 topics, and per docs/LEDGER.md §3 grouping is
- * ergonomics only, never correctness.
+ * The queue as feature groups keyed by the ENGINE's topic classification
+ * (item.topic — conventional scope, #pr, sha fallback, derived line-level
+ * in deriveStatus), in first-appearance order. The engine is the single
+ * source of truth so the queue, approvals, and coverage all agree on what
+ * a topic is; per docs/LEDGER.md §3 grouping is ergonomics only.
  */
 export function groupQueueByProvenance(queue: readonly LedgerQueueItem[]): {
   flat: LedgerQueueItem[];
@@ -196,12 +188,7 @@ export function groupQueueByProvenance(queue: readonly LedgerQueueItem[]): {
   const byKey = new Map<string, ProvenanceGroup>();
   for (const item of queue) {
     const head = item.provenance[0];
-    let key = "unknown";
-    if (head !== undefined) {
-      key =
-        scopeOf(head.subject) ??
-        (head.pr === null ? head.sha.slice(0, 7) : `#${head.pr}`);
-    }
+    const key = item.topic;
     let group = byKey.get(key);
     if (!group) {
       group = {

@@ -35,6 +35,7 @@ import {
   fileAnchorKey,
   type ReviewListModel,
 } from "../../lib/review-items.ts";
+import { fingerprintFile } from "../../lib/viewed-fingerprint.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type {
   ChangedFile,
@@ -56,7 +57,7 @@ const EMPTY_SET: ReadonlySet<string> = new Set();
 const EMPTY_COMMENT_LIST: ReviewComment[] = [];
 const EMPTY_PENDING_LIST: PendingComment[] = [];
 const EMPTY_OCC: never[] = [];
-const NO_CAPABILITIES = { comment: false, expand: false, viewed: false };
+const CAPABILITIES = { comment: false, expand: false, viewed: true };
 const notImage = () => false;
 /** The session offers no comment/viewed affordances; their callbacks are inert. */
 const noop = () => undefined;
@@ -83,8 +84,12 @@ export function LedgerSession({
 }) {
   const setToast = useAppStore((s) => s.setToast);
   const setLedgerSessionOpen = useAppStore((s) => s.setLedgerSessionOpen);
+  const viewedKey = `ledger:${repoPath}`;
+  const viewedFiles = useAppStore((s) => s.viewed[viewedKey]);
+  const toggleViewed = useAppStore((s) => s.toggleViewed);
   const queryClient = useQueryClient();
   const [signing, setSigning] = useState(false);
+  const [approving, setApproving] = useState(false);
 
   useEffect(() => {
     setLedgerSessionOpen(true);
@@ -108,6 +113,20 @@ export function LedgerSession({
     () => sessionToChangedFiles(sessionFiles, tip),
     [sessionFiles, tip]
   );
+
+  // A file counts as viewed only while its content fingerprint still
+  // matches — a new tip that changed the patch clears the mark, so the
+  // approve gate can never be satisfied by stale reading.
+  const viewedSet = useMemo(() => {
+    const set = new Set<string>();
+    for (const file of files) {
+      if (viewedFiles?.[file.filename] === fingerprintFile(file, tip)) {
+        set.add(file.filename);
+      }
+    }
+    return set;
+  }, [files, tip, viewedFiles]);
+  const allViewed = files.length > 0 && viewedSet.size === files.length;
 
   // ---- cursor slice, mirroring the review screen's ---------------------
   const [cursor, setCursor] = useState<CursorPos | null>(null);
@@ -227,6 +246,40 @@ export function LedgerSession({
 
   const current = regionAtCursor(model, files, sessionFiles, cursor);
 
+  const toggleViewedAt = (fileIndex: number) => {
+    const file = filesRef.current[fileIndex];
+    if (file) {
+      toggleViewed(viewedKey, file.filename, fingerprintFile(file, tip));
+    }
+  };
+
+  const approve = async () => {
+    if (!allViewed || approving || signing) {
+      return;
+    }
+    setApproving(true);
+    try {
+      await api.ledgerApprove(repoPath, group.label);
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.ledger(repoPath),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["ledger-session", repoPath],
+        }),
+      ]);
+      setToast({
+        message: `${group.label} at ${shortSha(tip)}`,
+        title: "Topic approved",
+      });
+      onExit();
+    } catch (e) {
+      setToast({ message: String(e), title: "Approval failed" });
+    } finally {
+      setApproving(false);
+    }
+  };
+
   const sign = async () => {
     if (!current || signing) {
       return;
@@ -329,7 +382,7 @@ export function LedgerSession({
         return next;
       });
     },
-    onToggleViewed: noop,
+    onToggleViewed: toggleViewedAt,
   };
 
   useHotkeys("ledger-session", [
@@ -377,6 +430,22 @@ export function LedgerSession({
       group: "Session",
       keys: "r",
       run: sign,
+    },
+    {
+      description: "Toggle file viewed",
+      group: "Session",
+      keys: "v",
+      run: () => {
+        if (cursor) {
+          toggleViewedAt(cursor.fileIndex);
+        }
+      },
+    },
+    {
+      description: "Approve the topic (view every file first)",
+      group: "Session",
+      keys: "a",
+      run: approve,
     },
     {
       description: "Back to the queue",
@@ -438,7 +507,7 @@ export function LedgerSession({
         askDraft={null}
         askNote={null}
         baseSha={baseline?.sha ?? ""}
-        capabilities={NO_CAPABILITIES}
+        capabilities={CAPABILITIES}
         changedSinceViewed={EMPTY_SET}
         changeFindQuery={find.changeFindQuery}
         clampedIndex={clampedIndex}
@@ -476,7 +545,7 @@ export function LedgerSession({
         rulerFractions={rulerFractions}
         toggleFindCase={find.toggleFindCase}
         toggleReq={null}
-        viewedSet={EMPTY_SET}
+        viewedSet={viewedSet}
       />
     );
   };
@@ -525,6 +594,13 @@ export function LedgerSession({
           {current
             ? `${current.target} · ${current.region.endLine - current.region.startLine + 1} lines`
             : ""}
+        </span>
+        <span>
+          <Kbd combo="v" /> viewed ({viewedSet.size}/{files.length})
+        </span>
+        <span className={allViewed ? "text-fg" : undefined}>
+          <Kbd combo="a" /> approve {group.label}
+          {allViewed ? "" : " — view every file first"}
         </span>
         <span>
           <Kbd combo="mod+f" /> find
