@@ -1,5 +1,6 @@
 import process from "node:process";
 import { readLedgerConfig, writeLedgerConfig } from "./config.ts";
+import { deriveSession } from "./derive/session.ts";
 import { signRegion } from "./derive/sign.ts";
 import { deriveStatus, type LedgerStatus } from "./derive/status.ts";
 import type { Actor } from "./facts/schema.ts";
@@ -14,6 +15,7 @@ import { type GitRun, gitIn } from "./git/exec.ts";
  *   ledger init [rev]        adopt: set the epoch (default HEAD)
  *   ledger status            coverage + queue size
  *   ledger queue             unreviewed regions with provenance
+ *   ledger session [target]… queued files as unified net-diff patches
  *   ledger review <target>   sign regions; target is path or path:start-end
  *   ledger sync [remote]     exchange facts through the remote
  */
@@ -23,6 +25,7 @@ const USAGE = `usage: ledger <command>
   init [rev]        set the epoch to rev (default HEAD) and start the ledger
   status            coverage of post-epoch code on tip
   queue             unreviewed regions, with provenance
+  session [target]… queued files as net-diff patches since the last signature
   review <target>…  mark regions reviewed; target: path or path:start-end
   sync [remote]     push/pull facts via git (default origin)
 `;
@@ -66,6 +69,39 @@ const describeItem = (item: LedgerStatus["queue"][number]): string => {
 };
 
 const TARGET = /^(.+):(\d+)-(\d+)$/;
+
+const runSession = async (
+  git: GitRun,
+  repoRoot: string,
+  targets: readonly string[],
+  json: boolean
+): Promise<void> => {
+  const config = await readLedgerConfig(repoRoot);
+  if (!config) {
+    return die("no ledger here yet — run `ledger init` to set the epoch");
+  }
+  const session = await deriveSession(git, { epoch: config.epoch, targets });
+  if (json) {
+    console.log(JSON.stringify(session));
+    return;
+  }
+  if (session.sessions.length === 0) {
+    die(
+      targets.length > 0
+        ? "nothing in the queue matches — see `ledger queue`"
+        : "queue is empty — everything post-epoch is reviewed"
+    );
+  }
+  for (const file of session.sessions) {
+    const base = file.baseline
+      ? `since ${short(file.baseline.sha)}`
+      : "unsigned";
+    console.log(
+      `=== ${file.path} · ${base} · ${file.regions.length} region(s)`
+    );
+    console.log(file.patch);
+  }
+};
 
 const runReview = async (
   git: GitRun,
@@ -156,6 +192,10 @@ const main = async (): Promise<void> => {
       for (const [i, item] of status.queue.entries()) {
         console.log(`${String(i + 1).padStart(3)}  ${describeItem(item)}`);
       }
+      return;
+    }
+    case "session": {
+      await runSession(git, repoRoot, args, json);
       return;
     }
     case "review": {

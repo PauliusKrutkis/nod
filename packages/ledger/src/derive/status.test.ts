@@ -130,6 +130,70 @@ describe("deriveStatus", () => {
     expect(requeued?.provenance).toMatchObject([{ pr: 3 }]);
   });
 
+  it("a re-queued edit carries the signing fact as its baseline", async () => {
+    const { repo, epoch } = await setup();
+    const before = await deriveStatus(repo.git, { epoch });
+    await signRegion(repo.git, before.tip, before.queue[0], ACTOR, AT_TIME);
+
+    const edited = BLOCK.replace(
+      "return Math.round(total / queue.length);",
+      "return Math.ceil(total / Math.max(queue.length, 1));"
+    );
+    await write(repo, "src/base.ts", `${BASE}${edited}`);
+    await commitAll(repo, "fix: guard empty queues (#3)");
+
+    const status = await deriveStatus(repo.git, { epoch });
+    const requeued = status.queue.find((item) => item.path === "src/base.ts");
+    expect(requeued?.baseline).toEqual({
+      sha: before.tip,
+      atTime: AT_TIME,
+      actor: ACTOR,
+      refPath: "src/base.ts",
+    });
+    const untouched = status.queue.find((item) => item.path === "src/util.ts");
+    expect(untouched?.baseline).toBeNull();
+  });
+
+  it("the newest attestation wins as baseline", async () => {
+    const { repo, epoch } = await setup();
+    const first = await deriveStatus(repo.git, { epoch });
+    await signRegion(repo.git, first.tip, first.queue[0], ACTOR, AT_TIME);
+
+    const edited = BLOCK.replace(
+      "return Math.round(total / queue.length);",
+      "return Math.ceil(total / Math.max(queue.length, 1));"
+    );
+    await write(repo, "src/base.ts", `${BASE}${edited}`);
+    await commitAll(repo, "fix: guard empty queues (#3)");
+
+    const second = await deriveStatus(repo.git, { epoch });
+    const requeued = second.queue.find((item) => item.path === "src/base.ts");
+    expect(requeued).toBeDefined();
+    const laterTime = "2026-08-14T09:00:00.000Z";
+    await signRegion(
+      repo.git,
+      second.tip,
+      second.queue.find((item) => item.path === "src/base.ts") ??
+        second.queue[0],
+      ACTOR,
+      laterTime
+    );
+
+    const twice = edited.replace(
+      "return Math.ceil(total / Math.max(queue.length, 1));",
+      "return Math.floor(total / Math.max(queue.length, 1));"
+    );
+    await write(repo, "src/base.ts", `${BASE}${twice}`);
+    await commitAll(repo, "fix: floor not ceil (#5)");
+
+    const status = await deriveStatus(repo.git, { epoch });
+    const item = status.queue.find((i) => i.path === "src/base.ts");
+    expect(item?.baseline).toMatchObject({
+      sha: second.tip,
+      atTime: laterTime,
+    });
+  });
+
   it("a rename keeps a signed region reviewed", async () => {
     const { repo, epoch } = await setup();
     const before = await deriveStatus(repo.git, { epoch });

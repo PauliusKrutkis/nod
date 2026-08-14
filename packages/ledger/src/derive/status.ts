@@ -1,11 +1,13 @@
 import type { Anchor } from "../anchors/anchor.ts";
-import { loadAnchorLines } from "../anchors/ref.ts";
+import { type AnchorRef, loadAnchorLines } from "../anchors/ref.ts";
 import {
   buildTipIndex,
   DEFAULT_RESOLVE_CONFIG,
+  type Resolution,
   type ResolveConfig,
   resolveAnchor,
 } from "../anchors/resolve.ts";
+import type { Actor, Fact } from "../facts/schema.ts";
 import { readAnchorRefs, readFacts } from "../facts/store.ts";
 import { blameTree } from "../git/blame.ts";
 import type { GitRun } from "../git/exec.ts";
@@ -30,6 +32,21 @@ export interface Provenance {
   subject: string;
 }
 
+/**
+ * The last human attestation a queue item decayed from: the fact behind the
+ * stale anchor whose surviving lines flank this run. `sha` is the tip the
+ * reviewer was looking at, so `git diff sha..tip` is the net change since a
+ * human last signed this region (docs/LEDGER.md §2 — deltas are baselined
+ * at the last-reviewed sha).
+ */
+export interface QueueBaseline {
+  sha: string;
+  atTime: string;
+  actor: Actor;
+  /** The signed anchor's path at `sha`; differs from the item's across a rename. */
+  refPath: string;
+}
+
 export interface QueueItem {
   path: string;
   /** 1-based, inclusive span on tip. */
@@ -38,6 +55,8 @@ export interface QueueItem {
   /** Unreviewed post-epoch lines inside the span (the span may bridge a few old lines). */
   newLines: number;
   provenance: Provenance[];
+  /** Null when no signed anchor decayed into this run (genuinely new code). */
+  baseline: QueueBaseline | null;
 }
 
 export interface LedgerStatus {
@@ -79,16 +98,24 @@ const markRange = (
   }
 };
 
+/** One signed anchor joined against tip: where its content ended up. */
+export interface ResolvedAnchor {
+  ref: AnchorRef;
+  fact: Fact;
+  resolution: Resolution;
+}
+
 /** Paint every line still covered by a reviewed/approved anchor. */
 const applyReviewMarks = async (
   git: GitRun,
   raw: ReadonlyMap<string, string[]>,
   config: ResolveConfig
-): Promise<Map<string, Uint8Array>> => {
+): Promise<{ masks: Map<string, Uint8Array>; resolved: ResolvedAnchor[] }> => {
   const facts = await readFacts(git);
   const anchorRefs = await readAnchorRefs(git);
   const index = buildTipIndex(raw, config.normalization);
   const masks = new Map<string, Uint8Array>();
+  const resolved: ResolvedAnchor[] = [];
 
   for (const fact of facts) {
     const relevant =
@@ -104,6 +131,7 @@ const applyReviewMarks = async (
     }
     const anchor: Anchor = { ...ref, lines };
     const resolution = resolveAnchor(index, anchor, config);
+    resolved.push({ ref, fact, resolution });
     if (resolution.status === "gone") {
       continue;
     }
@@ -122,7 +150,7 @@ const applyReviewMarks = async (
       }
     }
   }
-  return masks;
+  return { masks, resolved };
 };
 
 /** Walk one file's lines, counting coverage and growing queue runs. */
@@ -162,6 +190,58 @@ const collectFileRuns = (
     runs.push(run);
   }
   return { total, reviewed };
+};
+
+/**
+ * A stale footprint may sit this far from a run and still claim it — the
+ * same slack the run builder bridges, so a gap punched into a signed block
+ * joins even when separated from the surviving lines by non-countable rows.
+ */
+const BASELINE_GAP = BRIDGE + 1;
+
+/**
+ * The signed anchor this run decayed from, if any. A `stale` anchor joins
+ * when its surviving lines flank the run (positional evidence); a `gone`
+ * anchor joins on its original path alone — a small signed region rewritten
+ * wholesale leaves no surviving lines, and that full rewrite is exactly the
+ * case where the net diff since signing matters most. `alive` never joins:
+ * its neighbour is genuinely new code. Several candidates → the newest
+ * attestation wins, per docs/LEDGER.md §1 — the unit of review is the diff
+ * from the *last* human-signed state.
+ */
+const baselineForRun = (
+  run: Run,
+  candidatesByPath: ReadonlyMap<string, ResolvedAnchor[]>
+): QueueBaseline | null => {
+  let best: ResolvedAnchor | null = null;
+  for (const record of candidatesByPath.get(run.path) ?? []) {
+    const { fact, resolution } = record;
+    if (resolution.status === "stale") {
+      if (resolution.matchedTipLines.length === 0) {
+        continue;
+      }
+      const lo = Math.min(...resolution.matchedTipLines);
+      const hi = Math.max(...resolution.matchedTipLines);
+      if (lo - BASELINE_GAP > run.end || hi + BASELINE_GAP < run.start) {
+        continue;
+      }
+    }
+    const newer =
+      !best ||
+      fact.atTime > best.fact.atTime ||
+      (fact.atTime === best.fact.atTime && fact.atSha > best.fact.atSha);
+    if (newer) {
+      best = record;
+    }
+  }
+  return best
+    ? {
+        sha: best.fact.atSha,
+        atTime: best.fact.atTime,
+        actor: best.fact.actor,
+        refPath: best.ref.path,
+      }
+    : null;
 };
 
 const loadSubjects = async (
@@ -206,7 +286,23 @@ export const deriveStatus = async (
     (await git(["rev-list", `${epoch}..${tip}`])).split("\n").filter(Boolean)
   );
   const blames = await blameTree(git, tip, [...raw.keys()]);
-  const masks = await applyReviewMarks(git, raw, config);
+  const { masks, resolved } = await applyReviewMarks(git, raw, config);
+  // Baseline candidates: stale anchors keyed where their lines survived,
+  // gone anchors keyed where they were signed (no tip position exists).
+  const candidatesByPath = new Map<string, ResolvedAnchor[]>();
+  for (const record of resolved) {
+    let path: string | null = null;
+    if (record.resolution.status === "stale") {
+      path = record.resolution.path;
+    } else if (record.resolution.status === "gone") {
+      path = record.ref.path;
+    }
+    if (path !== null) {
+      const list = candidatesByPath.get(path) ?? [];
+      list.push(record);
+      candidatesByPath.set(path, list);
+    }
+  }
 
   let totalLines = 0;
   let reviewedLines = 0;
@@ -242,6 +338,7 @@ export const deriveStatus = async (
         const match = SQUASH_SUBJECT.exec(subject);
         return { sha, pr: match ? Number(match[1]) : null, subject };
       }),
+      baseline: baselineForRun(run, candidatesByPath),
     }))
     .sort(byPathThenLine);
 

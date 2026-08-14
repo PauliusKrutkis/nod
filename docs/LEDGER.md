@@ -26,6 +26,7 @@ repo is the first ledger.
 ```
 pnpm ledger status               # coverage + queue size
 pnpm ledger queue                # unreviewed regions, with provenance
+pnpm ledger session [target]…    # queued files as net-diff patches
 pnpm ledger review <path>        # sign every queued region in a file
 pnpm ledger review <path>:12-40  # sign one region
 pnpm ledger sync                 # exchange facts via origin
@@ -35,14 +36,22 @@ pnpm ledger init [rev]           # adopt a repo: set the epoch (default HEAD)
 **Desktop tab** — `pnpm dev:desktop`, then `mod+shift+L` from anywhere.
 Pick a watched repository, tell it once where your local clone lives
 (stored in the `nod:repoPaths:v1` personal-local map; the last repo
-reopens directly), land in its queue. `j`/`k` navigate, `r` signs the
-selected region, `esc` steps out — queue → picker → inbox.
+reopens directly), land in its queue: one row per feature-ish group
+(conventional-commit scope, PR/sha fallback — the deterministic stage
+before phase-5 topics). `j`/`k` navigate, `enter` opens the group's
+**session** — the code rendered on the same surface as a PR review, as
+the net diff since the last signature (real `git diff baseline..tip`
+when the file decayed from a signed anchor, unreviewed-lines-as-adds
+when it was never signed). In the session `r` signs the region under
+the cursor, `mod+f` finds, `esc` steps out — session → queue → picker →
+inbox. Signing exists only where the code is on screen; the queue has
+no sign key by design (§13's rubber-stamp risk).
 
-**The loop:** merge normally → open the queue → read the region (in your
-editor for now; the in-tab session view is the next build) → `r` or
-`ledger review` → watch coverage climb. Reviews become facts in the
-target repo's `refs/ledger/facts`, signed as `git config user.name`;
-`ledger sync` publishes them through the ordinary git remote.
+**The loop:** merge normally → open the queue → enter a session → read →
+`r` (or `ledger review` / `ledger session` from the CLI) → watch
+coverage climb. Reviews become facts in the target repo's
+`refs/ledger/facts`, signed as `git config user.name`; `ledger sync`
+publishes them through the ordinary git remote.
 
 Dogfood-phase constraints, deliberate: the target repo must vendor the
 engine and be locally cloned; the desktop app spawns `node` from PATH
