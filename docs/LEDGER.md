@@ -1,6 +1,7 @@
 # Ledger — review coverage for the AI era
 
-Status: draft spec · owner: Paulius · epoch decision pending · 2026-08-13
+Status: draft spec · owner: Paulius · dogfooding since 2026-08-13 (phases
+0–3 built; epoch `d2962f6` in `.ledger/config.json`)
 
 The problem: AI now writes a large share of merged code, review is the
 bottleneck, and teams that merge fast lose the thing pre-merge review used
@@ -12,6 +13,42 @@ The bet: don't rebuild the review process or the VCS. Add a **ledger** — a
 sidecar record of human (and agent) attention, keyed into git — and make
 "review coverage of main" a number teams can see, ratchet, and enforce.
 Nod becomes the flagship client; the ledger is its own product.
+
+---
+
+## Using it today
+
+The engine (`packages/ledger`), the CLI, and the desktop tab exist; this
+repo is the first ledger.
+
+**CLI** — from the repo root (plain Node ≥ 23, no build step):
+
+```
+pnpm ledger status               # coverage + queue size
+pnpm ledger queue                # unreviewed regions, with provenance
+pnpm ledger review <path>        # sign every queued region in a file
+pnpm ledger review <path>:12-40  # sign one region
+pnpm ledger sync                 # exchange facts via origin
+pnpm ledger init [rev]           # adopt a repo: set the epoch (default HEAD)
+```
+
+**Desktop tab** — `pnpm dev:desktop`, then `mod+shift+L` from anywhere.
+Pick a watched repository, tell it once where your local clone lives
+(stored in the `nod:repoPaths:v1` personal-local map; the last repo
+reopens directly), land in its queue. `j`/`k` navigate, `r` signs the
+selected region, `esc` steps out — queue → picker → inbox.
+
+**The loop:** merge normally → open the queue → read the region (in your
+editor for now; the in-tab session view is the next build) → `r` or
+`ledger review` → watch coverage climb. Reviews become facts in the
+target repo's `refs/ledger/facts`, signed as `git config user.name`;
+`ledger sync` publishes them through the ordinary git remote.
+
+Dogfood-phase constraints, deliberate: the target repo must vendor the
+engine and be locally cloned; the desktop app spawns `node` from PATH
+(fine for terminal-launched dev builds — the sidecar binary replaces
+this); every status derivation is a full blame pass, so a cold load takes
+seconds (the SQLite index arrives when scale demands it).
 
 ---
 
