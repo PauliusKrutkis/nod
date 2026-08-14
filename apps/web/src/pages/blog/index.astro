@@ -1,0 +1,121 @@
+---
+/**
+ * The blog index is a list, not a grid of cards: post count will be single
+ * digits for a long while and a grid of two orphans reads as a launch that
+ * stalled. Thumbnails stay off the index for the same reason; they earn
+ * their keep on the post page and in the social embeds.
+ */
+import { getCollection } from "astro:content";
+import SiteFooter from "../../components/SiteFooter.astro";
+import SiteNav from "../../components/SiteNav.astro";
+import Base from "../../layouts/Base.astro";
+import { formatPostDate, visiblePosts } from "../../lib/blog";
+
+const posts = visiblePosts(await getCollection("blog"), import.meta.env.DEV);
+---
+
+<Base
+  title="Blog · Nod"
+  description="Notes from building Nod: keyboard-first PR review, Tauri, WebKit, and the craft of a small desktop app."
+>
+  <SiteNav cta={{ href: "/downloads", label: "Download" }} />
+
+  <main>
+    <section class="wrap blog">
+      <p class="eyebrow">Blog</p>
+      <h1 class="blog__title">Notes from building Nod.</h1>
+      <p class="blog__sub">
+        What broke, what fixed it, and the reasoning in between. Mostly Tauri,
+        WebKit, and keyboard-first UI.
+      </p>
+
+      <ul class="blog__list">
+        {
+          posts.map((post) => (
+            <li class="blog__item">
+              <a class="blog__link" href={`/blog/${post.id}/`}>
+                <time
+                  class="blog__date mono"
+                  datetime={post.data.pubDate.toISOString()}
+                >
+                  {formatPostDate(post.data.pubDate)}
+                </time>
+                <span class="blog__head">{post.data.title}</span>
+                <span class="blog__desc">{post.data.description}</span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+  </main>
+
+  <SiteFooter />
+</Base>
+
+<style>
+  .blog {
+    max-width: 640px;
+    padding-top: clamp(56px, 10vh, 104px);
+    padding-bottom: 96px;
+  }
+
+  .blog__title {
+    margin-top: 18px;
+    font-size: clamp(1.9rem, 4.4vw, 2.9rem);
+    font-weight: 640;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
+
+  .blog__sub {
+    margin-top: 16px;
+    color: var(--muted);
+  }
+
+  .blog__list {
+    margin: 48px 0 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+  }
+
+  .blog__item {
+    border-top: 1px solid var(--line);
+  }
+
+  .blog__item:last-child {
+    border-bottom: 1px solid var(--line);
+  }
+
+  .blog__link {
+    display: grid;
+    gap: 6px;
+    padding: 22px 0;
+  }
+
+  .blog__date {
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  .blog__head {
+    font-size: 1.125rem;
+    font-weight: 620;
+    letter-spacing: -0.015em;
+    color: var(--fg);
+    transition: color 150ms;
+  }
+
+  .blog__link:hover .blog__head {
+    color: var(--accent);
+  }
+
+  .blog__desc {
+    color: var(--muted);
+    font-size: 0.9375rem;
+  }
+</style>

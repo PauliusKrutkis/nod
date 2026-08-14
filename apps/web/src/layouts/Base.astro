@@ -8,12 +8,15 @@ import { analyticsBeaconToken } from "../lib/site";
 interface Props {
   title: string;
   description: string;
+  image?: { path: string; alt: string };
+  ogType?: "website" | "article";
 }
 
-const { title, description } = Astro.props;
+const { title, description, image, ogType = "website" } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site);
-const ogImage = new URL("/og.png", Astro.site);
-const ogImageAlt = "Nod: review PRs like an inbox, not a website.";
+const ogImage = new URL(image?.path ?? "/og.png", Astro.site);
+const ogImageAlt =
+  image?.alt ?? "Nod: review PRs like an inbox, not a website.";
 
 // Cookieless Cloudflare Web Analytics, and only when the deploy provides a
 // token: local and preview builds ship no beacon at all. Keep this the only
@@ -35,7 +38,7 @@ const cfAnalyticsToken = analyticsBeaconToken(
     <link rel="canonical" href={canonical} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
-    <meta property="og:type" content="website" />
+    <meta property="og:type" content={ogType} />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={ogImage} />
     <meta property="og:image:width" content="1200" />

@@ -1,0 +1,216 @@
+---
+/**
+ * One template for every post. The markdown body renders into .post__body,
+ * so its element styles are :global under that scope; Astro cannot see
+ * into rendered content to scope them itself. Code blocks reuse the app's
+ * mono stack and surface tokens so a diff pasted into a post reads like the
+ * product. The footer line under each post is the only plug: one sentence,
+ * one link, same on every post.
+ */
+import { getCollection, render } from "astro:content";
+import SiteFooter from "../../components/SiteFooter.astro";
+import SiteNav from "../../components/SiteNav.astro";
+import Base from "../../layouts/Base.astro";
+import { formatPostDate, visiblePosts } from "../../lib/blog";
+
+export async function getStaticPaths() {
+  const posts = visiblePosts(await getCollection("blog"), import.meta.env.DEV);
+  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+const image = post.data.thumbnail
+  ? { path: post.data.thumbnail, alt: post.data.title }
+  : undefined;
+---
+
+<Base
+  title={`${post.data.title} · Nod`}
+  description={post.data.description}
+  image={image}
+  ogType="article"
+>
+  <SiteNav cta={{ href: "/downloads", label: "Download" }} />
+
+  <main>
+    <article class="wrap post">
+      <p class="eyebrow">
+        <a class="post__crumb" href="/blog/">Blog</a>
+      </p>
+      <h1 class="post__title">{post.data.title}</h1>
+      <p class="post__meta mono">
+        <time datetime={post.data.pubDate.toISOString()}>
+          {formatPostDate(post.data.pubDate)}
+        </time>
+        {" · Paulius Krutkis"}
+      </p>
+
+      {
+        post.data.thumbnail && (
+          <img
+            class="post__hero"
+            src={post.data.thumbnail}
+            alt=""
+            width="1200"
+            height="630"
+          />
+        )
+      }
+
+      <div class="post__body">
+        <Content />
+      </div>
+
+      <p class="post__plug">
+        I build <a href="/">Nod</a>, a keyboard-first desktop app for reviewing
+        pull requests. This post is one of the things I learned making it.
+      </p>
+    </article>
+  </main>
+
+  <SiteFooter />
+</Base>
+
+<style>
+  .post {
+    max-width: 680px;
+    padding-top: clamp(56px, 10vh, 104px);
+    padding-bottom: 96px;
+  }
+
+  .post__crumb {
+    color: var(--accent);
+  }
+
+  .post__title {
+    margin-top: 18px;
+    font-size: clamp(1.7rem, 4vw, 2.5rem);
+    font-weight: 640;
+    line-height: 1.12;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
+
+  .post__meta {
+    margin-top: 14px;
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    color: var(--faint);
+  }
+
+  .post__hero {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin-top: 36px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-2xl);
+  }
+
+  .post__body {
+    margin-top: 40px;
+    display: grid;
+    gap: 16px;
+    color: var(--muted);
+    font-size: 1.0625rem;
+    line-height: 1.7;
+  }
+
+  .post__body :global(h2) {
+    margin: 32px 0 0;
+    font-size: 1.375rem;
+    font-weight: 620;
+    letter-spacing: -0.015em;
+    color: var(--fg);
+  }
+
+  .post__body :global(h3) {
+    margin: 20px 0 0;
+    font-size: 1.125rem;
+    font-weight: 620;
+    color: var(--fg);
+  }
+
+  .post__body :global(p) {
+    margin: 0;
+  }
+
+  .post__body :global(a) {
+    color: var(--fg);
+    text-decoration: underline;
+    text-decoration-color: var(--accent-line);
+    text-underline-offset: 3px;
+  }
+
+  .post__body :global(a:hover) {
+    color: var(--accent);
+  }
+
+  .post__body :global(strong) {
+    color: var(--fg);
+    font-weight: 620;
+  }
+
+  .post__body :global(code) {
+    font-family: var(--font-mono);
+    font-size: 0.875em;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    padding: 0.1em 0.35em;
+    overflow-wrap: anywhere;
+  }
+
+  .post__body :global(pre) {
+    margin: 4px 0;
+    padding: 16px 18px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    overflow-x: auto;
+  }
+
+  .post__body :global(pre code) {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 0.8125rem;
+    line-height: 1.6;
+  }
+
+  .post__body :global(ul),
+  .post__body :global(ol) {
+    margin: 0;
+    padding-left: 22px;
+    display: grid;
+    gap: 8px;
+  }
+
+  .post__body :global(img) {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+  }
+
+  .post__body :global(blockquote) {
+    margin: 4px 0;
+    padding: 2px 0 2px 18px;
+    border-left: 2px solid var(--accent-line);
+    color: var(--faint);
+  }
+
+  .post__plug {
+    margin-top: 56px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    color: var(--faint);
+    font-size: 0.9375rem;
+  }
+
+  .post__plug a {
+    color: var(--accent);
+  }
+</style>
