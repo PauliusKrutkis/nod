@@ -63,6 +63,10 @@ export const CONTAINERS: Record<string, string> = {
     "issue tracker, verdict rosters and the conversation count; its view is review-header, catalogued in @nod/ui",
   inbox:
     "inbox and subscribed queries, the archive ledger, tab visibility and the digit hotkeys; its views are inbox-tabs, inbox-zero, inbox-detail and pr-list-item in @nod/ui, leaving it the listbox that arranges them and the query's loading and error states",
+  ledger:
+    "the ledger status query, the repo-path map in localStorage and the pick/path/queue/session state machine; its views are inbox-zero, spinner and kbd in @nod/ui, leaving it the listbox and clone-path form (dogfood-grade by design, docs/LEDGER.md)",
+  "ledger-session":
+    "the session query, the cursor slice and sign mutation over the reused review surface; its view is review-diff-pane with capabilities off — no markup of its own beyond the header and footer bands",
   "review-notifier":
     "diffs each inbox poll against a localStorage ledger of announced PRs and owns the 12s expiry and the enter/esc scope; its card is review-toast, catalogued in @nod/ui",
   "review-screen":

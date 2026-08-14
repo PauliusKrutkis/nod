@@ -52,6 +52,7 @@ export interface AppOptions {
   inboxByCall?: unknown[];
   ledger?: unknown;
   ledgerAfterReview?: unknown;
+  ledgerSession?: unknown;
   repoHits?: { fullName: string; description: string }[];
   subscribed?: BucketFixture;
   subscribedDelayMs?: number;
@@ -118,6 +119,7 @@ export function buildBridgeConfig(opts: AppOptions = {}) {
     inboxByCall: opts.inboxByCall ?? null,
     ledger: opts.ledger ?? EMPTY_LEDGER,
     ledgerAfterReview: opts.ledgerAfterReview ?? null,
+    ledgerSession: opts.ledgerSession ?? null,
     repoHits: opts.repoHits ?? [],
     subscribed: opts.subscribed ?? { count: 0, prs: [] },
     subscribedDelayMs: opts.subscribedDelayMs ?? 0,
@@ -300,6 +302,31 @@ export function installBridge(cfg: BridgeConfig) {
       localStorage.setItem("e2e:ledgerReview", JSON.stringify(args));
       ledgerReviews += 1;
       return null;
+    },
+    ledger_session: (args) => {
+      countCall("ledger_session");
+      localStorage.setItem("e2e:ledgerSession", JSON.stringify(args));
+      const payload = cfg.ledgerSession as {
+        sessions: { path: string }[];
+        tip: string;
+      } | null;
+      if (!payload) {
+        return { sessions: [], tip: "" };
+      }
+      // Filter by target paths so the post-sign refetch naturally shrinks.
+      // (No module-scope helpers here — this function is serialized into the
+      // init script, so the path is sliced off at the last colon inline.)
+      const targets = (args as { targets?: string[] }).targets ?? [];
+      const wanted = new Set(
+        targets.map((t) => {
+          const colon = t.lastIndexOf(":");
+          return colon === -1 ? t : t.slice(0, colon);
+        })
+      );
+      return {
+        sessions: payload.sessions.filter((s) => wanted.has(s.path)),
+        tip: payload.tip,
+      };
     },
     ledger_status: () => {
       countCall("ledger_status");

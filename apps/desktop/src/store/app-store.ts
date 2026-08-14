@@ -240,6 +240,8 @@ interface AppState {
   inboxSelectedKey: string | null;
   inboxTab: InboxTabKey;
   isDismissed: (prKey: string, updatedAt: string) => boolean;
+  /** A ledger session is mounted — the help sheet keys off its scope. */
+  ledgerSessionOpen: boolean;
 
   issueTrackers: Record<string, string>;
   isUnread: (prKey: string, updatedAt: string) => boolean;
@@ -267,6 +269,7 @@ interface AppState {
   setFlash: (message: string | null) => void;
   setHelpOpen: (open: boolean) => void;
   setInboxPaneVisible: (visible: boolean) => void;
+  setLedgerSessionOpen: (open: boolean) => void;
   setInboxSelectedKey: (key: string | null) => void;
   setInboxTab: (tab: InboxTabKey) => void;
   setIssueTracker: (accountId: string, url: string | null) => void;
@@ -365,6 +368,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isViewed: (prKey, file) => file in (get().viewed[prKey] ?? {}),
   lastDismissedKey: null,
   lastSeen: loadLastSeen(),
+  ledgerSessionOpen: false,
 
   markSeen: (prKey, updatedAt) => {
     const map = { ...get().lastSeen, [prKey]: updatedAt };
@@ -423,6 +427,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }),
   setHelpOpen: (open) => set({ helpOpen: open }),
   setInboxPaneVisible: (inboxPaneVisible) => set({ inboxPaneVisible }),
+  setLedgerSessionOpen: (ledgerSessionOpen) => set({ ledgerSessionOpen }),
   setInboxSelectedKey: (key) => set({ inboxSelectedKey: key }),
   setInboxTab: (tab) => {
     saveLastTab(tab);

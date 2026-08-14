@@ -243,7 +243,22 @@ export interface LedgerProvenance {
   subject: string;
 }
 
+export interface LedgerActor {
+  id: string;
+  kind: "agent" | "human";
+}
+
+/** The last signature a region decayed from; `sha` is the diff baseline. */
+export interface LedgerBaseline {
+  actor: LedgerActor;
+  atTime: string;
+  /** The signed anchor's path at `sha`; differs from the item's across a rename. */
+  refPath: string;
+  sha: string;
+}
+
 export interface LedgerQueueItem {
+  baseline: LedgerBaseline | null;
   endLine: number;
   newLines: number;
   path: string;
@@ -258,6 +273,29 @@ export interface LedgerStatus {
   reviewedLines: number;
   tip: string;
   totalLines: number;
+}
+
+/** 1-based inclusive span on tip; identical to the queue item's span. */
+export interface LedgerSessionRegion {
+  endLine: number;
+  startLine: number;
+}
+
+/**
+ * One queued file as a unified patch (hunk body only, parsePatch-ready).
+ * `baseline` non-null means the patch is the real net diff from that sha to
+ * tip; null means it is synthesized — unreviewed lines as adds with context.
+ */
+export interface LedgerSessionFile {
+  baseline: LedgerBaseline | null;
+  patch: string;
+  path: string;
+  regions: LedgerSessionRegion[];
+}
+
+export interface LedgerSession {
+  sessions: LedgerSessionFile[];
+  tip: string;
 }
 
 export interface PRRef {

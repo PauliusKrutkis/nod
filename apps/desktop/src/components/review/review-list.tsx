@@ -157,6 +157,12 @@ interface ReviewListProps {
   replyPending: boolean;
   baseSha: string;
   callbacks: ReviewListCallbacks;
+  /**
+   * Which host affordances this surface offers; all default on. The ledger
+   * session renders the same list without comments, forge-blob expansion,
+   * or viewed state — noop by absence, never by disabled chrome.
+   */
+  capabilities?: { comment?: boolean; expand?: boolean; viewed?: boolean };
   changedSinceViewed: ReadonlySet<string>;
   copiedPathIndex: number | null;
   cursorKey: string | null;
@@ -299,6 +305,7 @@ function DiffLine({
   item,
   filename,
   active,
+  commentable,
   selected,
   selectionEnd,
   flash,
@@ -319,6 +326,7 @@ function DiffLine({
   item: ReviewRowItem;
   filename: string;
   active: boolean;
+  commentable: boolean;
   selected: boolean;
   selectionEnd: boolean;
   flash: boolean;
@@ -342,7 +350,7 @@ function DiffLine({
     <DiffRow
       active={active}
       anchor={anchor}
-      canComment={item.target !== null}
+      canComment={commentable && item.target !== null}
       fileIndex={fileIndex}
       flash={flash}
       guideLvl={guideLvl}
@@ -712,7 +720,9 @@ function GroupHeader({
       additions={file.additions}
       copied={copiedPathIndex === groupIndex}
       deletions={file.deletions}
-      expandable={canExpandFile(file)}
+      expandable={
+        (ctx.props.capabilities?.expand ?? true) && canExpandFile(file)
+      }
       expanded={expandedFiles.has(file.filename)}
       expanding={expandingFiles.has(file.filename)}
       fileIndex={groupIndex}
@@ -724,6 +734,7 @@ function GroupHeader({
       previousFilename={file.previousFilename}
       status={file.status}
       updated={changedSinceViewed.has(file.filename)}
+      viewable={ctx.props.capabilities?.viewed ?? true}
       viewed={viewedSet.has(file.filename)}
     />
   );
@@ -850,6 +861,7 @@ function renderRowItem(
   return (
     <DiffLine
       active={key !== null && key === p.cursorKey}
+      commentable={p.capabilities?.comment ?? true}
       filename={file.filename}
       findOrdinal={findOrdinal}
       flash={key !== null && key === p.flashKey}

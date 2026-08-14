@@ -140,6 +140,7 @@ pub fn run() {
             license::get_license_state,
             activation::activate_license,
             ledger::ledger_status,
+            ledger::ledger_session,
             ledger::ledger_review,
         ])
         .run(tauri::generate_context!())

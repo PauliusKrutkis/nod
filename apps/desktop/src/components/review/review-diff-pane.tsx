@@ -16,7 +16,6 @@ import type {
 } from "../../lib/review-cursor.ts";
 import { navKey } from "../../lib/review-items.ts";
 import type { getReviewMemory } from "../../lib/review-memory.ts";
-import type { PullRequest } from "../../types.ts";
 import { ReviewList, type ReviewListHandle } from "./review-list.tsx";
 
 type ListProps = ComponentProps<typeof ReviewList>;
@@ -25,6 +24,8 @@ export function ReviewDiffPane({
   addPending,
   askDraft,
   askNote,
+  baseSha,
+  capabilities,
   changedSinceViewed,
   changeFindQuery,
   clampedIndex,
@@ -44,6 +45,7 @@ export function ReviewDiffPane({
   findQuery,
   findSafeIndex,
   flashKey,
+  headSha,
   initialMem,
   inputMode,
   listCallbacks,
@@ -55,7 +57,6 @@ export function ReviewDiffPane({
   onFindNext,
   onFindPrev,
   owner,
-  pr,
   replyPending,
   replyReq,
   repo,
@@ -67,6 +68,8 @@ export function ReviewDiffPane({
   addPending: boolean;
   askDraft: ListProps["askDraft"];
   askNote: ListProps["askNote"];
+  baseSha: string;
+  capabilities?: ListProps["capabilities"];
   changedSinceViewed: ListProps["changedSinceViewed"];
   changeFindQuery: (q: string) => void;
   clampedIndex: number;
@@ -86,6 +89,7 @@ export function ReviewDiffPane({
   findQuery: string;
   findSafeIndex: number;
   flashKey: string | null;
+  headSha: string;
   initialMem: ReturnType<typeof getReviewMemory>;
   inputMode: ListProps["inputMode"];
   listCallbacks: ListProps["callbacks"];
@@ -97,7 +101,6 @@ export function ReviewDiffPane({
   onFindNext: () => void;
   onFindPrev: () => void;
   owner: string;
-  pr: PullRequest;
   replyPending: boolean;
   replyReq: ListProps["replyRequest"];
   repo: string;
@@ -129,8 +132,9 @@ export function ReviewDiffPane({
           addPending={addPending}
           askDraft={askDraft}
           askNote={askNote}
-          baseSha={pr.baseSha}
+          baseSha={baseSha}
           callbacks={listCallbacks}
+          capabilities={capabilities}
           changedSinceViewed={changedSinceViewed}
           copiedPathIndex={copiedPathIndex}
           cursorKey={
@@ -145,7 +149,7 @@ export function ReviewDiffPane({
           files={files}
           findCurrent={findCurrent}
           flashKey={flashKey}
-          headSha={pr.headSha}
+          headSha={headSha}
           initialFileIndex={initialMem?.fileIndex ?? 0}
           inputMode={inputMode}
           marks={marks}

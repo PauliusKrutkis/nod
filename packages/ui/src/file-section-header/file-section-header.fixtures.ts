@@ -97,6 +97,16 @@ export const fileSectionHeaderEntry = defineEntry(FileSectionHeader, {
       status: "modified",
     },
   },
+  "no-viewed-control": {
+    props: {
+      additions: 24,
+      deletions: 0,
+      fileIndex: 0,
+      filename: "packages/ledger/src/derive/session.ts",
+      status: "modified",
+      viewable: false,
+    },
+  },
   "no-extension": {
     props: {
       additions: 2,

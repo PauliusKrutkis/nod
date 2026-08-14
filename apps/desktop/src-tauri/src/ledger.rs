@@ -64,6 +64,19 @@ pub async fn ledger_status(repo_path: String) -> Result<Value, String> {
 }
 
 #[tauri::command]
+pub async fn ledger_session(repo_path: String, targets: Vec<String>) -> Result<Value, String> {
+    let stdout = tauri::async_runtime::spawn_blocking(move || {
+        let mut args = vec!["session"];
+        args.extend(targets.iter().map(String::as_str));
+        args.push("--json");
+        run_cli(&repo_path, &args)
+    })
+    .await
+    .map_err(|e| format!("ledger session failed: {e}"))??;
+    serde_json::from_str(&stdout).map_err(|e| format!("ledger returned invalid JSON: {e}"))
+}
+
+#[tauri::command]
 pub async fn ledger_review(repo_path: String, target: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || run_cli(&repo_path, &["review", &target]))
         .await

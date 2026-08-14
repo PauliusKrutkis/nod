@@ -35,6 +35,7 @@ function baseScopeFor(name: Route["name"]): "inbox" | "ledger" | "review" {
 
 export default function App() {
   const route = useAppStore((s) => s.route);
+  const ledgerSessionOpen = useAppStore((s) => s.ledgerSessionOpen);
   const setRoute = useAppStore((s) => s.setRoute);
   const setAccounts = useAppStore((s) => s.setAccounts);
   const toast = useAppStore((s) => s.toast);
@@ -137,7 +138,10 @@ export default function App() {
     toggleNotifications,
   });
 
-  const baseScope = baseScopeFor(route.name);
+  const baseScope =
+    route.name === "ledger" && ledgerSessionOpen
+      ? "ledger-session"
+      : baseScopeFor(route.name);
   const showRouteChrome = CHROME_ROUTES.has(route.name);
 
   const isMac = navigator.userAgent.includes("Macintosh");

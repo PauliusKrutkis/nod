@@ -1,11 +1,13 @@
 /**
  * The review-ledger surface (docs/LEDGER.md §6, phase 3 dogfood): pick a
- * watched repository, land in its queue of unreviewed post-epoch regions,
- * sign what you have read. Three modes — pick (watched repos), path (one-time
- * "where is this cloned?" for a repo without a known working copy), queue —
- * driven by one binding set that branches on mode: j/k/enter walk whichever
- * list is active, r signs only in the queue, escape steps out one level
- * (queue → picker → inbox).
+ * watched repository, land in its queue of review sessions — unreviewed
+ * post-epoch regions pooled by feature-ish provenance (conventional-commit
+ * scope, PR fallback) — and enter one to read and sign. Four modes — pick
+ * (watched repos), path (one-time "where is this cloned?" for a repo
+ * without a known working copy), queue, session — j/k/enter walk whichever
+ * list is active, escape steps out one level (session → queue → picker →
+ * inbox). Signing lives only inside the session, where the code is on
+ * screen: a queue-level sign would be the rubber-stamp §13 warns about.
  *
  * Local clone locations live in nod:repoPaths:v1, a repo-key → absolute-path
  * map that is deliberately not ledger-private: go-to-definition and
@@ -14,20 +16,25 @@
  * to its queue on return visits. Status derivation runs the repo's own
  * ledger CLI through Rust — a full blame pass, so a cold load takes seconds
  * and the spinner says what it is waiting on. Selection clamps after every
- * refetch because signing shrinks the queue under the cursor.
+ * refetch because signing shrinks the group list under the cursor.
  */
 import { InboxZero } from "@nod/ui/inbox-zero";
 import { Kbd } from "@nod/ui/kbd";
 import { Spinner } from "@nod/ui/spinner";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, CornerUpLeft, PenLine } from "lucide-react";
+import { ArrowDown, ArrowUp, CornerUpLeft } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
 import { api } from "../../lib/api.ts";
 import { cn } from "../../lib/cn.ts";
+import {
+  groupQueueByProvenance,
+  type ProvenanceGroup,
+} from "../../lib/ledger-session.ts";
 import { queryKeys } from "../../lib/query-client.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type { LedgerQueueItem } from "../../types.ts";
+import { LedgerSession } from "./ledger-session.tsx";
 
 const PATHS_KEY = "nod:repoPaths:v1";
 const LAST_REPO_KEY = "nod:ledgerLastRepo:v1";
@@ -85,7 +92,15 @@ function targetOf(item: LedgerQueueItem): string {
 type LedgerView =
   | { kind: "pick" }
   | { kind: "path"; repoKey: string }
-  | { kind: "queue"; repoKey: string; path: string };
+  | { kind: "queue"; repoKey: string; path: string }
+  | {
+      kind: "session";
+      repoKey: string;
+      path: string;
+      group: { label: string; subject: string };
+      targets: string[];
+      initialTarget: string;
+    };
 
 function initialView(): LedgerView {
   const last = loadLastRepo();
@@ -98,11 +113,9 @@ function initialView(): LedgerView {
 
 export function Ledger() {
   const goInbox = useAppStore((s) => s.goInbox);
-  const setToast = useAppStore((s) => s.setToast);
   const [view, setView] = useState<LedgerView>(initialView);
   const [paths, setPaths] = useState(loadRepoPaths);
   const [selected, setSelected] = useState(0);
-  const [signing, setSigning] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
   const watched = useQuery({
@@ -111,14 +124,16 @@ export function Ledger() {
   });
   const repos = watched.data ?? [];
 
+  const inRepo = view.kind === "queue" || view.kind === "session";
   const status = useQuery({
-    enabled: view.kind === "queue",
-    queryFn: () => api.ledgerStatus(view.kind === "queue" ? view.path : ""),
-    queryKey: ["ledger", view.kind === "queue" ? view.path : ""],
+    enabled: inRepo,
+    queryFn: () => api.ledgerStatus(inRepo ? view.path : ""),
+    queryKey: queryKeys.ledger(inRepo ? view.path : ""),
   });
   const queue = status.data?.queue ?? [];
+  const { groups } = groupQueueByProvenance(queue);
 
-  const activeCount = view.kind === "queue" ? queue.length : repos.length;
+  const activeCount = view.kind === "queue" ? groups.length : repos.length;
 
   useEffect(() => {
     setSelected((s) => Math.max(0, Math.min(s, activeCount - 1)));
@@ -159,21 +174,23 @@ export function Ledger() {
     }
   };
 
-  const sign = async () => {
-    const item = queue[selected];
-    if (view.kind !== "queue" || !item || signing) {
+  const openSession = (index = selected) => {
+    if (view.kind !== "queue") {
       return;
     }
-    setSigning(true);
-    try {
-      await api.ledgerReview(view.path, targetOf(item));
-      await status.refetch();
-      setToast({ message: targetOf(item), title: "Region signed" });
-    } catch (e) {
-      setToast({ message: String(e), title: "Signing failed" });
-    } finally {
-      setSigning(false);
+    const group = groups[index];
+    const first = group?.items[0];
+    if (!(group && first)) {
+      return;
     }
+    setView({
+      group: { label: group.label, subject: group.subject },
+      initialTarget: targetOf(first),
+      kind: "session",
+      path: view.path,
+      repoKey: view.repoKey,
+      targets: group.items.map(targetOf),
+    });
   };
 
   useHotkeys("ledger", [
@@ -192,22 +209,17 @@ export function Ledger() {
       run: () => setSelected((s) => Math.max(s - 1, 0)),
     },
     {
-      description: "Open repository",
+      description: view.kind === "pick" ? "Open repository" : "Open session",
       group: "Queue",
-      hidden: view.kind !== "pick",
+      hidden: view.kind === "path",
       keys: "enter",
       run: () => {
         if (view.kind === "pick" && repos[selected]) {
           openRepo(repos[selected]);
+        } else if (view.kind === "queue") {
+          openSession();
         }
       },
-    },
-    {
-      description: "Mark region reviewed",
-      group: "Queue",
-      icon: PenLine,
-      keys: "r",
-      run: sign,
     },
     {
       description: "Back",
@@ -236,6 +248,27 @@ export function Ledger() {
         onBack={stepOut}
         onSubmit={(form) => savePathFor(view.repoKey, form)}
         repoKey={view.repoKey}
+      />
+    );
+  }
+
+  if (view.kind === "session") {
+    return (
+      <LedgerSession
+        group={view.group}
+        initialTarget={view.initialTarget}
+        onExit={() =>
+          setView({ kind: "queue", path: view.path, repoKey: view.repoKey })
+        }
+        onSigned={(target) =>
+          setView((v) =>
+            v.kind === "session"
+              ? { ...v, targets: v.targets.filter((t) => t !== target) }
+              : v
+          )
+        }
+        repoPath={view.path}
+        targets={view.targets}
       />
     );
   }
@@ -273,10 +306,11 @@ export function Ledger() {
 
       <QueueBody
         error={status.error}
+        groups={groups}
         listRef={listRef}
+        onOpen={openSession}
         onSelect={setSelected}
         pending={status.isPending}
-        queue={queue}
         selected={selected}
       />
 
@@ -285,7 +319,7 @@ export function Ledger() {
           <Kbd combo="j" /> / <Kbd combo="k" /> navigate
         </span>
         <span>
-          <Kbd combo="r" /> mark reviewed
+          <Kbd combo="↵" /> open session
         </span>
         <span>
           <Kbd combo="esc" /> back
@@ -394,17 +428,19 @@ function PickerRow({
 
 function QueueBody({
   error,
+  groups,
   listRef,
+  onOpen,
   onSelect,
   pending,
-  queue,
   selected,
 }: {
   error: unknown;
+  groups: ProvenanceGroup[];
   listRef: React.RefObject<HTMLDivElement | null>;
+  onOpen: (index: number) => void;
   onSelect: (index: number) => void;
   pending: boolean;
-  queue: LedgerQueueItem[];
   selected: number;
 }) {
   if (pending) {
@@ -421,7 +457,7 @@ function QueueBody({
       </div>
     );
   }
-  if (queue.length === 0) {
+  if (groups.length === 0) {
     return (
       <div className="min-h-0 flex-1">
         <InboxZero
@@ -433,16 +469,17 @@ function QueueBody({
   }
   return (
     <div
-      aria-label="Unreviewed regions"
+      aria-label="Review sessions"
       className="min-h-0 flex-1 overflow-y-auto py-2"
       ref={listRef}
       role="listbox"
     >
-      {queue.map((item, i) => (
-        <QueueRow
+      {groups.map((group, i) => (
+        <GroupRow
+          group={group}
           index={i}
-          item={item}
-          key={targetOf(item)}
+          key={group.key}
+          onOpen={onOpen}
           onSelect={onSelect}
           selected={i === selected}
         />
@@ -451,19 +488,24 @@ function QueueBody({
   );
 }
 
-function QueueRow({
+function GroupRow({
+  group,
   index,
-  item,
+  onOpen,
   onSelect,
   selected,
 }: {
+  group: ProvenanceGroup;
   index: number;
-  item: LedgerQueueItem;
+  onOpen: (index: number) => void;
   onSelect: (index: number) => void;
   selected: boolean;
 }) {
   const handleClick = () => {
     onSelect(index);
+  };
+  const handleDoubleClick = () => {
+    onOpen(index);
   };
   return (
     <div
@@ -474,23 +516,24 @@ function QueueRow({
       )}
       data-index={index}
       onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
       role="option"
       tabIndex={-1}
     >
-      <span className="shrink-0 font-mono text-[13px] text-fg">
-        {targetOf(item)}
-      </span>
+      <span className="shrink-0 font-medium text-fg">{group.label}</span>
       <span className="shrink-0 text-faint text-xs tabular-nums">
-        {item.newLines} lines
+        {group.items.length} region{group.items.length === 1 ? "" : "s"} ·{" "}
+        {group.fileCount} file{group.fileCount === 1 ? "" : "s"} ·{" "}
+        {group.newLines} lines
       </span>
-      {item.provenance.map((p) => (
-        <span className="shrink-0 text-accent text-xs" key={p.sha}>
-          {p.pr === null ? shortSha(p.sha) : `#${p.pr}`}
-        </span>
-      ))}
-      <span className="truncate text-muted text-xs">
-        {item.provenance[0]?.subject}
-      </span>
+      {group.chips
+        .filter((chip) => chip !== group.label)
+        .map((chip) => (
+          <span className="shrink-0 text-accent text-xs" key={chip}>
+            {chip}
+          </span>
+        ))}
+      <span className="truncate text-muted text-xs">{group.subject}</span>
     </div>
   );
 }

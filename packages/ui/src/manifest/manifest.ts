@@ -273,6 +273,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "markup-as-text",
       "minimal",
       "no-extension",
+      "no-viewed-control",
       "overflow",
       "removed",
       "renamed",

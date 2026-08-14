@@ -18,6 +18,8 @@
  * all depends on the patch and the file's state, which is not visual. The
  * expand control is absent rather than disabled when it cannot apply: a
  * control that is never usable on this file is noise, not information.
+ * `viewable` follows the same convention for the viewed control — a host
+ * with no viewed state (the ledger session) omits the button entirely.
  *
  * `leadRef` marks the strip immediately above the band. The host measures the
  * hand-off between one sticky header and the next against it; nothing here
@@ -48,6 +50,7 @@ export interface FileSectionHeaderProps {
   previousFilename?: string | null;
   status: string;
   updated?: boolean;
+  viewable?: boolean;
   viewed?: boolean;
 }
 
@@ -68,6 +71,7 @@ export function FileSectionHeader({
   previousFilename = null,
   status,
   updated = false,
+  viewable = true,
   viewed = false,
 }: FileSectionHeaderProps) {
   const slash = filename.lastIndexOf("/");
@@ -135,20 +139,22 @@ export function FileSectionHeader({
           </button>
         </Tooltip>
       )}
-      <Tooltip
-        combo="v"
-        label={viewed ? "Viewed · click to unmark" : "Mark as viewed"}
-      >
-        <button
-          aria-pressed={viewed}
-          className={cn("qf-viewed-btn", viewed && "qf-viewed-on")}
-          onClick={onToggleViewed}
-          type="button"
+      {viewable && (
+        <Tooltip
+          combo="v"
+          label={viewed ? "Viewed · click to unmark" : "Mark as viewed"}
         >
-          <Check aria-hidden size={12} />
-          Viewed
-        </button>
-      </Tooltip>
+          <button
+            aria-pressed={viewed}
+            className={cn("qf-viewed-btn", viewed && "qf-viewed-on")}
+            onClick={onToggleViewed}
+            type="button"
+          >
+            <Check aria-hidden size={12} />
+            Viewed
+          </button>
+        </Tooltip>
+      )}
     </header>
   );
 }

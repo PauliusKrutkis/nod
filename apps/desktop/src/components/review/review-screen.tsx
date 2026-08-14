@@ -50,7 +50,6 @@ import {
   type OccState,
   restoreCodeSelection,
 } from "../../lib/code-dom.ts";
-import type { FindMatch } from "../../lib/find-in-diff.ts";
 import { warmHighlightCache } from "../../lib/highlight.ts";
 import { isImageFile } from "../../lib/image-file.ts";
 import {
@@ -64,6 +63,7 @@ import {
   type LineSelection,
   resolveLiveSelection,
 } from "../../lib/review-cursor.ts";
+import { resolveMarks, resolveRulerFractions } from "../../lib/review-find.ts";
 import {
   buildCommentsByFile,
   buildPendingByFile,
@@ -94,7 +94,7 @@ import { DiffSearch } from "./diff-search.tsx";
 import { FileSidebarLoader } from "./file-sidebar-loader.tsx";
 import { ReviewDiffPane } from "./review-diff-pane.tsx";
 import { ReviewHeaderLoader } from "./review-header-loader.tsx";
-import type { MarkSpec, ReviewListHandle } from "./review-list.tsx";
+import type { ReviewListHandle } from "./review-list.tsx";
 import { ReviewScreenPendingLoader } from "./review-screen-pending-loader.tsx";
 import { RightPanel, type RightPanelHandle } from "./right-panel.tsx";
 import { SubmitReview } from "./submit-review.tsx";
@@ -135,7 +135,6 @@ interface ReviewScreenProps {
 const EMPTY_COMMENTS: ReviewComment[] = [];
 const EMPTY_PENDING: PendingComment[] = [];
 const EMPTY_OCC: OccurrenceMatch[] = [];
-const EMPTY_FRACTIONS: number[] = [];
 const EMPTY_COLLAPSED: ReadonlyMap<number, ReadonlySet<number>> = new Map();
 
 function applyLineSelection(args: {
@@ -163,56 +162,6 @@ function applyLineSelection(args: {
   args.setFlashKey((cur) => (cur === flashKey ? cur : flashKey));
 }
 
-function resolveMarks(
-  findOpen: boolean,
-  findQuery: string,
-  findCase: boolean,
-  occSpec: OccState | null
-): MarkSpec | null {
-  if (findOpen) {
-    if (findQuery) {
-      return { caseSensitive: findCase, kind: "find", query: findQuery };
-    }
-    return null;
-  }
-  if (occSpec) {
-    return {
-      fileIndex: occSpec.fileIndex,
-      kind: "occurrence",
-      query: occSpec.query,
-      wholeWord: occSpec.wholeWord,
-    };
-  }
-  return null;
-}
-
-function resolveRulerFractions(
-  model: ReviewListModel,
-  findOpen: boolean,
-  findQuery: string,
-  findMatches: FindMatch[],
-  occSpec: OccState | null,
-  occMatchList: OccurrenceMatch[]
-): number[] {
-  if (model.items.length === 0) {
-    return EMPTY_FRACTIONS;
-  }
-  if (findOpen && findQuery) {
-    return findMatches.map((m) => {
-      const idx = model.anchorItem.get(fileAnchorKey(m.fileIndex, m.anchor));
-      return idx === undefined ? -1 : idx / model.items.length;
-    });
-  }
-  if (occSpec) {
-    return occMatchList.map((m) => {
-      const idx = model.anchorItem.get(
-        fileAnchorKey(occSpec.fileIndex, m.anchor)
-      );
-      return idx === undefined ? -1 : idx / model.items.length;
-    });
-  }
-  return EMPTY_FRACTIONS;
-}
 export function ReviewScreen({ routeKey }: ReviewScreenProps) {
   return <ReviewScreenInner routeKey={routeKey} />;
 }
@@ -997,6 +946,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
           addPending={addReviewComment.isPending}
           askDraft={askDraft}
           askNote={askNoteProps}
+          baseSha={pr.baseSha}
           changedSinceViewed={changedSinceViewed}
           changeFindQuery={changeFindQuery}
           clampedIndex={clampedIndex}
@@ -1016,6 +966,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
           findQuery={findQuery}
           findSafeIndex={findSafeIndex}
           flashKey={flashKey}
+          headSha={pr.headSha}
           initialMem={initialMem}
           inputMode={inputMode}
           listCallbacks={{ ...listCallbacks, onCloseBox: onCloseBoxWithDraft }}
@@ -1027,7 +978,6 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
           onFindNext={onFindNext}
           onFindPrev={onFindPrev}
           owner={owner}
-          pr={pr}
           replyPending={reply.isPending}
           replyReq={replyReq}
           repo={repo}

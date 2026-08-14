@@ -25,6 +25,7 @@ const NOTE: Record<string, string> = {
   global: "Always available",
   inbox: "On the home list",
   ledger: "On the review ledger",
+  "ledger-session": "In a ledger session",
   review: "When reading a diff",
 };
 

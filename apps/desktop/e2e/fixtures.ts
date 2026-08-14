@@ -640,6 +640,7 @@ export const LEDGER = {
   epoch: "e9017aa000000000000000000000000000000000",
   queue: [
     {
+      baseline: null,
       endLine: 40,
       newLines: 40,
       path: "src/anchors/resolve.ts",
@@ -653,6 +654,12 @@ export const LEDGER = {
       startLine: 1,
     },
     {
+      baseline: {
+        actor: { id: "me", kind: "human" },
+        atTime: "2026-08-13T09:00:00.000Z",
+        refPath: "src/facts/store.ts",
+        sha: "ba5e100000000000000000000000000000000000",
+      },
       endLine: 12,
       newLines: 6,
       path: "src/facts/store.ts",
@@ -678,4 +685,35 @@ export const LEDGER_AFTER_REVIEW = {
   reviewedLines: 40,
   tip: "71b0000000000000000000000000000000000000",
   totalLines: 46,
+};
+
+/**
+ * Per-file session patches matching LEDGER's queue: the resolver file was
+ * never signed (synthesized all-adds hunk, trimmed to a few lines — the
+ * shape matters, not the volume), the store file decayed from a signed
+ * baseline (real mixed hunk with a deletion).
+ */
+export const LEDGER_SESSION = {
+  sessions: [
+    {
+      baseline: null,
+      patch:
+        '@@ -0,0 +1,5 @@\n+export const resolveAnchor = (index, anchor) => {\n+  const hits = postings(index, anchor.lines);\n+  if (hits.length === 0) {\n+    return { status: "gone" };\n+  }\n+};',
+      path: "src/anchors/resolve.ts",
+      regions: [{ endLine: 40, startLine: 1 }],
+    },
+    {
+      baseline: {
+        actor: { id: "me", kind: "human" },
+        atTime: "2026-08-13T09:00:00.000Z",
+        refPath: "src/facts/store.ts",
+        sha: "ba5e100000000000000000000000000000000000",
+      },
+      patch:
+        "@@ -5,7 +5,7 @@\n const RETRIES = 5;\n \n-const casUpdate = (ref) => {\n+const casUpdate = (ref, attempt = 0) => {\n   const lock = takeLock(ref);\n   if (!lock) {\n     return retry(ref);\n   }",
+      path: "src/facts/store.ts",
+      regions: [{ endLine: 12, startLine: 7 }],
+    },
+  ],
+  tip: "71b0000000000000000000000000000000000000",
 };

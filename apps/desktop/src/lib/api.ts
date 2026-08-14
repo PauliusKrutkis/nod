@@ -9,6 +9,7 @@ import type {
   GitHubUser,
   InboxBucket,
   InboxData,
+  LedgerSession,
   LedgerStatus,
   LicenseState,
   PullRequestDetail,
@@ -120,6 +121,8 @@ export const api = {
 
   ledgerReview: (repoPath: string, target: string) =>
     invoke<void>("ledger_review", { repoPath, target }),
+  ledgerSession: (repoPath: string, targets: string[]) =>
+    invoke<LedgerSession>("ledger_session", { repoPath, targets }),
   ledgerStatus: (repoPath: string) =>
     invoke<LedgerStatus>("ledger_status", { repoPath }),
 

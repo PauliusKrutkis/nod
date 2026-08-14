@@ -23,6 +23,9 @@ export const queryKeys = {
   appUpdate: (licenseKey: string) => ["app-update", licenseKey] as const,
   currentUser: ["currentUser"] as const,
   inbox: ["inbox"] as const,
+  ledger: (repoPath: string) => ["ledger", repoPath] as const,
+  ledgerSession: (repoPath: string, targets: readonly string[]) =>
+    ["ledger-session", repoPath, ...targets] as const,
   licenseState: ["licenseState"] as const,
   oauthConfigured: (provider: "github" | "gitlab") =>
     ["oauthConfigured", provider] as const,

@@ -3,8 +3,13 @@
  * match from the captured viewport, and naming the current match as
  * (file, row anchor, occurrence ordinal) for the find bar.
  */
-import type { FindCurrent } from "../components/review/review-list.tsx";
+import type {
+  FindCurrent,
+  MarkSpec,
+} from "../components/review/review-list.tsx";
+import type { OccState } from "./code-dom.ts";
 import type { FindMatch } from "./find-in-diff.ts";
+import type { OccurrenceMatch } from "./occurrences.ts";
 import { fileAnchorKey, type ReviewListModel } from "./review-items.ts";
 
 export interface FindUi {
@@ -107,4 +112,59 @@ export function currentMatchAt(
     ordinal += 1;
   }
   return { anchor: m.anchor, fileIndex: m.fileIndex, ordinal };
+}
+
+const EMPTY_FRACTIONS: number[] = [];
+
+/** What the list should mark: the find query while the bar is open, else occurrences. */
+export function resolveMarks(
+  findOpen: boolean,
+  findQuery: string,
+  findCase: boolean,
+  occSpec: OccState | null
+): MarkSpec | null {
+  if (findOpen) {
+    if (findQuery) {
+      return { caseSensitive: findCase, kind: "find", query: findQuery };
+    }
+    return null;
+  }
+  if (occSpec) {
+    return {
+      fileIndex: occSpec.fileIndex,
+      kind: "occurrence",
+      query: occSpec.query,
+      wholeWord: occSpec.wholeWord,
+    };
+  }
+  return null;
+}
+
+/** Ruler tick positions for the active mark set, as fractions of the list. */
+export function resolveRulerFractions(
+  model: ReviewListModel,
+  findOpen: boolean,
+  findQuery: string,
+  findMatches: FindMatch[],
+  occSpec: OccState | null,
+  occMatchList: OccurrenceMatch[]
+): number[] {
+  if (model.items.length === 0) {
+    return EMPTY_FRACTIONS;
+  }
+  if (findOpen && findQuery) {
+    return findMatches.map((m) => {
+      const idx = model.anchorItem.get(fileAnchorKey(m.fileIndex, m.anchor));
+      return idx === undefined ? -1 : idx / model.items.length;
+    });
+  }
+  if (occSpec) {
+    return occMatchList.map((m) => {
+      const idx = model.anchorItem.get(
+        fileAnchorKey(occSpec.fileIndex, m.anchor)
+      );
+      return idx === undefined ? -1 : idx / model.items.length;
+    });
+  }
+  return EMPTY_FRACTIONS;
 }
