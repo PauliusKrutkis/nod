@@ -29,6 +29,7 @@ pnpm ledger queue                # unreviewed regions, with provenance
 pnpm ledger session [target]…    # queued files as net-diff patches
 pnpm ledger review <path>        # sign every queued region in a file
 pnpm ledger review <path>:12-40  # sign one region
+pnpm ledger approve <topic>…     # stamp a topic at tip; deltas baseline here
 pnpm ledger sync                 # exchange facts via origin
 pnpm ledger init [rev]           # adopt a repo: set the epoch (default HEAD)
 ```
@@ -36,20 +37,28 @@ pnpm ledger init [rev]           # adopt a repo: set the epoch (default HEAD)
 **Desktop tab** — `pnpm dev:desktop`, then `mod+shift+L` from anywhere.
 Pick a watched repository, tell it once where your local clone lives
 (stored in the `nod:repoPaths:v1` personal-local map; the last repo
-reopens directly), land in its queue: one row per feature-ish group
-(conventional-commit scope, PR/sha fallback — the deterministic stage
-before phase-5 topics). `j`/`k` navigate, `enter` opens the group's
-**session** — the code rendered on the same surface as a PR review, as
-the net diff since the last signature (real `git diff baseline..tip`
-when the file decayed from a signed anchor, unreviewed-lines-as-adds
-when it was never signed). In the session `r` signs the region under
-the cursor, `mod+f` finds, `esc` steps out — session → queue → picker →
-inbox. Signing exists only where the code is on screen; the queue has
-no sign key by design (§13's rubber-stamp risk).
+reopens directly), land in its queue: one row per **topic** — the
+engine's deterministic classification (conventional-commit scope of the
+line's blame subject, PR/sha fallback; the pre-LLM stage of §3's
+cascade). `j`/`k` navigate, `enter` opens the topic's **session** — the
+code rendered on the same surface as a PR review, as the net diff since
+the last attestation (real `git diff baseline..tip` when a signed
+anchor or approval decayed, unreviewed-lines-as-adds when never
+signed). In the session `r` signs the region under the cursor, `v`
+marks a file viewed (client-local reading progress, invalidated when
+the content changes), and `a` — enabled only once **every** file is
+viewed — approves the topic: a fact at tip that counts the topic's
+current lines as reviewed and baselines future deltas there. With
+`approvalsRequired: 2` in `.ledger/config.json`, coverage needs two
+humans' attestations line by line. `mod+f` finds, `esc` steps out —
+session → queue → picker → inbox. Signing and approving exist only
+where the code is on screen; the queue has no stamp key by design
+(§13's rubber-stamp risk).
 
-**The loop:** merge normally → open the queue → enter a session → read →
-`r` (or `ledger review` / `ledger session` from the CLI) → watch
-coverage climb. Reviews become facts in the target repo's
+**The loop:** merge normally → open the queue → enter a session → read,
+`v` each file → `r` regions or `a` the topic (or `ledger review` /
+`ledger approve` from the CLI) → watch coverage climb; new commits
+resurface only their deltas. Reviews become facts in the target repo's
 `refs/ledger/facts`, signed as `git config user.name`; `ledger sync`
 publishes them through the ordinary git remote.
 

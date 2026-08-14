@@ -149,6 +149,7 @@ describe("deriveStatus", () => {
       atTime: AT_TIME,
       actor: ACTOR,
       refPath: "src/base.ts",
+      source: "anchor",
     });
     const untouched = status.queue.find((item) => item.path === "src/util.ts");
     expect(untouched?.baseline).toBeNull();

@@ -45,6 +45,27 @@ export interface QueueBaseline {
   actor: Actor;
   /** The signed anchor's path at `sha`; differs from the item's across a rename. */
   refPath: string;
+  /** What was attested: a signed region, or the whole topic at a sha. */
+  source: "anchor" | "approval";
+}
+
+/** The effective approval a topic's deltas are baselined against. */
+export interface TopicApproval {
+  sha: string;
+  atTime: string;
+  actor: Actor;
+}
+
+export interface TopicStatus {
+  id: string;
+  /** Post-epoch tip lines classified into this topic. */
+  totalLines: number;
+  reviewedLines: number;
+  requiredApprovals: number;
+  /** Distinct human actors with a resolvable approval on this topic. */
+  approvals: number;
+  /** Null until the threshold is met. */
+  approvedAt: TopicApproval | null;
 }
 
 export interface QueueItem {
@@ -55,8 +76,10 @@ export interface QueueItem {
   /** Unreviewed post-epoch lines inside the span (the span may bridge a few old lines). */
   newLines: number;
   provenance: Provenance[];
-  /** Null when no signed anchor decayed into this run (genuinely new code). */
+  /** Null when no attestation decayed into this run (genuinely new code). */
   baseline: QueueBaseline | null;
+  /** Derived feature label: conventional scope, #pr, or short-sha fallback. */
+  topic: string;
 }
 
 export interface LedgerStatus {
@@ -67,12 +90,30 @@ export interface LedgerStatus {
   /** reviewedLines / totalLines; 1 when nothing is post-epoch. */
   coverage: number;
   queue: QueueItem[];
+  topics: TopicStatus[];
 }
 
 const SQUASH_SUBJECT = /\(#(\d+)\)\s*$/;
+/** `feat(ledger): …` → "ledger"; conventional-commit scope. */
+const CONVENTIONAL_SCOPE = /^[a-z]+\(([^)]+)\)!?:/;
 /** Queue regions may bridge this many non-countable lines to stay coherent. */
 const BRIDGE = 2;
 const SUBJECT_BATCH = 200;
+
+/**
+ * A commit's derived topic (docs/LEDGER.md §3, the deterministic stage of
+ * the cascade): the declared scope when the subject carries one, the PR
+ * for scopeless squash merges, the bare sha for direct pushes. Ergonomics
+ * only — a wrong label mislabels a queue item, never loses a line.
+ */
+const topicOf = (subject: string, sha: string): string => {
+  const scope = CONVENTIONAL_SCOPE.exec(subject)?.[1]?.trim();
+  if (scope) {
+    return scope;
+  }
+  const pr = SQUASH_SUBJECT.exec(subject);
+  return pr ? `#${pr[1]}` : sha.slice(0, 7);
+};
 
 interface Run {
   path: string;
@@ -105,22 +146,25 @@ export interface ResolvedAnchor {
   resolution: Resolution;
 }
 
-/** Paint every line still covered by a reviewed/approved anchor. */
+/** Paint every line still covered by a human's reviewed/approved anchor. */
 const applyReviewMarks = async (
   git: GitRun,
   raw: ReadonlyMap<string, string[]>,
-  config: ResolveConfig
+  config: ResolveConfig,
+  facts: readonly Fact[]
 ): Promise<{ masks: Map<string, Uint8Array>; resolved: ResolvedAnchor[] }> => {
-  const facts = await readFacts(git);
   const anchorRefs = await readAnchorRefs(git);
   const index = buildTipIndex(raw, config.normalization);
   const masks = new Map<string, Uint8Array>();
   const resolved: ResolvedAnchor[] = [];
 
   for (const fact of facts) {
+    // Agent facts are triage signal, never coverage — the ratchet counts
+    // human attention only (docs/LEDGER.md §5).
     const relevant =
       (fact.verdict === "reviewed" || fact.verdict === "approved") &&
-      fact.subject.kind === "anchor";
+      fact.subject.kind === "anchor" &&
+      fact.actor.kind === "human";
     const ref = relevant ? anchorRefs.get(fact.subject.id) : undefined;
     if (!ref) {
       continue;
@@ -192,6 +236,113 @@ const collectFileRuns = (
   return { total, reviewed };
 };
 
+interface TopicApprovalState {
+  /** Distinct human actors with at least one resolvable approval. */
+  approvals: number;
+  /** Null while distinct actors < required. */
+  effective: TopicApproval | null;
+  /** ≥ required distinct actors attested a state containing this commit. */
+  covers: (blameSha: string) => boolean;
+}
+
+const newerFact = (
+  a: { atTime: string; atSha: string },
+  b: { atTime: string; atSha: string }
+): boolean =>
+  a.atTime > b.atTime || (a.atTime === b.atTime && a.atSha > b.atSha);
+
+/**
+ * Approval semantics, derived per topic from human `approved` topic facts:
+ *
+ * - Coverage is per line and monotone: a line counts as reviewed when at
+ *   least `required` distinct human actors each hold an approval whose
+ *   `epoch..atSha` history contains the line's blame commit. Union over an
+ *   actor's approvals — appending a fact can never reduce coverage, and a
+ *   stale-checkout approval covers exactly what its author could have seen.
+ * - The `effective` record (baseline + display) is the oldest among the
+ *   `required` newest per-actor approvals; with the solo default it is
+ *   simply the newest human approval.
+ * - Approvals whose atSha the repo cannot resolve are inert everywhere.
+ */
+const buildTopicApprovals = async (
+  git: GitRun,
+  facts: readonly Fact[],
+  options: {
+    epoch: string;
+    tip: string;
+    postEpoch: ReadonlySet<string>;
+    required: number;
+  }
+): Promise<Map<string, TopicApprovalState>> => {
+  const relevant = facts.filter(
+    (fact) =>
+      fact.verdict === "approved" &&
+      fact.subject.kind === "topic" &&
+      fact.actor.kind === "human"
+  );
+
+  const membership = new Map<string, ReadonlySet<string>>();
+  for (const sha of new Set(relevant.map((fact) => fact.atSha))) {
+    if (sha === options.tip) {
+      membership.set(sha, options.postEpoch);
+      continue;
+    }
+    try {
+      await git(["rev-parse", "--verify", "--quiet", `${sha}^{commit}`]);
+    } catch {
+      continue; // unknown to this repo — the fact stays inert
+    }
+    membership.set(
+      sha,
+      new Set(
+        (await git(["rev-list", `${options.epoch}..${sha}`]))
+          .split("\n")
+          .filter(Boolean)
+      )
+    );
+  }
+
+  const byTopic = new Map<string, Map<string, Fact[]>>();
+  for (const fact of relevant) {
+    if (!membership.has(fact.atSha) || fact.subject.kind !== "topic") {
+      continue;
+    }
+    const actors = byTopic.get(fact.subject.id) ?? new Map<string, Fact[]>();
+    byTopic.set(fact.subject.id, actors);
+    const list = actors.get(fact.actor.id) ?? [];
+    list.push(fact);
+    actors.set(fact.actor.id, list);
+  }
+
+  const states = new Map<string, TopicApprovalState>();
+  for (const [id, actors] of byTopic) {
+    const approvals = actors.size;
+    let effective: TopicApproval | null = null;
+    if (approvals >= options.required) {
+      const latestPerActor = [...actors.values()].map((list) =>
+        list.reduce((a, b) => (newerFact(b, a) ? b : a))
+      );
+      latestPerActor.sort((a, b) => (newerFact(a, b) ? -1 : 1));
+      const nth = latestPerActor[options.required - 1];
+      effective = { sha: nth.atSha, atTime: nth.atTime, actor: nth.actor };
+    }
+    const covers = (blameSha: string): boolean => {
+      let count = 0;
+      for (const list of actors.values()) {
+        if (list.some((fact) => membership.get(fact.atSha)?.has(blameSha))) {
+          count += 1;
+          if (count >= options.required) {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+    states.set(id, { approvals, covers, effective });
+  }
+  return states;
+};
+
 /**
  * A stale footprint may sit this far from a run and still claim it — the
  * same slack the run builder bridges, so a gap punched into a signed block
@@ -211,7 +362,8 @@ const BASELINE_GAP = BRIDGE + 1;
  */
 const baselineForRun = (
   run: Run,
-  candidatesByPath: ReadonlyMap<string, ResolvedAnchor[]>
+  candidatesByPath: ReadonlyMap<string, ResolvedAnchor[]>,
+  approval: TopicApproval | null
 ): QueueBaseline | null => {
   let best: ResolvedAnchor | null = null;
   for (const record of candidatesByPath.get(run.path) ?? []) {
@@ -226,22 +378,39 @@ const baselineForRun = (
         continue;
       }
     }
-    const newer =
-      !best ||
-      fact.atTime > best.fact.atTime ||
-      (fact.atTime === best.fact.atTime && fact.atSha > best.fact.atSha);
-    if (newer) {
+    if (!best || newerFact(fact, best.fact)) {
       best = record;
     }
   }
-  return best
+  const fromAnchor: QueueBaseline | null = best
     ? {
         sha: best.fact.atSha,
         atTime: best.fact.atTime,
         actor: best.fact.actor,
         refPath: best.ref.path,
+        source: "anchor",
       }
     : null;
+  // The topic's approval competes as one more attestation; approvals carry
+  // no rename knowledge, so the run's own tip path stands in for refPath.
+  const fromApproval: QueueBaseline | null = approval
+    ? {
+        sha: approval.sha,
+        atTime: approval.atTime,
+        actor: approval.actor,
+        refPath: run.path,
+        source: "approval",
+      }
+    : null;
+  if (!(fromAnchor && fromApproval)) {
+    return fromAnchor ?? fromApproval;
+  }
+  return newerFact(
+    { atSha: fromApproval.sha, atTime: fromApproval.atTime },
+    { atSha: fromAnchor.sha, atTime: fromAnchor.atTime }
+  )
+    ? fromApproval
+    : fromAnchor;
 };
 
 const loadSubjects = async (
@@ -273,22 +442,70 @@ const byPathThenLine = (a: QueueItem, b: QueueItem): number => {
   return a.startLine - b.startLine;
 };
 
-export const deriveStatus = async (
+/**
+ * Line-level topics, computed before runs: approval coverage must paint the
+ * masks so mixed-topic runs shrink and split before any run is labeled.
+ */
+const classifyTipShas = async (
   git: GitRun,
-  options: { epoch: string; tip?: string; config?: ResolveConfig }
-): Promise<LedgerStatus> => {
-  const config = options.config ?? DEFAULT_RESOLVE_CONFIG;
-  const tip = (await git(["rev-parse", options.tip ?? "HEAD"])).trim();
-  const epoch = (await git(["rev-parse", options.epoch])).trim();
+  blames: ReadonlyMap<string, readonly string[]>,
+  postEpoch: ReadonlySet<string>
+): Promise<{
+  subjects: Map<string, string>;
+  topicBySha: Map<string, string>;
+}> => {
+  const tipShas = new Set<string>();
+  for (const blame of blames.values()) {
+    for (const sha of blame) {
+      if (postEpoch.has(sha)) {
+        tipShas.add(sha);
+      }
+    }
+  }
+  const subjects = await loadSubjects(git, [...tipShas]);
+  const topicBySha = new Map<string, string>();
+  for (const sha of tipShas) {
+    topicBySha.set(sha, topicOf(subjects.get(sha) ?? "", sha));
+  }
+  return { subjects, topicBySha };
+};
 
-  const raw = await readTreeLines(git, tip);
-  const postEpoch = new Set(
-    (await git(["rev-list", `${epoch}..${tip}`])).split("\n").filter(Boolean)
-  );
-  const blames = await blameTree(git, tip, [...raw.keys()]);
-  const { masks, resolved } = await applyReviewMarks(git, raw, config);
-  // Baseline candidates: stale anchors keyed where their lines survived,
-  // gone anchors keyed where they were signed (no tip position exists).
+/**
+ * Union approval coverage into the anchor masks. All lines sharing a blame
+ * commit share topic and coverage, so approval coverage resolves once per
+ * commit, then paints line by line.
+ */
+const paintApprovalCoverage = (
+  blames: ReadonlyMap<string, readonly string[]>,
+  raw: ReadonlyMap<string, string[]>,
+  masks: Map<string, Uint8Array>,
+  topicBySha: ReadonlyMap<string, string>,
+  topicStates: ReadonlyMap<string, TopicApprovalState>
+): void => {
+  const coveredShas = new Set<string>();
+  for (const [sha, topic] of topicBySha) {
+    if (topicStates.get(topic)?.covers(sha)) {
+      coveredShas.add(sha);
+    }
+  }
+  for (const [path, blame] of blames) {
+    const length = raw.get(path)?.length ?? 0;
+    for (let i = 0; i < blame.length; i++) {
+      const sha = blame[i];
+      if (sha !== undefined && coveredShas.has(sha)) {
+        markRange(masks, path, length, i, 1);
+      }
+    }
+  }
+};
+
+/**
+ * Baseline candidates: stale anchors keyed where their lines survived,
+ * gone anchors keyed where they were signed (no tip position exists).
+ */
+const groupBaselineCandidates = (
+  resolved: readonly ResolvedAnchor[]
+): Map<string, ResolvedAnchor[]> => {
   const candidatesByPath = new Map<string, ResolvedAnchor[]>();
   for (const record of resolved) {
     let path: string | null = null;
@@ -303,10 +520,49 @@ export const deriveStatus = async (
       candidatesByPath.set(path, list);
     }
   }
+  return candidatesByPath;
+};
+
+export const deriveStatus = async (
+  git: GitRun,
+  options: {
+    epoch: string;
+    tip?: string;
+    config?: ResolveConfig;
+    approvalsRequired?: number;
+  }
+): Promise<LedgerStatus> => {
+  const config = options.config ?? DEFAULT_RESOLVE_CONFIG;
+  const required = options.approvalsRequired ?? 1;
+  const tip = (await git(["rev-parse", options.tip ?? "HEAD"])).trim();
+  const epoch = (await git(["rev-parse", options.epoch])).trim();
+
+  const raw = await readTreeLines(git, tip);
+  const postEpoch = new Set(
+    (await git(["rev-list", `${epoch}..${tip}`])).split("\n").filter(Boolean)
+  );
+  const blames = await blameTree(git, tip, [...raw.keys()]);
+  const { subjects, topicBySha } = await classifyTipShas(
+    git,
+    blames,
+    postEpoch
+  );
+
+  const facts = await readFacts(git);
+  const { masks, resolved } = await applyReviewMarks(git, raw, config, facts);
+  const topicStates = await buildTopicApprovals(git, facts, {
+    epoch,
+    postEpoch,
+    required,
+    tip,
+  });
+  paintApprovalCoverage(blames, raw, masks, topicBySha, topicStates);
+  const candidatesByPath = groupBaselineCandidates(resolved);
 
   let totalLines = 0;
   let reviewedLines = 0;
   const runs: Run[] = [];
+  const perTopic = new Map<string, { total: number; reviewed: number }>();
   for (const [path, fileLines] of raw) {
     const blame = blames.get(path);
     if (!blame) {
@@ -322,25 +578,56 @@ export const deriveStatus = async (
     );
     totalLines += counts.total;
     reviewedLines += counts.reviewed;
+    const mask = masks.get(path);
+    for (let i = 0; i < fileLines.length; i++) {
+      const sha = blame[i];
+      const topic = sha === undefined ? undefined : topicBySha.get(sha);
+      if (topic === undefined) {
+        continue;
+      }
+      const tally = perTopic.get(topic) ?? { reviewed: 0, total: 0 };
+      perTopic.set(topic, tally);
+      tally.total += 1;
+      if (mask?.[i] === 1) {
+        tally.reviewed += 1;
+      }
+    }
   }
 
-  const subjects = await loadSubjects(git, [
-    ...new Set(runs.flatMap((r) => [...r.shas])),
-  ]);
   const queue: QueueItem[] = runs
-    .map((run) => ({
-      path: run.path,
-      startLine: run.start + 1,
-      endLine: run.end + 1,
-      newLines: run.newLines,
-      provenance: [...run.shas].map((sha) => {
-        const subject = subjects.get(sha) ?? "";
-        const match = SQUASH_SUBJECT.exec(subject);
-        return { sha, pr: match ? Number(match[1]) : null, subject };
-      }),
-      baseline: baselineForRun(run, candidatesByPath),
-    }))
+    .map((run) => {
+      const headSha = blames.get(run.path)?.[run.start] ?? "";
+      const topic = topicBySha.get(headSha) ?? headSha.slice(0, 7);
+      return {
+        path: run.path,
+        startLine: run.start + 1,
+        endLine: run.end + 1,
+        newLines: run.newLines,
+        provenance: [...run.shas].map((sha) => {
+          const subject = subjects.get(sha) ?? "";
+          const match = SQUASH_SUBJECT.exec(subject);
+          return { sha, pr: match ? Number(match[1]) : null, subject };
+        }),
+        baseline: baselineForRun(
+          run,
+          candidatesByPath,
+          topicStates.get(topic)?.effective ?? null
+        ),
+        topic,
+      };
+    })
     .sort(byPathThenLine);
+
+  const topics: TopicStatus[] = [...perTopic.entries()]
+    .map(([id, tally]) => ({
+      id,
+      totalLines: tally.total,
+      reviewedLines: tally.reviewed,
+      requiredApprovals: required,
+      approvals: topicStates.get(id)?.approvals ?? 0,
+      approvedAt: topicStates.get(id)?.effective ?? null,
+    }))
+    .sort((a, b) => (a.id < b.id ? -1 : 1));
 
   return {
     tip,
@@ -349,5 +636,6 @@ export const deriveStatus = async (
     reviewedLines,
     coverage: totalLines === 0 ? 1 : reviewedLines / totalLines,
     queue,
+    topics,
   };
 };

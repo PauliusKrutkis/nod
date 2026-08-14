@@ -116,6 +116,7 @@ export const deriveSession = async (
     tip?: string;
     targets?: readonly string[];
     config?: ResolveConfig;
+    approvalsRequired?: number;
   }
 ): Promise<LedgerSession> => {
   // Always re-derive: run spans, masks, and baselines are only correct

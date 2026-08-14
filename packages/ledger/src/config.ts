@@ -9,6 +9,8 @@ import { dirname, join } from "node:path";
 export interface LedgerConfig {
   version: 1;
   epoch: string;
+  /** Distinct human approvals a topic needs to count as approved; absent = 1. */
+  approvalsRequired?: number;
 }
 
 const CONFIG_PATH = ".ledger/config.json";
@@ -19,7 +21,12 @@ const isConfig = (value: unknown): value is LedgerConfig =>
   "version" in value &&
   value.version === 1 &&
   "epoch" in value &&
-  typeof value.epoch === "string";
+  typeof value.epoch === "string" &&
+  (!("approvalsRequired" in value) ||
+    value.approvalsRequired === undefined ||
+    (typeof value.approvalsRequired === "number" &&
+      Number.isInteger(value.approvalsRequired) &&
+      value.approvalsRequired >= 1));
 
 export const readLedgerConfig = async (
   repoRoot: string

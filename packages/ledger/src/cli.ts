@@ -1,5 +1,10 @@
 import process from "node:process";
-import { readLedgerConfig, writeLedgerConfig } from "./config.ts";
+import {
+  type LedgerConfig,
+  readLedgerConfig,
+  writeLedgerConfig,
+} from "./config.ts";
+import { approveTopic } from "./derive/approve.ts";
 import { deriveSession } from "./derive/session.ts";
 import { signRegion } from "./derive/sign.ts";
 import { deriveStatus, type LedgerStatus } from "./derive/status.ts";
@@ -27,6 +32,8 @@ const USAGE = `usage: ledger <command>
   queue             unreviewed regions, with provenance
   session [target]… queued files as net-diff patches since the last signature
   review <target>…  mark regions reviewed; target: path or path:start-end
+  approve <topic>…  stamp a topic at tip; deltas baseline here (--force for
+                    a topic id the queue does not currently show)
   sync [remote]     push/pull facts via git (default origin)
 `;
 
@@ -49,15 +56,23 @@ const getActor = async (git: GitRun): Promise<Actor> => {
   return { kind: "human", id };
 };
 
-const requireStatus = async (
-  git: GitRun,
-  repoRoot: string
-): Promise<LedgerStatus> => {
+const requireConfig = async (repoRoot: string): Promise<LedgerConfig> => {
   const config = await readLedgerConfig(repoRoot);
   if (!config) {
     return die("no ledger here yet — run `ledger init` to set the epoch");
   }
-  return await deriveStatus(git, { epoch: config.epoch });
+  return config;
+};
+
+const requireStatus = async (
+  git: GitRun,
+  repoRoot: string
+): Promise<LedgerStatus> => {
+  const config = await requireConfig(repoRoot);
+  return await deriveStatus(git, {
+    approvalsRequired: config.approvalsRequired,
+    epoch: config.epoch,
+  });
 };
 
 const describeItem = (item: LedgerStatus["queue"][number]): string => {
@@ -76,11 +91,12 @@ const runSession = async (
   targets: readonly string[],
   json: boolean
 ): Promise<void> => {
-  const config = await readLedgerConfig(repoRoot);
-  if (!config) {
-    return die("no ledger here yet — run `ledger init` to set the epoch");
-  }
-  const session = await deriveSession(git, { epoch: config.epoch, targets });
+  const config = await requireConfig(repoRoot);
+  const session = await deriveSession(git, {
+    approvalsRequired: config.approvalsRequired,
+    epoch: config.epoch,
+    targets,
+  });
   if (json) {
     console.log(JSON.stringify(session));
     return;
@@ -100,6 +116,59 @@ const runSession = async (
       `=== ${file.path} · ${base} · ${file.regions.length} region(s)`
     );
     console.log(file.patch);
+  }
+};
+
+const runApprove = async (
+  git: GitRun,
+  repoRoot: string,
+  topics: readonly string[],
+  force: boolean
+): Promise<void> => {
+  if (topics.length === 0) {
+    die("approve needs at least one topic — see `ledger status`");
+  }
+  const config = await requireConfig(repoRoot);
+  const required = config.approvalsRequired ?? 1;
+  const before = await deriveStatus(git, {
+    approvalsRequired: required,
+    epoch: config.epoch,
+  });
+  const known = new Set(before.topics.map((t) => t.id));
+  for (const topic of topics) {
+    if (!(known.has(topic) || force)) {
+      // Append-only: a typo'd id would be a junk fact forever.
+      die(`unknown topic "${topic}" — see \`ledger status\`, or pass --force`);
+    }
+  }
+  const actor = await getActor(git);
+  for (const topic of topics) {
+    await approveTopic(git, {
+      actor,
+      atTime: new Date().toISOString(),
+      topic,
+    });
+  }
+  const after = await deriveStatus(git, {
+    approvalsRequired: required,
+    epoch: config.epoch,
+  });
+  for (const topic of topics) {
+    const now = after.topics.find((t) => t.id === topic);
+    const was = before.topics.find((t) => t.id === topic);
+    if (now?.approvedAt) {
+      const covered = now.reviewedLines - (was?.reviewedLines ?? 0);
+      const cleared =
+        before.queue.filter((i) => i.topic === topic).length -
+        after.queue.filter((i) => i.topic === topic).length;
+      console.log(
+        `approved ${topic} at ${short(after.tip)} — coverage ${pct(before.coverage)} → ${pct(after.coverage)} · ${covered} lines · ${cleared} region(s)`
+      );
+    } else {
+      console.log(
+        `recorded approval for ${topic} (${now?.approvals ?? 1} of ${required} required) — no coverage change yet`
+      );
+    }
   }
 };
 
@@ -152,7 +221,10 @@ const runReview = async (
 const main = async (): Promise<void> => {
   const argv = process.argv.slice(2);
   const json = argv.includes("--json");
-  const [command, ...args] = argv.filter((arg) => arg !== "--json");
+  const force = argv.includes("--force");
+  const [command, ...args] = argv.filter(
+    (arg) => arg !== "--json" && arg !== "--force"
+  );
   const repoRoot = (
     await gitIn(process.cwd())(["rev-parse", "--show-toplevel"])
   ).trim();
@@ -161,7 +233,9 @@ const main = async (): Promise<void> => {
   switch (command) {
     case "init": {
       const epoch = (await git(["rev-parse", args[0] ?? "HEAD"])).trim();
-      await writeLedgerConfig(repoRoot, { version: 1, epoch });
+      // Read-merge: re-init moves only the epoch, never drops other settings.
+      const existing = await readLedgerConfig(repoRoot).catch(() => null);
+      await writeLedgerConfig(repoRoot, { ...existing, version: 1, epoch });
       console.log(
         `ledger initialized · epoch ${short(epoch)} · everything before it is grandfathered`
       );
@@ -200,6 +274,10 @@ const main = async (): Promise<void> => {
     }
     case "review": {
       await runReview(git, repoRoot, args);
+      return;
+    }
+    case "approve": {
+      await runApprove(git, repoRoot, args, force);
       return;
     }
     case "sync": {
