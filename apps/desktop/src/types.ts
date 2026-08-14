@@ -231,6 +231,35 @@ export interface ReleaseInfo {
   tag: string;
 }
 
+/**
+ * Review-ledger shapes, produced by the ledger CLI's --json output and passed
+ * through Rust untouched. `pr` is null for direct pushes, where provenance
+ * falls back to the bare commit. Line spans are 1-based and inclusive;
+ * `newLines` counts only unreviewed post-epoch lines inside the span.
+ */
+export interface LedgerProvenance {
+  pr: number | null;
+  sha: string;
+  subject: string;
+}
+
+export interface LedgerQueueItem {
+  endLine: number;
+  newLines: number;
+  path: string;
+  provenance: LedgerProvenance[];
+  startLine: number;
+}
+
+export interface LedgerStatus {
+  coverage: number;
+  epoch: string;
+  queue: LedgerQueueItem[];
+  reviewedLines: number;
+  tip: string;
+  totalLines: number;
+}
+
 export interface PRRef {
   name: string;
   number: number;

@@ -625,3 +625,57 @@ export const ACCOUNT = {
   login: "me",
   provider: "github",
 };
+
+export const EMPTY_LEDGER = {
+  coverage: 1,
+  epoch: "e9017aa000000000000000000000000000000000",
+  queue: [],
+  reviewedLines: 0,
+  tip: "e9017aa000000000000000000000000000000000",
+  totalLines: 0,
+};
+
+export const LEDGER = {
+  coverage: 0,
+  epoch: "e9017aa000000000000000000000000000000000",
+  queue: [
+    {
+      endLine: 40,
+      newLines: 40,
+      path: "src/anchors/resolve.ts",
+      provenance: [
+        {
+          pr: 321,
+          sha: "cafe321000000000000000000000000000000000",
+          subject: "feat(ledger): anchor resolver (#321)",
+        },
+      ],
+      startLine: 1,
+    },
+    {
+      endLine: 12,
+      newLines: 6,
+      path: "src/facts/store.ts",
+      provenance: [
+        {
+          pr: null,
+          sha: "d1eec70000000000000000000000000000000000",
+          subject: "chore: tighten CAS retry",
+        },
+      ],
+      startLine: 7,
+    },
+  ],
+  reviewedLines: 0,
+  tip: "71b0000000000000000000000000000000000000",
+  totalLines: 46,
+};
+
+export const LEDGER_AFTER_REVIEW = {
+  coverage: 40 / 46,
+  epoch: "e9017aa000000000000000000000000000000000",
+  queue: [LEDGER.queue[1]],
+  reviewedLines: 40,
+  tip: "71b0000000000000000000000000000000000000",
+  totalLines: 46,
+};

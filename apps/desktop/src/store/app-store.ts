@@ -23,17 +23,26 @@ export type Route =
   | { name: "loading" }
   | { name: "token" }
   | { name: "inbox" }
+  | { name: "ledger" }
   | { name: "review"; owner: string; repo: string; number: number };
 
 /**
- * We remember the inbox/review screen you were last on (never the token/loading
- * screens) so the next launch reopens it instead of always landing on the inbox.
+ * We remember the inbox/ledger/review screen you were last on (never the
+ * token/loading screens) so the next launch reopens it instead of always
+ * landing on the inbox.
  */
 const LAST_ROUTE_KEY = "nod:lastRoute:v1";
-type ResumableRoute = Extract<Route, { name: "inbox" } | { name: "review" }>;
+type ResumableRoute = Extract<
+  Route,
+  { name: "inbox" } | { name: "ledger" } | { name: "review" }
+>;
 
 function saveLastRoute(route: Route) {
-  if (route.name !== "inbox" && route.name !== "review") {
+  if (
+    route.name !== "inbox" &&
+    route.name !== "ledger" &&
+    route.name !== "review"
+  ) {
     return;
   }
   try {
@@ -49,6 +58,9 @@ export function loadLastRoute(): ResumableRoute | null {
     const v = JSON.parse(localStorage.getItem(LAST_ROUTE_KEY) ?? "null");
     if (v?.name === "inbox") {
       return { name: "inbox" };
+    }
+    if (v?.name === "ledger") {
+      return { name: "ledger" };
     }
     if (
       v?.name === "review" &&
@@ -222,6 +234,7 @@ interface AppState {
 
   dismissed: Record<string, string>;
   goInbox: () => void;
+  goLedger: () => void;
   helpOpen: boolean;
   inboxPaneVisible: boolean;
   inboxSelectedKey: string | null;
@@ -323,6 +336,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     flushPersistViewed();
     saveLastRoute({ name: "inbox" });
     set({ route: { name: "inbox" } });
+  },
+  goLedger: () => {
+    flushPersistViewed();
+    saveLastRoute({ name: "ledger" });
+    set({ paletteOpen: false, route: { name: "ledger" } });
   },
   helpOpen: false,
   inboxPaneVisible: false,

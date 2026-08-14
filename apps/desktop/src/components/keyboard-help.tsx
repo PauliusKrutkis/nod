@@ -24,6 +24,7 @@ function firstKey(keys: string | string[]): string | undefined {
 const NOTE: Record<string, string> = {
   global: "Always available",
   inbox: "On the home list",
+  ledger: "On the review ledger",
   review: "When reading a diff",
 };
 

@@ -9,6 +9,7 @@ import type {
   GitHubUser,
   InboxBucket,
   InboxData,
+  LedgerStatus,
   LicenseState,
   PullRequestDetail,
   ReleaseInfo,
@@ -116,6 +117,11 @@ export const api = {
   installUpdate: () => invoke<void>("install_update"),
   isGitlabOAuthConfigured: () => invoke<boolean>("is_gitlab_oauth_configured"),
   isOAuthConfigured: () => invoke<boolean>("is_oauth_configured"),
+
+  ledgerReview: (repoPath: string, target: string) =>
+    invoke<void>("ledger_review", { repoPath, target }),
+  ledgerStatus: (repoPath: string) =>
+    invoke<LedgerStatus>("ledger_status", { repoPath }),
 
   listAccounts: () => invoke<AccountsInfo>("list_accounts"),
 

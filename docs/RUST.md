@@ -47,6 +47,7 @@ them. Use this table as the mental model:
 | `platform/github.rs` | Adapter | `GitHubPlatform` — GraphQL/REST calls + GitHub-only mapping functions. |
 | `platform/gitlab.rs` | Adapter | `GitLabPlatform` — maps GitLab payloads onto the shared model. |
 | `storage.rs` | Infrastructure | JSON read/write under the app config dir. |
+| `ledger.rs` | Handlers | Review-ledger seam: spawns the tracked repo's ledger CLI (docs/LEDGER.md). |
 | `update.rs` | Handlers | `tauri-plugin-updater` wrappers. |
 
 Rough mapping to familiar terms:
@@ -98,6 +99,11 @@ All handlers are registered in `lib.rs`. Grouped by source file:
 **`update.rs`** — auto-update
 
 - `check_for_update`, `install_update`
+
+**`ledger.rs`** — review ledger (docs/LEDGER.md)
+
+- `ledger_status`, `ledger_review` — run the tracked repo's own ledger CLI
+  as a child process and pass its JSON through; needs `node` on PATH.
 
 TypeScript wrappers live in `apps/desktop/src/lib/api.ts`.
 

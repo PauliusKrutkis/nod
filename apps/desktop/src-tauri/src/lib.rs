@@ -4,6 +4,7 @@ mod ai;
 mod auth;
 mod commands;
 mod http;
+mod ledger;
 mod license;
 mod model;
 mod platform;
@@ -138,6 +139,8 @@ pub fn run() {
             update::list_releases,
             license::get_license_state,
             activation::activate_license,
+            ledger::ledger_status,
+            ledger::ledger_review,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

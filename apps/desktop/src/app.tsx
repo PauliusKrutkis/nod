@@ -9,6 +9,7 @@ import { GlobalSearch } from "./components/global-search.tsx";
 import { Inbox } from "./components/inbox/inbox.tsx";
 import { IssueTrackerSettings } from "./components/issue-tracker-settings.tsx";
 import { KeyboardHelp } from "./components/keyboard-help.tsx";
+import { Ledger } from "./components/ledger/ledger.tsx";
 import { NotificationCenterLoader } from "./components/notification-center-loader.tsx";
 import { PurchasePromptLoader } from "./components/purchase-prompt-loader.tsx";
 import { ReleaseHistoryLoader } from "./components/release-history-loader.tsx";
@@ -20,7 +21,17 @@ import { WhatsNewLoader } from "./components/whats-new-loader.tsx";
 import { useGlobalBindings } from "./keyboard/use-global-bindings.ts";
 import { api } from "./lib/api.ts";
 import { applyZoom, loadZoom } from "./lib/zoom.ts";
-import { loadLastRoute, useAppStore } from "./store/app-store.ts";
+import { loadLastRoute, type Route, useAppStore } from "./store/app-store.ts";
+
+const CHROME_ROUTES: ReadonlySet<Route["name"]> = new Set([
+  "inbox",
+  "ledger",
+  "review",
+]);
+
+function baseScopeFor(name: Route["name"]): "inbox" | "ledger" | "review" {
+  return name === "review" || name === "ledger" ? name : "inbox";
+}
 
 export default function App() {
   const route = useAppStore((s) => s.route);
@@ -126,8 +137,8 @@ export default function App() {
     toggleNotifications,
   });
 
-  const baseScope = route.name === "review" ? "review" : "inbox";
-  const showRouteChrome = route.name === "inbox" || route.name === "review";
+  const baseScope = baseScopeFor(route.name);
+  const showRouteChrome = CHROME_ROUTES.has(route.name);
 
   const isMac = navigator.userAgent.includes("Macintosh");
 
@@ -146,6 +157,7 @@ export default function App() {
         )}
         {route.name === "token" && <TokenGateFlow />}
         {route.name === "inbox" && <Inbox />}
+        {route.name === "ledger" && <Ledger />}
         {route.name === "review" && (
           <ReviewScreen
             key={`${route.owner}/${route.repo}#${route.number}`}

@@ -11,7 +11,13 @@
  */
 
 import type { BucketFixture, InboxFixture } from "./fixtures.ts";
-import { ACCOUNT, DETAIL, FULL_FILES, INBOX } from "./fixtures.ts";
+import {
+  ACCOUNT,
+  DETAIL,
+  EMPTY_LEDGER,
+  FULL_FILES,
+  INBOX,
+} from "./fixtures.ts";
 
 export interface AppOptions {
   detail?: unknown;
@@ -44,6 +50,8 @@ export interface AppOptions {
     | null;
   inbox?: InboxFixture;
   inboxByCall?: unknown[];
+  ledger?: unknown;
+  ledgerAfterReview?: unknown;
   repoHits?: { fullName: string; description: string }[];
   subscribed?: BucketFixture;
   subscribedDelayMs?: number;
@@ -108,6 +116,8 @@ export function buildBridgeConfig(opts: AppOptions = {}) {
     releases: opts.releases ?? [],
     inbox: opts.inbox ?? INBOX,
     inboxByCall: opts.inboxByCall ?? null,
+    ledger: opts.ledger ?? EMPTY_LEDGER,
+    ledgerAfterReview: opts.ledgerAfterReview ?? null,
     repoHits: opts.repoHits ?? [],
     subscribed: opts.subscribed ?? { count: 0, prs: [] },
     subscribedDelayMs: opts.subscribedDelayMs ?? 0,
@@ -139,6 +149,7 @@ export function installBridge(cfg: BridgeConfig) {
     arr ? arr[Math.min(n, arr.length - 1)] : fallback;
 
   let aiInfo = cfg.aiInfo;
+  let ledgerReviews = 0;
 
   const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
     ai_ask: (args) => {
@@ -284,6 +295,19 @@ export function installBridge(cfg: BridgeConfig) {
       JSON.parse(localStorage.getItem("e2e:viewed") ?? "{}"),
     get_watched_repos: () => cfg.watchedRepos,
     has_token: () => cfg.hasToken,
+    ledger_review: (args) => {
+      countCall("ledger_review");
+      localStorage.setItem("e2e:ledgerReview", JSON.stringify(args));
+      ledgerReviews += 1;
+      return null;
+    },
+    ledger_status: () => {
+      countCall("ledger_status");
+      if (ledgerReviews > 0 && cfg.ledgerAfterReview) {
+        return cfg.ledgerAfterReview;
+      }
+      return cfg.ledger;
+    },
     is_gitlab_oauth_configured: () => false,
     is_oauth_configured: () => false,
     list_accounts: () =>

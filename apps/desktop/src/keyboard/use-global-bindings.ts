@@ -15,6 +15,7 @@ import {
   Command as CommandIcon,
   HelpCircle,
   History,
+  ListChecks,
   MessageSquareQuote,
   Search,
   Sparkles,
@@ -187,6 +188,21 @@ export function useGlobalBindings(dialogs: {
         icon: Bell,
         keys: "mod+shift+n",
         run: toggleNotifications,
+      },
+      {
+        description: "Review ledger · coverage of main",
+        global: true,
+        group: "General",
+        icon: ListChecks,
+        keys: "mod+shift+l",
+        run: () => {
+          const s = useAppStore.getState();
+          if (s.route.name === "ledger") {
+            s.goInbox();
+          } else {
+            s.goLedger();
+          }
+        },
       },
       ...accountBindings,
     ],
