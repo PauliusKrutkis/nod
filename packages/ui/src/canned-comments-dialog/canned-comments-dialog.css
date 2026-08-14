@@ -41,14 +41,56 @@
   color: var(--muted);
 }
 
+/* The input the head promises, owned here rather than borrowed from the app's
+   .q-input — that class lives in the desktop sheet, so every gallery shot of
+   this dialog was a browser-default input in a styled panel. Same reason the
+   panel and the rows are declared here.
+
+   `flex: 1 1 auto`, never `flex: 1`: the shorthand's 0% basis resolves against
+   a panel that is height: auto under a max-height, which WebKit reads as zero
+   (watch-repos-dialog.css tells the whole story). The list is the part that
+   gives way when the panel runs out of room, so it carries min-height: 0 and
+   the body scrolls only once the list has nothing left to give. */
 .qcd-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
   padding: 16px 20px;
+  overflow-y: auto;
+}
+
+.qcd-input {
+  flex: none;
+  width: 100%;
+  min-width: 0;
+  padding: 9px 12px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.qcd-input::placeholder {
+  color: var(--faint);
+}
+
+.qcd-input:focus {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .qcd-list {
   display: flex;
+  flex: 0 1 auto;
   flex-direction: column;
   gap: 5px;
+  min-height: 0;
   max-height: 288px;
   margin-top: 12px;
   overflow-y: auto;
@@ -88,7 +130,7 @@
   justify-content: center;
   padding: 3px;
   color: var(--faint);
-  cursor: default;
+  cursor: pointer;
   background: transparent;
   border: none;
   border-radius: var(--r-md);
@@ -127,8 +169,30 @@
   color: var(--faint);
 }
 
+/* The hint is what gives way in a narrow panel, never the action: .q-btn is
+   min-width: 0 with an ellipsising label, so at the 280px width Done rendered
+   as "D…" while the key caps beside it kept every pixel they asked for. */
+.qcd-foot .q-btn {
+  flex-shrink: 0;
+}
+
 .q-btn.qcd-done-armed {
   color: var(--fg);
   background: var(--surface-hi);
   box-shadow: inset 0 0 0 1px var(--line-2);
+}
+
+.q-dialog.qcd-panel.qcd-inline {
+  position: static;
+  width: 100%;
+  margin: 0;
+  transform: none;
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qcd-input,
+  .qcd-x {
+    transition: none;
+  }
 }

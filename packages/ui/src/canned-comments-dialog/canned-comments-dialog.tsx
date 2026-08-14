@@ -15,6 +15,16 @@
  * `comments` is the host's, because storage is: this renders the list it is
  * given and reports edits, so the same dialog shoots at every state without a
  * storage layer behind it.
+ *
+ * `inline` opens with show() instead of showModal() (see useModalDialog) and
+ * `.qcd-inline` returns the panel to normal flow, which is how the gallery
+ * embeds it. Without it the specimen went to the top layer and covered the
+ * catalog it was supposed to sit inside.
+ *
+ * Closing is `onOpenChange(false)`, the contract every other dialog in the
+ * catalog already spoke. This one took an `onClose` of its own, so any host
+ * that drives dialogs generically — the gallery's "Open as modal" among them
+ * — held a panel it had no way to close.
  */
 import { MessageSquareQuote, X } from "lucide-react";
 import { type KeyboardEvent, useRef, useState } from "react";
@@ -26,10 +36,22 @@ import { useModalDialog } from "../use-modal-dialog/use-modal-dialog.ts";
 import "./canned-comments-dialog.css";
 
 export interface CannedCommentsDialogProps {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
   comments: string[];
   onAdd: (text: string) => void;
-  onClose: () => void;
   onRemove: (index: number) => void;
+  inline?: boolean;
+}
+
+export function CannedCommentsDialog({
+  open,
+  ...rest
+}: CannedCommentsDialogProps) {
+  if (!open) {
+    return null;
+  }
+  return <CannedCommentsDialogContent {...rest} />;
 }
 
 type Armed = number | "done" | null;
@@ -44,16 +66,21 @@ function enterActionLabel(armed: Armed, draft: string): string {
   return draft.trim() ? "add" : "nothing yet";
 }
 
-export function CannedCommentsDialog({
+function CannedCommentsDialogContent({
   comments,
   onAdd,
   onRemove,
-  onClose,
-}: CannedCommentsDialogProps) {
+  onOpenChange,
+  inline = false,
+}: Omit<CannedCommentsDialogProps, "open">) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const onClose = () => {
+    onOpenChange(false);
+  };
   const { dialogRef, onDialogCancel, onDialogClose } = useModalDialog(
     onClose,
-    inputRef
+    inline ? undefined : inputRef,
+    { modal: !inline }
   );
   const [draft, setDraft] = useState("");
   const armOrder: Armed[] = [null, ...comments.map((_, i) => i), "done"];
@@ -114,7 +141,7 @@ export function CannedCommentsDialog({
   return (
     <dialog
       aria-label="Canned comments"
-      className="q-dialog q-dialog-top qcd-panel"
+      className={cn("q-dialog q-dialog-top qcd-panel", inline && "qcd-inline")}
       onCancel={onDialogCancel}
       onClose={onDialogClose}
       ref={dialogRef}
@@ -134,7 +161,7 @@ export function CannedCommentsDialog({
         <input
           aria-label="Add a canned comment"
           autoComplete="off"
-          className="q-input"
+          className="qcd-input"
           onChange={onDraftChange}
           onKeyDown={onKeyDown}
           placeholder="Add a canned comment…"

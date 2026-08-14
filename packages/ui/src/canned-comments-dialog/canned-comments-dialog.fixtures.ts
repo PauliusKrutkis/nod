@@ -23,7 +23,7 @@ const onRemove = (_index: number) => {
   return;
 };
 
-const shared = { onAdd, onClose: noop, onRemove };
+const shared = { onAdd, onOpenChange: noop, onRemove, open: true };
 
 const DEFAULTS = [
   "nit: naming",

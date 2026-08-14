@@ -351,6 +351,12 @@
   overflow-wrap: anywhere;
 }
 
+/* The hint gives way in a narrow panel, never the action — see
+   canned-comments-dialog.css, where Done rendered as "D…". */
+.qw-foot .q-btn {
+  flex-shrink: 0;
+}
+
 .q-dialog.qw-panel.qw-inline {
   position: static;
   width: 100%;

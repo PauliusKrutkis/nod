@@ -108,6 +108,18 @@ dialog.q-dialog[open] {
   flex-direction: column;
 }
 
+/* A closed dialog is gone, not merely un-backdropped. `.q-dialog` sets
+   display: flex for every state, and an author rule beats the UA's
+   `dialog:not([open]) { display: none }` at any specificity — so a dialog the
+   browser closed on its own stayed on screen as a panel with no backdrop and
+   no top layer, which is what Esc looked like it did. Closing is React's job
+   here (the host unmounts the panel), but the engine gets there first
+   whenever it declines a preventDefault on `cancel`, and the frame in between
+   must not show a ghost. */
+dialog.q-dialog:not([open]) {
+  display: none;
+}
+
 dialog.q-dialog::backdrop {
   background: rgba(6, 6, 12, 0.62);
   backdrop-filter: blur(2px);

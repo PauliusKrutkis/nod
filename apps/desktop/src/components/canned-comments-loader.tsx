@@ -29,12 +29,19 @@ export function CannedCommentsLoader({
     setCannedComments(comments.filter((_, i) => i !== index));
   };
 
+  const onOpenChange = (next: boolean) => {
+    if (!next) {
+      onClose();
+    }
+  };
+
   return (
     <CannedCommentsDialog
       comments={comments}
       onAdd={add}
-      onClose={onClose}
+      onOpenChange={onOpenChange}
       onRemove={remove}
+      open
     />
   );
 }
