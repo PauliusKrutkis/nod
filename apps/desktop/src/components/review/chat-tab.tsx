@@ -42,6 +42,7 @@ export function ChatTab({ files, focusSeq, onRevealRegion, pr }: ChatTabProps) {
       model={chat.model}
       onChangeComposer={chat.setDraft}
       onEscape={focusScrollHost}
+      onOpenSkills={chat.openSkillsFolder}
       onPasteCode={chat.pasteCode}
       onRemoveChip={chat.removeChip}
       onRemoveSkill={chat.removeSkill}
@@ -61,6 +62,7 @@ export function ChatTab({ files, focusSeq, onRevealRegion, pr }: ChatTabProps) {
       }}
       renderMarkdown={renderMarkdown}
       skill={chat.skill}
+      skillCount={chat.skillCount}
       suggestions={chat.suggestions}
       threads={chat.threads}
       turns={chat.panelTurns}

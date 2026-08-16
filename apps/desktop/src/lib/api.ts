@@ -63,6 +63,8 @@ export const api = {
   listChatSkills: (owner: string, repo: string, headSha: string) =>
     invoke<SkillInfo[]>("list_chat_skills", { headSha, owner, repo }),
 
+  openSkillsDir: () => invoke<string>("open_skills_dir"),
+
   checkForUpdate: () => invoke<UpdateInfo | null>("check_for_update"),
   clearAiConfig: () => invoke<void>("clear_ai_config"),
   clearToken: () => invoke<void>("clear_token"),

@@ -155,6 +155,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "slash-suggestions",
       "thinking",
       "threads",
+      "trail-open",
       "tool-activity",
       "typical",
       "unicode",

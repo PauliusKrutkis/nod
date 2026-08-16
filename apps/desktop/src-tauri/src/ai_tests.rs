@@ -1,7 +1,7 @@
 use super::{
     apply_stream_line, build_ask_prompt, build_complete_prompt, clean_completion, completion_text,
     execute_tool, extract_error_message, info_of, message_answer, normalize_base_url, parse_models,
-    resolve_api_key, AiConfig, AskContext, CompleteContext, StreamedMessage,
+    resolve_api_key, AiConfig, AskContext, CompleteContext, StreamPiece, StreamedMessage,
 };
 use crate::snapshot::store::{partial_dir, promote, SnapshotKey};
 use serde_json::json;
@@ -197,13 +197,19 @@ fn stream_lines_accumulate_content_and_report_deltas() {
         r#"data: {"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}"#,
         "data: [DONE]",
     ];
-    let deltas: Vec<Option<String>> = lines
+    let deltas: Vec<Option<StreamPiece>> = lines
         .iter()
         .map(|l| apply_stream_line(&mut acc, l))
         .collect();
 
-    assert_eq!(deltas[1].as_deref(), Some("hello"));
-    assert_eq!(deltas[2].as_deref(), Some(" world"));
+    assert_eq!(
+        deltas[1].as_ref().and_then(|p| p.content.as_deref()),
+        Some("hello")
+    );
+    assert_eq!(
+        deltas[2].as_ref().and_then(|p| p.content.as_deref()),
+        Some(" world")
+    );
     assert!(deltas[0].is_none() && deltas[3].is_none() && deltas[4].is_none());
 
     let message = acc.into_message();
@@ -326,4 +332,35 @@ fn clean_completion_keeps_one_line_and_drops_a_repeated_prefix() {
 fn clean_completion_refuses_an_essay() {
     let essay = "a".repeat(200);
     assert_eq!(clean_completion(&essay, "x"), "");
+}
+
+#[test]
+fn reasoning_deltas_are_read_under_either_provider_key() {
+    let mut acc = StreamedMessage::default();
+
+    let nexos = apply_stream_line(
+        &mut acc,
+        r#"data: {"choices":[{"delta":{"reasoning_content":"weighing"}}]}"#,
+    )
+    .expect("reasoning piece");
+    assert_eq!(nexos.reasoning.as_deref(), Some("weighing"));
+    assert!(nexos.content.is_none());
+
+    let openrouter = apply_stream_line(
+        &mut acc,
+        r#"data: {"choices":[{"delta":{"reasoning":"still weighing"}}]}"#,
+    )
+    .expect("reasoning piece");
+    assert_eq!(openrouter.reasoning.as_deref(), Some("still weighing"));
+
+    let both = apply_stream_line(
+        &mut acc,
+        r#"data: {"choices":[{"delta":{"content":"answer","reasoning_content":"done"}}]}"#,
+    )
+    .expect("piece");
+    assert_eq!(both.content.as_deref(), Some("answer"));
+    assert_eq!(both.reasoning.as_deref(), Some("done"));
+
+    // Reasoning never joins the assistant message the model replays later.
+    assert_eq!(acc.into_message()["content"], "answer");
 }

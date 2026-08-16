@@ -324,7 +324,30 @@ fn merge_tool_call_fragment(acc: &mut StreamedMessage, fragment: &Value) {
 /// Applies one SSE line to the accumulator; returns the content piece the
 /// line carried, if any. Non-data lines, `[DONE]`, and unknown fields are
 /// ignored — chunks may carry extra keys (`provider`, usage costs).
-fn apply_stream_line(acc: &mut StreamedMessage, line: &str) -> Option<String> {
+/// What one SSE line carried. A reasoning model sends its thinking first and
+/// its answer last, under a key that is not standardised — Nexos and
+/// DeepSeek use `reasoning_content`, OpenRouter uses `reasoning` — so both
+/// are read. Without this the whole thinking phase looks like a stall: the
+/// answer only starts arriving once the model has finished reasoning, which
+/// is exactly the "it never streams" report for Opus while GPT streamed fine.
+#[derive(Default, PartialEq, Debug)]
+pub(crate) struct StreamPiece {
+    pub content: Option<String>,
+    pub reasoning: Option<String>,
+}
+
+impl StreamPiece {
+    fn is_empty(&self) -> bool {
+        self.content.is_none() && self.reasoning.is_none()
+    }
+}
+
+fn text_piece(delta: &Value, key: &str) -> Option<String> {
+    let piece = delta.get(key).and_then(Value::as_str)?;
+    (!piece.is_empty()).then(|| piece.to_string())
+}
+
+fn apply_stream_line(acc: &mut StreamedMessage, line: &str) -> Option<StreamPiece> {
     let payload = line.strip_prefix("data:")?.trim();
     if payload.is_empty() || payload == "[DONE]" {
         return None;
@@ -336,12 +359,14 @@ fn apply_stream_line(acc: &mut StreamedMessage, line: &str) -> Option<String> {
             merge_tool_call_fragment(acc, fragment);
         }
     }
-    let piece = delta.get("content").and_then(Value::as_str)?;
-    if piece.is_empty() {
-        return None;
+    let content = text_piece(delta, "content");
+    if let Some(piece) = &content {
+        acc.content.push_str(piece);
     }
-    acc.content.push_str(piece);
-    Some(piece.to_string())
+    let reasoning =
+        text_piece(delta, "reasoning_content").or_else(|| text_piece(delta, "reasoning"));
+    let out = StreamPiece { content, reasoning };
+    (!out.is_empty()).then_some(out)
 }
 
 pub(crate) async fn stream_chat(
@@ -349,7 +374,7 @@ pub(crate) async fn stream_chat(
     url: &str,
     api_key: &str,
     body: &Value,
-    mut on_delta: impl FnMut(&str),
+    mut on_delta: impl FnMut(&StreamPiece),
     mut should_stop: impl FnMut() -> bool,
 ) -> Result<Value, String> {
     use futures_util::StreamExt;
@@ -721,13 +746,16 @@ pub async fn ai_ask(
                 body["tool_choice"] = serde_json::json!("none");
             }
         }
-        let emit_delta = |piece: &str| {
+        let emit_delta = |piece: &StreamPiece| {
+            let Some(text) = &piece.content else {
+                return;
+            };
             if let Some(id) = &ask_id {
                 let _ = app.emit(
                     "ai-ask-delta",
                     AskDelta {
                         ask_id: id.clone(),
-                        text: piece.to_string(),
+                        text: text.clone(),
                     },
                 );
             }

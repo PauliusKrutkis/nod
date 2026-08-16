@@ -112,10 +112,95 @@ test("tool activity shows while the model is working the repo", async ({
   await composer(page).fill("Dig into the repo");
   await page.keyboard.press("Enter");
 
-  await expect(chatPanel(page).locator(".qch-tool")).toHaveText(
+  await expect(chatPanel(page).locator(".qch-trail-now")).toHaveText(
     'Searching for "retry"'
   );
   await expect(chatPanel(page).getByText("Looking.")).toBeVisible();
+});
+
+test("the trail opens to what the model actually did", async ({ page }) => {
+  await setupApp(page, {
+    ...CONFIGURED,
+    aiChatAnswer: "Two issues.",
+    aiChatScript: [
+      { tool: { detail: "Reading the diff", tool: "read_diff" } },
+      { reasoning: "Checking the retry ladder first." },
+      { tool: { detail: 'Searching for "retry"', tool: "grep_repo" } },
+      { delta: "Two issues." },
+    ],
+  });
+  await openReview(page);
+  await page.keyboard.press("m");
+  await composer(page).fill("Review it");
+  await page.keyboard.press("Enter");
+
+  const head = chatPanel(page).locator(".qch-trail-head");
+  await expect(head).toContainText("Worked for");
+  await expect(chatPanel(page).locator(".qch-trail-step")).toHaveCount(0);
+
+  await head.click();
+  await expect(chatPanel(page).locator(".qch-trail-step")).toHaveText([
+    "Reading the diff",
+    'Searching for "retry"',
+  ]);
+  await expect(chatPanel(page).locator(".qch-trail-think")).toContainText(
+    "Checking the retry ladder"
+  );
+});
+
+test("reasoning streams while the answer is still forming", async ({
+  page,
+}) => {
+  await setupApp(page, {
+    ...CONFIGURED,
+    aiChatAnswer: "hang",
+    aiChatScript: [{ reasoning: "Weighing the two call sites." }],
+  });
+  await openReview(page);
+  await page.keyboard.press("m");
+  await composer(page).fill("Think about it");
+  await page.keyboard.press("Enter");
+
+  await expect(chatPanel(page).locator(".qch-trail-head")).toContainText(
+    "Working…"
+  );
+  await chatPanel(page).locator(".qch-trail-head").click();
+  await expect(chatPanel(page).locator(".qch-trail-think")).toContainText(
+    "Weighing the two call sites"
+  );
+});
+
+test("an answer carries a copy button and the newest turn shows its time", async ({
+  page,
+}) => {
+  await setupApp(page, CONFIGURED);
+  await openReview(page);
+  await page.keyboard.press("m");
+  await composer(page).fill("When was this?");
+  await page.keyboard.press("Enter");
+  await expect(
+    chatPanel(page).getByText("The retry knob is safe", { exact: false })
+  ).toBeVisible();
+
+  await expect(chatPanel(page).locator(".qch-time-on")).toHaveCount(1);
+  await page.evaluate(() => {
+    const store = { text: "" };
+    (window as unknown as { __copied: { text: string } }).__copied = store;
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: (text: string) => {
+          store.text = text;
+          return Promise.resolve();
+        },
+      },
+    });
+  });
+  await chatPanel(page).getByRole("button", { name: "Copy answer" }).click();
+  const copied = await page.evaluate(
+    () => (window as unknown as { __copied: { text: string } }).__copied.text
+  );
+  expect(copied).toContain("The retry knob is safe");
 });
 
 test("a follow-up carries the settled history", async ({ page }) => {
@@ -585,6 +670,34 @@ test("a snapshot still downloading is said out loud in the composer", async ({
   ).toBeVisible();
 });
 
+test("the skills button opens the folder skills live in", async ({ page }) => {
+  await setupApp(page, CONFIGURED);
+  await openReview(page);
+  await page.keyboard.press("m");
+
+  const button = chatPanel(page).locator(".qch-skills-btn");
+  await expect(button).toHaveText("Add skills");
+  await button.click();
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem("e2e:revealedPath")))
+    .toBe("/tmp/nod/skills");
+});
+
+test("the skills button counts what is reachable", async ({ page }) => {
+  await setupApp(page, {
+    ...CONFIGURED,
+    chatSkills: [
+      { description: "a", name: "pr-validity" },
+      { description: "b", name: "security-pass" },
+    ],
+  });
+  await openReview(page);
+  await page.keyboard.press("m");
+  await expect(chatPanel(page).locator(".qch-skills-btn")).toHaveText(
+    "Skills (2)"
+  );
+});
+
 test("/ with no skills explains where skills come from", async ({ page }) => {
   await setupApp(page, CONFIGURED);
   await openReview(page);
@@ -617,31 +730,6 @@ test("skills found only after the snapshot lands still reach the picker", async 
       return await chatPanel(page).locator(".qcs-panel").count();
     })
     .toBe(1);
-});
-
-test("an answer that never streamed says so", async ({ page }) => {
-  await setupApp(page, { ...CONFIGURED, aiChatScript: [] });
-  await openReview(page);
-  await page.keyboard.press("m");
-  await composer(page).fill("No deltas for this one");
-  await page.keyboard.press("Enter");
-  await expect(chatPanel(page).locator(".qch-oneshot")).toContainText(
-    "in one piece"
-  );
-});
-
-test("an answer that streamed says nothing extra", async ({ page }) => {
-  await setupApp(page, {
-    ...CONFIGURED,
-    aiChatAnswer: "Streamed fully.",
-    aiChatScript: [{ delta: "Streamed " }, { delta: "fully." }],
-  });
-  await openReview(page);
-  await page.keyboard.press("m");
-  await composer(page).fill("Stream it");
-  await page.keyboard.press("Enter");
-  await expect(chatPanel(page).getByText("Streamed fully.")).toBeVisible();
-  await expect(chatPanel(page).locator(".qch-oneshot")).toHaveCount(0);
 });
 
 const SKILLS_SETUP = {
@@ -691,7 +779,9 @@ test("a typed prefix narrows the skills and the pick rides the send", async ({
   const args = await readChatArgs(page);
   expect(args.skill).toBe("pr-validity");
   expect(args.message).toBe("Run it on this PR");
-  await expect(chatPanel(page).locator(".qch-skill-chip")).toHaveCount(0);
+  await expect(
+    chatPanel(page).locator(".qch-composer .qch-skill-chip")
+  ).toHaveCount(0);
   await expect(chatPanel(page).getByText("/pr-validity")).toBeVisible();
 });
 

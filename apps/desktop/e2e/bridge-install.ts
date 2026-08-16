@@ -40,6 +40,7 @@ export interface AppOptions {
   aiChatAnswer?: string | "error" | "hang";
   aiChatScript?: {
     delta?: string;
+    reasoning?: string;
     tool?: { tool: string; detail: string };
     proposal?: Record<string, unknown>;
   }[];
@@ -229,6 +230,9 @@ export function installBridge(cfg: BridgeConfig) {
           if (entry.delta) {
             emitEvent("ai-chat-delta", { ...ids, text: entry.delta });
           }
+          if (entry.reasoning) {
+            emitEvent("ai-chat-reasoning", { ...ids, text: entry.reasoning });
+          }
           if (entry.tool) {
             emitEvent("ai-chat-tool", { ...ids, ...entry.tool });
           }
@@ -248,6 +252,15 @@ export function installBridge(cfg: BridgeConfig) {
     list_chat_skills: () => {
       countCall("list_chat_skills");
       return cfg.chatSkills;
+    },
+    open_skills_dir: () => {
+      countCall("open_skills_dir");
+      localStorage.setItem("e2e:openedSkillsDir", "1");
+      return "/tmp/nod/skills";
+    },
+    "plugin:opener|open_path": (args) => {
+      localStorage.setItem("e2e:revealedPath", String(args.path));
+      return null;
     },
     ai_ask: (args) => {
       countCall("ai_ask");

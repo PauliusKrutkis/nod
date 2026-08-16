@@ -450,6 +450,30 @@ fn skills_tools() -> Vec<Value> {
     ]
 }
 
+const STARTER_SKILL: &str = "---\nname: my-review-pass\ndescription: What this skill reviews for\n---\n\nWrite the instructions the model should follow when this skill is invoked.\nFor example: check error paths have tests, flag any TODO left in the diff,\nand suggest comments only where the code would actually break.\n";
+
+/// The personal skills folder, created on demand with one starter file so
+/// the reviewer opens something with an example in it rather than an empty
+/// directory. Returns the path for the host to reveal.
+#[tauri::command]
+pub async fn open_skills_dir(app: AppHandle) -> Result<String, String> {
+    let dir = personal_skills_dir(&app)
+        .ok_or_else(|| "could not resolve the config directory".to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        std::fs::create_dir_all(&dir).map_err(|e| format!("could not create {dir:?}: {e}"))?;
+        let starter = dir.join("my-review-pass");
+        if !starter.exists() {
+            std::fs::create_dir_all(&starter)
+                .map_err(|e| format!("could not create {starter:?}: {e}"))?;
+            std::fs::write(starter.join("SKILL.md"), STARTER_SKILL)
+                .map_err(|e| format!("could not write the starter skill: {e}"))?;
+        }
+        Ok(dir.to_string_lossy().to_string())
+    })
+    .await
+    .map_err(|e| format!("skills folder failed: {e}"))?
+}
+
 #[tauri::command]
 pub async fn list_chat_skills(
     app: AppHandle,
@@ -711,6 +735,14 @@ struct ChatDelta {
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
+struct ChatReasoning {
+    chat_id: String,
+    turn_id: String,
+    text: String,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 struct ChatToolNote {
     chat_id: String,
     turn_id: String,
@@ -824,15 +856,27 @@ pub async fn ai_chat(
                 body["tool_choice"] = serde_json::json!("none");
             }
         }
-        let emit_delta = |piece: &str| {
-            let _ = app.emit(
-                "ai-chat-delta",
-                ChatDelta {
-                    chat_id: chat_id.clone(),
-                    turn_id: turn_id.clone(),
-                    text: piece.to_string(),
-                },
-            );
+        let emit_delta = |piece: &ai::StreamPiece| {
+            if let Some(text) = &piece.content {
+                let _ = app.emit(
+                    "ai-chat-delta",
+                    ChatDelta {
+                        chat_id: chat_id.clone(),
+                        turn_id: turn_id.clone(),
+                        text: text.clone(),
+                    },
+                );
+            }
+            if let Some(text) = &piece.reasoning {
+                let _ = app.emit(
+                    "ai-chat-reasoning",
+                    ChatReasoning {
+                        chat_id: chat_id.clone(),
+                        turn_id: turn_id.clone(),
+                        text: text.clone(),
+                    },
+                );
+            }
         };
         let should_stop = || state.requested(&chat_id);
         let message_value = match ai::stream_chat(

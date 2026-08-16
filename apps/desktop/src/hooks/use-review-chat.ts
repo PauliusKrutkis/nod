@@ -25,6 +25,7 @@ import { useEffect, useState } from "react";
 import { api } from "../lib/api.ts";
 import { buildChatDiffs } from "../lib/chat-diffs.ts";
 import { buildCommentableRanges } from "../lib/commentable-ranges.ts";
+import { revealFolder } from "../lib/open-external.ts";
 import { useAppStore } from "../store/app-store.ts";
 import {
   type AiAskContext,
@@ -37,11 +38,26 @@ import {
 } from "../types.ts";
 
 interface LiveTurn {
-  deltas: number;
+  activity: string[];
   partial: string;
+  reasoning: string;
+  startedAt: number;
   threadId: string;
-  toolNote: string | null;
   turnId: string;
+}
+
+const MAX_ACTIVITY_LINES = 40;
+const MAX_REASONING_CHARS = 8000;
+
+/** What a finished turn keeps of its working: how long it took, the tools it
+ *  ran and the thinking it streamed, so the trail survives a reload. */
+function settledTrail(live: LiveTurn | null) {
+  return {
+    activity: live && live.activity.length > 0 ? live.activity : undefined,
+    at: new Date().toISOString(),
+    reasoning: live?.reasoning || undefined,
+    workedMs: live ? Date.now() - live.startedAt : undefined,
+  };
 }
 
 const EMPTY_TURNS: ChatTurnRecord[] = [];
@@ -278,12 +294,15 @@ export function useReviewChat(args: {
 
   useEffect(() => {
     const pending = new Map<string, string>();
+    const pendingReasoning = new Map<string, string>();
     let toolPending: { detail: string; turnId: string } | null = null;
     let flushFrame = 0;
     const flush = () => {
       flushFrame = 0;
       const batch = new Map(pending);
+      const thinkBatch = new Map(pendingReasoning);
       pending.clear();
+      pendingReasoning.clear();
       const tool = toolPending;
       toolPending = null;
       setLive((l) => {
@@ -291,15 +310,22 @@ export function useReviewChat(args: {
           return l;
         }
         const text = batch.get(l.turnId);
+        const think = thinkBatch.get(l.turnId);
         const note = tool && tool.turnId === l.turnId ? tool.detail : null;
-        if (text === undefined && note === null) {
+        if (text === undefined && think === undefined && note === null) {
           return l;
         }
         return {
           ...l,
-          deltas: l.deltas + (text === undefined ? 0 : 1),
+          activity:
+            note === null || l.activity.at(-1) === note
+              ? l.activity
+              : [...l.activity, note].slice(-MAX_ACTIVITY_LINES),
           partial: text === undefined ? l.partial : l.partial + text,
-          toolNote: note ?? (text === undefined ? l.toolNote : null),
+          reasoning:
+            think === undefined
+              ? l.reasoning
+              : (l.reasoning + think).slice(-MAX_REASONING_CHARS),
         };
       });
     };
@@ -328,12 +354,24 @@ export function useReviewChat(args: {
         arm();
       }
     );
+    const unThink = listen<{ chatId: string; turnId: string; text: string }>(
+      "ai-chat-reasoning",
+      (event) => {
+        pendingReasoning.set(
+          event.payload.turnId,
+          (pendingReasoning.get(event.payload.turnId) ?? "") +
+            event.payload.text
+        );
+        arm();
+      }
+    );
     return () => {
       if (flushFrame) {
         cancelAnimationFrame(flushFrame);
       }
       unDelta.then((stop) => stop());
       unTool.then((stop) => stop());
+      unThink.then((stop) => stop());
     };
   }, []);
 
@@ -373,12 +411,14 @@ export function useReviewChat(args: {
       api.aiChat(request),
     onError: (error, vars) => {
       const message = String(error);
-      const partial =
-        liveRef.current?.turnId === vars.turnId ? liveRef.current.partial : "";
+      const live =
+        liveRef.current?.turnId === vars.turnId ? liveRef.current : null;
+      const partial = live?.partial ?? "";
       setLive(null);
       if (message === "cancelled") {
         if (partial) {
           appendChatTurn(keyValue, vars.threadId, {
+            ...settledTrail(live),
             error: null,
             id: vars.turnId,
             kind: "assistant",
@@ -388,6 +428,7 @@ export function useReviewChat(args: {
         return;
       }
       appendChatTurn(keyValue, vars.threadId, {
+        ...settledTrail(live),
         error: message,
         id: vars.turnId,
         kind: "assistant",
@@ -395,16 +436,14 @@ export function useReviewChat(args: {
       });
     },
     onSuccess: (answer, vars) => {
-      const streamed =
-        liveRef.current?.turnId === vars.turnId
-          ? liveRef.current.deltas > 0
-          : true;
+      const live =
+        liveRef.current?.turnId === vars.turnId ? liveRef.current : null;
       setLive(null);
       appendChatTurn(keyValue, vars.threadId, {
+        ...settledTrail(live),
         error: null,
         id: vars.turnId,
         kind: "assistant",
-        streamed,
         text: answer,
       });
     },
@@ -438,6 +477,7 @@ export function useReviewChat(args: {
     const history = historyMessages(turns);
     const regions = chips;
     appendChatTurn(keyValue, threadId, {
+      at: new Date().toISOString(),
       id: crypto.randomUUID(),
       kind: "user",
       regions,
@@ -447,7 +487,14 @@ export function useReviewChat(args: {
     setDraftState("");
     setSkill(null);
     clearChips();
-    setLive({ deltas: 0, partial: "", threadId, toolNote: null, turnId });
+    setLive({
+      activity: [],
+      partial: "",
+      reasoning: "",
+      startedAt: Date.now(),
+      threadId,
+      turnId,
+    });
     chat.mutate({
       chatId: keyValue,
       threadId,
@@ -461,6 +508,16 @@ export function useReviewChat(args: {
       skill,
       turnId,
     });
+  };
+
+  const openSkillsFolder = () => {
+    api
+      .openSkillsDir()
+      .then((path) => {
+        revealFolder(path);
+        return skills.refetch();
+      })
+      .catch(() => undefined);
   };
 
   const pasteCode = (code: string) => {
@@ -488,6 +545,7 @@ export function useReviewChat(args: {
     ...turns.map((turn): ChatPanelTurn => {
       if (turn.kind === "user") {
         return {
+          at: turn.at,
           id: turn.id,
           kind: "user",
           regions: turn.regions,
@@ -496,24 +554,29 @@ export function useReviewChat(args: {
         };
       }
       return {
+        activity: turn.activity ?? [],
+        at: turn.at,
         error: turn.error,
         id: turn.id,
         kind: "assistant",
         partial: "",
-        streamed: turn.streamed,
+        reasoning: turn.reasoning ?? "",
+        startedAt: null,
         text: turn.error === null ? turn.text : null,
-        toolNote: null,
+        workedMs: turn.workedMs,
       };
     }),
     ...(live && live.threadId === activeThreadId
       ? [
           {
+            activity: live.activity,
             error: null,
             id: live.turnId,
             kind: "assistant" as const,
             partial: live.partial,
+            reasoning: live.reasoning,
+            startedAt: live.startedAt,
             text: null,
-            toolNote: live.toolNote,
           },
         ]
       : []),
@@ -564,7 +627,9 @@ export function useReviewChat(args: {
     pasteCode,
     pending: chat.isPending,
     removeChip,
+    openSkillsFolder,
     removeSkill: () => setSkill(null),
+    skillCount: skillNames.length,
     send,
     setDraft,
     skill,

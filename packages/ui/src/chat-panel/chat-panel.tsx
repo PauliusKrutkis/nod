@@ -26,7 +26,16 @@
  * composer the way the ask note's does.
  */
 
-import { ChevronDown, CornerDownLeft, Plus, Sparkles, X } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  CornerDownLeft,
+  Plus,
+  Wrench,
+  X,
+} from "lucide-react";
 import {
   type ClipboardEvent,
   type KeyboardEvent,
@@ -37,8 +46,9 @@ import {
 } from "react";
 import type { AiSetupModel } from "../ai-model-combobox/ai-model-combobox.tsx";
 import { CannedSuggestions } from "../canned-suggestions/canned-suggestions.tsx";
+import { cn } from "../cn/cn.ts";
 import { ModelPicker } from "../model-picker/model-picker.tsx";
-import { Spinner } from "../spinner/spinner.tsx";
+import { formatAbsolute, formatRelativeTime } from "../time/time.ts";
 import "./chat-panel.css";
 
 export interface ChatRegionChip {
@@ -50,6 +60,7 @@ export interface ChatRegionChip {
 
 export interface ChatUserTurn {
   kind: "user";
+  at?: string;
   id: string;
   regions: readonly ChatRegionChip[];
   skill?: string;
@@ -58,14 +69,18 @@ export interface ChatUserTurn {
 
 export interface ChatAssistantTurn {
   kind: "assistant";
+  /** Tool activity, oldest first — the trail behind "Worked for 4s". */
+  activity: readonly string[];
+  at?: string;
   error: string | null;
   id: string;
   partial: string;
-  /** False when the answer arrived in one piece — the provider did not
-   *  stream it, which is worth saying rather than leaving as a mystery. */
-  streamed?: boolean;
+  /** The model's streamed thinking, when it sends any. */
+  reasoning: string;
+  /** Epoch ms the turn began; null once it has settled. */
+  startedAt?: number | null;
   text: string | null;
-  toolNote: string | null;
+  workedMs?: number;
 }
 
 export type ChatPanelTurn = ChatUserTurn | ChatAssistantTurn;
@@ -111,6 +126,7 @@ export interface ChatPanelProps {
   onChangeComposer: (value: string) => void;
   onEscape?: () => void;
   onPasteCode?: (code: string) => void;
+  onOpenSkills?: () => void;
   onRemoveChip: (index: number) => void;
   /** Reveal a chip's lines in the diff. Absent for pasted code, which has
    *  no place in the diff to point at. */
@@ -118,6 +134,9 @@ export interface ChatPanelProps {
   onSend: () => void;
   onStop: () => void;
   onRemoveSkill?: () => void;
+  /** How many skills are reachable right now — the button says "Add skills"
+   *  when there are none, which is the honest empty state. */
+  skillCount?: number;
   pending: boolean;
   proposals?: ChatProposalsSummary | null;
   renderMarkdown?: (text: string) => ReactNode;
@@ -139,66 +158,160 @@ function chipLabel(chip: ChatRegionChip): string {
   return chip.lineRange ? `${chip.filePath}:${chip.lineRange}` : chip.filePath;
 }
 
-function UserTurn({ turn }: { turn: ChatUserTurn }) {
+function elapsedLabel(ms: number): string {
+  const seconds = Math.max(Math.round(ms / 1000), 1);
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+  return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+}
+
+function TurnTime({ at, pinned }: { at: string | undefined; pinned: boolean }) {
+  if (at === undefined) {
+    return null;
+  }
+  return (
+    <span
+      className={cn("qch-time", pinned && "qch-time-on")}
+      title={formatAbsolute(at)}
+    >
+      {formatRelativeTime(at)}
+    </span>
+  );
+}
+
+function UserTurn({ pinned, turn }: { pinned: boolean; turn: ChatUserTurn }) {
   return (
     <div className="qch-turn qch-user">
-      <div className="qch-turn-head">
-        <span className="qch-who">you</span>
-        {turn.skill !== undefined && (
-          <span className="qch-chip">/{turn.skill}</span>
+      <div className="qch-bubble">
+        {(turn.regions.length > 0 || turn.skill !== undefined) && (
+          <div className="qch-turn-chips">
+            {turn.skill !== undefined && (
+              <span className="qch-chip qch-skill-chip">/{turn.skill}</span>
+            )}
+            {turn.regions.map((region, i) => (
+              <span className="qch-chip" key={`${chipLabel(region)}-${i}`}>
+                {chipLabel(region)}
+              </span>
+            ))}
+          </div>
         )}
+        <p className="qch-text">{turn.text}</p>
       </div>
-      {turn.regions.length > 0 && (
-        <div className="qch-turn-chips">
-          {turn.regions.map((region, i) => (
-            <span className="qch-chip" key={`${chipLabel(region)}-${i}`}>
-              {chipLabel(region)}
-            </span>
-          ))}
-        </div>
-      )}
-      <p className="qch-text">{turn.text}</p>
+      <div className="qch-turn-foot">
+        <TurnTime at={turn.at} pinned={pinned} />
+      </div>
     </div>
   );
 }
 
+/** "Worked for 4s", expandable into what the model actually did: the tools it
+ *  ran and the thinking it streamed. Collapsed by default — the answer is the
+ *  point, the working is there when you doubt it. */
+function ActivityTrail({
+  elapsedMs,
+  turn,
+}: {
+  elapsedMs: number | null;
+  turn: ChatAssistantTurn;
+}) {
+  const [open, setOpen] = useState(false);
+  const running = elapsedMs !== null;
+  const ms = elapsedMs ?? turn.workedMs ?? 0;
+  const hasTrail = turn.activity.length > 0 || turn.reasoning.length > 0;
+  const label = running
+    ? `Working… ${elapsedLabel(ms)}`
+    : `Worked for ${elapsedLabel(ms)}`;
+
+  if (!(hasTrail || running || turn.workedMs !== undefined)) {
+    return null;
+  }
+  return (
+    <div className="qch-trail">
+      <button
+        aria-expanded={open}
+        className={cn("qch-trail-head", running && "qch-trail-running")}
+        disabled={!hasTrail}
+        onClick={() => setOpen((was) => !was)}
+        type="button"
+      >
+        {hasTrail &&
+          (open ? (
+            <ChevronDown aria-hidden size={11} />
+          ) : (
+            <ChevronRight aria-hidden size={11} />
+          ))}
+        {label}
+        {running && turn.activity.length > 0 && (
+          <span className="qch-trail-now">{turn.activity.at(-1)}</span>
+        )}
+      </button>
+      {open && hasTrail && (
+        <div className="qch-trail-body">
+          {turn.activity.map((line, i) => (
+            <p className="qch-trail-step" key={`${line}-${i}`}>
+              {line}
+            </p>
+          ))}
+          {turn.reasoning && (
+            <p className="qch-trail-think">{turn.reasoning}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CopyAnswer({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard?.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1200);
+  };
+  return (
+    <button
+      aria-label="Copy answer"
+      className="qch-act"
+      onClick={copy}
+      type="button"
+    >
+      {copied ? (
+        <Check aria-hidden size={12} />
+      ) : (
+        <Copy aria-hidden size={12} />
+      )}
+    </button>
+  );
+}
+
 function AssistantTurn({
+  elapsedMs,
+  pinned,
   render,
   turn,
 }: {
+  elapsedMs: number | null;
+  pinned: boolean;
   render: (text: string) => ReactNode;
   turn: ChatAssistantTurn;
 }) {
   const inFlight = turn.text === null && turn.error === null;
+  const body = turn.text ?? (inFlight ? turn.partial : "");
   return (
     <div className="qch-turn qch-ai">
-      <div className="qch-turn-head">
-        <Sparkles aria-hidden className="qch-spark" size={13} />
-        <span className="qch-who">local</span>
-      </div>
-      {turn.text !== null && (
-        <div className="qch-answer">{render(turn.text)}</div>
-      )}
-      {turn.text !== null && turn.streamed === false && (
-        <p className="qch-oneshot">
-          Your provider sent this answer in one piece — nothing to stream.
-        </p>
-      )}
+      <ActivityTrail elapsedMs={elapsedMs} turn={turn} />
+      {body && <div className="qch-answer">{render(body)}</div>}
       {turn.error !== null && (
         <p className="qch-err" role="alert">
           {turn.error}
         </p>
       )}
-      {inFlight && turn.partial && (
-        <div className="qch-answer">{render(turn.partial)}</div>
-      )}
-      {inFlight && turn.toolNote !== null && (
-        <p className="qch-tool">{turn.toolNote}</p>
-      )}
-      {inFlight && !(turn.partial || turn.toolNote !== null) && (
-        <span className="qch-thinking">
-          <Spinner /> Thinking…
-        </span>
+      {!inFlight && (
+        <div className="qch-turn-foot">
+          {turn.text && <CopyAnswer text={turn.text} />}
+          <TurnTime at={turn.at} pinned={pinned} />
+        </div>
       )}
     </div>
   );
@@ -212,6 +325,7 @@ export function ChatPanel({
   model = null,
   onChangeComposer,
   onEscape,
+  onOpenSkills,
   onPasteCode,
   onRemoveChip,
   onRemoveSkill,
@@ -222,6 +336,7 @@ export function ChatPanel({
   proposals = null,
   renderMarkdown = plainText,
   skill = null,
+  skillCount = 0,
   suggestions = null,
   threads = null,
   turns,
@@ -246,6 +361,15 @@ export function ChatPanel({
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [focusSeq]);
+
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!pending) {
+      return;
+    }
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [pending]);
 
   const lastTurn = turns.at(-1);
   const streamLength =
@@ -372,11 +496,23 @@ export function ChatPanel({
             your configured provider and stay on this machine.
           </p>
         )}
-        {turns.map((turn) =>
+        {turns.map((turn, i) =>
           turn.kind === "user" ? (
-            <UserTurn key={turn.id} turn={turn} />
+            <UserTurn
+              key={turn.id}
+              pinned={i === turns.length - 1}
+              turn={turn}
+            />
           ) : (
-            <AssistantTurn key={turn.id} render={renderMarkdown} turn={turn} />
+            <AssistantTurn
+              elapsedMs={
+                turn.startedAt ? Math.max(now - turn.startedAt, 0) : null
+              }
+              key={turn.id}
+              pinned={i === turns.length - 1}
+              render={renderMarkdown}
+              turn={turn}
+            />
           )
         )}
       </div>
@@ -497,28 +633,41 @@ export function ChatPanel({
             )}
           </div>
         </div>
-        {model && (
-          <div className="qch-model-row">
-            {modelOpen && (
-              <ModelPicker
-                current={model.current}
-                models={model.models}
-                onClose={closeModelPicker}
-                onPick={pickModel}
-              />
-            )}
+        <div className="qch-footer-row">
+          {onOpenSkills && (
             <button
-              aria-expanded={modelOpen}
-              aria-label={`Model: ${model.current}. Change model`}
-              className="qch-model q-focus"
-              onClick={() => setModelOpen((open) => !open)}
+              className="qch-skills-btn q-focus"
+              onClick={onOpenSkills}
+              title="Skills are SKILL.md files. Opens your skills folder."
               type="button"
             >
-              <span className="qch-model-id">{model.current}</span>
-              <ChevronDown aria-hidden size={11} />
+              <Wrench aria-hidden size={11} />
+              {skillCount === 0 ? "Add skills" : `Skills (${skillCount})`}
             </button>
-          </div>
-        )}
+          )}
+          {model && (
+            <div className="qch-model-row">
+              {modelOpen && (
+                <ModelPicker
+                  current={model.current}
+                  models={model.models}
+                  onClose={closeModelPicker}
+                  onPick={pickModel}
+                />
+              )}
+              <button
+                aria-expanded={modelOpen}
+                aria-label={`Model: ${model.current}. Change model`}
+                className="qch-model q-focus"
+                onClick={() => setModelOpen((open) => !open)}
+                type="button"
+              >
+                <span className="qch-model-id">{model.current}</span>
+                <ChevronDown aria-hidden size={11} />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

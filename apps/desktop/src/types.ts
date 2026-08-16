@@ -209,6 +209,7 @@ export interface ChatRegion {
 export type ChatTurnRecord =
   | {
       kind: "user";
+      at?: string;
       id: string;
       regions: ChatRegion[];
       skill?: string;
@@ -216,10 +217,13 @@ export type ChatTurnRecord =
     }
   | {
       kind: "assistant";
+      activity?: string[];
+      at?: string;
       error: string | null;
       id: string;
-      streamed?: boolean;
+      reasoning?: string;
       text: string;
+      workedMs?: number;
     };
 
 export interface SkillInfo {
