@@ -16,6 +16,7 @@ import {
   useAskNote,
   useAskNoteWiring,
 } from "../../hooks/use-ask-note.ts";
+import { useCodeDragRange } from "../../hooks/use-code-drag-range.ts";
 import { useCommentMutations } from "../../hooks/use-comments.ts";
 import {
   useExpansionScrollRestore,
@@ -871,6 +872,14 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     }
     openChatChecked();
   };
+
+  useCodeDragRange({
+    activeIndexRef,
+    modelRef,
+    setActiveIndex,
+    setCursor,
+    setSelection,
+  });
 
   const onRevealChatRegion = (region: ChatRegion) => {
     const model = modelRef.current;

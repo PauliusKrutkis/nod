@@ -220,3 +220,51 @@ test("a pending range survives leaving and reopening the PR", async ({
   await page.keyboard.press("Enter"); // reopen
   await expect(page.locator(".qf-range-tag")).toHaveText("Lines 2–3");
 });
+
+/** Sweep a native text selection across two code rows and release, the way a
+ *  pointer drag over code does. */
+async function dragSelectRows(
+  page: import("@playwright/test").Page,
+  fromAnchor: string,
+  toAnchor: string
+) {
+  await page.evaluate(
+    ({ from, to }) => {
+      const cell = (anchor: string) =>
+        document
+          .querySelector(`.qf-row[data-anchor="${anchor}"]`)
+          ?.querySelector(".qf-code");
+      const start = cell(from);
+      const end = cell(to);
+      if (!(start && end)) {
+        throw new Error("rows not rendered");
+      }
+      const range = document.createRange();
+      range.setStart(start, 0);
+      range.setEnd(end, end.childNodes.length);
+      const selection = document.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      document.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+    },
+    { from: fromAnchor, to: toAnchor }
+  );
+}
+
+test("dragging across code rows arms the same range shift+j builds", async ({
+  page,
+}) => {
+  await dragSelectRows(page, "RIGHT:1", "RIGHT:3");
+  await expect(page.locator(".qf-row-selected")).toHaveCount(4);
+  await expect(
+    page.locator('.qf-row-active[data-anchor="RIGHT:3"]')
+  ).toBeVisible();
+
+  await page.keyboard.press("c");
+  await expect(page.getByText("Lines 1–3")).toBeVisible();
+});
+
+test("a drag inside one row leaves the range alone", async ({ page }) => {
+  await dragSelectRows(page, "RIGHT:2", "RIGHT:2");
+  await expect(page.locator(".qf-row-selected")).toHaveCount(0);
+});
