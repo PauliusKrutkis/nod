@@ -692,6 +692,16 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "unicode",
     ],
   },
+  "suggested-comment": {
+    fixtures: [
+      "markup-as-text",
+      "multi-line",
+      "overflow",
+      "suggestion",
+      "typical",
+      "unicode",
+    ],
+  },
   "thread-index": {
     fixtures: [
       "crowd-40",

@@ -29,6 +29,7 @@ import { DiffRow, type DiffRowKind } from "@nod/ui/diff-row";
 import { FileSectionHeader } from "@nod/ui/file-section-header";
 import { HunkRow } from "@nod/ui/hunk-row";
 import { Kbd } from "@nod/ui/kbd";
+import { SuggestedCommentCard } from "@nod/ui/suggested-comment";
 import { useLatest } from "@nod/ui/use-latest";
 import {
   type HTMLAttributes,
@@ -71,7 +72,12 @@ import {
 } from "../../lib/sticky-header-push.ts";
 import { suggestionHighlight } from "../../lib/suggestion-highlight.ts";
 import { useAppStore } from "../../store/app-store.ts";
-import type { AccountInfo, ChangedFile, PendingComment } from "../../types.ts";
+import type {
+  AccountInfo,
+  ChangedFile,
+  PendingComment,
+  SuggestedComment,
+} from "../../types.ts";
 import { Markdown } from "../markdown-loader.tsx";
 import { ImageDiffLoader } from "./image-diff-loader.tsx";
 
@@ -115,6 +121,7 @@ export interface ReviewListHandle {
 }
 
 export interface ReviewListCallbacks {
+  onAcceptSuggested: (id: string) => void;
   onAddComment: (a: {
     path: string;
     line: number;
@@ -132,7 +139,13 @@ export interface ReviewListCallbacks {
   onCloseBox: (fileIndex: number, anchor: string) => void;
   onCopyPath: (fileIndex: number) => void;
   onDeleteComment: (a: { commentId: number }) => Promise<void>;
+  onDiscardSuggested: (id: string) => void;
   onEditComment: (a: { commentId: number; body: string }) => Promise<void>;
+  onEditSuggested: (
+    comment: SuggestedComment,
+    fileIndex: number,
+    anchor: string
+  ) => void;
   onMouseMove: (x: number, y: number) => void;
   onOpenBox: (fileIndex: number, anchor: string, startLine?: number) => void;
   onPlusDragEnd: () => void;
@@ -649,6 +662,20 @@ function CommentsBlock({
           key={pending.id}
           onRemovePending={callbacks.onRemovePending}
           showDiscardKbd={pendingIndex === item.pending.length - 1}
+        />
+      ))}
+      {item.suggested.map((suggestion) => (
+        <SuggestedCommentCard
+          body={suggestion.body}
+          key={suggestion.id}
+          line={suggestion.line}
+          onAccept={() => callbacks.onAcceptSuggested(suggestion.id)}
+          onDiscard={() => callbacks.onDiscardSuggested(suggestion.id)}
+          onEdit={() =>
+            callbacks.onEditSuggested(suggestion, item.fileIndex, item.anchor)
+          }
+          renderMarkdown={(body) => <Markdown>{body}</Markdown>}
+          startLine={suggestion.startLine}
         />
       ))}
       {item.boxOpen && target !== null && (

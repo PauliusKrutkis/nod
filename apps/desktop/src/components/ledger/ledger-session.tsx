@@ -326,9 +326,12 @@ export function LedgerSession({
   };
 
   const callbacks: ReviewListCallbacks = {
+    onAcceptSuggested: noop,
     onAddComment: asyncNoop,
     onAddPending: noop,
     onCloseBox: noop,
+    onDiscardSuggested: noop,
+    onEditSuggested: noop,
     onCopyPath: (fileIndex) => {
       const file = filesRef.current[fileIndex];
       if (!file) {

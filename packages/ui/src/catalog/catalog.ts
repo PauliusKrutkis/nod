@@ -47,6 +47,7 @@ import { rightDockEntry } from "../right-dock/right-dock.fixtures.ts";
 import { searchPaneEntry } from "../search-pane/search-pane.fixtures.ts";
 import { spinnerEntry } from "../spinner/spinner.fixtures.ts";
 import { submitReviewModalEntry } from "../submit-review-modal/submit-review-modal.fixtures.ts";
+import { suggestedCommentEntry } from "../suggested-comment/suggested-comment.fixtures.ts";
 import { threadIndexEntry } from "../thread-index/thread-index.fixtures.ts";
 import { ticketTitleEntry } from "../ticket-title/ticket-title.fixtures.ts";
 import { tokenGateEntry } from "../token-gate/token-gate.fixtures.ts";
@@ -105,6 +106,7 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   "search-pane": searchPaneEntry,
   spinner: spinnerEntry,
   "submit-review-modal": submitReviewModalEntry,
+  "suggested-comment": suggestedCommentEntry,
   "thread-index": threadIndexEntry,
   "ticket-title": ticketTitleEntry,
   "token-gate": tokenGateEntry,

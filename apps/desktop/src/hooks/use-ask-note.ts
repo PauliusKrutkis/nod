@@ -355,20 +355,27 @@ export function useAskNoteWiring(args: {
     });
   };
 
+  const prefillComposer = (
+    fileIndex: number,
+    anchor: string,
+    startLine: number | undefined,
+    text: string
+  ) => {
+    setAskDraft({ key: fileAnchorKey(fileIndex, anchor), text });
+    args.listCallbacks.onOpenBox(fileIndex, anchor, startLine);
+  };
+
   const promote = (text: string) => {
     const target = askNote.target;
     if (!target) {
       return;
     }
-    setAskDraft({
-      key: fileAnchorKey(target.fileIndex, target.anchor),
-      text,
-    });
     askNote.closeAsk();
-    args.listCallbacks.onOpenBox(
+    prefillComposer(
       target.fileIndex,
       target.anchor,
-      target.startLine ?? undefined
+      target.startLine ?? undefined,
+      text
     );
   };
 
@@ -390,5 +397,5 @@ export function useAskNoteWiring(args: {
       }
     : null;
 
-  return { askAi, askDraft, askNoteProps, onCloseBox };
+  return { askAi, askDraft, askNoteProps, onCloseBox, prefillComposer };
 }

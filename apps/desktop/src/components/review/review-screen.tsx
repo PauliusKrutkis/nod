@@ -91,6 +91,7 @@ import type {
   PendingComment,
   PullRequest,
   ReviewComment,
+  SuggestedComment,
 } from "../../types.ts";
 import { parsePrKey } from "../../types.ts";
 import { DiffSearch } from "./diff-search.tsx";
@@ -137,6 +138,7 @@ interface ReviewScreenProps {
 
 const EMPTY_COMMENTS: ReviewComment[] = [];
 const EMPTY_PENDING: PendingComment[] = [];
+const EMPTY_SUGGESTED: SuggestedComment[] = [];
 const EMPTY_OCC: OccurrenceMatch[] = [];
 const EMPTY_COLLAPSED: ReadonlyMap<number, ReadonlySet<number>> = new Map();
 
@@ -305,6 +307,9 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
 
   const pendingMap = useAppStore((s) => s.pendingComments);
   const pending = pendingMap[keyValue] ?? EMPTY_PENDING;
+  const suggested = useAppStore(
+    (s) => s.suggestedComments[keyValue] ?? EMPTY_SUGGESTED
+  );
   const addPendingStore = useAppStore((s) => s.addPendingComment);
   const removePendingStore = useAppStore((s) => s.removePendingComment);
   const clearPendingComments = useAppStore((s) => s.clearPendingComments);
@@ -370,6 +375,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     detail?.comments ?? EMPTY_COMMENTS
   );
   const pendingByFile = buildPendingByFile(pending);
+  const suggestedByFile = buildPendingByFile(suggested);
 
   const rawCursorRef = useLatest(cursor);
   const {
@@ -398,6 +404,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     isImage: isImageFile,
     openBoxes,
     pendingByFile,
+    suggestedByFile,
   });
   const modelRef = useLatest(model);
 
@@ -862,6 +869,23 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     openChatChecked();
   };
 
+  const onAcceptSuggested = (id: string) => {
+    useAppStore.getState().acceptSuggestedComment(keyValue, id);
+  };
+
+  const onDiscardSuggested = (id: string) => {
+    useAppStore.getState().removeSuggestedComment(keyValue, id);
+  };
+
+  const onEditSuggested = (
+    comment: SuggestedComment,
+    fileIndex: number,
+    anchor: string
+  ) => {
+    useAppStore.getState().removeSuggestedComment(keyValue, comment.id);
+    prefillComposer(fileIndex, anchor, comment.startLine, comment.body);
+  };
+
   const onEditIssueComment = async (a: { commentId: number; body: string }) => {
     await updateIssueComment.mutateAsync(a);
   };
@@ -879,6 +903,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     askDraft,
     askNoteProps,
     onCloseBox: onCloseBoxWithDraft,
+    prefillComposer,
   } = useAskNoteWiring({
     askNote,
     cursorMoverRefs,
@@ -1018,7 +1043,13 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
           headSha={pr.headSha}
           initialMem={initialMem}
           inputMode={inputMode}
-          listCallbacks={{ ...listCallbacks, onCloseBox: onCloseBoxWithDraft }}
+          listCallbacks={{
+            ...listCallbacks,
+            onAcceptSuggested,
+            onCloseBox: onCloseBoxWithDraft,
+            onDiscardSuggested,
+            onEditSuggested,
+          }}
           listRef={listRef}
           liveCursor={liveCursor}
           liveSelection={liveSelection}

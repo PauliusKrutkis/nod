@@ -289,9 +289,14 @@ function reviewListOnPlusDragOver(
   });
 }
 
+type BaseReviewListCallbacks = Omit<
+  ReviewListCallbacks,
+  "onAcceptSuggested" | "onDiscardSuggested" | "onEditSuggested"
+>;
+
 export function useReviewListCallbacks(
   args: ReviewListCallbackArgs
-): ReviewListCallbacks {
+): BaseReviewListCallbacks {
   const cbRef = useLatest({
     async onAddComment(a: {
       path: string;
@@ -417,7 +422,7 @@ export function useReviewListCallbacks(
     },
   });
 
-  const [listCallbacks] = useState<ReviewListCallbacks>(() => {
+  const [listCallbacks] = useState<BaseReviewListCallbacks>(() => {
     const r = cbRef;
     return {
       onAddComment: (...a) => r.current.onAddComment(...a),

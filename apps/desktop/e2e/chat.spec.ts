@@ -394,6 +394,62 @@ test("accept all turns suggestions into ordinary pending comments", async ({
   );
 });
 
+test("a suggestion renders in the diff at its anchor, in the AI material", async ({
+  page,
+}) => {
+  await setupApp(page, PROPOSAL_SETUP);
+  await openReview(page);
+  await stageProposal(page);
+
+  const card = page.locator(".qf-suggested");
+  await expect(card).toBeVisible();
+  await expect(card).toContainText("This constant looks off");
+  await expect(card).toContainText("Suggested comment");
+  await expect(page.locator(".qf-pending")).toHaveCount(0);
+});
+
+test("accepting the card converts it into a pending comment in place", async ({
+  page,
+}) => {
+  await setupApp(page, PROPOSAL_SETUP);
+  await openReview(page);
+  await stageProposal(page);
+
+  await page.getByRole("button", { name: "Accept", exact: true }).click();
+  await expect(page.locator(".qf-suggested")).toHaveCount(0);
+  await expect(page.locator(".qf-pending")).toContainText(
+    "This constant looks off"
+  );
+});
+
+test("editing the card opens the composer prefilled and drops the suggestion", async ({
+  page,
+}) => {
+  await setupApp(page, PROPOSAL_SETUP);
+  await openReview(page);
+  await stageProposal(page);
+
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await expect(page.locator(".qf-suggested")).toHaveCount(0);
+  const editor = page.locator(".qf-comment-wrap .tiptap");
+  await expect(editor).toContainText("This constant looks off");
+});
+
+test("discarding the card removes it and nothing reaches pending", async ({
+  page,
+}) => {
+  await setupApp(page, PROPOSAL_SETUP);
+  await openReview(page);
+  await stageProposal(page);
+
+  await page
+    .locator(".qf-suggested")
+    .getByRole("button", { name: "Discard" })
+    .click();
+  await expect(page.locator(".qf-suggested")).toHaveCount(0);
+  await expect(page.locator(".qf-pending")).toHaveCount(0);
+});
+
 test("discard all drops the batch without touching pending comments", async ({
   page,
 }) => {
