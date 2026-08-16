@@ -36,6 +36,29 @@ pub struct ChatRegion {
     pub code: String,
 }
 
+/// The diff positions a comment may anchor to, one entry per (path, side),
+/// computed by the webview from the patch with the same rules that gate the
+/// composer. Ranges are inclusive, sorted, disjoint — a multi-line proposal
+/// must sit inside one of them, which is also what the forges accept.
+#[derive(Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CommentableSide {
+    pub path: String,
+    pub side: String,
+    pub ranges: Vec<(u32, u32)>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatProposal {
+    pub path: String,
+    pub side: String,
+    pub line: u32,
+    #[serde(default)]
+    pub start_line: Option<u32>,
+    pub body: String,
+}
+
 /// Chat ids whose in-flight turn should stop. A cancel outlives nothing: the
 /// flag is cleared when the turn notices it, and a new turn clears any stale
 /// flag on entry, so stopping an idle chat is a no-op.
@@ -63,21 +86,37 @@ impl ChatCancels {
     }
 }
 
-const CHAT_SYSTEM_PROMPT: &str =
+const CHAT_SYSTEM_BASE: &str =
     "You are the review chat inside Nod, a pull-request review app. The reviewer \
 is reading the pull request beside this conversation. Answer questions about the \
 pull request and its code. Ground every claim in the provided code; when you \
 reference code, cite it as path:line. Be concise. \
 If the provided context is not enough to answer, say exactly what is missing.";
 
-const CHAT_TOOLS_SYSTEM_PROMPT: &str =
-    "You are the review chat inside Nod, a pull-request review app. The reviewer \
-is reading the pull request beside this conversation. You have tools over a local \
-snapshot of the repository at the PR's head commit: list_files, read_file \
-(numbered lines), and grep_repo (literal, case-sensitive). Use them to ground \
-answers in real code instead of guessing — look up definitions, callers, and \
-context beyond the diff. Cite code as path:line. Be concise. \
-If something is unknowable from the repository, say exactly what is missing.";
+const CHAT_SYSTEM_SNAPSHOT: &str =
+    "You have tools over a local snapshot of the repository at the PR's head \
+commit: list_files, read_file (numbered lines), and grep_repo (literal, \
+case-sensitive). Use them to ground answers in real code instead of guessing — \
+look up definitions, callers, and context beyond the diff.";
+
+const CHAT_SYSTEM_PROPOSALS: &str =
+    "You can stage suggested review comments with propose_comment. Only do so \
+when the reviewer asked for review feedback (a review pass, a critique, 'leave \
+comments'); never for an ordinary question. Suggestions appear in the diff for \
+the reviewer to accept or discard — they are never posted directly. side is \
+LEFT for deleted lines and RIGHT for added or unchanged lines, and the line \
+numbers must fall inside the diff.";
+
+fn chat_system_prompt(snapshot_ready: bool, proposals: bool) -> String {
+    let mut parts = vec![CHAT_SYSTEM_BASE];
+    if snapshot_ready {
+        parts.push(CHAT_SYSTEM_SNAPSHOT);
+    }
+    if proposals {
+        parts.push(CHAT_SYSTEM_PROPOSALS);
+    }
+    parts.join(" ")
+}
 
 const CHAT_INPUT_CHAR_BUDGET: usize = 120_000;
 
@@ -137,6 +176,117 @@ fn build_chat_turn(
     sections.join("\n\n")
 }
 
+fn propose_comment_tool() -> Value {
+    serde_json::json!({
+        "type": "function",
+        "function": {
+            "name": "propose_comment",
+            "description": "Stage a suggested review comment on a diff line. The reviewer accepts, edits or discards it — it is never posted directly. Only call this when the reviewer asked for review feedback.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": { "type": "string", "description": "File path exactly as it appears in the diff." },
+                    "side": { "type": "string", "enum": ["LEFT", "RIGHT"], "description": "LEFT for deleted lines, RIGHT for added or unchanged lines." },
+                    "line": { "type": "integer", "description": "The line the comment anchors to (the range end for multi-line)." },
+                    "start_line": { "type": "integer", "description": "First line of a multi-line comment; must be ≤ line and in the same contiguous diff range." },
+                    "body": { "type": "string", "description": "The comment, as markdown. A ```suggestion fence proposes replacement code." }
+                },
+                "required": ["path", "side", "line", "body"]
+            }
+        }
+    })
+}
+
+fn chat_tools(snapshot_ready: bool, proposals: bool) -> Value {
+    let mut tools = if snapshot_ready {
+        ai::ask_tools().as_array().cloned().unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+    if proposals {
+        tools.push(propose_comment_tool());
+    }
+    Value::Array(tools)
+}
+
+fn format_ranges(ranges: &[(u32, u32)]) -> String {
+    ranges
+        .iter()
+        .map(|(a, b)| {
+            if a == b {
+                a.to_string()
+            } else {
+                format!("{a}–{b}")
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// Reads a propose_comment call's arguments into a proposal, rejecting what
+/// serde alone would let through: a side beyond LEFT/RIGHT and an empty body.
+fn parse_proposal(arguments: &str) -> Result<ChatProposal, String> {
+    let proposal: ChatProposal = serde_json::from_str(arguments)
+        .map_err(|e| format!("error: propose_comment arguments did not parse: {e}"))?;
+    if !(proposal.side == "LEFT" || proposal.side == "RIGHT") {
+        return Err("error: side must be LEFT or RIGHT".to_string());
+    }
+    if proposal.body.trim().is_empty() {
+        return Err("error: body must not be empty".to_string());
+    }
+    Ok(proposal)
+}
+
+/// The validity oracle, mirroring the webview's composer rules: the whole
+/// span must sit inside one contiguous commentable range on one side. A miss
+/// answers with the ranges that would work, so the model can correct itself
+/// within the same turn.
+fn validate_proposal(
+    commentable: &[CommentableSide],
+    proposal: &ChatProposal,
+) -> Result<(), String> {
+    let start = proposal.start_line.unwrap_or(proposal.line);
+    if start > proposal.line {
+        return Err(format!(
+            "error: start_line {start} is past line {} — start_line must be ≤ line",
+            proposal.line
+        ));
+    }
+    let Some(entry) = commentable
+        .iter()
+        .find(|c| c.path == proposal.path && c.side == proposal.side)
+    else {
+        let other = commentable.iter().find(|c| c.path == proposal.path);
+        return Err(match other {
+            Some(o) => format!(
+                "error: {} has no commentable {} lines in this diff — commentable {} ranges: {}",
+                proposal.path,
+                proposal.side,
+                o.side,
+                format_ranges(&o.ranges)
+            ),
+            None => format!("error: {} is not part of this diff", proposal.path),
+        });
+    };
+    let fits = entry
+        .ranges
+        .iter()
+        .any(|(a, b)| *a <= start && proposal.line <= *b);
+    if fits {
+        Ok(())
+    } else {
+        Err(format!(
+            "error: {} lines {}–{} ({}) are not commentable in this diff — commentable {} ranges: {}",
+            proposal.path,
+            start,
+            proposal.line,
+            proposal.side,
+            proposal.side,
+            format_ranges(&entry.ranges)
+        ))
+    }
+}
+
 /// One human-readable line per tool call, shown in the transcript while the
 /// round runs ("Searching for …"). Unknown tools and bad arguments still get
 /// a line — the activity is visible even when the call is doomed.
@@ -144,6 +294,13 @@ fn tool_note(name: &str, arguments: &str) -> String {
     let args: Value = serde_json::from_str(arguments).unwrap_or(Value::Null);
     let path_contains = args.get("path_contains").and_then(Value::as_str);
     match name {
+        "propose_comment" => match (
+            args.get("path").and_then(Value::as_str),
+            args.get("line").and_then(Value::as_u64),
+        ) {
+            (Some(path), Some(line)) => format!("Suggesting a comment on {path}:{line}"),
+            _ => "Suggesting a comment".to_string(),
+        },
         "list_files" => match path_contains {
             Some(filter) => format!("Listing files matching \"{filter}\""),
             None => "Listing files".to_string(),
@@ -183,6 +340,42 @@ struct ChatToolNote {
     detail: String,
 }
 
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ChatProposalEvent {
+    chat_id: String,
+    turn_id: String,
+    proposal: ChatProposal,
+}
+
+/// Validates and, when valid, emits the proposal to the webview to stage.
+/// Either way the return is the tool result the model reads.
+fn run_propose_comment(
+    app: &AppHandle,
+    commentable: &[CommentableSide],
+    chat_id: &str,
+    turn_id: &str,
+    arguments: &str,
+) -> String {
+    let proposal = match parse_proposal(arguments) {
+        Ok(p) => p,
+        Err(e) => return e,
+    };
+    if let Err(e) = validate_proposal(commentable, &proposal) {
+        return e;
+    }
+    let label = format!("staged: {}:{}", proposal.path, proposal.line);
+    let _ = app.emit(
+        "ai-chat-proposal",
+        ChatProposalEvent {
+            chat_id: chat_id.to_string(),
+            turn_id: turn_id.to_string(),
+            proposal,
+        },
+    );
+    label
+}
+
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
 pub async fn ai_chat(
@@ -194,6 +387,7 @@ pub async fn ai_chat(
     regions: Vec<ChatRegion>,
     history: Vec<ChatTurn>,
     context: AskContext,
+    commentable: Vec<CommentableSide>,
 ) -> Result<String, String> {
     let config = ai::load(&app)?.ok_or_else(|| "AI is not configured".to_string())?;
     let model = config
@@ -201,11 +395,8 @@ pub async fn ai_chat(
         .ok_or_else(|| "Choose a model in AI settings first".to_string())?;
     state.clear(&chat_id);
     let snapshot = ai::ready_snapshot(&app, &context).await;
-    let system = if snapshot.is_some() {
-        CHAT_TOOLS_SYSTEM_PROMPT
-    } else {
-        CHAT_SYSTEM_PROMPT
-    };
+    let proposals = !commentable.is_empty();
+    let system = chat_system_prompt(snapshot.is_some(), proposals);
     let mut messages = vec![serde_json::json!({ "role": "system", "content": system })];
     messages.extend(history_messages(&history, CHAT_INPUT_CHAR_BUDGET));
     messages.push(serde_json::json!({
@@ -214,7 +405,7 @@ pub async fn ai_chat(
     }));
     let client = ai::ask_client()?;
     let url = format!("{}/v1/chat/completions", config.base_url);
-    let mut tools_enabled = snapshot.is_some();
+    let mut tools_enabled = snapshot.is_some() || proposals;
     let mut rounds = 0;
     loop {
         if state.requested(&chat_id) {
@@ -228,7 +419,7 @@ pub async fn ai_chat(
             "stream": true,
         });
         if tools_enabled {
-            body["tools"] = ai::ask_tools();
+            body["tools"] = chat_tools(snapshot.is_some(), proposals);
             if rounds >= ai::MAX_TOOL_ROUNDS {
                 body["tool_choice"] = serde_json::json!("none");
             }
@@ -272,10 +463,10 @@ pub async fn ai_chat(
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        let Some((root, key)) = snapshot.clone().filter(|_| !calls.is_empty()) else {
+        if calls.is_empty() || !tools_enabled {
             return ai::message_answer(&message_value)
                 .ok_or_else(|| "The provider returned an empty answer.".to_string());
-        };
+        }
         if rounds > ai::MAX_TOOL_ROUNDS {
             return Err("The model kept requesting tools past the limit.".to_string());
         }
@@ -299,12 +490,43 @@ pub async fn ai_chat(
             );
         }
         messages.push(message_value);
-        let results = tauri::async_runtime::spawn_blocking(move || {
-            ai::tool_result_messages(root, key, calls)
-        })
-        .await
-        .map_err(|e| format!("tool execution failed: {e}"))?;
-        messages.extend(results);
+        for call in calls {
+            let id = call
+                .get("id")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string();
+            let name = call
+                .pointer("/function/name")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string();
+            let arguments = call
+                .pointer("/function/arguments")
+                .and_then(Value::as_str)
+                .unwrap_or("{}")
+                .to_string();
+            let content = if name == "propose_comment" {
+                if proposals {
+                    run_propose_comment(&app, &commentable, &chat_id, &turn_id, &arguments)
+                } else {
+                    "error: propose_comment is not available".to_string()
+                }
+            } else if let Some((root, key)) = snapshot.clone() {
+                tauri::async_runtime::spawn_blocking(move || {
+                    ai::execute_tool(&root, &key, &name, &arguments)
+                })
+                .await
+                .map_err(|e| format!("tool execution failed: {e}"))?
+            } else {
+                "error: repository snapshot is not available".to_string()
+            };
+            messages.push(serde_json::json!({
+                "role": "tool",
+                "tool_call_id": id,
+                "content": content,
+            }));
+        }
         rounds += 1;
     }
 }

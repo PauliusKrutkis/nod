@@ -192,7 +192,7 @@ export function installBridge(cfg: BridgeConfig) {
       const set = eventListeners.get(event) ?? new Set<number>();
       set.add(args.handler as number);
       eventListeners.set(event, set);
-      return null;
+      return args.handler;
     },
     "plugin:event|unlisten": (args) => {
       eventListeners.get(args.event as string)?.delete(args.eventId as number);
@@ -509,8 +509,9 @@ export function installBridge(cfg: BridgeConfig) {
   Object.defineProperty(window, "__TAURI_EVENT_PLUGIN_INTERNALS__", {
     configurable: true,
     value: {
-      unregisterListener: () => {
-        return;
+      unregisterListener: (event: string, eventId: number) => {
+        eventListeners.get(event)?.delete(eventId);
+        eventCallbacks.delete(eventId);
       },
     },
   });

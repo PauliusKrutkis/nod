@@ -16,6 +16,7 @@ import type {
   ChatTurnRecord,
   InboxTabKey,
   PendingComment,
+  SuggestedComment,
   ViewedMap,
 } from "../types.ts";
 
@@ -220,6 +221,32 @@ function saveChats(map: Record<string, ChatTurnRecord[]>) {
   }
 }
 
+/**
+ * Suggested comments (docs/AI.md § Second surface) are their own slice, never
+ * PendingComments: nothing the model wrote can ride a review submission
+ * without an explicit accept, which is the whole trust story. Accepting one
+ * moves it into pendingComments and it becomes indistinguishable from a
+ * hand-typed draft — by design, because accepting is adoption.
+ */
+
+const SUGGESTED_KEY = "nod:suggestedComments:v1";
+function loadSuggested(): Record<string, SuggestedComment[]> {
+  try {
+    const v = JSON.parse(localStorage.getItem(SUGGESTED_KEY) ?? "{}");
+    return v && typeof v === "object" && !Array.isArray(v) ? v : {};
+  } catch {
+    return {};
+  }
+}
+function saveSuggested(map: Record<string, SuggestedComment[]>) {
+  try {
+    localStorage.setItem(SUGGESTED_KEY, JSON.stringify(map));
+  } catch {
+    /* ignore quota / private-mode errors */
+  }
+}
+let suggestedIdCounter = 0;
+
 const TRACKERS_KEY = "nod:issueTrackers:v1";
 function loadTrackers(): Record<string, string> {
   try {
@@ -251,14 +278,20 @@ interface AppState {
       startLine?: number;
     }
   ) => void;
+  acceptAllSuggested: (prKey: string) => void;
+  acceptSuggestedComment: (prKey: string, id: string) => void;
   addChatChip: (chip: ChatRegion) => void;
+  addSuggestedComment: (prKey: string, s: Omit<SuggestedComment, "id">) => void;
   aiSetupOpen: boolean;
   appendChatTurn: (prKey: string, turn: ChatTurnRecord) => void;
   chatChips: ChatRegion[];
   chatHistory: Record<string, ChatTurnRecord[]>;
   clearChat: (prKey: string) => void;
   clearChatChips: () => void;
+  clearSuggestedComments: (prKey: string) => void;
   removeChatChip: (index: number) => void;
+  removeSuggestedComment: (prKey: string, id: string) => void;
+  suggestedComments: Record<string, SuggestedComment[]>;
   clearDismissed: (prKey: string) => void;
   clearPendingComments: (prKey: string) => void;
   closeAiSetup: () => void;
@@ -358,6 +391,26 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ pendingComments: map });
     savePending(map);
   },
+  acceptAllSuggested: (prKey) => {
+    for (const s of get().suggestedComments[prKey] ?? []) {
+      get().acceptSuggestedComment(prKey, s.id);
+    }
+  },
+  acceptSuggestedComment: (prKey, id) => {
+    const list = get().suggestedComments[prKey] ?? [];
+    const found = list.find((s) => s.id === id);
+    if (!found) {
+      return;
+    }
+    get().removeSuggestedComment(prKey, id);
+    get().addPendingComment(prKey, {
+      body: found.body,
+      line: found.line,
+      path: found.path,
+      side: found.side,
+      startLine: found.startLine,
+    });
+  },
   addChatChip: (chip) => {
     const chips = get().chatChips;
     const key = (c: ChatRegion) => `${c.filePath}:${c.lineRange}:${c.side}`;
@@ -365,6 +418,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       return;
     }
     set({ chatChips: [...chips, chip] });
+  },
+  addSuggestedComment: (prKey, s) => {
+    const id = `s${Date.now()}-${suggestedIdCounter}`;
+    suggestedIdCounter += 1;
+    const map = {
+      ...get().suggestedComments,
+      [prKey]: [...(get().suggestedComments[prKey] ?? []), { id, ...s }],
+    };
+    set({ suggestedComments: map });
+    saveSuggested(map);
   },
   aiSetupOpen: false,
   appendChatTurn: (prKey, turn) => {
@@ -384,8 +447,28 @@ export const useAppStore = create<AppState>((set, get) => ({
     saveChats(map);
   },
   clearChatChips: () => set({ chatChips: [] }),
+  clearSuggestedComments: (prKey) => {
+    const map = { ...get().suggestedComments };
+    delete map[prKey];
+    set({ suggestedComments: map });
+    saveSuggested(map);
+  },
   removeChatChip: (index) =>
     set({ chatChips: get().chatChips.filter((_, i) => i !== index) }),
+  removeSuggestedComment: (prKey, id) => {
+    const list = (get().suggestedComments[prKey] ?? []).filter(
+      (s) => s.id !== id
+    );
+    const map = { ...get().suggestedComments };
+    if (list.length === 0) {
+      delete map[prKey];
+    } else {
+      map[prKey] = list;
+    }
+    set({ suggestedComments: map });
+    saveSuggested(map);
+  },
+  suggestedComments: loadSuggested(),
   closeAiSetup: () => set({ aiSetupOpen: false }),
   closePalette: () => set({ paletteOpen: false }),
   dismiss: (prKey, updatedAt) => {

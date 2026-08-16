@@ -468,7 +468,12 @@ fn format_grep(result: snapshot_search::GrepResult) -> String {
 /// Runs one tool call against the local snapshot. Always returns text — an
 /// unknown tool or bad arguments become an error string the model can read
 /// and correct, never a failed request.
-fn execute_tool(root: &std::path::Path, key: &SnapshotKey, name: &str, arguments: &str) -> String {
+pub(crate) fn execute_tool(
+    root: &std::path::Path,
+    key: &SnapshotKey,
+    name: &str,
+    arguments: &str,
+) -> String {
     let args: Value = serde_json::from_str(arguments).unwrap_or(Value::Null);
     let path_contains = args.get("path_contains").and_then(Value::as_str);
     match name {

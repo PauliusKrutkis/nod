@@ -6,6 +6,7 @@ import type {
   AiInfo,
   AiModel,
   ChatRegion,
+  CommentableSide,
   FileBlob,
   GitHubUser,
   InboxBucket,
@@ -45,6 +46,7 @@ export const api = {
     regions: ChatRegion[];
     history: { role: string; content: string }[];
     context: AiAskContext;
+    commentable: CommentableSide[];
   }) => invoke<string>("ai_chat", args),
   aiChatCancel: (chatId: string) => invoke<void>("ai_chat_cancel", { chatId }),
   aiComplete: (args: {

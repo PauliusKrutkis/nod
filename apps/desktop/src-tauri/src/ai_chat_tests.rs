@@ -1,6 +1,7 @@
 use super::{
-    build_chat_turn, history_messages, tool_note, ChatCancels, ChatDelta, ChatRegion, ChatToolNote,
-    ChatTurn,
+    build_chat_turn, chat_system_prompt, chat_tools, format_ranges, history_messages,
+    parse_proposal, tool_note, validate_proposal, ChatCancels, ChatDelta, ChatProposal, ChatRegion,
+    ChatToolNote, ChatTurn, CommentableSide,
 };
 use crate::ai::AskContext;
 use serde_json::json;
@@ -126,8 +127,8 @@ fn tool_notes_name_what_each_call_touches() {
         "Reading src/a.ts"
     );
     assert_eq!(
-        tool_note("propose_comment", "not json"),
-        "Running propose_comment"
+        tool_note("launch_missiles", "not json"),
+        "Running launch_missiles"
     );
 }
 
@@ -151,6 +152,184 @@ fn events_serialize_camel_case_for_the_webview() {
     assert_eq!(
         note,
         json!({ "chatId": "c", "turnId": "t", "tool": "grep_repo", "detail": "Searching for \"x\"" })
+    );
+}
+
+fn commentable() -> Vec<CommentableSide> {
+    vec![
+        CommentableSide {
+            path: "src/foo.ts".to_string(),
+            ranges: vec![(120, 138), (160, 171)],
+            side: "RIGHT".to_string(),
+        },
+        CommentableSide {
+            path: "src/gone.ts".to_string(),
+            ranges: vec![(4, 9)],
+            side: "LEFT".to_string(),
+        },
+    ]
+}
+
+fn proposal(over: impl FnOnce(&mut ChatProposal)) -> ChatProposal {
+    let mut p = ChatProposal {
+        body: "Consider a guard here.".to_string(),
+        line: 130,
+        path: "src/foo.ts".to_string(),
+        side: "RIGHT".to_string(),
+        start_line: None,
+    };
+    over(&mut p);
+    p
+}
+
+#[test]
+fn proposals_inside_a_range_pass_single_and_multi_line() {
+    let c = commentable();
+    assert!(validate_proposal(&c, &proposal(|_| {})).is_ok());
+    assert!(validate_proposal(&c, &proposal(|p| p.start_line = Some(121))).is_ok());
+    assert!(validate_proposal(
+        &c,
+        &proposal(|p| {
+            p.line = 138;
+            p.start_line = Some(120);
+        })
+    )
+    .is_ok());
+    assert!(validate_proposal(
+        &c,
+        &proposal(|p| {
+            p.path = "src/gone.ts".to_string();
+            p.side = "LEFT".to_string();
+            p.line = 9;
+            p.start_line = Some(4);
+        })
+    )
+    .is_ok());
+}
+
+#[test]
+fn proposals_outside_the_diff_get_actionable_errors() {
+    let c = commentable();
+
+    let miss = validate_proposal(&c, &proposal(|p| p.line = 141)).unwrap_err();
+    assert_eq!(
+        miss,
+        "error: src/foo.ts lines 141–141 (RIGHT) are not commentable in this diff — commentable RIGHT ranges: 120–138, 160–171"
+    );
+
+    let spanning = validate_proposal(
+        &c,
+        &proposal(|p| {
+            p.line = 160;
+            p.start_line = Some(138);
+        }),
+    )
+    .unwrap_err();
+    assert!(spanning.contains("not commentable"));
+
+    let wrong_side = validate_proposal(
+        &c,
+        &proposal(|p| {
+            p.path = "src/gone.ts".to_string();
+            p.line = 5;
+        }),
+    )
+    .unwrap_err();
+    assert_eq!(
+        wrong_side,
+        "error: src/gone.ts has no commentable RIGHT lines in this diff — commentable LEFT ranges: 4–9"
+    );
+
+    let unknown = validate_proposal(&c, &proposal(|p| p.path = "src/nope.ts".to_string()));
+    assert_eq!(
+        unknown.unwrap_err(),
+        "error: src/nope.ts is not part of this diff"
+    );
+
+    let backwards = validate_proposal(&c, &proposal(|p| p.start_line = Some(135)));
+    assert!(backwards.unwrap_err().contains("start_line"));
+}
+
+#[test]
+fn proposal_arguments_are_parsed_defensively() {
+    assert!(parse_proposal(r#"{"path":"a.ts","side":"RIGHT","line":3,"body":"Hm."}"#).is_ok());
+    assert!(parse_proposal("not json")
+        .unwrap_err()
+        .starts_with("error:"));
+    assert!(
+        parse_proposal(r#"{"path":"a.ts","side":"BOTH","line":3,"body":"x"}"#)
+            .unwrap_err()
+            .contains("side")
+    );
+    assert!(
+        parse_proposal(r#"{"path":"a.ts","side":"LEFT","line":3,"body":"  "}"#)
+            .unwrap_err()
+            .contains("body")
+    );
+}
+
+#[test]
+fn range_lists_print_compactly() {
+    assert_eq!(format_ranges(&[(1, 1), (4, 9)]), "1, 4–9");
+}
+
+#[test]
+fn chat_tools_compose_by_capability() {
+    let none = chat_tools(false, false);
+    assert_eq!(none.as_array().map(Vec::len), Some(0));
+
+    let proposals_only = chat_tools(false, true);
+    let names: Vec<&str> = proposals_only
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|t| t.pointer("/function/name").and_then(|v| v.as_str()))
+        .collect();
+    assert_eq!(names, vec!["propose_comment"]);
+
+    let both = chat_tools(true, true);
+    let names: Vec<&str> = both
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|t| t.pointer("/function/name").and_then(|v| v.as_str()))
+        .collect();
+    assert_eq!(
+        names,
+        vec!["list_files", "read_file", "grep_repo", "propose_comment"]
+    );
+}
+
+#[test]
+fn system_prompt_mentions_only_what_is_on() {
+    let bare = chat_system_prompt(false, false);
+    assert!(!bare.contains("propose_comment"));
+    assert!(!bare.contains("grep_repo"));
+    let full = chat_system_prompt(true, true);
+    assert!(full.contains("grep_repo"));
+    assert!(full.contains("propose_comment"));
+}
+
+#[test]
+fn proposal_event_serializes_camel_case() {
+    let value = serde_json::to_value(proposal(|p| p.start_line = Some(128))).expect("proposal");
+    assert_eq!(
+        value,
+        json!({
+            "path": "src/foo.ts",
+            "side": "RIGHT",
+            "line": 130,
+            "startLine": 128,
+            "body": "Consider a guard here."
+        })
+    );
+}
+
+#[test]
+fn tool_note_names_the_proposal_target() {
+    assert_eq!(
+        tool_note("propose_comment", r#"{"path":"src/foo.ts","line":130}"#),
+        "Suggesting a comment on src/foo.ts:130"
     );
 }
 

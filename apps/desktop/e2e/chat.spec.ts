@@ -336,3 +336,74 @@ test("a chat draft survives closing and reopening the panel", async ({
   await page.keyboard.press("m");
   await expect(composer(page)).toHaveValue("half a thought");
 });
+
+const PROPOSAL_SETUP = {
+  ...CONFIGURED,
+  aiChatAnswer: "Staged one suggestion for you.",
+  aiChatScript: [
+    {
+      proposal: {
+        body: "This constant looks off — should it be 3?",
+        line: 2,
+        path: "src/lib/fuzzy.ts",
+        side: "RIGHT",
+        startLine: null,
+      },
+    },
+  ],
+};
+
+async function stageProposal(page: Page) {
+  await page.keyboard.press("m");
+  await composer(page).fill("Review this PR");
+  await page.keyboard.press("Enter");
+  await expect(
+    chatPanel(page).getByText("1 suggested comment in the diff")
+  ).toBeVisible();
+}
+
+test("a proposal stages a suggested comment and survives a reload", async ({
+  page,
+}) => {
+  await setupApp(page, PROPOSAL_SETUP);
+  await openReview(page);
+  await stageProposal(page);
+
+  await page.reload();
+  await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
+  await page.keyboard.press("m");
+  await expect(
+    chatPanel(page).getByText("1 suggested comment in the diff")
+  ).toBeVisible();
+});
+
+test("accept all turns suggestions into ordinary pending comments", async ({
+  page,
+}) => {
+  await setupApp(page, PROPOSAL_SETUP);
+  await openReview(page);
+  await stageProposal(page);
+
+  await page.getByRole("button", { name: "Accept all" }).click();
+  await expect(
+    chatPanel(page).getByText("1 suggested comment in the diff")
+  ).toHaveCount(0);
+  await expect(page.locator(".qf-pending")).toBeVisible();
+  await expect(page.locator(".qf-pending")).toContainText(
+    "This constant looks off"
+  );
+});
+
+test("discard all drops the batch without touching pending comments", async ({
+  page,
+}) => {
+  await setupApp(page, PROPOSAL_SETUP);
+  await openReview(page);
+  await stageProposal(page);
+
+  await page.getByRole("button", { name: "Discard all" }).click();
+  await expect(
+    chatPanel(page).getByText("1 suggested comment in the diff")
+  ).toHaveCount(0);
+  await expect(page.locator(".qf-pending")).toHaveCount(0);
+});

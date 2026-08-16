@@ -43,6 +43,11 @@ export function ChatTab({ files, focusSeq, pr }: ChatTabProps) {
       onSend={chat.send}
       onStop={chat.stop}
       pending={chat.pending}
+      proposals={{
+        count: chat.suggestedCount,
+        onAcceptAll: chat.acceptAllSuggested,
+        onDiscardAll: chat.discardAllSuggested,
+      }}
       renderMarkdown={renderMarkdown}
       turns={chat.panelTurns}
     />

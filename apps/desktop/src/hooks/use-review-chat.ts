@@ -22,6 +22,7 @@ import { useMutation } from "@tanstack/react-query";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
 import { api } from "../lib/api.ts";
+import { buildCommentableRanges } from "../lib/commentable-ranges.ts";
 import { useAppStore } from "../store/app-store.ts";
 import {
   type AiAskContext,
@@ -91,6 +92,9 @@ export function useReviewChat(args: {
   const chips = useAppStore((s) => s.chatChips);
   const removeChip = useAppStore((s) => s.removeChatChip);
   const clearChips = useAppStore((s) => s.clearChatChips);
+  const suggestedCount = useAppStore(
+    (s) => s.suggestedComments[keyValue]?.length ?? 0
+  );
   const [draft, setDraft] = useState("");
   const [live, setLive] = useState<LiveTurn | null>(null);
   const liveRef = useLatest(live);
@@ -152,6 +156,33 @@ export function useReviewChat(args: {
       }
       unDelta.then((stop) => stop());
       unTool.then((stop) => stop());
+    };
+  }, []);
+
+  useEffect(() => {
+    const unProposal = listen<{
+      chatId: string;
+      turnId: string;
+      proposal: {
+        body: string;
+        line: number;
+        path: string;
+        side: string;
+        startLine: number | null;
+      };
+    }>("ai-chat-proposal", (event) => {
+      const p = event.payload.proposal;
+      useAppStore.getState().addSuggestedComment(event.payload.chatId, {
+        body: p.body,
+        line: p.line,
+        path: p.path,
+        side: p.side,
+        startLine: p.startLine ?? undefined,
+        turnId: event.payload.turnId,
+      });
+    });
+    return () => {
+      unProposal.then((stop) => stop());
     };
   }, []);
 
@@ -222,12 +253,21 @@ export function useReviewChat(args: {
     setLive({ partial: "", toolNote: null, turnId });
     chat.mutate({
       chatId: keyValue,
+      commentable: buildCommentableRanges(args.files),
       context: chatContext(args.files, args.pr),
       history,
       message: text,
       regions,
       turnId,
     });
+  };
+
+  const acceptAllSuggested = () => {
+    useAppStore.getState().acceptAllSuggested(keyValue);
+  };
+
+  const discardAllSuggested = () => {
+    useAppStore.getState().clearSuggestedComments(keyValue);
   };
 
   const stop = () => {
@@ -268,7 +308,9 @@ export function useReviewChat(args: {
   ];
 
   return {
+    acceptAllSuggested,
     chips,
+    discardAllSuggested,
     draft,
     panelTurns,
     pending: chat.isPending,
@@ -276,5 +318,6 @@ export function useReviewChat(args: {
     send,
     setDraft,
     stop,
+    suggestedCount,
   };
 }

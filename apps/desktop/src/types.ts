@@ -210,6 +210,22 @@ export type ChatTurnRecord =
   | { kind: "user"; id: string; regions: ChatRegion[]; text: string }
   | { kind: "assistant"; error: string | null; id: string; text: string };
 
+export interface CommentableSide {
+  path: string;
+  side: string;
+  ranges: [number, number][];
+}
+
+export interface SuggestedComment {
+  body: string;
+  id: string;
+  line: number;
+  path: string;
+  side: string;
+  startLine?: number;
+  turnId: string;
+}
+
 export interface AiAskContext {
   prTitle: string;
   prBody: string;
