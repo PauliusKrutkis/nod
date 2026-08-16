@@ -183,6 +183,23 @@ export const chatPanelEntry = defineEntry(ChatPanel, {
       ],
     }),
   },
+  "model-picker": {
+    props: base({
+      composerValue: "Which model answers this?",
+      model: {
+        current: "anthropic.claude-sonnet-4-5 (eu-west1)",
+        models: [
+          {
+            contextLength: 200_000,
+            id: "anthropic.claude-sonnet-4-5 (eu-west1)",
+          },
+          { contextLength: 128_000, id: "gpt-4o" },
+        ],
+        onPick: noop,
+      },
+      turns: [CONVERSATION[0]],
+    }),
+  },
   "pasted-and-note": {
     props: base({
       chips: [

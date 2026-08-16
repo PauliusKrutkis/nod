@@ -26,14 +26,19 @@
  * composer the way the ask note's does.
  */
 
-import { CornerDownLeft, Sparkles, X } from "lucide-react";
+import { ChevronDown, CornerDownLeft, Sparkles, X } from "lucide-react";
 import {
   type ClipboardEvent,
   type KeyboardEvent,
   type ReactNode,
   useEffect,
   useRef,
+  useState,
 } from "react";
+import {
+  AiModelCombobox,
+  type AiSetupModel,
+} from "../ai-model-combobox/ai-model-combobox.tsx";
 import { CannedSuggestions } from "../canned-suggestions/canned-suggestions.tsx";
 import { Spinner } from "../spinner/spinner.tsx";
 import "./chat-panel.css";
@@ -70,6 +75,12 @@ export interface ChatProposalsSummary {
   onDiscardAll: () => void;
 }
 
+export interface ChatModelState {
+  current: string;
+  models: readonly AiSetupModel[] | null;
+  onPick: (id: string) => void;
+}
+
 export interface ChatSuggestionsState {
   items: string[];
   onDismiss: () => void;
@@ -84,6 +95,7 @@ export interface ChatPanelProps {
   composerValue: string;
   contextNote?: string | null;
   focusSeq: number;
+  model?: ChatModelState | null;
   onChangeComposer: (value: string) => void;
   onEscape?: () => void;
   onPasteCode?: (code: string) => void;
@@ -176,6 +188,7 @@ export function ChatPanel({
   composerValue,
   contextNote = null,
   focusSeq,
+  model = null,
   onChangeComposer,
   onEscape,
   onPasteCode,
@@ -192,6 +205,13 @@ export function ChatPanel({
 }: ChatPanelProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [modelOpen, setModelOpen] = useState(false);
+
+  const pickModel = (id: string) => {
+    setModelOpen(false);
+    model?.onPick(id);
+    inputRef.current?.focus();
+  };
 
   useEffect(() => {
     if (focusSeq > 0) {
@@ -371,6 +391,34 @@ export function ChatPanel({
             </button>
           )}
         </div>
+        {model &&
+          (modelOpen ? (
+            <div className="qch-model-pick">
+              <AiModelCombobox
+                initialQuery={model.current}
+                loading={model.models === null}
+                models={model.models ?? []}
+                onCommit={pickModel}
+                onKeyDownFallthrough={(e) => {
+                  if (e.key === "Escape") {
+                    setModelOpen(false);
+                    inputRef.current?.focus();
+                  }
+                }}
+                value={model.current}
+              />
+            </div>
+          ) : (
+            <button
+              aria-label={`Model: ${model.current}. Change model`}
+              className="qch-model q-focus"
+              onClick={() => setModelOpen(true)}
+              type="button"
+            >
+              {model.current}
+              <ChevronDown aria-hidden size={11} />
+            </button>
+          ))}
       </div>
     </div>
   );

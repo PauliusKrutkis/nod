@@ -147,6 +147,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "fence-mid-stream",
       "markup-as-text",
       "overflow",
+      "model-picker",
       "partial-10k",
       "pasted-and-note",
       "proposals",

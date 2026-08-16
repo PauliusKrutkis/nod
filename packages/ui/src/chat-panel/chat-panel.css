@@ -236,6 +236,33 @@
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
+.qch-model {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  max-width: 100%;
+  padding: 3px 2px 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--faint);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-md);
+  transition: color 120ms ease;
+}
+
+.qch-model:hover {
+  color: var(--muted);
+}
+
+.qch-model-pick {
+  margin-top: 6px;
+}
+
 .qch-send,
 .qch-stop {
   display: inline-flex;
@@ -279,7 +306,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .qch-proposals-act,
-  .qch-input {
+  .qch-input,
+  .qch-model {
     transition: none;
   }
 }

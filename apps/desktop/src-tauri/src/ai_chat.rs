@@ -676,10 +676,12 @@ pub async fn ai_chat(
     commentable: Vec<CommentableSide>,
     diffs: Vec<ChatDiffFile>,
     skill: Option<String>,
+    model: Option<String>,
 ) -> Result<String, String> {
     let config = ai::load(&app)?.ok_or_else(|| "AI is not configured".to_string())?;
-    let model = config
-        .model
+    let model = model
+        .filter(|m| !m.trim().is_empty())
+        .or(config.model)
         .ok_or_else(|| "Choose a model in AI settings first".to_string())?;
     state.clear(&chat_id);
     let snapshot = ai::ready_snapshot(&app, &context).await;

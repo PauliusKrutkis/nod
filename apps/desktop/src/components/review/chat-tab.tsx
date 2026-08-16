@@ -38,6 +38,7 @@ export function ChatTab({ files, focusSeq, pr }: ChatTabProps) {
       composerValue={chat.draft}
       contextNote={chat.contextNote}
       focusSeq={focusSeq}
+      model={chat.model}
       onChangeComposer={chat.setDraft}
       onEscape={focusScrollHost}
       onPasteCode={chat.pasteCode}

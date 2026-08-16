@@ -43,6 +43,28 @@ interface LiveTurn {
 
 const EMPTY_TURNS: ChatTurnRecord[] = [];
 
+const CHAT_MODEL_KEY = "nod:chatModel:v1";
+
+function readChatModel(): string | null {
+  try {
+    return localStorage.getItem(CHAT_MODEL_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function persistChatModel(id: string | null): void {
+  try {
+    if (id === null) {
+      localStorage.removeItem(CHAT_MODEL_KEY);
+    } else {
+      localStorage.setItem(CHAT_MODEL_KEY, id);
+    }
+  } catch {
+    /* storage unavailable (private mode) — the pick just won't persist */
+  }
+}
+
 function regionBlock(region: ChatRegion): string {
   if (!region.filePath) {
     return `Pasted code:\n\`\`\`\n${region.code}\n\`\`\``;
@@ -116,6 +138,29 @@ export function useReviewChat(args: {
     staleTime: Number.POSITIVE_INFINITY,
   });
   const skillNames = (skills.data ?? []).map((s) => s.name);
+
+  const [modelOverride, setModelOverride] = useState<string | null>(
+    readChatModel
+  );
+  const aiConfig = useQuery({
+    enabled: args.active,
+    queryFn: api.getAiConfig,
+    queryKey: ["aiConfig"],
+  });
+  const models = useQuery({
+    enabled: args.active,
+    queryFn: api.aiListModels,
+    queryKey: ["aiModels"],
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  const currentModel = modelOverride ?? aiConfig.data?.model ?? null;
+
+  const pickModel = (id: string) => {
+    const trimmed = id.trim();
+    const next = !trimmed || trimmed === aiConfig.data?.model ? null : trimmed;
+    setModelOverride(next);
+    persistChatModel(next);
+  };
 
   const snapshot = useQuery({
     enabled: args.active,
@@ -344,6 +389,7 @@ export function useReviewChat(args: {
       diffs: buildChatDiffs(args.files),
       history,
       message: text,
+      model: modelOverride,
       regions,
       skill,
       turnId,
@@ -405,12 +451,22 @@ export function useReviewChat(args: {
       : []),
   ];
 
+  const modelState =
+    currentModel === null
+      ? null
+      : {
+          current: currentModel,
+          models: models.data ?? null,
+          onPick: pickModel,
+        };
+
   return {
     acceptAllSuggested,
     chips,
     contextNote,
     discardAllSuggested,
     draft,
+    model: modelState,
     panelTurns,
     pasteCode,
     pending: chat.isPending,

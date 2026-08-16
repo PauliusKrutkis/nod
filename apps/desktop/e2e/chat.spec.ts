@@ -381,6 +381,33 @@ test("a multi-line paste becomes a chip; single lines paste as text", async ({
   ]);
 });
 
+test("the model button swaps the chat's model and the pick rides the send", async ({
+  page,
+}) => {
+  await setupApp(page, CONFIGURED);
+  await openReview(page);
+  await page.keyboard.press("m");
+
+  const modelButton = page.locator(".qch-model");
+  await expect(modelButton).toContainText("gpt-4o");
+  await modelButton.click();
+
+  const picker = page.getByLabel("Model");
+  await picker.fill("claude-sonnet");
+  await page.keyboard.press("Enter");
+  await expect(modelButton).toContainText("claude-sonnet");
+
+  await composer(page).fill("Which model are you?");
+  await page.keyboard.press("Enter");
+  const args = await readChatArgs(page);
+  expect(args.model).toBe("claude-sonnet");
+
+  await page.reload();
+  await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
+  await page.keyboard.press("m");
+  await expect(page.locator(".qch-model")).toContainText("claude-sonnet");
+});
+
 test("the diff rides the request so read_diff has hunks to serve", async ({
   page,
 }) => {

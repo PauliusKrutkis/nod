@@ -51,6 +51,7 @@ export const api = {
     commentable: CommentableSide[];
     diffs: ChatDiff[];
     skill: string | null;
+    model: string | null;
   }) => invoke<string>("ai_chat", args),
   aiChatCancel: (chatId: string) => invoke<void>("ai_chat_cancel", { chatId }),
   aiComplete: (args: {
