@@ -183,6 +183,43 @@ export const chatPanelEntry = defineEntry(ChatPanel, {
       ],
     }),
   },
+  "skill-chip": {
+    props: base({
+      chips: [chip({})],
+      composerValue: "Focus on the retry loop.",
+      skill: "pr-validity",
+      turns: [
+        {
+          id: "u0",
+          kind: "user",
+          regions: [],
+          skill: "security-pass",
+          text: "Run the security pass.",
+        },
+        {
+          error: null,
+          id: "a0",
+          kind: "assistant",
+          partial: "",
+          text: "Nothing alarming; two nits staged.",
+          toolNote: null,
+        },
+      ],
+    }),
+  },
+  "slash-suggestions": {
+    props: base({
+      composerValue: "/pr",
+      suggestions: {
+        items: ["pr-validity", "pr-summary"],
+        onDismiss: noop,
+        onMove: noop,
+        onPick: noop,
+        query: "pr",
+        selected: 0,
+      },
+    }),
+  },
   proposals: {
     props: base({
       proposals: { count: 3, onAcceptAll: noop, onDiscardAll: noop },

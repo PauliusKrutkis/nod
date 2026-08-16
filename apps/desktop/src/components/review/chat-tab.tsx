@@ -18,7 +18,7 @@ interface ChatTabProps {
 }
 
 export function ChatTab({ files, focusSeq, pr }: ChatTabProps) {
-  const chat = useReviewChat({ files, pr });
+  const chat = useReviewChat({ active: focusSeq > 0, files, pr });
 
   const renderMarkdown = (text: string) => (
     <Markdown owner={pr.owner} repo={pr.name}>
@@ -40,6 +40,7 @@ export function ChatTab({ files, focusSeq, pr }: ChatTabProps) {
       onChangeComposer={chat.setDraft}
       onEscape={focusScrollHost}
       onRemoveChip={chat.removeChip}
+      onRemoveSkill={chat.removeSkill}
       onSend={chat.send}
       onStop={chat.stop}
       pending={chat.pending}
@@ -49,6 +50,8 @@ export function ChatTab({ files, focusSeq, pr }: ChatTabProps) {
         onDiscardAll: chat.discardAllSuggested,
       }}
       renderMarkdown={renderMarkdown}
+      skill={chat.skill}
+      suggestions={chat.suggestions}
       turns={chat.panelTurns}
     />
   );

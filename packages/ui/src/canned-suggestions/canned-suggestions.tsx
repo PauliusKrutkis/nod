@@ -43,11 +43,17 @@ const MAX_ITEMS = 6;
  * The saved lines that continue `query`, in the order the reviewer keeps
  * them. A line the reviewer has already typed out in full is dropped: there
  * is nothing left to complete, and offering it would put a panel over the
- * text at the exact moment the line is finished.
+ * text at the exact moment the line is finished. `minQuery` defaults to the
+ * composer's two-letter threshold; a driver with its own opening gesture
+ * (the chat's `/` skill picker) passes 0 to offer the whole list at once.
  */
-export function matchCanned(query: string, items: string[]): string[] {
+export function matchCanned(
+  query: string,
+  items: string[],
+  minQuery: number = MIN_QUERY
+): string[] {
   const typed = query.trimStart();
-  if (typed.length < MIN_QUERY) {
+  if (typed.length < minQuery) {
     return [];
   }
   const needle = typed.toLowerCase();

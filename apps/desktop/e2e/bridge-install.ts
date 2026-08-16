@@ -45,6 +45,7 @@ export interface AppOptions {
   }[];
   aiModels?: { id: string; contextLength: number | null }[];
   aiModelsError?: string;
+  chatSkills?: { name: string; description: string }[];
   detailByCall?: unknown[];
   detailByLoad?: unknown[];
   detailByNumber?: Record<number, unknown>;
@@ -97,6 +98,7 @@ function aiDefaults(opts: AppOptions) {
       opts.aiChatAnswer ?? "The retry knob is safe — see `src/retry.ts:2`.",
     aiChatScript: opts.aiChatScript ?? [],
     aiCompletion: opts.aiCompletion ?? "",
+    chatSkills: opts.chatSkills ?? [],
     aiInfo: opts.aiInfo ?? { baseUrl: null, configured: false, model: null },
     aiModelsError: opts.aiModelsError ?? null,
     aiModels: opts.aiModels ?? [
@@ -234,6 +236,10 @@ export function installBridge(cfg: BridgeConfig) {
       countCall("ai_chat_cancel");
       localStorage.setItem("e2e:aiChatCancel", JSON.stringify(args));
       return null;
+    },
+    list_chat_skills: () => {
+      countCall("list_chat_skills");
+      return cfg.chatSkills;
     },
     ai_ask: (args) => {
       countCall("ai_ask");

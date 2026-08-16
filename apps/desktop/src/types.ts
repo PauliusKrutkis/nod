@@ -207,8 +207,19 @@ export interface ChatRegion {
 }
 
 export type ChatTurnRecord =
-  | { kind: "user"; id: string; regions: ChatRegion[]; text: string }
+  | {
+      kind: "user";
+      id: string;
+      regions: ChatRegion[];
+      skill?: string;
+      text: string;
+    }
   | { kind: "assistant"; error: string | null; id: string; text: string };
+
+export interface SkillInfo {
+  name: string;
+  description: string;
+}
 
 export interface CommentableSide {
   path: string;

@@ -16,9 +16,10 @@
  * the provider.
  */
 
-import type { ChatPanelTurn } from "@nod/ui/chat-panel";
+import { matchCanned } from "@nod/ui/canned-suggestions";
+import type { ChatPanelTurn, ChatSuggestionsState } from "@nod/ui/chat-panel";
 import { useLatest } from "@nod/ui/use-latest";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
 import { api } from "../lib/api.ts";
@@ -83,6 +84,7 @@ function chatContext(
 }
 
 export function useReviewChat(args: {
+  active: boolean;
   files: readonly ChangedFile[];
   pr: PullRequest;
 }) {
@@ -95,9 +97,63 @@ export function useReviewChat(args: {
   const suggestedCount = useAppStore(
     (s) => s.suggestedComments[keyValue]?.length ?? 0
   );
-  const [draft, setDraft] = useState("");
+  const [draft, setDraftState] = useState("");
+  const [skill, setSkill] = useState<string | null>(null);
+  const [suggestionIndex, setSuggestionIndex] = useState(0);
+  const [suggestionsDismissed, setSuggestionsDismissed] = useState(false);
   const [live, setLive] = useState<LiveTurn | null>(null);
   const liveRef = useLatest(live);
+
+  const skills = useQuery({
+    enabled: args.active,
+    queryFn: () =>
+      api.listChatSkills(args.pr.owner, args.pr.repo, args.pr.headSha),
+    queryKey: ["chatSkills", keyValue, args.pr.headSha],
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  const skillNames = (skills.data ?? []).map((s) => s.name);
+
+  const setDraft = (value: string) => {
+    setDraftState(value);
+    setSuggestionIndex(0);
+    setSuggestionsDismissed(false);
+  };
+
+  const slashQuery =
+    skill === null && draft.startsWith("/") && !/[\s]/.test(draft)
+      ? draft.slice(1)
+      : null;
+  const suggestionItems =
+    slashQuery !== null && !suggestionsDismissed
+      ? matchCanned(slashQuery, skillNames, 0)
+      : [];
+  const selectedSuggestion = Math.min(
+    suggestionIndex,
+    Math.max(suggestionItems.length - 1, 0)
+  );
+
+  const pickSkill = (name: string) => {
+    setSkill(name);
+    setDraftState("");
+  };
+
+  const suggestions: ChatSuggestionsState | null =
+    suggestionItems.length > 0
+      ? {
+          items: suggestionItems,
+          onDismiss: () => setSuggestionsDismissed(true),
+          onMove: (delta) =>
+            setSuggestionIndex(
+              Math.min(
+                Math.max(selectedSuggestion + delta, 0),
+                suggestionItems.length - 1
+              )
+            ),
+          onPick: pickSkill,
+          query: slashQuery ?? "",
+          selected: selectedSuggestion,
+        }
+      : null;
 
   useEffect(() => {
     const pending = new Map<string, string>();
@@ -235,6 +291,10 @@ export function useReviewChat(args: {
   );
 
   const send = () => {
+    if (slashQuery !== null && skillNames.includes(slashQuery.trim())) {
+      pickSkill(slashQuery.trim());
+      return;
+    }
     const text = draft.trim();
     if (!text || chat.isPending) {
       return;
@@ -246,9 +306,11 @@ export function useReviewChat(args: {
       id: crypto.randomUUID(),
       kind: "user",
       regions,
+      skill: skill ?? undefined,
       text,
     });
-    setDraft("");
+    setDraftState("");
+    setSkill(null);
     clearChips();
     setLive({ partial: "", toolNote: null, turnId });
     chat.mutate({
@@ -258,6 +320,7 @@ export function useReviewChat(args: {
       history,
       message: text,
       regions,
+      skill,
       turnId,
     });
   };
@@ -281,6 +344,7 @@ export function useReviewChat(args: {
           id: turn.id,
           kind: "user",
           regions: turn.regions,
+          skill: turn.skill,
           text: turn.text,
         };
       }
@@ -315,9 +379,12 @@ export function useReviewChat(args: {
     panelTurns,
     pending: chat.isPending,
     removeChip,
+    removeSkill: () => setSkill(null),
     send,
     setDraft,
+    skill,
     stop,
     suggestedCount,
+    suggestions,
   };
 }

@@ -337,6 +337,73 @@ test("a chat draft survives closing and reopening the panel", async ({
   await expect(composer(page)).toHaveValue("half a thought");
 });
 
+const SKILLS_SETUP = {
+  ...CONFIGURED,
+  chatSkills: [
+    { description: "Review against repo conventions", name: "pr-validity" },
+    { description: "Hunt for security issues", name: "security-pass" },
+  ],
+};
+
+test("/ lists the repo's skills; arrows and Enter pick one as a chip", async ({
+  page,
+}) => {
+  await setupApp(page, SKILLS_SETUP);
+  await openReview(page);
+  await page.keyboard.press("m");
+
+  await composer(page).pressSequentially("/");
+  const panel = page.locator(".qcs-panel");
+  await expect(panel.getByRole("button")).toHaveCount(2);
+
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Enter");
+  await expect(chatPanel(page).locator(".qch-skill-chip")).toContainText(
+    "/security-pass"
+  );
+  await expect(composer(page)).toHaveValue("");
+});
+
+test("a typed prefix narrows the skills and the pick rides the send", async ({
+  page,
+}) => {
+  await setupApp(page, SKILLS_SETUP);
+  await openReview(page);
+  await page.keyboard.press("m");
+
+  await composer(page).pressSequentially("/pr");
+  const panel = page.locator(".qcs-panel");
+  await expect(panel.getByRole("button")).toHaveCount(1);
+  await page.keyboard.press("Enter");
+  await expect(chatPanel(page).locator(".qch-skill-chip")).toContainText(
+    "/pr-validity"
+  );
+
+  await composer(page).fill("Run it on this PR");
+  await page.keyboard.press("Enter");
+  const args = await readChatArgs(page);
+  expect(args.skill).toBe("pr-validity");
+  expect(args.message).toBe("Run it on this PR");
+  await expect(chatPanel(page).locator(".qch-skill-chip")).toHaveCount(0);
+  await expect(chatPanel(page).getByText("/pr-validity")).toBeVisible();
+});
+
+test("the skill chip removes; a repo with no skills offers nothing on /", async ({
+  page,
+}) => {
+  await setupApp(page, SKILLS_SETUP);
+  await openReview(page);
+  await page.keyboard.press("m");
+
+  await composer(page).pressSequentially("/pr");
+  await page.keyboard.press("Enter");
+  await page.getByRole("button", { name: "Remove skill pr-validity" }).click();
+  await expect(chatPanel(page).locator(".qch-skill-chip")).toHaveCount(0);
+
+  await composer(page).pressSequentially("/nothing-matches");
+  await expect(page.locator(".qcs-panel")).toHaveCount(0);
+});
+
 const PROPOSAL_SETUP = {
   ...CONFIGURED,
   aiChatAnswer: "Staged one suggestion for you.",

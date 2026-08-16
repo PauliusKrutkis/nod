@@ -19,6 +19,7 @@ import type {
   RepoHit,
   ReviewComment,
   ReviewEvent,
+  SkillInfo,
   SnapshotStatus,
   UpdateInfo,
   ViewedMap,
@@ -47,6 +48,7 @@ export const api = {
     history: { role: string; content: string }[];
     context: AiAskContext;
     commentable: CommentableSide[];
+    skill: string | null;
   }) => invoke<string>("ai_chat", args),
   aiChatCancel: (chatId: string) => invoke<void>("ai_chat_cancel", { chatId }),
   aiComplete: (args: {
@@ -54,6 +56,9 @@ export const api = {
     context: { filePath?: string; code?: string };
   }) => invoke<string>("ai_complete", args),
   aiListModels: () => invoke<AiModel[]>("ai_list_models"),
+
+  listChatSkills: (owner: string, repo: string, headSha: string) =>
+    invoke<SkillInfo[]>("list_chat_skills", { headSha, owner, repo }),
 
   checkForUpdate: () => invoke<UpdateInfo | null>("check_for_update"),
   clearAiConfig: () => invoke<void>("clear_ai_config"),

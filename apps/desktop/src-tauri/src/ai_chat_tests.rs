@@ -1,10 +1,13 @@
 use super::{
-    build_chat_turn, chat_system_prompt, chat_tools, format_ranges, history_messages,
-    parse_proposal, tool_note, validate_proposal, ChatCancels, ChatDelta, ChatProposal, ChatRegion,
-    ChatToolNote, ChatTurn, CommentableSide,
+    build_chat_turn, chat_system_prompt, chat_tools, discover_skills, execute_skill_tool,
+    format_ranges, frontmatter_description, history_messages, parse_proposal, skill_instructions,
+    skill_name_from_path, tool_note, validate_proposal, ChatCancels, ChatDelta, ChatProposal,
+    ChatRegion, ChatToolNote, ChatTurn, CommentableSide, SkillInfo,
 };
 use crate::ai::AskContext;
+use crate::snapshot::store::{partial_dir, promote, SnapshotKey};
 use serde_json::json;
+use std::path::PathBuf;
 
 fn turn(role: &str, content: &str) -> ChatTurn {
     ChatTurn {
@@ -71,7 +74,7 @@ fn context() -> AskContext {
 
 #[test]
 fn first_turn_carries_the_pr_context_sections() {
-    let prompt = build_chat_turn("What changed?", &[], &context(), true);
+    let prompt = build_chat_turn("What changed?", &[], &context(), true, None);
     assert!(prompt.starts_with("Pull request: Add retry"));
     assert!(prompt.contains("PR description:\nRetries the poll."));
     assert!(prompt.contains("Changed files:\nsrc/poll.ts (+10 -2)"));
@@ -80,7 +83,7 @@ fn first_turn_carries_the_pr_context_sections() {
 
 #[test]
 fn later_turns_skip_the_context_and_keep_the_message_last() {
-    let prompt = build_chat_turn("And why?", &[], &context(), false);
+    let prompt = build_chat_turn("And why?", &[], &context(), false, None);
     assert_eq!(prompt, "And why?");
 }
 
@@ -98,7 +101,7 @@ fn regions_render_as_fenced_blocks_with_path_and_range() {
             code: "let y;".to_string(),
         },
     ];
-    let prompt = build_chat_turn("Compare these.", &regions, &context(), false);
+    let prompt = build_chat_turn("Compare these.", &regions, &context(), false, None);
     assert!(prompt.contains("Code from src/a.ts (lines 3–5):\n```\nconst x = 1;\n```"));
     assert!(prompt.contains("Code from src/b.ts:\n```\nlet y;\n```"));
     assert!(prompt.ends_with("Compare these."));
@@ -296,7 +299,14 @@ fn chat_tools_compose_by_capability() {
         .collect();
     assert_eq!(
         names,
-        vec!["list_files", "read_file", "grep_repo", "propose_comment"]
+        vec![
+            "list_files",
+            "read_file",
+            "grep_repo",
+            "list_skills",
+            "read_skill",
+            "propose_comment"
+        ]
     );
 }
 
@@ -331,6 +341,142 @@ fn tool_note_names_the_proposal_target() {
         tool_note("propose_comment", r#"{"path":"src/foo.ts","line":130}"#),
         "Suggesting a comment on src/foo.ts:130"
     );
+}
+
+const SKILL_MD: &str = "---\nname: pr-validity\ndescription: Review against repo conventions\n---\n\nCheck comment placement and naming.";
+
+#[test]
+fn skill_names_come_only_from_manifest_paths() {
+    assert_eq!(
+        skill_name_from_path(".claude/skills/pr-validity/SKILL.md"),
+        Some("pr-validity")
+    );
+    assert_eq!(
+        skill_name_from_path(".claude/skills/pr-validity/notes.md"),
+        None
+    );
+    assert_eq!(skill_name_from_path(".claude/skills/SKILL.md"), None);
+    assert_eq!(skill_name_from_path("docs/SKILL.md"), None);
+    assert_eq!(skill_name_from_path(".claude/skills/a/b/SKILL.md"), None);
+}
+
+#[test]
+fn frontmatter_yields_the_description_and_nothing_else() {
+    assert_eq!(
+        frontmatter_description(SKILL_MD),
+        "Review against repo conventions"
+    );
+    assert_eq!(
+        frontmatter_description("---\ndescription: \"quoted value\"\n---\nbody"),
+        "quoted value"
+    );
+    assert_eq!(frontmatter_description("no frontmatter at all"), "");
+    assert_eq!(frontmatter_description("---\nname: only\n---\nbody"), "");
+}
+
+#[test]
+fn skill_instructions_strip_the_frontmatter() {
+    assert_eq!(
+        skill_instructions(SKILL_MD),
+        "Check comment placement and naming."
+    );
+    assert_eq!(skill_instructions("just instructions"), "just instructions");
+    assert_eq!(
+        skill_instructions("---\nunclosed: fence").trim(),
+        "---\nunclosed: fence"
+    );
+}
+
+fn skills_snapshot(label: &str) -> (PathBuf, SnapshotKey) {
+    let root = std::env::temp_dir().join(format!("nod-chat-{label}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).expect("temp root");
+    let key = SnapshotKey {
+        host: "https://github.com".to_string(),
+        owner: "acme".to_string(),
+        repo: "widget-app".to_string(),
+        sha: "a1b2c3".to_string(),
+    };
+    for (path, contents) in [
+        (".claude/skills/pr-validity/SKILL.md", SKILL_MD),
+        (
+            ".claude/skills/security-pass/SKILL.md",
+            "No frontmatter, straight to auditing.",
+        ),
+        (".claude/skills/pr-validity/reference.md", "not a skill"),
+        ("src/lib.rs", "fn main() {}\n"),
+    ] {
+        let target = partial_dir(&root, &key).join(path);
+        std::fs::create_dir_all(target.parent().expect("parent")).expect("staging");
+        std::fs::write(&target, contents).expect("write");
+    }
+    promote(&root, &key).expect("promote");
+    (root, key)
+}
+
+#[test]
+fn discovery_lists_manifest_skills_sorted_with_descriptions() {
+    let (root, key) = skills_snapshot("discover");
+    assert_eq!(
+        discover_skills(&root, &key),
+        vec![
+            SkillInfo {
+                description: "Review against repo conventions".to_string(),
+                name: "pr-validity".to_string(),
+            },
+            SkillInfo {
+                description: String::new(),
+                name: "security-pass".to_string(),
+            },
+        ]
+    );
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn skill_tools_list_and_read_and_answer_mistakes_readably() {
+    let (root, key) = skills_snapshot("tools");
+
+    let listing = execute_skill_tool(&root, &key, "list_skills", "{}");
+    assert_eq!(
+        listing,
+        "pr-validity — Review against repo conventions\nsecurity-pass"
+    );
+
+    let body = execute_skill_tool(&root, &key, "read_skill", r#"{"name":"pr-validity"}"#);
+    assert_eq!(body, "Check comment placement and naming.");
+
+    assert!(
+        execute_skill_tool(&root, &key, "read_skill", r#"{"name":"nope"}"#).starts_with("error:")
+    );
+    assert!(
+        execute_skill_tool(&root, &key, "read_skill", r#"{"name":"../escape"}"#)
+            .starts_with("error:")
+    );
+    assert!(execute_skill_tool(&root, &key, "read_skill", "{}").starts_with("error:"));
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn an_invoked_skill_rides_the_user_turn_before_regions() {
+    let prompt = build_chat_turn(
+        "Go.",
+        &[ChatRegion {
+            code: "let x;".to_string(),
+            file_path: "a.ts".to_string(),
+            line_range: "1".to_string(),
+        }],
+        &context(),
+        false,
+        Some("Check comment placement."),
+    );
+    let skill_at = prompt
+        .find("Follow these instructions for this task:\n\nCheck comment placement.")
+        .expect("skill section");
+    let region_at = prompt.find("Code from a.ts").expect("region section");
+    assert!(skill_at < region_at);
+    assert!(prompt.ends_with("Go."));
 }
 
 #[test]

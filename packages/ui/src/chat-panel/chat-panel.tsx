@@ -28,10 +28,7 @@
 
 import { CornerDownLeft, Sparkles, X } from "lucide-react";
 import { type KeyboardEvent, type ReactNode, useEffect, useRef } from "react";
-import {
-  CannedSuggestions,
-  type CannedSuggestionsProps,
-} from "../canned-suggestions/canned-suggestions.tsx";
+import { CannedSuggestions } from "../canned-suggestions/canned-suggestions.tsx";
 import { Spinner } from "../spinner/spinner.tsx";
 import "./chat-panel.css";
 
@@ -46,6 +43,7 @@ export interface ChatUserTurn {
   kind: "user";
   id: string;
   regions: readonly ChatRegionChip[];
+  skill?: string;
   text: string;
 }
 
@@ -66,6 +64,15 @@ export interface ChatProposalsSummary {
   onDiscardAll: () => void;
 }
 
+export interface ChatSuggestionsState {
+  items: string[];
+  onDismiss: () => void;
+  onMove: (delta: 1 | -1) => void;
+  onPick: (text: string) => void;
+  query: string;
+  selected: number;
+}
+
 export interface ChatPanelProps {
   chips: readonly ChatRegionChip[];
   composerValue: string;
@@ -75,10 +82,12 @@ export interface ChatPanelProps {
   onRemoveChip: (index: number) => void;
   onSend: () => void;
   onStop: () => void;
+  onRemoveSkill?: () => void;
   pending: boolean;
   proposals?: ChatProposalsSummary | null;
   renderMarkdown?: (text: string) => ReactNode;
-  suggestions?: CannedSuggestionsProps | null;
+  skill?: string | null;
+  suggestions?: ChatSuggestionsState | null;
   turns: readonly ChatPanelTurn[];
 }
 
@@ -95,6 +104,9 @@ function UserTurn({ turn }: { turn: ChatUserTurn }) {
     <div className="qch-turn qch-user">
       <div className="qch-turn-head">
         <span className="qch-who">you</span>
+        {turn.skill !== undefined && (
+          <span className="qch-chip">/{turn.skill}</span>
+        )}
       </div>
       {turn.regions.length > 0 && (
         <div className="qch-turn-chips">
@@ -150,11 +162,13 @@ export function ChatPanel({
   onChangeComposer,
   onEscape,
   onRemoveChip,
+  onRemoveSkill,
   onSend,
   onStop,
   pending,
   proposals = null,
   renderMarkdown = plainText,
+  skill = null,
   suggestions = null,
   turns,
 }: ChatPanelProps) {
@@ -187,6 +201,28 @@ export function ChatPanel({
   };
 
   const onInputKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (suggestions && suggestions.items.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        suggestions.onMove(1);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        suggestions.onMove(-1);
+        return;
+      }
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        suggestions.onPick(suggestions.items[suggestions.selected]);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        suggestions.onDismiss();
+        return;
+      }
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       send();
@@ -239,9 +275,29 @@ export function ChatPanel({
       )}
 
       <div className="qch-foot">
-        {suggestions && <CannedSuggestions {...suggestions} />}
-        {chips.length > 0 && (
+        {suggestions && (
+          <CannedSuggestions
+            items={suggestions.items}
+            onPick={suggestions.onPick}
+            query={suggestions.query}
+            selected={suggestions.selected}
+          />
+        )}
+        {(chips.length > 0 || skill !== null) && (
           <div className="qch-chips">
+            {skill !== null && (
+              <span className="qch-chip qch-skill-chip">
+                /{skill}
+                <button
+                  aria-label={`Remove skill ${skill}`}
+                  className="qch-chip-x"
+                  onClick={onRemoveSkill}
+                  type="button"
+                >
+                  <X size={11} />
+                </button>
+              </span>
+            )}
             {chips.map((chip, i) => (
               <span className="qch-chip" key={`${chipLabel(chip)}-${i}`}>
                 {chipLabel(chip)}

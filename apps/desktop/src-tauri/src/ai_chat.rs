@@ -20,6 +20,8 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, State};
 
 use crate::ai::{self, AskContext};
+use crate::snapshot::search as snapshot_search;
+use crate::snapshot::store::{self as snapshot_store, SnapshotKey};
 
 #[derive(Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -97,7 +99,10 @@ const CHAT_SYSTEM_SNAPSHOT: &str =
     "You have tools over a local snapshot of the repository at the PR's head \
 commit: list_files, read_file (numbered lines), and grep_repo (literal, \
 case-sensitive). Use them to ground answers in real code instead of guessing — \
-look up definitions, callers, and context beyond the diff.";
+look up definitions, callers, and context beyond the diff. The repository may \
+carry review skills under .claude/skills: list_skills names them and read_skill \
+fetches one; follow a skill's instructions when the reviewer invokes it or asks \
+for the kind of review it covers.";
 
 const CHAT_SYSTEM_PROPOSALS: &str =
     "You can stage suggested review comments with propose_comment. Only do so \
@@ -143,13 +148,16 @@ fn history_messages(history: &[ChatTurn], budget: usize) -> Vec<Value> {
 }
 
 /// The user message for this turn: PR context sections on the first turn
-/// only (later turns already carry them in history), then one fenced block
-/// per attached region, then the message itself.
+/// only (later turns already carry them in history), then the invoked
+/// skill's instructions, then one fenced block per attached region, then
+/// the message itself. The skill rides the user turn rather than a second
+/// system message — safer across OpenAI-compatible gateways.
 fn build_chat_turn(
     message: &str,
     regions: &[ChatRegion],
     context: &AskContext,
     first_turn: bool,
+    skill: Option<&str>,
 ) -> String {
     let mut sections: Vec<String> = Vec::new();
     if first_turn {
@@ -160,6 +168,11 @@ fn build_chat_turn(
         if let Some(summary) = context.diff_summary.as_deref() {
             sections.push(format!("Changed files:\n{summary}"));
         }
+    }
+    if let Some(body) = skill {
+        sections.push(format!(
+            "Follow these instructions for this task:\n\n{body}"
+        ));
     }
     for region in regions {
         let heading = if region.line_range.is_empty() {
@@ -174,6 +187,189 @@ fn build_chat_turn(
     }
     sections.push(message.to_string());
     sections.join("\n\n")
+}
+
+const SKILLS_PREFIX: &str = ".claude/skills/";
+const MAX_SKILL_BODY_CHARS: usize = 32_000;
+
+#[derive(Serialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SkillInfo {
+    pub name: String,
+    pub description: String,
+}
+
+/// `.claude/skills/<name>/SKILL.md` → the skill's name; anything else — a
+/// nested path, a stray file beside the manifest — is not a skill.
+fn skill_name_from_path(path: &str) -> Option<&str> {
+    let rest = path.strip_prefix(SKILLS_PREFIX)?;
+    let (name, file) = rest.split_once('/')?;
+    (file == "SKILL.md" && !name.is_empty()).then_some(name)
+}
+
+/// The `description:` scalar from a leading `---` frontmatter block, by hand
+/// — the agent-skills format needs two lines of YAML, not a YAML dependency.
+fn frontmatter_description(body: &str) -> String {
+    let mut lines = body.lines();
+    if lines.next().map(str::trim) != Some("---") {
+        return String::new();
+    }
+    for line in lines {
+        let trimmed = line.trim();
+        if trimmed == "---" {
+            break;
+        }
+        if let Some(value) = trimmed.strip_prefix("description:") {
+            return value
+                .trim()
+                .trim_matches('"')
+                .trim_matches('\'')
+                .to_string();
+        }
+    }
+    String::new()
+}
+
+/// Everything after the frontmatter — the instructions a skill injects. A
+/// file with no frontmatter is all instructions.
+fn skill_instructions(body: &str) -> &str {
+    let Some(rest) = body.strip_prefix("---") else {
+        return body.trim();
+    };
+    match rest.find("\n---") {
+        Some(at) => {
+            let after_fence = &rest[at + 4..];
+            match after_fence.find('\n') {
+                Some(nl) => after_fence[nl + 1..].trim(),
+                None => "",
+            }
+        }
+        None => body.trim(),
+    }
+}
+
+fn read_skill_body(root: &std::path::Path, key: &SnapshotKey, name: &str) -> Option<String> {
+    if name.contains('/') || name.contains('\\') || name.contains("..") {
+        return None;
+    }
+    let bytes = snapshot_store::read_file(root, key, &format!("{SKILLS_PREFIX}{name}/SKILL.md"))?;
+    let mut text = String::from_utf8_lossy(&bytes).replace("\r\n", "\n");
+    if text.chars().count() > MAX_SKILL_BODY_CHARS {
+        let cut = text
+            .char_indices()
+            .nth(MAX_SKILL_BODY_CHARS)
+            .map(|(i, _)| i)
+            .unwrap_or(text.len());
+        text.truncate(cut);
+        text.push_str("\n[truncated — the skill file continues]");
+    }
+    Some(text)
+}
+
+fn discover_skills(root: &std::path::Path, key: &SnapshotKey) -> Vec<SkillInfo> {
+    let Some(listing) = snapshot_search::list_files(root, key, Some(SKILLS_PREFIX)) else {
+        return Vec::new();
+    };
+    let mut out: Vec<SkillInfo> = Vec::new();
+    for path in &listing.files {
+        let Some(name) = skill_name_from_path(path) else {
+            continue;
+        };
+        let description = read_skill_body(root, key, name)
+            .map(|body| frontmatter_description(&body))
+            .unwrap_or_default();
+        out.push(SkillInfo {
+            description,
+            name: name.to_string(),
+        });
+    }
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    out
+}
+
+fn execute_skill_tool(
+    root: &std::path::Path,
+    key: &SnapshotKey,
+    name: &str,
+    arguments: &str,
+) -> String {
+    match name {
+        "list_skills" => {
+            let skills = discover_skills(root, key);
+            if skills.is_empty() {
+                "(no skills in this repository)".to_string()
+            } else {
+                skills
+                    .iter()
+                    .map(|s| {
+                        if s.description.is_empty() {
+                            s.name.clone()
+                        } else {
+                            format!("{} — {}", s.name, s.description)
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            }
+        }
+        _ => {
+            let args: Value = serde_json::from_str(arguments).unwrap_or(Value::Null);
+            match args.get("name").and_then(Value::as_str) {
+                Some(skill) => read_skill_body(root, key, skill)
+                    .map(|body| skill_instructions(&body).to_string())
+                    .unwrap_or_else(|| {
+                        "error: no such skill — check the name with list_skills".to_string()
+                    }),
+                None => "error: read_skill requires a string 'name'".to_string(),
+            }
+        }
+    }
+}
+
+fn skills_tools() -> Vec<Value> {
+    vec![
+        serde_json::json!({
+            "type": "function",
+            "function": {
+                "name": "list_skills",
+                "description": "List the repository's review skills (.claude/skills) as 'name — description' lines.",
+                "parameters": { "type": "object", "properties": {} }
+            }
+        }),
+        serde_json::json!({
+            "type": "function",
+            "function": {
+                "name": "read_skill",
+                "description": "Read one skill's instructions by name.",
+                "parameters": {
+                    "type": "object",
+                    "properties": { "name": { "type": "string" } },
+                    "required": ["name"]
+                }
+            }
+        }),
+    ]
+}
+
+#[tauri::command]
+pub async fn list_chat_skills(
+    app: AppHandle,
+    owner: String,
+    repo: String,
+    head_sha: String,
+) -> Result<Vec<SkillInfo>, String> {
+    let context = AskContext {
+        head_sha: Some(head_sha),
+        owner: Some(owner),
+        repo: Some(repo),
+        ..AskContext::default()
+    };
+    let Some((root, key)) = ai::ready_snapshot(&app, &context).await else {
+        return Ok(Vec::new());
+    };
+    tauri::async_runtime::spawn_blocking(move || discover_skills(&root, &key))
+        .await
+        .map_err(|e| format!("skill discovery failed: {e}"))
 }
 
 fn propose_comment_tool() -> Value {
@@ -199,7 +395,9 @@ fn propose_comment_tool() -> Value {
 
 fn chat_tools(snapshot_ready: bool, proposals: bool) -> Value {
     let mut tools = if snapshot_ready {
-        ai::ask_tools().as_array().cloned().unwrap_or_default()
+        let mut t = ai::ask_tools().as_array().cloned().unwrap_or_default();
+        t.extend(skills_tools());
+        t
     } else {
         Vec::new()
     };
@@ -309,6 +507,11 @@ fn tool_note(name: &str, arguments: &str) -> String {
             Some(pattern) => format!("Searching for \"{pattern}\""),
             None => "Searching the repository".to_string(),
         },
+        "list_skills" => "Listing skills".to_string(),
+        "read_skill" => match args.get("name").and_then(Value::as_str) {
+            Some(skill) => format!("Reading skill {skill}"),
+            None => "Reading a skill".to_string(),
+        },
         "read_file" => match args.get("path").and_then(Value::as_str) {
             Some(path) => match (
                 args.get("start_line").and_then(Value::as_u64),
@@ -388,6 +591,7 @@ pub async fn ai_chat(
     history: Vec<ChatTurn>,
     context: AskContext,
     commentable: Vec<CommentableSide>,
+    skill: Option<String>,
 ) -> Result<String, String> {
     let config = ai::load(&app)?.ok_or_else(|| "AI is not configured".to_string())?;
     let model = config
@@ -395,13 +599,33 @@ pub async fn ai_chat(
         .ok_or_else(|| "Choose a model in AI settings first".to_string())?;
     state.clear(&chat_id);
     let snapshot = ai::ready_snapshot(&app, &context).await;
+    let skill_body = match &skill {
+        Some(name) => match &snapshot {
+            Some((root, key)) => match read_skill_body(root, key, name) {
+                Some(body) => Some(skill_instructions(&body).to_string()),
+                None => return Err(format!("Skill '{name}' was not found in the repository.")),
+            },
+            None => {
+                return Err(
+                    "Skills come from the repository snapshot, which is not ready yet.".to_string(),
+                )
+            }
+        },
+        None => None,
+    };
     let proposals = !commentable.is_empty();
     let system = chat_system_prompt(snapshot.is_some(), proposals);
     let mut messages = vec![serde_json::json!({ "role": "system", "content": system })];
     messages.extend(history_messages(&history, CHAT_INPUT_CHAR_BUDGET));
     messages.push(serde_json::json!({
         "role": "user",
-        "content": build_chat_turn(&message, &regions, &context, history.is_empty()),
+        "content": build_chat_turn(
+            &message,
+            &regions,
+            &context,
+            history.is_empty(),
+            skill_body.as_deref(),
+        ),
     }));
     let client = ai::ask_client()?;
     let url = format!("{}/v1/chat/completions", config.base_url);
@@ -511,6 +735,16 @@ pub async fn ai_chat(
                     run_propose_comment(&app, &commentable, &chat_id, &turn_id, &arguments)
                 } else {
                     "error: propose_comment is not available".to_string()
+                }
+            } else if name == "list_skills" || name == "read_skill" {
+                if let Some((root, key)) = snapshot.clone() {
+                    tauri::async_runtime::spawn_blocking(move || {
+                        execute_skill_tool(&root, &key, &name, &arguments)
+                    })
+                    .await
+                    .map_err(|e| format!("tool execution failed: {e}"))?
+                } else {
+                    "error: repository snapshot is not available".to_string()
                 }
             } else if let Some((root, key)) = snapshot.clone() {
                 tauri::async_runtime::spawn_blocking(move || {

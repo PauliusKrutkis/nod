@@ -107,6 +107,7 @@ pub fn run() {
             ai::ai_complete,
             ai_chat::ai_chat,
             ai_chat::ai_chat_cancel,
+            ai_chat::list_chat_skills,
             commands::has_token,
             commands::set_token,
             commands::clear_token,
