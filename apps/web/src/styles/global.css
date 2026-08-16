@@ -682,9 +682,13 @@ a {
   color: var(--muted);
 }
 
+/* Seven links are wider than a phone, so the row has to wrap rather than push
+   the whole page sideways. The row gap is tighter than the column gap so a
+   wrapped second line still reads as one block of links. */
 .foot__links {
-  display: inline-flex;
-  gap: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
 }
 
 .foot__links a {
