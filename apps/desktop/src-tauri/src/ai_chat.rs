@@ -106,10 +106,12 @@ const CHAT_SYSTEM_SNAPSHOT: &str =
     "You have tools over a local snapshot of the repository at the PR's head \
 commit: list_files, read_file (numbered lines), and grep_repo (literal, \
 case-sensitive). Use them to ground answers in real code instead of guessing — \
-look up definitions, callers, and context beyond the diff. The repository may \
-carry review skills under .claude/skills: list_skills names them and read_skill \
-fetches one; follow a skill's instructions when the reviewer invokes it or asks \
-for the kind of review it covers.";
+look up definitions, callers, and context beyond the diff.";
+
+const CHAT_SYSTEM_SKILLS: &str =
+    "Review skills are available: list_skills names them and read_skill fetches \
+one; follow a skill's instructions when the reviewer invokes it or asks for the \
+kind of review it covers.";
 
 const CHAT_SYSTEM_DIFF: &str =
     "read_diff returns the pull request's unified diff — the whole thing, or one \
@@ -124,10 +126,13 @@ the reviewer to accept or discard — they are never posted directly. side is \
 LEFT for deleted lines and RIGHT for added or unchanged lines, and the line \
 numbers must fall inside the diff.";
 
-fn chat_system_prompt(snapshot_ready: bool, proposals: bool, diffs: bool) -> String {
+fn chat_system_prompt(snapshot_ready: bool, skills: bool, proposals: bool, diffs: bool) -> String {
     let mut parts = vec![CHAT_SYSTEM_BASE];
     if snapshot_ready {
         parts.push(CHAT_SYSTEM_SNAPSHOT);
+    }
+    if skills {
+        parts.push(CHAT_SYSTEM_SKILLS);
     }
     if diffs {
         parts.push(CHAT_SYSTEM_DIFF);
@@ -265,12 +270,16 @@ fn skill_instructions(body: &str) -> &str {
     }
 }
 
-fn read_skill_body(root: &std::path::Path, key: &SnapshotKey, name: &str) -> Option<String> {
-    if name.contains('/') || name.contains('\\') || name.contains("..") {
-        return None;
-    }
-    let bytes = snapshot_store::read_file(root, key, &format!("{SKILLS_PREFIX}{name}/SKILL.md"))?;
-    let mut text = String::from_utf8_lossy(&bytes).replace("\r\n", "\n");
+fn safe_skill_name(name: &str) -> bool {
+    !(name.is_empty()
+        || name.starts_with('.')
+        || name.contains('/')
+        || name.contains('\\')
+        || name.contains(".."))
+}
+
+fn skill_text(bytes: &[u8]) -> String {
+    let mut text = String::from_utf8_lossy(bytes).replace("\r\n", "\n");
     if text.chars().count() > MAX_SKILL_BODY_CHARS {
         let cut = text
             .char_indices()
@@ -280,7 +289,76 @@ fn read_skill_body(root: &std::path::Path, key: &SnapshotKey, name: &str) -> Opt
         text.truncate(cut);
         text.push_str("\n[truncated — the skill file continues]");
     }
-    Some(text)
+    text
+}
+
+fn read_skill_body(root: &std::path::Path, key: &SnapshotKey, name: &str) -> Option<String> {
+    if !safe_skill_name(name) {
+        return None;
+    }
+    let bytes = snapshot_store::read_file(root, key, &format!("{SKILLS_PREFIX}{name}/SKILL.md"))?;
+    Some(skill_text(&bytes))
+}
+
+/// Personal skills live beside the app config — `<config>/skills/<name>/SKILL.md`
+/// — so a reviewer's own review passes work in every repo, not just ones that
+/// carry `.claude/skills`.
+fn personal_skills_dir(app: &AppHandle) -> Option<std::path::PathBuf> {
+    crate::storage::config_dir(app)
+        .ok()
+        .map(|d| d.join("skills"))
+}
+
+fn read_personal_skill(dir: &std::path::Path, name: &str) -> Option<String> {
+    if !safe_skill_name(name) {
+        return None;
+    }
+    let bytes = std::fs::read(dir.join(name).join("SKILL.md")).ok()?;
+    Some(skill_text(&bytes))
+}
+
+fn discover_personal_skills(dir: &std::path::Path) -> Vec<SkillInfo> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut out: Vec<SkillInfo> = Vec::new();
+    for entry in entries.flatten() {
+        let Ok(name) = entry.file_name().into_string() else {
+            continue;
+        };
+        let Some(body) = read_personal_skill(dir, &name) else {
+            continue;
+        };
+        out.push(SkillInfo {
+            description: frontmatter_description(&body),
+            name,
+        });
+    }
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    out
+}
+
+/// Repo and personal skills merged, the repo winning a name clash — a repo
+/// that carries its own conventions outranks the general-purpose copy.
+fn merge_skills(repo: Vec<SkillInfo>, personal: Vec<SkillInfo>) -> Vec<SkillInfo> {
+    let mut out = repo;
+    for skill in personal {
+        if !out.iter().any(|s| s.name == skill.name) {
+            out.push(skill);
+        }
+    }
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    out
+}
+
+fn resolve_skill_body(
+    snapshot: Option<&(std::path::PathBuf, SnapshotKey)>,
+    personal: Option<&std::path::Path>,
+    name: &str,
+) -> Option<String> {
+    snapshot
+        .and_then(|(root, key)| read_skill_body(root, key, name))
+        .or_else(|| personal.and_then(|dir| read_personal_skill(dir, name)))
 }
 
 fn discover_skills(root: &std::path::Path, key: &SnapshotKey) -> Vec<SkillInfo> {
@@ -305,16 +383,20 @@ fn discover_skills(root: &std::path::Path, key: &SnapshotKey) -> Vec<SkillInfo> 
 }
 
 fn execute_skill_tool(
-    root: &std::path::Path,
-    key: &SnapshotKey,
+    snapshot: Option<&(std::path::PathBuf, SnapshotKey)>,
+    personal: Option<&std::path::Path>,
     name: &str,
     arguments: &str,
 ) -> String {
     match name {
         "list_skills" => {
-            let skills = discover_skills(root, key);
+            let repo = snapshot
+                .map(|(root, key)| discover_skills(root, key))
+                .unwrap_or_default();
+            let personal_list = personal.map(discover_personal_skills).unwrap_or_default();
+            let skills = merge_skills(repo, personal_list);
             if skills.is_empty() {
-                "(no skills in this repository)".to_string()
+                "(no skills available)".to_string()
             } else {
                 skills
                     .iter()
@@ -332,7 +414,7 @@ fn execute_skill_tool(
         _ => {
             let args: Value = serde_json::from_str(arguments).unwrap_or(Value::Null);
             match args.get("name").and_then(Value::as_str) {
-                Some(skill) => read_skill_body(root, key, skill)
+                Some(skill) => resolve_skill_body(snapshot, personal, skill)
                     .map(|body| skill_instructions(&body).to_string())
                     .unwrap_or_else(|| {
                         "error: no such skill — check the name with list_skills".to_string()
@@ -381,12 +463,21 @@ pub async fn list_chat_skills(
         repo: Some(repo),
         ..AskContext::default()
     };
-    let Some((root, key)) = ai::ready_snapshot(&app, &context).await else {
-        return Ok(Vec::new());
-    };
-    tauri::async_runtime::spawn_blocking(move || discover_skills(&root, &key))
-        .await
-        .map_err(|e| format!("skill discovery failed: {e}"))
+    let personal = personal_skills_dir(&app);
+    let snapshot = ai::ready_snapshot(&app, &context).await;
+    tauri::async_runtime::spawn_blocking(move || {
+        let repo_skills = snapshot
+            .as_ref()
+            .map(|(root, key)| discover_skills(root, key))
+            .unwrap_or_default();
+        let personal_skills = personal
+            .as_deref()
+            .map(discover_personal_skills)
+            .unwrap_or_default();
+        merge_skills(repo_skills, personal_skills)
+    })
+    .await
+    .map_err(|e| format!("skill discovery failed: {e}"))
 }
 
 fn propose_comment_tool() -> Value {
@@ -410,14 +501,15 @@ fn propose_comment_tool() -> Value {
     })
 }
 
-fn chat_tools(snapshot_ready: bool, proposals: bool, diffs: bool) -> Value {
+fn chat_tools(snapshot_ready: bool, skills: bool, proposals: bool, diffs: bool) -> Value {
     let mut tools = if snapshot_ready {
-        let mut t = ai::ask_tools().as_array().cloned().unwrap_or_default();
-        t.extend(skills_tools());
-        t
+        ai::ask_tools().as_array().cloned().unwrap_or_default()
     } else {
         Vec::new()
     };
+    if skills {
+        tools.extend(skills_tools());
+    }
     if diffs {
         tools.push(read_diff_tool());
     }
@@ -685,23 +777,20 @@ pub async fn ai_chat(
         .ok_or_else(|| "Choose a model in AI settings first".to_string())?;
     state.clear(&chat_id);
     let snapshot = ai::ready_snapshot(&app, &context).await;
+    let personal_skills = personal_skills_dir(&app);
     let skill_body = match &skill {
-        Some(name) => match &snapshot {
-            Some((root, key)) => match read_skill_body(root, key, name) {
-                Some(body) => Some(skill_instructions(&body).to_string()),
-                None => return Err(format!("Skill '{name}' was not found in the repository.")),
-            },
-            None => {
-                return Err(
-                    "Skills come from the repository snapshot, which is not ready yet.".to_string(),
-                )
-            }
+        Some(name) => match resolve_skill_body(snapshot.as_ref(), personal_skills.as_deref(), name)
+        {
+            Some(body) => Some(skill_instructions(&body).to_string()),
+            None => return Err(format!("Skill '{name}' was not found.")),
         },
         None => None,
     };
+    let skills_available =
+        snapshot.is_some() || personal_skills.as_deref().is_some_and(|d| d.is_dir());
     let proposals = !commentable.is_empty();
     let has_diffs = !diffs.is_empty();
-    let system = chat_system_prompt(snapshot.is_some(), proposals, has_diffs);
+    let system = chat_system_prompt(snapshot.is_some(), skills_available, proposals, has_diffs);
     let mut messages = vec![serde_json::json!({ "role": "system", "content": system })];
     messages.extend(history_messages(&history, CHAT_INPUT_CHAR_BUDGET));
     messages.push(serde_json::json!({
@@ -730,7 +819,7 @@ pub async fn ai_chat(
             "stream": true,
         });
         if tools_enabled {
-            body["tools"] = chat_tools(snapshot.is_some(), proposals, has_diffs);
+            body["tools"] = chat_tools(snapshot.is_some(), skills_available, proposals, has_diffs);
             if rounds >= ai::MAX_TOOL_ROUNDS {
                 body["tool_choice"] = serde_json::json!("none");
             }
@@ -826,15 +915,18 @@ pub async fn ai_chat(
             } else if name == "read_diff" {
                 execute_read_diff(&diffs, &arguments)
             } else if name == "list_skills" || name == "read_skill" {
-                if let Some((root, key)) = snapshot.clone() {
-                    tauri::async_runtime::spawn_blocking(move || {
-                        execute_skill_tool(&root, &key, &name, &arguments)
-                    })
-                    .await
-                    .map_err(|e| format!("tool execution failed: {e}"))?
-                } else {
-                    "error: repository snapshot is not available".to_string()
-                }
+                let snapshot_for_skills = snapshot.clone();
+                let personal_for_skills = personal_skills.clone();
+                tauri::async_runtime::spawn_blocking(move || {
+                    execute_skill_tool(
+                        snapshot_for_skills.as_ref(),
+                        personal_for_skills.as_deref(),
+                        &name,
+                        &arguments,
+                    )
+                })
+                .await
+                .map_err(|e| format!("tool execution failed: {e}"))?
             } else if let Some((root, key)) = snapshot.clone() {
                 tauri::async_runtime::spawn_blocking(move || {
                     ai::execute_tool(&root, &key, &name, &arguments)

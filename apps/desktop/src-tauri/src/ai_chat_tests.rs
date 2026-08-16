@@ -1,8 +1,9 @@
 use super::{
-    build_chat_turn, chat_system_prompt, chat_tools, discover_skills, execute_read_diff,
-    execute_skill_tool, format_ranges, frontmatter_description, history_messages, parse_proposal,
-    skill_instructions, skill_name_from_path, tool_note, validate_proposal, ChatCancels, ChatDelta,
-    ChatDiffFile, ChatProposal, ChatRegion, ChatToolNote, ChatTurn, CommentableSide, SkillInfo,
+    build_chat_turn, chat_system_prompt, chat_tools, discover_personal_skills, discover_skills,
+    execute_read_diff, execute_skill_tool, format_ranges, frontmatter_description,
+    history_messages, merge_skills, parse_proposal, resolve_skill_body, skill_instructions,
+    skill_name_from_path, tool_note, validate_proposal, ChatCancels, ChatDelta, ChatDiffFile,
+    ChatProposal, ChatRegion, ChatToolNote, ChatTurn, CommentableSide, SkillInfo,
 };
 use crate::ai::AskContext;
 use crate::snapshot::store::{partial_dir, promote, SnapshotKey};
@@ -278,10 +279,10 @@ fn range_lists_print_compactly() {
 
 #[test]
 fn chat_tools_compose_by_capability() {
-    let none = chat_tools(false, false, false);
+    let none = chat_tools(false, false, false, false);
     assert_eq!(none.as_array().map(Vec::len), Some(0));
 
-    let proposals_only = chat_tools(false, true, false);
+    let proposals_only = chat_tools(false, false, true, false);
     let names: Vec<&str> = proposals_only
         .as_array()
         .unwrap()
@@ -290,7 +291,7 @@ fn chat_tools_compose_by_capability() {
         .collect();
     assert_eq!(names, vec!["propose_comment"]);
 
-    let both = chat_tools(true, true, true);
+    let both = chat_tools(true, true, true, true);
     let names: Vec<&str> = both
         .as_array()
         .unwrap()
@@ -313,10 +314,10 @@ fn chat_tools_compose_by_capability() {
 
 #[test]
 fn system_prompt_mentions_only_what_is_on() {
-    let bare = chat_system_prompt(false, false, false);
+    let bare = chat_system_prompt(false, false, false, false);
     assert!(!bare.contains("propose_comment"));
     assert!(!bare.contains("grep_repo"));
-    let full = chat_system_prompt(true, true, true);
+    let full = chat_system_prompt(true, true, true, true);
     assert!(full.contains("grep_repo"));
     assert!(full.contains("propose_comment"));
     assert!(full.contains("read_diff"));
@@ -439,23 +440,43 @@ fn discovery_lists_manifest_skills_sorted_with_descriptions() {
 fn skill_tools_list_and_read_and_answer_mistakes_readably() {
     let (root, key) = skills_snapshot("tools");
 
-    let listing = execute_skill_tool(&root, &key, "list_skills", "{}");
+    let listing = execute_skill_tool(
+        Some(&(root.clone(), key.clone())),
+        None,
+        "list_skills",
+        "{}",
+    );
     assert_eq!(
         listing,
         "pr-validity — Review against repo conventions\nsecurity-pass"
     );
 
-    let body = execute_skill_tool(&root, &key, "read_skill", r#"{"name":"pr-validity"}"#);
+    let body = execute_skill_tool(
+        Some(&(root.clone(), key.clone())),
+        None,
+        "read_skill",
+        r#"{"name":"pr-validity"}"#,
+    );
     assert_eq!(body, "Check comment placement and naming.");
 
+    assert!(execute_skill_tool(
+        Some(&(root.clone(), key.clone())),
+        None,
+        "read_skill",
+        r#"{"name":"nope"}"#
+    )
+    .starts_with("error:"));
+    assert!(execute_skill_tool(
+        Some(&(root.clone(), key.clone())),
+        None,
+        "read_skill",
+        r#"{"name":"../escape"}"#
+    )
+    .starts_with("error:"));
     assert!(
-        execute_skill_tool(&root, &key, "read_skill", r#"{"name":"nope"}"#).starts_with("error:")
-    );
-    assert!(
-        execute_skill_tool(&root, &key, "read_skill", r#"{"name":"../escape"}"#)
+        execute_skill_tool(Some(&(root.clone(), key.clone())), None, "read_skill", "{}")
             .starts_with("error:")
     );
-    assert!(execute_skill_tool(&root, &key, "read_skill", "{}").starts_with("error:"));
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -549,4 +570,51 @@ fn pasted_regions_get_the_pathless_heading() {
         None,
     );
     assert!(prompt.contains("Pasted code:\n```\nlet z;\n```"));
+}
+
+#[test]
+fn personal_skills_merge_behind_repo_ones_and_read_without_a_snapshot() {
+    let dir = std::env::temp_dir().join(format!("nod-personal-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    for (name, body) in [
+        (
+            "pr-validity",
+            "---\ndescription: My generic pass\n---\nPersonal instructions.",
+        ),
+        ("jira-notes", "Append QA notes."),
+    ] {
+        let skill = dir.join(name);
+        std::fs::create_dir_all(&skill).expect("skill dir");
+        std::fs::write(skill.join("SKILL.md"), body).expect("write");
+    }
+
+    let personal = discover_personal_skills(&dir);
+    assert_eq!(
+        personal.iter().map(|s| s.name.as_str()).collect::<Vec<_>>(),
+        vec!["jira-notes", "pr-validity"]
+    );
+
+    let repo = vec![SkillInfo {
+        description: "Repo-tuned pass".to_string(),
+        name: "pr-validity".to_string(),
+    }];
+    let merged = merge_skills(repo, personal);
+    assert_eq!(
+        merged
+            .iter()
+            .map(|s| (s.name.as_str(), s.description.as_str()))
+            .collect::<Vec<_>>(),
+        vec![("jira-notes", ""), ("pr-validity", "Repo-tuned pass"),]
+    );
+
+    let listing = execute_skill_tool(None, Some(&dir), "list_skills", "{}");
+    assert!(listing.contains("jira-notes"));
+    let body = execute_skill_tool(None, Some(&dir), "read_skill", r#"{"name":"jira-notes"}"#);
+    assert_eq!(body, "Append QA notes.");
+
+    assert!(resolve_skill_body(None, Some(&dir), "pr-validity")
+        .expect("personal fallback")
+        .contains("Personal instructions."));
+
+    let _ = std::fs::remove_dir_all(&dir);
 }

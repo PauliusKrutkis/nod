@@ -317,18 +317,22 @@ anchor — the promote precedent again.
 
 ### Skills — the agent-skills standard, read from the repo
 
-Skills are `SKILL.md` files with YAML frontmatter, discovered in the reviewed
-repo's own `.claude/skills/**` via the snapshot — a repo carries its review
-conventions with it. Invoking one injects its body into the outgoing turn as
-instructions; the model can also list and read them itself through tools. A
-personal skills directory in the config dir is a fast-follow.
+Skills are `SKILL.md` files with YAML frontmatter, from two sources: the
+reviewed repo's own `.claude/skills/**` via the snapshot — a repo carries its
+review conventions with it — and a personal directory beside the app config
+(`<config>/skills/<name>/SKILL.md`), so your own review passes work in every
+repo. The repo wins a name clash. Invoking one injects its body into the
+outgoing turn as instructions; the model can also list and read them itself
+through tools.
 
 ### Ship order
 
 Docs (this section) → docked panel → `ai_chat` → chat-panel component → wiring
 + persistence → region chips → `propose_comment` → suggestion cards in the
-diff → skills. Fast-follows: personal skills dir, bulk-action hotkeys, citation
-click-through, replaying tool traffic in history.
+diff → skills. Fast-follows: bulk-action hotkeys, citation click-through,
+replaying tool traffic in history. Shipped since: the personal skills dir,
+per-chat model picker, chat threads, the resizable dock, paste-to-chip, and
+`read_diff` (the dogfood-feedback round).
 
 ## Guardrails
 
