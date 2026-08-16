@@ -416,13 +416,13 @@ Three layers, three separate decision points — only layer 3 is a real bet:
       ms over the extracted tree) · hunk-context expansion (P11 PR 2) reading
       local files. Each small, each shippable independently. New pushes
       re-download the full tarball (no deltas) — fine at PR cadence.
-      *Status 2026-08-05 — the engine exists, the surface does not.* The AI
-      tool loop (#176) implements `list_files`, `read_file` and `grep_repo`
-      over the snapshot, so the search AI.md promised would "fall out for free"
-      is written and working. But it is reachable **only from inside
-      `ai_ask`** — `grep_repo` is *not* in the `invoke_handler` list, so no
-      user-facing repo search exists and the free lunch is unclaimed. What is
-      left is registering the commands and building the UI, not the search.
+      *Status 2026-08-16 — engine and registration exist, the surface does
+      not.* The AI tool loop (#176) implements `list_files`, `read_file` and
+      `grep_repo` over the snapshot, and `list_repo_files` /
+      `search_repo_content` are registered in `invoke_handler` (`lib.rs`) —
+      an earlier note here claiming they weren't is stale. But nothing in the
+      webview calls them, so no user-facing repo search exists and the free
+      lunch is still unclaimed. What is left is UI, nothing else.
 - [ ] ⏸ **Layer 3 — symbol index** (tree-sitter): go-to-definition from the
       diff (peek popover → full-file modal at line), find references for a
       changed symbol. ~50–100k lines/sec/core to parse, index cached per SHA,
@@ -1159,6 +1159,11 @@ the 2026-08-03 owner decision below.
 
 Three ideas recorded so they stop being re-invented, **none of them scoped**.
 
+*Update 2026-08-16:* the first of the three is parked no longer — its trust
+questions got answers and it is being built, as part of the chat panel. See
+[AI.md § Second surface](./AI.md#second-surface--chat-panel--suggested-comments-decided-2026-08-16).
+The other two stay parked.
+
 *Corrected 2026-08-05:* an earlier draft of this section said all three broke
 [AI.md](./AI.md)'s pull-not-push guardrail. That was wrong. The rule governs the
 **trigger, not the size of the answer** — each of these would be user-invoked,
@@ -1167,7 +1172,7 @@ revisited. See [AI.md § Position](./AI.md#position-2026-08-05). They stay parke
 for ordinary product reasons: ask-about-this-code should prove itself first, and
 each carries an unresolved design question of its own, noted below.
 
-- [ ] ❓ **Review-by-prompt → inline comments** — point the AI at the PR with a
+- [ ] 🟡 **Review-by-prompt → inline comments** — point the AI at the PR with a
       prompt (or one of the repo's skills, e.g. `pr-validity`) and have it
       produce findings **as the same inline comment objects you write by hand**,
       which you then accept, edit or discard into your review.
@@ -1175,13 +1180,18 @@ each carries an unresolved design question of its own, noted below.
       already exists — pending comments — instead of inventing an AI panel, so
       an accepted finding is indistinguishable from your own comment by the
       time it reaches GitHub.
-      *Why it's parked* — and it is **not** the pull rule, which this satisfies:
-      you run it, per PR, per prompt, and it never fires on open. The open
-      questions are about trust, not policy: whether AI-suggested comments stay
-      visually distinct *after* you accept them (once posted they carry your
-      name and your credibility, not the model's), what happens to the ones you
-      ignore, and whether a bad batch is cheap enough to discard that the
-      feature stays worth invoking. Answer those before scoping.
+      **Promoted 2026-08-16 (owner)** — being built as part of the chat panel
+      ([AI.md § Second surface](./AI.md#second-surface--chat-panel--suggested-comments-decided-2026-08-16)).
+      The trust questions this entry parked on, answered there in full; the
+      short form: a suggestion is visually distinct (AI material, dotted, no
+      fill) *until you accept it*, and indistinguishable *after* — by design,
+      because accepting is adoption and the posted comment carries your name
+      because you chose it; ignored suggestions never reach the submitted
+      review (submission maps pending comments only); a bad batch is one
+      discard-all click. One deliberate refinement over the sketch: findings
+      stage as their own `suggestedComments` slice, not as `PendingComment`s —
+      same surface in the diff, but nothing the model wrote can ride a review
+      submission without an explicit accept.
 - [ ] ❓ **Code diff layers — grouped changes with a summary** — group related
       hunks across files into labelled layers ("auth wiring", "test fixtures",
       "formatting") with a one-line summary each, so a 40-file PR can be read
