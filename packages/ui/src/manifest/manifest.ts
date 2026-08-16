@@ -138,6 +138,23 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "unicode",
     ],
   },
+  "chat-panel": {
+    fixtures: [
+      "chips-crowd",
+      "draft-and-chips",
+      "empty",
+      "error",
+      "fence-mid-stream",
+      "markup-as-text",
+      "overflow",
+      "partial-10k",
+      "proposals",
+      "thinking",
+      "tool-activity",
+      "typical",
+      "unicode",
+    ],
+  },
   "ci-pill": {
     fixtures: [
       "failure",
