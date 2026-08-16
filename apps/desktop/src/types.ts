@@ -214,7 +214,13 @@ export type ChatTurnRecord =
       skill?: string;
       text: string;
     }
-  | { kind: "assistant"; error: string | null; id: string; text: string };
+  | {
+      kind: "assistant";
+      error: string | null;
+      id: string;
+      streamed?: boolean;
+      text: string;
+    };
 
 export interface SkillInfo {
   name: string;

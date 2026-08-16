@@ -37,6 +37,7 @@ import {
 } from "../types.ts";
 
 interface LiveTurn {
+  deltas: number;
   partial: string;
   threadId: string;
   toolNote: string | null;
@@ -149,11 +150,48 @@ export function useReviewChat(args: {
   const [live, setLive] = useState<LiveTurn | null>(null);
   const liveRef = useLatest(live);
 
+  const snapshot = useQuery({
+    enabled: args.active,
+    queryFn: () =>
+      api.snapshotStatus(args.pr.owner, args.pr.repo, args.pr.headSha),
+    queryKey: ["snapshotStatus", keyValue, args.pr.headSha],
+    refetchInterval: (query) =>
+      query.state.data?.state === "downloading" ? 2000 : false,
+  });
+  const snapshotState = snapshot.data?.state;
+  const refetchSnapshot = snapshot.refetch;
+
+  const headShaRef = useLatest(args.pr.headSha);
+  const ownerRef = useLatest(args.pr.owner);
+  const repoRef = useLatest(args.pr.repo);
+  useEffect(() => {
+    if (
+      args.active &&
+      (snapshotState === "idle" || snapshotState === "failed")
+    ) {
+      api
+        .ensureRepoSnapshot(
+          ownerRef.current,
+          repoRef.current,
+          headShaRef.current
+        )
+        .then(() => refetchSnapshot())
+        .catch(() => undefined);
+    }
+  }, [
+    args.active,
+    snapshotState,
+    headShaRef,
+    ownerRef,
+    repoRef,
+    refetchSnapshot,
+  ]);
+
   const skills = useQuery({
     enabled: args.active,
     queryFn: () =>
       api.listChatSkills(args.pr.owner, args.pr.repo, args.pr.headSha),
-    queryKey: ["chatSkills", keyValue, args.pr.headSha],
+    queryKey: ["chatSkills", keyValue, args.pr.headSha, snapshotState ?? ""],
     staleTime: Number.POSITIVE_INFINITY,
   });
   const skillNames = (skills.data ?? []).map((s) => s.name);
@@ -181,24 +219,13 @@ export function useReviewChat(args: {
     persistChatModel(next);
   };
 
-  const snapshot = useQuery({
-    enabled: args.active,
-    queryFn: () =>
-      api.snapshotStatus(args.pr.owner, args.pr.repo, args.pr.headSha),
-    queryKey: ["snapshotStatus", keyValue, args.pr.headSha],
-    refetchInterval: (query) => {
-      const state = query.state.data?.state;
-      return state === "downloading" || state === "idle" ? 2000 : false;
-    },
-  });
-  const snapshotState = snapshot.data?.state;
   let contextNote: string | null = null;
   if (snapshotState === "downloading" || snapshotState === "idle") {
     contextNote =
-      "Preparing the repository snapshot — repo-wide tools arrive when it's ready.";
+      "Fetching the repository so the chat can read beyond the diff. The diff itself is already available.";
   } else if (snapshotState === "failed" || snapshotState === "skipped") {
     contextNote =
-      "Repository snapshot unavailable — the chat sees the diff, not the whole repo.";
+      "Repository unavailable — the chat reads this pull request's diff, not the rest of the repo.";
   }
 
   const setDraft = (value: string) => {
@@ -225,9 +252,15 @@ export function useReviewChat(args: {
     setDraftState("");
   };
 
+  const skillsEmptyHint =
+    skills.isPending && args.active
+      ? "Looking for skills…"
+      : "No skills yet. Add a SKILL.md under .claude/skills in this repo, or in Nod's own skills folder.";
+
   const suggestions: ChatSuggestionsState | null =
-    suggestionItems.length > 0
+    slashQuery !== null && !suggestionsDismissed
       ? {
+          emptyHint: suggestionItems.length === 0 ? skillsEmptyHint : null,
           items: suggestionItems,
           onDismiss: () => setSuggestionsDismissed(true),
           onMove: (delta) =>
@@ -264,6 +297,7 @@ export function useReviewChat(args: {
         }
         return {
           ...l,
+          deltas: l.deltas + (text === undefined ? 0 : 1),
           partial: text === undefined ? l.partial : l.partial + text,
           toolNote: note ?? (text === undefined ? l.toolNote : null),
         };
@@ -361,11 +395,16 @@ export function useReviewChat(args: {
       });
     },
     onSuccess: (answer, vars) => {
+      const streamed =
+        liveRef.current?.turnId === vars.turnId
+          ? liveRef.current.deltas > 0
+          : true;
       setLive(null);
       appendChatTurn(keyValue, vars.threadId, {
         error: null,
         id: vars.turnId,
         kind: "assistant",
+        streamed,
         text: answer,
       });
     },
@@ -408,7 +447,7 @@ export function useReviewChat(args: {
     setDraftState("");
     setSkill(null);
     clearChips();
-    setLive({ partial: "", threadId, toolNote: null, turnId });
+    setLive({ deltas: 0, partial: "", threadId, toolNote: null, turnId });
     chat.mutate({
       chatId: keyValue,
       threadId,
@@ -461,6 +500,7 @@ export function useReviewChat(args: {
         id: turn.id,
         kind: "assistant",
         partial: "",
+        streamed: turn.streamed,
         text: turn.error === null ? turn.text : null,
         toolNote: null,
       };

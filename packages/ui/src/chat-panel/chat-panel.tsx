@@ -63,6 +63,9 @@ export interface ChatAssistantTurn {
   error: string | null;
   id: string;
   partial: string;
+  /** False when the answer arrived in one piece — the provider did not
+   *  stream it, which is worth saying rather than leaving as a mystery. */
+  streamed?: boolean;
   text: string | null;
   toolNote: string | null;
 }
@@ -90,6 +93,9 @@ export interface ChatModelState {
 }
 
 export interface ChatSuggestionsState {
+  /** Shown in place of the list when nothing matches, so an opening `/`
+   *  always answers with something. */
+  emptyHint?: string | null;
   items: string[];
   onDismiss: () => void;
   onMove: (delta: 1 | -1) => void;
@@ -171,6 +177,11 @@ function AssistantTurn({
       </div>
       {turn.text !== null && (
         <div className="qch-answer">{render(turn.text)}</div>
+      )}
+      {turn.text !== null && turn.streamed === false && (
+        <p className="qch-oneshot">
+          Your provider sent this answer in one piece — nothing to stream.
+        </p>
       )}
       {turn.error !== null && (
         <p className="qch-err" role="alert">
@@ -388,14 +399,19 @@ export function ChatPanel({
       )}
 
       <div className="qch-foot">
-        {suggestions && (
-          <CannedSuggestions
-            items={suggestions.items}
-            onPick={suggestions.onPick}
-            query={suggestions.query}
-            selected={suggestions.selected}
-          />
-        )}
+        {suggestions &&
+          (suggestions.items.length > 0 ? (
+            <CannedSuggestions
+              items={suggestions.items}
+              onPick={suggestions.onPick}
+              query={suggestions.query}
+              selected={suggestions.selected}
+            />
+          ) : (
+            suggestions.emptyHint && (
+              <div className="qch-suggest-empty">{suggestions.emptyHint}</div>
+            )
+          ))}
         {(chips.length > 0 || skill !== null) && (
           <div className="qch-chips">
             {skill !== null && (

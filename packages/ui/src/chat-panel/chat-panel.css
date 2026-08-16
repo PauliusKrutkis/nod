@@ -190,6 +190,22 @@
   overflow-wrap: anywhere;
 }
 
+.qch-oneshot {
+  margin: 4px 0 0;
+  font-size: 11.5px;
+  color: var(--faint);
+}
+
+.qch-suggest-empty {
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  font-size: 11.5px;
+  color: var(--faint);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-lg);
+}
+
 .qch-thinking {
   display: inline-flex;
   gap: 6px;

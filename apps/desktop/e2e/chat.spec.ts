@@ -61,7 +61,9 @@ test("m opens the chat tab focused; a message round-trips with PR context", asyn
   await input.fill("What does this PR change?");
   await page.keyboard.press("Enter");
   await expect(
-    chatPanel(page).locator(".qch-scroll").getByText("What does this PR change?")
+    chatPanel(page)
+      .locator(".qch-scroll")
+      .getByText("What does this PR change?")
   ).toBeVisible();
   await expect(
     chatPanel(page).getByText("The retry knob is safe", { exact: false })
@@ -533,10 +535,67 @@ test("a snapshot still downloading is said out loud in the composer", async ({
   await openReview(page);
   await page.keyboard.press("m");
   await expect(
-    chatPanel(page).getByText("Preparing the repository snapshot", {
-      exact: false,
-    })
+    chatPanel(page).getByText("Fetching the repository", { exact: false })
   ).toBeVisible();
+});
+
+test("/ with no skills explains where skills come from", async ({ page }) => {
+  await setupApp(page, CONFIGURED);
+  await openReview(page);
+  await page.keyboard.press("m");
+  await composer(page).pressSequentially("/");
+  await expect(chatPanel(page).locator(".qch-suggest-empty")).toContainText(
+    "No skills yet"
+  );
+});
+
+test("skills found only after the snapshot lands still reach the picker", async ({
+  page,
+}) => {
+  await setupApp(page, {
+    ...CONFIGURED,
+    chatSkills: [{ description: "Repo conventions", name: "pr-validity" }],
+    snapshotState: "downloading",
+  });
+  await openReview(page);
+  await page.keyboard.press("m");
+  await page.evaluate(() => {
+    (
+      window as unknown as { __setSnapshotState: (s: string) => void }
+    ).__setSnapshotState("ready");
+  });
+  await expect
+    .poll(async () => {
+      await composer(page).fill("");
+      await composer(page).pressSequentially("/");
+      return await chatPanel(page).locator(".qcs-panel").count();
+    })
+    .toBe(1);
+});
+
+test("an answer that never streamed says so", async ({ page }) => {
+  await setupApp(page, { ...CONFIGURED, aiChatScript: [] });
+  await openReview(page);
+  await page.keyboard.press("m");
+  await composer(page).fill("No deltas for this one");
+  await page.keyboard.press("Enter");
+  await expect(chatPanel(page).locator(".qch-oneshot")).toContainText(
+    "in one piece"
+  );
+});
+
+test("an answer that streamed says nothing extra", async ({ page }) => {
+  await setupApp(page, {
+    ...CONFIGURED,
+    aiChatAnswer: "Streamed fully.",
+    aiChatScript: [{ delta: "Streamed " }, { delta: "fully." }],
+  });
+  await openReview(page);
+  await page.keyboard.press("m");
+  await composer(page).fill("Stream it");
+  await page.keyboard.press("Enter");
+  await expect(chatPanel(page).getByText("Streamed fully.")).toBeVisible();
+  await expect(chatPanel(page).locator(".qch-oneshot")).toHaveCount(0);
 });
 
 const SKILLS_SETUP = {

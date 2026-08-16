@@ -173,6 +173,12 @@ export function installBridge(cfg: BridgeConfig) {
     arr ? arr[Math.min(n, arr.length - 1)] : fallback;
 
   let aiInfo = cfg.aiInfo;
+  let snapshotState = cfg.snapshotState;
+  (
+    window as unknown as { __setSnapshotState: (s: string) => void }
+  ).__setSnapshotState = (next: string) => {
+    snapshotState = next as typeof snapshotState;
+  };
   let ledgerReviews = 0;
   let ledgerApprovals = 0;
 
@@ -341,7 +347,7 @@ export function installBridge(cfg: BridgeConfig) {
       localStorage.setItem("e2e:lastCommentDelete", JSON.stringify(args));
       return null;
     },
-    snapshot_status: () => ({ detail: "", state: cfg.snapshotState }),
+    snapshot_status: () => ({ detail: "", state: snapshotState }),
     ensure_repo_snapshot: (args) => {
       const seen = JSON.parse(
         localStorage.getItem("e2e:snapshotEnsures") ?? "[]"
