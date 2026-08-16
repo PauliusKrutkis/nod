@@ -148,6 +148,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "markup-as-text",
       "overflow",
       "partial-10k",
+      "pasted-and-note",
       "proposals",
       "skill-chip",
       "slash-suggestions",

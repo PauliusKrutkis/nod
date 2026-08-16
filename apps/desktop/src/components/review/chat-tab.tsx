@@ -36,9 +36,11 @@ export function ChatTab({ files, focusSeq, pr }: ChatTabProps) {
     <ChatPanel
       chips={chat.chips}
       composerValue={chat.draft}
+      contextNote={chat.contextNote}
       focusSeq={focusSeq}
       onChangeComposer={chat.setDraft}
       onEscape={focusScrollHost}
+      onPasteCode={chat.pasteCode}
       onRemoveChip={chat.removeChip}
       onRemoveSkill={chat.removeSkill}
       onSend={chat.send}

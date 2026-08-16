@@ -221,6 +221,11 @@ export interface SkillInfo {
   description: string;
 }
 
+export interface ChatDiff {
+  path: string;
+  patch: string;
+}
+
 export interface CommentableSide {
   path: string;
   side: string;

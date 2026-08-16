@@ -337,6 +337,79 @@ test("a chat draft survives closing and reopening the panel", async ({
   await expect(composer(page)).toHaveValue("half a thought");
 });
 
+test("a multi-line paste becomes a chip; single lines paste as text", async ({
+  page,
+}) => {
+  await setupApp(page, CONFIGURED);
+  await openReview(page);
+  await page.keyboard.press("m");
+
+  const paste = (text: string) =>
+    page.evaluate((clip) => {
+      const el = document.querySelector<HTMLTextAreaElement>(".qch-input");
+      const data = new DataTransfer();
+      data.setData("text/plain", clip);
+      el?.dispatchEvent(
+        new ClipboardEvent("paste", {
+          bubbles: true,
+          cancelable: true,
+          clipboardData: data,
+        })
+      );
+    }, text);
+
+  await composer(page).focus();
+  await paste("const a = 1;\nconst b = 2;");
+  await expect(
+    chatPanel(page).getByText("pasted code (2 lines)")
+  ).toBeVisible();
+  await expect(composer(page)).toHaveValue("");
+
+  await paste("one line");
+  await expect(chatPanel(page).locator(".qch-foot .qch-chip")).toHaveCount(1);
+
+  await composer(page).fill("What does the pasted code do?");
+  await page.keyboard.press("Enter");
+  const args = await readChatArgs(page);
+  expect(args.regions).toEqual([
+    {
+      code: "const a = 1;\nconst b = 2;",
+      filePath: "",
+      lineRange: "",
+      side: "",
+    },
+  ]);
+});
+
+test("the diff rides the request so read_diff has hunks to serve", async ({
+  page,
+}) => {
+  await setupApp(page, CONFIGURED);
+  await openReview(page);
+  await page.keyboard.press("m");
+  await composer(page).fill("Review the diff");
+  await page.keyboard.press("Enter");
+  const args = await readChatArgs(page);
+  const paths = (args.diffs as { path: string }[]).map((d) => d.path);
+  expect(paths).toContain("src/lib/fuzzy.ts");
+  expect(
+    (args.diffs as { patch: string }[]).some((d) => d.patch.includes("@@"))
+  ).toBe(true);
+});
+
+test("a snapshot still downloading is said out loud in the composer", async ({
+  page,
+}) => {
+  await setupApp(page, { ...CONFIGURED, snapshotState: "downloading" });
+  await openReview(page);
+  await page.keyboard.press("m");
+  await expect(
+    chatPanel(page).getByText("Preparing the repository snapshot", {
+      exact: false,
+    })
+  ).toBeVisible();
+});
+
 const SKILLS_SETUP = {
   ...CONFIGURED,
   chatSkills: [

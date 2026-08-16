@@ -413,7 +413,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   addChatChip: (chip) => {
     const chips = get().chatChips;
-    const key = (c: ChatRegion) => `${c.filePath}:${c.lineRange}:${c.side}`;
+    const key = (c: ChatRegion) =>
+      c.filePath ? `${c.filePath}:${c.lineRange}:${c.side}` : `code:${c.code}`;
     if (chips.some((c) => key(c) === key(chip))) {
       return;
     }

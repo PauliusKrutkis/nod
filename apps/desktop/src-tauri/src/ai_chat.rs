@@ -50,6 +50,13 @@ pub struct CommentableSide {
     pub ranges: Vec<(u32, u32)>,
 }
 
+#[derive(Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatDiffFile {
+    pub path: String,
+    pub patch: String,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ChatProposal {
@@ -104,6 +111,11 @@ carry review skills under .claude/skills: list_skills names them and read_skill 
 fetches one; follow a skill's instructions when the reviewer invokes it or asks \
 for the kind of review it covers.";
 
+const CHAT_SYSTEM_DIFF: &str =
+    "read_diff returns the pull request's unified diff — the whole thing, or one \
+file's with a path. The diff is what is being reviewed; the snapshot tools read \
+whole files at the head commit.";
+
 const CHAT_SYSTEM_PROPOSALS: &str =
     "You can stage suggested review comments with propose_comment. Only do so \
 when the reviewer asked for review feedback (a review pass, a critique, 'leave \
@@ -112,10 +124,13 @@ the reviewer to accept or discard — they are never posted directly. side is \
 LEFT for deleted lines and RIGHT for added or unchanged lines, and the line \
 numbers must fall inside the diff.";
 
-fn chat_system_prompt(snapshot_ready: bool, proposals: bool) -> String {
+fn chat_system_prompt(snapshot_ready: bool, proposals: bool, diffs: bool) -> String {
     let mut parts = vec![CHAT_SYSTEM_BASE];
     if snapshot_ready {
         parts.push(CHAT_SYSTEM_SNAPSHOT);
+    }
+    if diffs {
+        parts.push(CHAT_SYSTEM_DIFF);
     }
     if proposals {
         parts.push(CHAT_SYSTEM_PROPOSALS);
@@ -175,7 +190,9 @@ fn build_chat_turn(
         ));
     }
     for region in regions {
-        let heading = if region.line_range.is_empty() {
+        let heading = if region.file_path.is_empty() {
+            "Pasted code:".to_string()
+        } else if region.line_range.is_empty() {
             format!("Code from {}:", region.file_path)
         } else {
             format!(
@@ -393,7 +410,7 @@ fn propose_comment_tool() -> Value {
     })
 }
 
-fn chat_tools(snapshot_ready: bool, proposals: bool) -> Value {
+fn chat_tools(snapshot_ready: bool, proposals: bool, diffs: bool) -> Value {
     let mut tools = if snapshot_ready {
         let mut t = ai::ask_tools().as_array().cloned().unwrap_or_default();
         t.extend(skills_tools());
@@ -401,10 +418,72 @@ fn chat_tools(snapshot_ready: bool, proposals: bool) -> Value {
     } else {
         Vec::new()
     };
+    if diffs {
+        tools.push(read_diff_tool());
+    }
     if proposals {
         tools.push(propose_comment_tool());
     }
     Value::Array(tools)
+}
+
+fn read_diff_tool() -> Value {
+    serde_json::json!({
+        "type": "function",
+        "function": {
+            "name": "read_diff",
+            "description": "Read the pull request's unified diff. Without a path, the whole diff (capped); with a path, that file's diff.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": { "type": "string", "description": "One file's path exactly as it appears in the diff." }
+                }
+            }
+        }
+    })
+}
+
+const MAX_DIFF_REPLY_CHARS: usize = 60_000;
+
+/// Serves read_diff from the patches the webview attached to the request —
+/// no network, no git. The whole-diff form is capped and names the files it
+/// left out so the model can fetch them one by one.
+fn execute_read_diff(diffs: &[ChatDiffFile], arguments: &str) -> String {
+    let args: Value = serde_json::from_str(arguments).unwrap_or(Value::Null);
+    if let Some(path) = args.get("path").and_then(Value::as_str) {
+        return diffs
+            .iter()
+            .find(|d| d.path == path)
+            .map(|d| format!("=== {} ===\n{}", d.path, d.patch))
+            .unwrap_or_else(|| {
+                let names: Vec<&str> = diffs.iter().map(|d| d.path.as_str()).collect();
+                format!(
+                    "error: no diff for '{path}' — files in this diff:\n{}",
+                    names.join("\n")
+                )
+            });
+    }
+    let mut out = String::new();
+    let mut left_out: Vec<&str> = Vec::new();
+    for diff in diffs {
+        let entry = format!("=== {} ===\n{}\n\n", diff.path, diff.patch);
+        if out.len() + entry.len() > MAX_DIFF_REPLY_CHARS {
+            left_out.push(&diff.path);
+        } else {
+            out.push_str(&entry);
+        }
+    }
+    if !left_out.is_empty() {
+        out.push_str(&format!(
+            "[truncated — request these files by path: {}]",
+            left_out.join(", ")
+        ));
+    }
+    if out.is_empty() {
+        "(the diff is empty)".to_string()
+    } else {
+        out
+    }
 }
 
 fn format_ranges(ranges: &[(u32, u32)]) -> String {
@@ -507,6 +586,10 @@ fn tool_note(name: &str, arguments: &str) -> String {
             Some(pattern) => format!("Searching for \"{pattern}\""),
             None => "Searching the repository".to_string(),
         },
+        "read_diff" => match args.get("path").and_then(Value::as_str) {
+            Some(path) => format!("Reading the diff for {path}"),
+            None => "Reading the diff".to_string(),
+        },
         "list_skills" => "Listing skills".to_string(),
         "read_skill" => match args.get("name").and_then(Value::as_str) {
             Some(skill) => format!("Reading skill {skill}"),
@@ -591,6 +674,7 @@ pub async fn ai_chat(
     history: Vec<ChatTurn>,
     context: AskContext,
     commentable: Vec<CommentableSide>,
+    diffs: Vec<ChatDiffFile>,
     skill: Option<String>,
 ) -> Result<String, String> {
     let config = ai::load(&app)?.ok_or_else(|| "AI is not configured".to_string())?;
@@ -614,7 +698,8 @@ pub async fn ai_chat(
         None => None,
     };
     let proposals = !commentable.is_empty();
-    let system = chat_system_prompt(snapshot.is_some(), proposals);
+    let has_diffs = !diffs.is_empty();
+    let system = chat_system_prompt(snapshot.is_some(), proposals, has_diffs);
     let mut messages = vec![serde_json::json!({ "role": "system", "content": system })];
     messages.extend(history_messages(&history, CHAT_INPUT_CHAR_BUDGET));
     messages.push(serde_json::json!({
@@ -629,7 +714,7 @@ pub async fn ai_chat(
     }));
     let client = ai::ask_client()?;
     let url = format!("{}/v1/chat/completions", config.base_url);
-    let mut tools_enabled = snapshot.is_some() || proposals;
+    let mut tools_enabled = snapshot.is_some() || proposals || has_diffs;
     let mut rounds = 0;
     loop {
         if state.requested(&chat_id) {
@@ -643,7 +728,7 @@ pub async fn ai_chat(
             "stream": true,
         });
         if tools_enabled {
-            body["tools"] = chat_tools(snapshot.is_some(), proposals);
+            body["tools"] = chat_tools(snapshot.is_some(), proposals, has_diffs);
             if rounds >= ai::MAX_TOOL_ROUNDS {
                 body["tool_choice"] = serde_json::json!("none");
             }
@@ -736,6 +821,8 @@ pub async fn ai_chat(
                 } else {
                     "error: propose_comment is not available".to_string()
                 }
+            } else if name == "read_diff" {
+                execute_read_diff(&diffs, &arguments)
             } else if name == "list_skills" || name == "read_skill" {
                 if let Some((root, key)) = snapshot.clone() {
                     tauri::async_runtime::spawn_blocking(move || {

@@ -5,6 +5,7 @@ import type {
   AiAskContext,
   AiInfo,
   AiModel,
+  ChatDiff,
   ChatRegion,
   CommentableSide,
   FileBlob,
@@ -48,6 +49,7 @@ export const api = {
     history: { role: string; content: string }[];
     context: AiAskContext;
     commentable: CommentableSide[];
+    diffs: ChatDiff[];
     skill: string | null;
   }) => invoke<string>("ai_chat", args),
   aiChatCancel: (chatId: string) => invoke<void>("ai_chat_cancel", { chatId }),
@@ -109,6 +111,9 @@ export const api = {
 
   ensureRepoSnapshot: (owner: string, repo: string, sha: string) =>
     invoke<SnapshotStatus>("ensure_repo_snapshot", { owner, repo, sha }),
+
+  snapshotStatus: (owner: string, repo: string, sha: string) =>
+    invoke<SnapshotStatus>("snapshot_status", { owner, repo, sha }),
 
   getFileBlob: (owner: string, repo: string, path: string, ref: string) =>
     invoke<FileBlob>("get_file_blob", { owner, path, ref, repo }),

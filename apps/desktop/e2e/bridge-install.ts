@@ -46,6 +46,7 @@ export interface AppOptions {
   aiModels?: { id: string; contextLength: number | null }[];
   aiModelsError?: string;
   chatSkills?: { name: string; description: string }[];
+  snapshotState?: "ready" | "downloading" | "failed" | "skipped";
   detailByCall?: unknown[];
   detailByLoad?: unknown[];
   detailByNumber?: Record<number, unknown>;
@@ -99,6 +100,7 @@ function aiDefaults(opts: AppOptions) {
     aiChatScript: opts.aiChatScript ?? [],
     aiCompletion: opts.aiCompletion ?? "",
     chatSkills: opts.chatSkills ?? [],
+    snapshotState: opts.snapshotState ?? "ready",
     aiInfo: opts.aiInfo ?? { baseUrl: null, configured: false, model: null },
     aiModelsError: opts.aiModelsError ?? null,
     aiModels: opts.aiModels ?? [
@@ -339,6 +341,7 @@ export function installBridge(cfg: BridgeConfig) {
       localStorage.setItem("e2e:lastCommentDelete", JSON.stringify(args));
       return null;
     },
+    snapshot_status: () => ({ detail: "", state: cfg.snapshotState }),
     ensure_repo_snapshot: (args) => {
       const seen = JSON.parse(
         localStorage.getItem("e2e:snapshotEnsures") ?? "[]"

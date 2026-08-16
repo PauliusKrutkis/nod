@@ -23,6 +23,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
 import { api } from "../lib/api.ts";
+import { buildChatDiffs } from "../lib/chat-diffs.ts";
 import { buildCommentableRanges } from "../lib/commentable-ranges.ts";
 import { useAppStore } from "../store/app-store.ts";
 import {
@@ -43,6 +44,9 @@ interface LiveTurn {
 const EMPTY_TURNS: ChatTurnRecord[] = [];
 
 function regionBlock(region: ChatRegion): string {
+  if (!region.filePath) {
+    return `Pasted code:\n\`\`\`\n${region.code}\n\`\`\``;
+  }
   const range = region.lineRange ? ` (lines ${region.lineRange})` : "";
   return `Code from ${region.filePath}${range}:\n\`\`\`\n${region.code}\n\`\`\``;
 }
@@ -112,6 +116,26 @@ export function useReviewChat(args: {
     staleTime: Number.POSITIVE_INFINITY,
   });
   const skillNames = (skills.data ?? []).map((s) => s.name);
+
+  const snapshot = useQuery({
+    enabled: args.active,
+    queryFn: () =>
+      api.snapshotStatus(args.pr.owner, args.pr.repo, args.pr.headSha),
+    queryKey: ["snapshotStatus", keyValue, args.pr.headSha],
+    refetchInterval: (query) => {
+      const state = query.state.data?.state;
+      return state === "downloading" || state === "idle" ? 2000 : false;
+    },
+  });
+  const snapshotState = snapshot.data?.state;
+  let contextNote: string | null = null;
+  if (snapshotState === "downloading" || snapshotState === "idle") {
+    contextNote =
+      "Preparing the repository snapshot — repo-wide tools arrive when it's ready.";
+  } else if (snapshotState === "failed" || snapshotState === "skipped") {
+    contextNote =
+      "Repository snapshot unavailable — the chat sees the diff, not the whole repo.";
+  }
 
   const setDraft = (value: string) => {
     setDraftState(value);
@@ -317,11 +341,21 @@ export function useReviewChat(args: {
       chatId: keyValue,
       commentable: buildCommentableRanges(args.files),
       context: chatContext(args.files, args.pr),
+      diffs: buildChatDiffs(args.files),
       history,
       message: text,
       regions,
       skill,
       turnId,
+    });
+  };
+
+  const pasteCode = (code: string) => {
+    useAppStore.getState().addChatChip({
+      code: code.replace(/\n+$/, ""),
+      filePath: "",
+      lineRange: "",
+      side: "",
     });
   };
 
@@ -374,9 +408,11 @@ export function useReviewChat(args: {
   return {
     acceptAllSuggested,
     chips,
+    contextNote,
     discardAllSuggested,
     draft,
     panelTurns,
+    pasteCode,
     pending: chat.isPending,
     removeChip,
     removeSkill: () => setSkill(null),

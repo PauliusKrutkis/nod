@@ -183,6 +183,21 @@ export const chatPanelEntry = defineEntry(ChatPanel, {
       ],
     }),
   },
+  "pasted-and-note": {
+    props: base({
+      chips: [
+        chip({
+          code: "const a = 1;\nconst b = 2;",
+          filePath: "",
+          lineRange: "",
+          side: "",
+        }),
+      ],
+      contextNote:
+        "Preparing the repository snapshot — repo-wide tools arrive when it's ready.",
+      turns: [CONVERSATION[0]],
+    }),
+  },
   "skill-chip": {
     props: base({
       chips: [chip({})],

@@ -27,7 +27,13 @@
  */
 
 import { CornerDownLeft, Sparkles, X } from "lucide-react";
-import { type KeyboardEvent, type ReactNode, useEffect, useRef } from "react";
+import {
+  type ClipboardEvent,
+  type KeyboardEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+} from "react";
 import { CannedSuggestions } from "../canned-suggestions/canned-suggestions.tsx";
 import { Spinner } from "../spinner/spinner.tsx";
 import "./chat-panel.css";
@@ -76,9 +82,11 @@ export interface ChatSuggestionsState {
 export interface ChatPanelProps {
   chips: readonly ChatRegionChip[];
   composerValue: string;
+  contextNote?: string | null;
   focusSeq: number;
   onChangeComposer: (value: string) => void;
   onEscape?: () => void;
+  onPasteCode?: (code: string) => void;
   onRemoveChip: (index: number) => void;
   onSend: () => void;
   onStop: () => void;
@@ -96,6 +104,10 @@ function plainText(text: string): ReactNode {
 }
 
 function chipLabel(chip: ChatRegionChip): string {
+  if (!chip.filePath) {
+    const lines = chip.code.split("\n").length;
+    return `pasted code (${lines} ${lines === 1 ? "line" : "lines"})`;
+  }
   return chip.lineRange ? `${chip.filePath}:${chip.lineRange}` : chip.filePath;
 }
 
@@ -150,7 +162,11 @@ function AssistantTurn({
       {inFlight && turn.toolNote !== null && (
         <p className="qch-tool">{turn.toolNote}</p>
       )}
-      {inFlight && !(turn.partial || turn.toolNote !== null) && <Spinner />}
+      {inFlight && !(turn.partial || turn.toolNote !== null) && (
+        <span className="qch-thinking">
+          <Spinner /> Thinking…
+        </span>
+      )}
     </div>
   );
 }
@@ -158,9 +174,11 @@ function AssistantTurn({
 export function ChatPanel({
   chips,
   composerValue,
+  contextNote = null,
   focusSeq,
   onChangeComposer,
   onEscape,
+  onPasteCode,
   onRemoveChip,
   onRemoveSkill,
   onSend,
@@ -229,6 +247,14 @@ export function ChatPanel({
     } else if (e.key === "Escape") {
       e.preventDefault();
       onEscape?.();
+    }
+  };
+
+  const onInputPaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
+    const text = e.clipboardData.getData("text/plain");
+    if (onPasteCode && text.includes("\n") && text.trim()) {
+      e.preventDefault();
+      onPasteCode(text);
     }
   };
 
@@ -313,12 +339,14 @@ export function ChatPanel({
             ))}
           </div>
         )}
+        {contextNote !== null && <p className="qch-note">{contextNote}</p>}
         <div className="qch-field">
           <textarea
             aria-label="Message"
             className="qch-input"
             onChange={(e) => onChangeComposer(e.target.value)}
             onKeyDown={onInputKeyDown}
+            onPaste={onInputPaste}
             placeholder={
               turns.length > 0 ? "Reply…" : "Ask about this pull request…"
             }

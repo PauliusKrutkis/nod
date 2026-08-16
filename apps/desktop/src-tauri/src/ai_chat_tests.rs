@@ -1,8 +1,8 @@
 use super::{
-    build_chat_turn, chat_system_prompt, chat_tools, discover_skills, execute_skill_tool,
-    format_ranges, frontmatter_description, history_messages, parse_proposal, skill_instructions,
-    skill_name_from_path, tool_note, validate_proposal, ChatCancels, ChatDelta, ChatProposal,
-    ChatRegion, ChatToolNote, ChatTurn, CommentableSide, SkillInfo,
+    build_chat_turn, chat_system_prompt, chat_tools, discover_skills, execute_read_diff,
+    execute_skill_tool, format_ranges, frontmatter_description, history_messages, parse_proposal,
+    skill_instructions, skill_name_from_path, tool_note, validate_proposal, ChatCancels, ChatDelta,
+    ChatDiffFile, ChatProposal, ChatRegion, ChatToolNote, ChatTurn, CommentableSide, SkillInfo,
 };
 use crate::ai::AskContext;
 use crate::snapshot::store::{partial_dir, promote, SnapshotKey};
@@ -278,10 +278,10 @@ fn range_lists_print_compactly() {
 
 #[test]
 fn chat_tools_compose_by_capability() {
-    let none = chat_tools(false, false);
+    let none = chat_tools(false, false, false);
     assert_eq!(none.as_array().map(Vec::len), Some(0));
 
-    let proposals_only = chat_tools(false, true);
+    let proposals_only = chat_tools(false, true, false);
     let names: Vec<&str> = proposals_only
         .as_array()
         .unwrap()
@@ -290,7 +290,7 @@ fn chat_tools_compose_by_capability() {
         .collect();
     assert_eq!(names, vec!["propose_comment"]);
 
-    let both = chat_tools(true, true);
+    let both = chat_tools(true, true, true);
     let names: Vec<&str> = both
         .as_array()
         .unwrap()
@@ -305,6 +305,7 @@ fn chat_tools_compose_by_capability() {
             "grep_repo",
             "list_skills",
             "read_skill",
+            "read_diff",
             "propose_comment"
         ]
     );
@@ -312,12 +313,13 @@ fn chat_tools_compose_by_capability() {
 
 #[test]
 fn system_prompt_mentions_only_what_is_on() {
-    let bare = chat_system_prompt(false, false);
+    let bare = chat_system_prompt(false, false, false);
     assert!(!bare.contains("propose_comment"));
     assert!(!bare.contains("grep_repo"));
-    let full = chat_system_prompt(true, true);
+    let full = chat_system_prompt(true, true, true);
     assert!(full.contains("grep_repo"));
     assert!(full.contains("propose_comment"));
+    assert!(full.contains("read_diff"));
 }
 
 #[test]
@@ -488,4 +490,63 @@ fn cancel_flags_are_per_chat_and_one_shot() {
     assert!(!cancels.requested("b"));
     cancels.clear("a");
     assert!(!cancels.requested("a"));
+}
+
+fn diff_files() -> Vec<ChatDiffFile> {
+    vec![
+        ChatDiffFile {
+            patch: "@@ -1 +1 @@\n+alpha".to_string(),
+            path: "src/a.ts".to_string(),
+        },
+        ChatDiffFile {
+            patch: "@@ -2 +2 @@\n-beta".to_string(),
+            path: "src/b.ts".to_string(),
+        },
+    ]
+}
+
+#[test]
+fn read_diff_serves_one_file_or_the_whole_capped_diff() {
+    let diffs = diff_files();
+
+    let one = execute_read_diff(&diffs, r#"{"path":"src/b.ts"}"#);
+    assert_eq!(one, "=== src/b.ts ===\n@@ -2 +2 @@\n-beta");
+
+    let all = execute_read_diff(&diffs, "{}");
+    assert!(all.contains("=== src/a.ts ==="));
+    assert!(all.contains("=== src/b.ts ==="));
+
+    let miss = execute_read_diff(&diffs, r#"{"path":"nope.ts"}"#);
+    assert!(miss.starts_with("error:"));
+    assert!(miss.contains("src/a.ts"));
+
+    assert_eq!(execute_read_diff(&[], "{}"), "(the diff is empty)");
+}
+
+#[test]
+fn read_diff_truncation_names_what_was_left_out() {
+    let mut diffs = vec![ChatDiffFile {
+        patch: "x".repeat(59_950),
+        path: "big.ts".to_string(),
+    }];
+    diffs.extend(diff_files());
+    let all = execute_read_diff(&diffs, "{}");
+    assert!(all.contains("[truncated — request these files by path:"));
+    assert!(all.contains("src/a.ts, src/b.ts"));
+}
+
+#[test]
+fn pasted_regions_get_the_pathless_heading() {
+    let prompt = build_chat_turn(
+        "Look.",
+        &[ChatRegion {
+            code: "let z;".to_string(),
+            file_path: String::new(),
+            line_range: String::new(),
+        }],
+        &context(),
+        false,
+        None,
+    );
+    assert!(prompt.contains("Pasted code:\n```\nlet z;\n```"));
 }
