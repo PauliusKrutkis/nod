@@ -292,7 +292,7 @@ function reviewListOnPlusDragOver(
 
 type BaseReviewListCallbacks = Omit<
   ReviewListCallbacks,
-  "onPendingHover" | "onUpdatePending"
+  "onEditPending" | "onPendingHover" | "onUpdatePending"
 >;
 
 export function useReviewListCallbacks(

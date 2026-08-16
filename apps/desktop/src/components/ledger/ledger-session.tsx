@@ -329,6 +329,7 @@ export function LedgerSession({
     onAddComment: asyncNoop,
     onAddPending: noop,
     onCloseBox: noop,
+    onEditPending: noop,
     onPendingHover: noop,
     onUpdatePending: noop,
     onCopyPath: (fileIndex) => {
@@ -516,6 +517,7 @@ export function LedgerSession({
         closeFind={find.closeFind}
         copiedPathIndex={copiedPathIndex}
         dragging={false}
+        editingPending={null}
         editReq={null}
         expandedNames={EMPTY_SET}
         expandingNames={EMPTY_SET}

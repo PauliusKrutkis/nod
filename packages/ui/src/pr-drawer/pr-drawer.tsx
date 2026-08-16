@@ -635,9 +635,12 @@ function ConversationItem({
           {!editing && commentId !== undefined && (
             <CommentTools
               body={body}
-              commentId={commentId}
-              onDelete={own && onDelete ? handleDelete : undefined}
-              onStartEdit={own ? onStartEdit : undefined}
+              onDelete={
+                own && onDelete ? () => handleDelete(commentId) : undefined
+              }
+              onStartEdit={
+                own && onStartEdit ? () => onStartEdit(commentId) : undefined
+              }
             />
           )}
         </div>

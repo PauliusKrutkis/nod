@@ -17,6 +17,7 @@
 
 import { AddCommentBox } from "@nod/ui/add-comment-box";
 import { AskNote, type AskNoteProps } from "@nod/ui/ask-note";
+import { CommentItem } from "@nod/ui/comment-item";
 import {
   CommentThread,
   type EditRequest,
@@ -27,9 +28,7 @@ import {
 import { DiffRow, type DiffRowKind } from "@nod/ui/diff-row";
 import { FileSectionHeader } from "@nod/ui/file-section-header";
 import { HunkRow } from "@nod/ui/hunk-row";
-import { Kbd } from "@nod/ui/kbd";
 import { useLatest } from "@nod/ui/use-latest";
-import { Sparkles } from "lucide-react";
 import {
   type HTMLAttributes,
   type MouseEvent,
@@ -71,7 +70,7 @@ import {
 } from "../../lib/sticky-header-push.ts";
 import { suggestionHighlight } from "../../lib/suggestion-highlight.ts";
 import { useAppStore } from "../../store/app-store.ts";
-import type { ChangedFile, PendingComment } from "../../types.ts";
+import type { AccountInfo, ChangedFile, PendingComment } from "../../types.ts";
 import { Markdown } from "../markdown-loader.tsx";
 import { ImageDiffLoader } from "./image-diff-loader.tsx";
 
@@ -138,6 +137,7 @@ export interface ReviewListCallbacks {
   onPlusDragEnd: () => void;
   onPlusDragOver: (fileIndex: number, anchor: string) => void;
   onPlusDragStart: (fileIndex: number, anchor: string) => void;
+  onEditPending: (id: string | null) => void;
   onPendingHover: (id: string | null) => void;
   onRemovePending: (id: string) => void;
   onUpdatePending: (id: string, body: string) => void;
@@ -169,6 +169,7 @@ interface ReviewListProps {
   copiedPathIndex: number | null;
   cursorKey: string | null;
   dragging: boolean;
+  editingPending: string | null;
   editRequest: (EditRequest & { path: string }) | null;
   expandedFiles: ReadonlySet<string>;
   expandingFiles: ReadonlySet<string>;
@@ -461,25 +462,26 @@ function MappedCommentThread({
   );
 }
 
+/** The same card a posted comment gets, flagged pending: no timestamp (it
+ *  has not been sent), a Pending/Suggested tag where the time would be, and
+ *  Discard where Delete would be. One component, one set of habits. */
 function PendingCommentCard({
+  activeAccount,
   comment,
   editing,
   filename,
   callbacks,
   onEdit,
-  showDiscardKbd,
+  showKbd,
 }: {
+  activeAccount: AccountInfo | undefined;
   callbacks: ReviewListCallbacks;
   comment: PendingComment;
   editing: boolean;
   filename: string;
   onEdit: (id: string | null) => void;
-  showDiscardKbd: boolean;
+  showKbd: boolean;
 }) {
-  const handleRemove = () => {
-    callbacks.onRemovePending(comment.id);
-  };
-
   const handleSave = (body: string) => {
     callbacks.onUpdatePending(comment.id, body);
     onEdit(null);
@@ -492,63 +494,44 @@ function PendingCommentCard({
       onMouseEnter={() => callbacks.onPendingHover(comment.id)}
       onMouseLeave={() => callbacks.onPendingHover(null)}
     >
-      <div className="qf-comment">
-        <div className="qf-comment-head">
-          {comment.fromAi && (
-            <Sparkles aria-hidden className="qf-pending-spark" size={12} />
-          )}
-          <span className="qf-pending-tag">
-            {comment.fromAi ? "Suggested" : "Pending"}
-          </span>
-          {comment.startLine !== undefined && (
-            <span className="qf-range-tag">
-              Lines {comment.startLine}–{comment.line}
-            </span>
-          )}
-          {!editing && (
-            <div className="qf-pending-tools">
-              <button
-                className="qf-pending-act qf-focusable"
-                onClick={() => onEdit(comment.id)}
-                type="button"
-              >
-                Edit
-              </button>
-              <button
-                aria-label="Discard pending comment"
-                className="qf-pending-act qf-pending-remove qf-focusable"
-                onClick={handleRemove}
-                type="button"
-              >
-                Discard
-                {showDiscardKbd && (
-                  <span aria-hidden className="qf-key-hint">
-                    <Kbd combo="shift+d" />
-                  </span>
-                )}
-              </button>
-            </div>
-          )}
-        </div>
-        {editing ? (
-          <AddCommentBox
-            autoFocus
-            extensions={[suggestionHighlight(filename)]}
-            initialMarkdown={comment.body}
-            onCancel={() => onEdit(null)}
-            onSubmit={handleSave}
-            pending={false}
-            placeholder="Edit this comment…"
-            submitLabel="Save"
-          />
-        ) : (
-          <div className="qf-comment-body">
-            <Markdown highlightLine={(code) => highlightLine(code, filename)}>
-              {comment.body}
-            </Markdown>
-          </div>
+      <CommentItem
+        body={comment.body}
+        composer={
+          editing ? (
+            <AddCommentBox
+              autoFocus
+              extensions={[suggestionHighlight(filename)]}
+              initialMarkdown={comment.body}
+              onCancel={() => onEdit(null)}
+              onSubmit={handleSave}
+              pending={false}
+              placeholder="Edit this comment…"
+              submitLabel="Save"
+            />
+          ) : undefined
+        }
+        confirmDelete={false}
+        deleteKbd={showKbd ? "shift+d" : undefined}
+        deleteLabel="Discard"
+        editKbd={showKbd ? "shift+e" : undefined}
+        fromAi={comment.fromAi}
+        onDelete={() => callbacks.onRemovePending(comment.id)}
+        onStartEdit={() => onEdit(comment.id)}
+        pendingLabel={comment.fromAi ? "Suggested" : "Pending"}
+        renderMarkdown={(body: string) => (
+          <Markdown highlightLine={(code) => highlightLine(code, filename)}>
+            {body}
+          </Markdown>
         )}
-      </div>
+        tools={!editing}
+        user={activeAccount?.login ?? "You"}
+        userAvatarUrl={activeAccount?.avatarUrl ?? ""}
+      />
+      {comment.startLine !== undefined && !editing && (
+        <span className="qf-range-tag qf-pending-range">
+          Lines {comment.startLine}–{comment.line}
+        </span>
+      )}
     </div>
   );
 }
@@ -636,10 +619,12 @@ function CommentsBlock({
   toggleRequest,
   editRequest,
   callbacks,
+  editingPending,
   owner,
   repo,
   askDraft,
 }: {
+  editingPending: string | null;
   item: ReviewCommentsItem;
   filename: string;
   addPending: boolean;
@@ -656,7 +641,6 @@ function CommentsBlock({
   const activeAccount = useAppStore((s) =>
     s.accounts.find((a) => a.id === s.activeAccountId)
   );
-  const [editingPendingId, setEditingPendingId] = useState<string | null>(null);
   const { target } = item;
 
   return (
@@ -684,13 +668,14 @@ function CommentsBlock({
       ))}
       {item.pending.map((pending, pendingIndex) => (
         <PendingCommentCard
+          activeAccount={activeAccount}
           callbacks={callbacks}
           comment={pending}
-          editing={editingPendingId === pending.id}
+          editing={editingPending === pending.id}
           filename={filename}
           key={pending.id}
-          onEdit={setEditingPendingId}
-          showDiscardKbd={pendingIndex === item.pending.length - 1}
+          onEdit={callbacks.onEditPending}
+          showKbd={pendingIndex === item.pending.length - 1}
         />
       ))}
       {item.boxOpen && target !== null && (
@@ -842,6 +827,7 @@ function renderCommentsItem(
       cursorHere={
         navKey(item.fileIndex, item.anchor, "comments") === p.cursorKey
       }
+      editingPending={p.editingPending}
       editRequest={
         p.editRequest && p.editRequest.path === file.filename
           ? p.editRequest

@@ -320,7 +320,6 @@ export function CommentThread({
       {comments.map((c, i) => (
         <CommentItem
           body={c.body}
-          commentId={c.id}
           composer={
             editingId === c.id
               ? composer?.({
@@ -336,9 +335,15 @@ export function CommentThread({
           createdAt={c.createdAt}
           editKbd={c.id === editKbdId ? "shift+e" : undefined}
           key={c.id}
-          onDelete={c.user === ownLogin && onDelete ? handleDelete : undefined}
+          onDelete={
+            c.user === ownLogin && onDelete
+              ? () => handleDelete(c.id)
+              : undefined
+          }
           onStartEdit={
-            c.user === ownLogin && onEdit ? handleStartEdit : undefined
+            c.user === ownLogin && onEdit
+              ? () => handleStartEdit(c.id)
+              : undefined
           }
           renderMarkdown={renderMarkdown}
           reply={i > 0}

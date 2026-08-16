@@ -32,6 +32,7 @@ export function ReviewDiffPane({
   closeFind,
   copiedPathIndex,
   dragging,
+  editingPending,
   editReq,
   expandedNames,
   expandingNames,
@@ -76,6 +77,7 @@ export function ReviewDiffPane({
   closeFind: () => void;
   copiedPathIndex: number | null;
   dragging: boolean;
+  editingPending: string | null;
   editReq: ListProps["editRequest"];
   expandedNames: ListProps["expandedFiles"];
   expandingNames: ListProps["expandingFiles"];
@@ -143,6 +145,7 @@ export function ReviewDiffPane({
               : null
           }
           dragging={dragging}
+          editingPending={editingPending}
           editRequest={editReq}
           expandedFiles={expandedNames}
           expandingFiles={expandingNames}

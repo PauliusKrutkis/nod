@@ -243,6 +243,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   } = useReviewPanels();
   const rightPanelRef = useRef<RightPanelHandle>(null);
   const armedPendingRef = useRef<string | null>(null);
+  const [editingPending, setEditingPending] = useState<string | null>(null);
   const setArmedPendingId = (id: string | null) => {
     armedPendingRef.current = id;
   };
@@ -968,7 +969,14 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
       }
       discardPendingAtCursor();
     },
-    editActiveThreadComment,
+    editActiveThreadComment: () => {
+      const armed = armedPendingRef.current;
+      if (armed) {
+        setEditingPending(armed);
+        return;
+      }
+      editActiveThreadComment();
+    },
     extendSelection,
     findOpen,
     findOpenRef,
@@ -1067,6 +1075,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
           closeFind={closeFind}
           copiedPathIndex={copiedPathIndex}
           dragging={dragging}
+          editingPending={editingPending}
           editReq={editReq}
           expandedNames={expandedNames}
           expandingNames={expandingNames}
@@ -1086,6 +1095,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
           listCallbacks={{
             ...listCallbacks,
             onCloseBox: onCloseBoxWithDraft,
+            onEditPending: setEditingPending,
             onPendingHover: setArmedPendingId,
             onUpdatePending: (id, body) =>
               useAppStore.getState().updatePendingComment(keyValue, id, body),

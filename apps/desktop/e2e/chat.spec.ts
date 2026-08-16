@@ -900,13 +900,24 @@ test("a pending comment edits in place", async ({ page }) => {
   await stageProposal(page);
 
   await page.locator(".qf-pending").hover();
-  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await page.getByRole("button", { name: "Edit comment" }).click();
   const editor = page.locator(".qf-pending .tiptap");
   await editor.click();
   await page.keyboard.press("ControlOrMeta+a");
   await page.keyboard.type("Reworded by hand.");
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.locator(".qf-pending")).toContainText("Reworded by hand.");
+});
+
+test("hovering a pending comment arms shift+e to edit it", async ({ page }) => {
+  await setupApp(page, PROPOSAL_SETUP);
+  await openReview(page);
+  await stageProposal(page);
+
+  await page.keyboard.press("Escape");
+  await page.locator(".qf-pending").hover();
+  await page.keyboard.press("Shift+e");
+  await expect(page.locator(".qf-pending .tiptap")).toBeVisible();
 });
 
 test("hovering a pending comment arms shift+d", async ({ page }) => {
