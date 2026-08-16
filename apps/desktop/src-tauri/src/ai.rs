@@ -256,7 +256,11 @@ fn build_ask_prompt(question: &str, context: &AskContext) -> String {
     sections.join("\n\n")
 }
 
-const MAX_TOOL_ROUNDS: usize = 8;
+pub(crate) const MAX_TOOL_ROUNDS: usize = 8;
+
+/// The error a cancelled stream returns. The frontend treats it as a benign
+/// stop (the reviewer pressed the button), never an error card.
+pub(crate) const CANCELLED: &str = "cancelled";
 
 /// One assistant message assembled from SSE chunks. The wire shape was
 /// verified against a live key (docs/AI.md § Probe findings): content arrives
@@ -340,12 +344,13 @@ fn apply_stream_line(acc: &mut StreamedMessage, line: &str) -> Option<String> {
     Some(piece.to_string())
 }
 
-async fn stream_chat(
+pub(crate) async fn stream_chat(
     client: &reqwest::Client,
     url: &str,
     api_key: &str,
     body: &Value,
     mut on_delta: impl FnMut(&str),
+    mut should_stop: impl FnMut() -> bool,
 ) -> Result<Value, String> {
     use futures_util::StreamExt;
 
@@ -365,6 +370,9 @@ async fn stream_chat(
     let mut buffer = String::new();
     let mut chunks = resp.bytes_stream();
     while let Some(chunk) = chunks.next().await {
+        if should_stop() {
+            return Err(CANCELLED.to_string());
+        }
         let bytes = chunk.map_err(net_err)?;
         buffer.push_str(&String::from_utf8_lossy(&bytes));
         while let Some(newline) = buffer.find('\n') {
@@ -381,7 +389,7 @@ async fn stream_chat(
     Ok(acc.into_message())
 }
 
-fn ask_tools() -> Value {
+pub(crate) fn ask_tools() -> Value {
     serde_json::json!([
         {
             "type": "function",
@@ -498,7 +506,7 @@ fn execute_tool(root: &std::path::Path, key: &SnapshotKey, name: &str, arguments
 
 /// The snapshot the ask can ground itself in — present only when the context
 /// names a commit and layer 1 has finished extracting it.
-async fn ready_snapshot(
+pub(crate) async fn ready_snapshot(
     app: &AppHandle,
     context: &AskContext,
 ) -> Option<(std::path::PathBuf, SnapshotKey)> {
@@ -520,7 +528,7 @@ async fn ready_snapshot(
     Some((root, key))
 }
 
-fn tool_result_messages(
+pub(crate) fn tool_result_messages(
     root: std::path::PathBuf,
     key: SnapshotKey,
     calls: Vec<Value>,
@@ -553,7 +561,7 @@ struct AskDelta {
     text: String,
 }
 
-fn message_answer(message: &Value) -> Option<String> {
+pub(crate) fn message_answer(message: &Value) -> Option<String> {
     let content = message.get("content").and_then(Value::as_str)?.trim();
     if content.is_empty() {
         return None;
@@ -719,7 +727,9 @@ pub async fn ai_ask(
                 );
             }
         };
-        let message = match stream_chat(&client, &url, &config.api_key, &body, emit_delta).await {
+        let message = match stream_chat(&client, &url, &config.api_key, &body, emit_delta, || false)
+            .await
+        {
             Ok(message) => message,
             Err(error)
                 if tools_enabled && rounds == 0 && error.starts_with("AI provider error (4") =>
@@ -753,7 +763,7 @@ pub async fn ai_ask(
 
 /// Completions get a longer timeout than the metadata calls: a big-model
 /// answer can legitimately take a minute.
-fn ask_client() -> Result<reqwest::Client, String> {
+pub(crate) fn ask_client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         .user_agent("nod")
         .timeout(std::time::Duration::from_secs(120))

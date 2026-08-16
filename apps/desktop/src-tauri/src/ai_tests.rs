@@ -269,14 +269,8 @@ fn extract_error_message_reads_openai_and_flat_shapes() {
 
 #[test]
 fn complete_prompt_carries_only_what_the_composer_knows() {
-    let bare = build_complete_prompt(
-        "nit: this reads better as",
-        &CompleteContext::default(),
-    );
-    assert_eq!(
-        bare,
-        "The reviewer has typed:\nnit: this reads better as"
-    );
+    let bare = build_complete_prompt("nit: this reads better as", &CompleteContext::default());
+    assert_eq!(bare, "The reviewer has typed:\nnit: this reads better as");
 
     let anchored = build_complete_prompt(
         "this drops the",

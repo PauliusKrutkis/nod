@@ -55,11 +55,10 @@ fn run_cli(repo_path: &str, args: &[&str]) -> Result<String, String> {
 
 #[tauri::command]
 pub async fn ledger_status(repo_path: String) -> Result<Value, String> {
-    let stdout = tauri::async_runtime::spawn_blocking(move || {
-        run_cli(&repo_path, &["status", "--json"])
-    })
-    .await
-    .map_err(|e| format!("ledger status failed: {e}"))??;
+    let stdout =
+        tauri::async_runtime::spawn_blocking(move || run_cli(&repo_path, &["status", "--json"]))
+            .await
+            .map_err(|e| format!("ledger status failed: {e}"))??;
     serde_json::from_str(&stdout).map_err(|e| format!("ledger returned invalid JSON: {e}"))
 }
 

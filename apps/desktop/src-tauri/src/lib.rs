@@ -1,6 +1,7 @@
 mod accounts;
 mod activation;
 mod ai;
+mod ai_chat;
 mod auth;
 mod commands;
 mod http;
@@ -78,6 +79,7 @@ pub fn run() {
     let _ = dotenvy::dotenv();
 
     tauri::Builder::default()
+        .manage(ai_chat::ChatCancels::default())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
@@ -103,6 +105,8 @@ pub fn run() {
             ai::ai_list_models,
             ai::ai_ask,
             ai::ai_complete,
+            ai_chat::ai_chat,
+            ai_chat::ai_chat_cancel,
             commands::has_token,
             commands::set_token,
             commands::clear_token,
