@@ -153,6 +153,25 @@ test("shift+f toggles the demo to viewport size and back", async ({ page }) => {
   await expect(frame).not.toHaveClass(MAXIMIZED_PATTERN);
 });
 
+/**
+ * A short viewport is where the frame stops filling its figure: the height cap
+ * transfers through the aspect ratio into a max-width, and the slack has to be
+ * split rather than left on one side, or the frame sits off-center under its
+ * own centered caption. 1280x700 is short enough to trigger the cap.
+ */
+test("keeps the demo frame centered when the viewport caps its height", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 700, width: 1280 });
+  await page.goto("/");
+
+  const box = await page.locator(".hd__frame").boundingBox();
+  const rightGap = 1280 - ((box?.x ?? 0) + (box?.width ?? 0));
+
+  expect(box?.width).toBeLessThan(1280);
+  expect(box?.x).toBeCloseTo(rightGap, 0);
+});
+
 test("esc walks back through the app before it leaves full screen", async ({
   page,
 }) => {

@@ -209,6 +209,11 @@ import { Kbd } from "@nod/ui/kbd";
   .hd__frame {
     position: relative;
     aspect-ratio: 16 / 9;
+    /* On a short viewport the height cap transfers through the aspect ratio
+       into a max-width, so the frame stops filling the figure. Without the
+       auto margins it would keep the slack on one side and sit off-center
+       under its own centered caption. */
+    margin-inline: auto;
     /* vh first: browsers without svh drop that line and still get a cap. */
     max-height: 76vh;
     max-height: 76svh;
