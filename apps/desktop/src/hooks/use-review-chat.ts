@@ -240,8 +240,10 @@ export function useReviewChat(args: {
     contextNote =
       "Fetching the repository so the chat can read beyond the diff. The diff itself is already available.";
   } else if (snapshotState === "failed" || snapshotState === "skipped") {
-    contextNote =
-      "Repository unavailable — the chat reads this pull request's diff, not the rest of the repo.";
+    const why = snapshot.data?.detail;
+    contextNote = `Reading this pull request's diff only${
+      why ? ` — ${why}` : ""
+    }. Repo-wide search and file reads are off.`;
   }
 
   const setDraft = (value: string) => {

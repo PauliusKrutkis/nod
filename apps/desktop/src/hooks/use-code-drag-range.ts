@@ -9,6 +9,10 @@
  * Input mode is deliberately left alone. The row wash paints in both modes,
  * so the range is visible immediately; flipping to keyboard mode here would
  * kill the hover highlight under a pointer that has not moved yet.
+ *
+ * The range follows the text selection in both directions: a click that
+ * collapses the selection clears the range too, so there is never a run of
+ * highlighted rows left over from a drag you have since clicked away from.
  */
 
 import type React from "react";
@@ -34,6 +38,9 @@ export function useCodeDragRange(args: {
     const onPointerUp = () => {
       const selection = document.getSelection();
       if (!selection || selection.isCollapsed) {
+        // A plain click collapses the text selection; the row range it armed
+        // goes with it, so the two never disagree about what is selected.
+        setSelection((current) => (current === null ? current : null));
         return;
       }
       const range = rangeFromAnchors(

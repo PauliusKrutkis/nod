@@ -180,7 +180,7 @@ function TurnTime({ at, pinned }: { at: string | undefined; pinned: boolean }) {
   );
 }
 
-function UserTurn({ pinned, turn }: { pinned: boolean; turn: ChatUserTurn }) {
+function UserTurn({ turn }: { turn: ChatUserTurn }) {
   return (
     <div className="qch-turn qch-user">
       <div className="qch-bubble">
@@ -197,9 +197,6 @@ function UserTurn({ pinned, turn }: { pinned: boolean; turn: ChatUserTurn }) {
           </div>
         )}
         <p className="qch-text">{turn.text}</p>
-      </div>
-      <div className="qch-turn-foot">
-        <TurnTime at={turn.at} pinned={pinned} />
       </div>
     </div>
   );
@@ -498,11 +495,7 @@ export function ChatPanel({
         )}
         {turns.map((turn, i) =>
           turn.kind === "user" ? (
-            <UserTurn
-              key={turn.id}
-              pinned={i === turns.length - 1}
-              turn={turn}
-            />
+            <UserTurn key={turn.id} turn={turn} />
           ) : (
             <AssistantTurn
               elapsedMs={
@@ -633,6 +626,14 @@ export function ChatPanel({
             )}
           </div>
         </div>
+        {model && modelOpen && (
+          <ModelPicker
+            current={model.current}
+            models={model.models}
+            onClose={closeModelPicker}
+            onPick={pickModel}
+          />
+        )}
         <div className="qch-footer-row">
           {onOpenSkills && (
             <button
@@ -646,26 +647,16 @@ export function ChatPanel({
             </button>
           )}
           {model && (
-            <div className="qch-model-row">
-              {modelOpen && (
-                <ModelPicker
-                  current={model.current}
-                  models={model.models}
-                  onClose={closeModelPicker}
-                  onPick={pickModel}
-                />
-              )}
-              <button
-                aria-expanded={modelOpen}
-                aria-label={`Model: ${model.current}. Change model`}
-                className="qch-model q-focus"
-                onClick={() => setModelOpen((open) => !open)}
-                type="button"
-              >
-                <span className="qch-model-id">{model.current}</span>
-                <ChevronDown aria-hidden size={11} />
-              </button>
-            </div>
+            <button
+              aria-expanded={modelOpen}
+              aria-label={`Model: ${model.current}. Change model`}
+              className="qch-model q-focus"
+              onClick={() => setModelOpen((open) => !open)}
+              type="button"
+            >
+              <span className="qch-model-id">{model.current}</span>
+              <ChevronDown aria-hidden size={11} />
+            </button>
           )}
         </div>
       </div>

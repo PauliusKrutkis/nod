@@ -466,6 +466,7 @@
 
 .qch-model {
   display: inline-flex;
+  min-width: 0;
   gap: 4px;
   align-items: center;
   max-width: 100%;
@@ -518,12 +519,6 @@
 
 .qch-skills-btn:hover {
   color: var(--accent);
-}
-
-.qch-model-row {
-  position: relative;
-  display: flex;
-  min-width: 0;
 }
 
 .qch-send,
