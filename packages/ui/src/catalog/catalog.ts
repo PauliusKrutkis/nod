@@ -42,6 +42,7 @@ import { reviewHeaderEntry } from "../review-header/review-header.fixtures.ts";
 import { reviewScreenPendingEntry } from "../review-screen-pending/review-screen-pending.fixtures.ts";
 import { reviewToastEntry } from "../review-toast/review-toast.fixtures.ts";
 import { reviewVerdictsEntry } from "../review-verdicts/review-verdicts.fixtures.ts";
+import { rightDockEntry } from "../right-dock/right-dock.fixtures.ts";
 import { searchPaneEntry } from "../search-pane/search-pane.fixtures.ts";
 import { spinnerEntry } from "../spinner/spinner.fixtures.ts";
 import { submitReviewModalEntry } from "../submit-review-modal/submit-review-modal.fixtures.ts";
@@ -98,6 +99,7 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   "review-screen-pending": reviewScreenPendingEntry,
   "review-toast": reviewToastEntry,
   "review-verdicts": reviewVerdictsEntry,
+  "right-dock": rightDockEntry,
   "search-pane": searchPaneEntry,
   spinner: spinnerEntry,
   "submit-review-modal": submitReviewModalEntry,

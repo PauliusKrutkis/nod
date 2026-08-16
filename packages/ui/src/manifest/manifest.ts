@@ -634,6 +634,16 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "unicode",
     ],
   },
+  "right-dock": {
+    fixtures: [
+      "chat-active",
+      "overflow",
+      "single-tab",
+      "two-tabs",
+      "unicode",
+      "wide",
+    ],
+  },
   "search-pane": {
     dialog: true,
     fixtures: [

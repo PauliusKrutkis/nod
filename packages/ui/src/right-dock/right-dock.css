@@ -1,0 +1,59 @@
+/* The dock's own rules only — the shared panel chrome (head, buttons, scrim,
+   overlay positioning) ships with pr-drawer.css, which this component
+   imports. The docked seat overrides the overlay's absolute placement while
+   the panel is open; closed, the base rules keep it translated offscreen so
+   content stays mounted at full width. The tab strip replaces the static
+   title when the dock holds more than one surface; the active tab wears the
+   accent the way the widen button does when pressed. */
+
+.qf-drawer.qf-dock-col.qf-drawer-open {
+  position: static;
+  flex-shrink: 0;
+  box-shadow: none;
+  transform: none;
+}
+
+.qf-dock-panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.qf-dock-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.qf-dock-tab {
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  transition:
+    color 120ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.qf-dock-tab:hover {
+  color: var(--fg);
+}
+
+.qf-dock-tab[aria-pressed="true"] {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qf-dock-tab {
+    transition: none;
+  }
+}

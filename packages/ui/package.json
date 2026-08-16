@@ -53,6 +53,7 @@
     "./review-screen-pending": "./src/review-screen-pending/review-screen-pending.tsx",
     "./review-toast": "./src/review-toast/review-toast.tsx",
     "./review-verdicts": "./src/review-verdicts/review-verdicts.tsx",
+    "./right-dock": "./src/right-dock/right-dock.tsx",
     "./search-pane": "./src/search-pane/search-pane.tsx",
     "./spinner": "./src/spinner/spinner.tsx",
     "./styles.css": "./src/styles.css",

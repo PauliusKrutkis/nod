@@ -1002,6 +1002,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
         onOpenPr={onOpenPrUrl}
         onToggleWide={onToggleDrawerWide}
         open={rightOpen}
+        overlay={sidebarCompact}
         pr={pr}
         ref={rightPanelRef}
         reviews={reviews}
