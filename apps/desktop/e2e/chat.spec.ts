@@ -381,6 +381,37 @@ test("a multi-line paste becomes a chip; single lines paste as text", async ({
   ]);
 });
 
+test("the dock edge drags to a new width that survives a reload", async ({
+  page,
+}) => {
+  await setupApp(page, CONFIGURED);
+  await openReview(page);
+  await page.keyboard.press("i");
+
+  const drawer = page.locator(".qf-drawer");
+  const before = await drawer.boundingBox();
+  const handle = page.locator(".qf-dock-resize");
+  const box = await handle.boundingBox();
+  if (!(box && before)) {
+    throw new Error("dock not measurable");
+  }
+  await page.mouse.move(box.x + box.width / 2, box.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(box.x - 150, box.y + 200);
+  await page.mouse.up();
+
+  const after = await drawer.boundingBox();
+  expect(Math.round(after?.width ?? 0)).toBeGreaterThan(
+    Math.round(before.width) + 100
+  );
+
+  await page.reload();
+  await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
+  await page.keyboard.press("i");
+  const restored = await page.locator(".qf-drawer").boundingBox();
+  expect(Math.round(restored?.width ?? 0)).toBe(Math.round(after?.width ?? 0));
+});
+
 test("the model button swaps the chat's model and the pick rides the send", async ({
   page,
 }) => {

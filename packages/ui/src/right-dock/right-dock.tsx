@@ -25,7 +25,12 @@
  */
 
 import { PanelRightClose, PanelRightOpen } from "lucide-react";
-import { type ReactNode, useEffect, useRef } from "react";
+import {
+  type ReactNode,
+  type PointerEvent as ReactPointerEvent,
+  useEffect,
+  useRef,
+} from "react";
 import { cn } from "../cn/cn.ts";
 import { Tooltip } from "../tooltip/tooltip.tsx";
 import { useLatest } from "../use-latest/use-latest.ts";
@@ -43,12 +48,23 @@ export interface RightDockProps {
   embedded?: boolean;
   onClose: () => void;
   onFocusExit?: () => void;
+  onResize?: (width: number) => void;
   onSelectTab: (id: string) => void;
   onToggleWide: () => void;
   open: boolean;
   overlay: boolean;
   tabs: RightDockTab[];
   wide: boolean;
+  width?: number | null;
+}
+
+const MIN_DOCK_WIDTH = 320;
+
+function clampDockWidth(width: number): number {
+  return Math.min(
+    Math.max(width, MIN_DOCK_WIDTH),
+    Math.floor(window.innerWidth * 0.72)
+  );
 }
 
 export function RightDock({
@@ -57,15 +73,42 @@ export function RightDock({
   embedded = false,
   onClose,
   onFocusExit,
+  onResize,
   onSelectTab,
   onToggleWide,
   open,
   overlay,
   tabs,
   wide,
+  width = null,
 }: RightDockProps) {
   const panelRef = useRef<HTMLElement>(null);
   const onFocusExitRef = useLatest(onFocusExit);
+  const onResizeRef = useLatest(onResize);
+
+  const startResize = (down: ReactPointerEvent<HTMLDivElement>) => {
+    const el = panelRef.current;
+    if (!el) {
+      return;
+    }
+    down.preventDefault();
+    const rightEdge = el.getBoundingClientRect().right;
+    const handle = down.currentTarget;
+    handle.setPointerCapture(down.pointerId);
+    let latest = el.getBoundingClientRect().width;
+    const move = (e: PointerEvent) => {
+      latest = clampDockWidth(rightEdge - e.clientX);
+      el.style.width = `${latest}px`;
+    };
+    const up = () => {
+      handle.removeEventListener("pointermove", move);
+      handle.removeEventListener("pointerup", up);
+      el.style.width = "";
+      onResizeRef.current?.(Math.round(latest));
+    };
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", up);
+  };
 
   useEffect(() => {
     const el = panelRef.current;
@@ -101,8 +144,20 @@ export function RightDock({
         )}
         inert={!open}
         ref={panelRef}
+        style={
+          !(overlay || embedded) && open && width !== null
+            ? { width }
+            : undefined
+        }
         tabIndex={-1}
       >
+        {!(overlay || embedded) && onResize && (
+          <div
+            aria-hidden
+            className="qf-dock-resize"
+            onPointerDown={startResize}
+          />
+        )}
         <div className="qf-drawer-head">
           {tabs.length > 1 ? (
             <div className="qf-dock-tabs">

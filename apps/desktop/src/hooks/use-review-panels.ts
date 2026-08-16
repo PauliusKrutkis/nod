@@ -32,6 +32,28 @@ function subscribeSidebarCompact(onStoreChange: () => void): () => void {
 }
 
 const DRAWER_WIDE_KEY = "nod:drawerWide";
+const DOCK_WIDTH_KEY = "nod:dockWidth";
+
+function readDockWidth(): number | null {
+  try {
+    const width = Number(localStorage.getItem(DOCK_WIDTH_KEY));
+    return Number.isFinite(width) && width >= 320 ? width : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistDockWidth(width: number | null): void {
+  try {
+    if (width === null) {
+      localStorage.removeItem(DOCK_WIDTH_KEY);
+    } else {
+      localStorage.setItem(DOCK_WIDTH_KEY, String(width));
+    }
+  } catch {
+    /* storage unavailable (private mode) — width just won't persist */
+  }
+}
 
 // TODO: extract a useLocalStorage hook when a second persisted UI pref lands (separate PR).
 function readDrawerWide(): boolean {
@@ -72,6 +94,12 @@ export function useReviewPanels() {
   const sidebarOverlayOpen = sidebarCompact && sidebarOpen;
   const sidebarOverlayOpenRef = useLatest(sidebarOverlayOpen);
   const [drawerWide, setDrawerWide] = useState(readDrawerWide);
+  const [dockWidth, setDockWidth] = useState(readDockWidth);
+
+  const onDockResize = (width: number) => {
+    setDockWidth(width);
+    persistDockWidth(width);
+  };
 
   const onToggleRightPanel = () => {
     if (!rightOpenRef.current) {
@@ -123,6 +151,8 @@ export function useReviewPanels() {
       setRightOpen(true);
       return;
     }
+    setDockWidth(null);
+    persistDockWidth(null);
     const next = !drawerWide;
     setDrawerWide(next);
     persistDrawerWide(next);
@@ -131,8 +161,10 @@ export function useReviewPanels() {
   return {
     chatFocusSeq,
     closeSidebarOverlay,
+    dockWidth,
     drawerWide,
     onCloseRightPanel,
+    onDockResize,
     onCloseSidebar,
     onSelectRightTab,
     onToggleDrawerWide,

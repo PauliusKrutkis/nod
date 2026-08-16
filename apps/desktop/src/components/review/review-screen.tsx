@@ -221,8 +221,10 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const {
     chatFocusSeq,
     closeSidebarOverlay,
+    dockWidth,
     drawerWide,
     onCloseRightPanel,
+    onDockResize,
     onCloseSidebar,
     onSelectRightTab,
     onToggleDrawerWide,
@@ -1073,12 +1075,14 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
         chatFocusSeq={chatFocusSeq}
         ci={detail.ciStatus}
         conversation={detail.issueComments ?? []}
+        dockWidth={dockWidth}
         fileCount={fileCount}
         files={files}
         inlineComments={detail.comments}
         onAddIssueComment={onAddIssueComment}
         onClose={onCloseRightPanel}
         onDeleteIssueComment={onDeleteIssueComment}
+        onDockResize={onDockResize}
         onEditIssueComment={onEditIssueComment}
         onJumpToThread={jumpToThread}
         onOpenPr={onOpenPrUrl}

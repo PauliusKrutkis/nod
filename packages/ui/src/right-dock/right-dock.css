@@ -7,10 +7,27 @@
    accent the way the widen button does when pressed. */
 
 .qf-drawer.qf-dock-col.qf-drawer-open {
-  position: static;
+  position: relative;
+  top: auto;
+  right: auto;
   flex-shrink: 0;
   box-shadow: none;
   transform: none;
+}
+
+.qf-dock-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  z-index: 1;
+  width: 7px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.qf-dock-resize:hover {
+  background: var(--accent-soft);
 }
 
 .qf-dock-panel,

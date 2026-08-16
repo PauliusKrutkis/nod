@@ -41,6 +41,7 @@ const DOCK_TABS = [
 interface RightPanelProps {
   chatFocusSeq: number;
   ci: CiStatus | undefined;
+  dockWidth: number | null;
   conversation: IssueComment[];
   fileCount: number;
   files: readonly ChangedFile[];
@@ -50,6 +51,7 @@ interface RightPanelProps {
   onClose: () => void;
   onDeleteIssueComment: (a: { commentId: number }) => Promise<void>;
   onEditIssueComment: (a: { commentId: number; body: string }) => Promise<void>;
+  onDockResize: (width: number) => void;
   onJumpToThread: (path: string, rootId: number) => void;
   onOpenPr: () => void;
   onSelectTab: (id: string) => void;
@@ -67,9 +69,11 @@ export function RightPanel({
   ref,
   chatFocusSeq,
   ci,
+  dockWidth,
   pr,
   fileCount,
   files,
+  onDockResize,
   conversation,
   reviews,
   inlineComments,
@@ -111,12 +115,14 @@ export function RightPanel({
       activeTab={tab}
       onClose={onClose}
       onFocusExit={focusScrollHost}
+      onResize={onDockResize}
       onSelectTab={onSelectTab}
       onToggleWide={onToggleWide}
       open={open}
       overlay={overlay}
       tabs={DOCK_TABS}
       wide={wide}
+      width={dockWidth}
     >
       <div className="qf-dock-tabpane" hidden={tab !== "info"}>
         <PrDrawer
