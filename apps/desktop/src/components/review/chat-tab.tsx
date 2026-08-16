@@ -11,8 +11,6 @@ import { useReviewChat } from "../../hooks/use-review-chat.ts";
 import type { ChangedFile, PullRequest } from "../../types.ts";
 import { Markdown } from "../markdown-loader.tsx";
 
-const noop = () => undefined;
-
 interface ChatTabProps {
   files: readonly ChangedFile[];
   focusSeq: number;
@@ -36,12 +34,12 @@ export function ChatTab({ files, focusSeq, pr }: ChatTabProps) {
 
   return (
     <ChatPanel
-      chips={[]}
+      chips={chat.chips}
       composerValue={chat.draft}
       focusSeq={focusSeq}
       onChangeComposer={chat.setDraft}
       onEscape={focusScrollHost}
-      onRemoveChip={noop}
+      onRemoveChip={chat.removeChip}
       onSend={chat.send}
       onStop={chat.stop}
       pending={chat.pending}

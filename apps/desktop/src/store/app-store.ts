@@ -12,6 +12,7 @@ import type {
   AccountInfo,
   AccountsInfo,
   ChangedFile,
+  ChatRegion,
   ChatTurnRecord,
   InboxTabKey,
   PendingComment,
@@ -250,10 +251,14 @@ interface AppState {
       startLine?: number;
     }
   ) => void;
+  addChatChip: (chip: ChatRegion) => void;
   aiSetupOpen: boolean;
   appendChatTurn: (prKey: string, turn: ChatTurnRecord) => void;
+  chatChips: ChatRegion[];
   chatHistory: Record<string, ChatTurnRecord[]>;
   clearChat: (prKey: string) => void;
+  clearChatChips: () => void;
+  removeChatChip: (index: number) => void;
   clearDismissed: (prKey: string) => void;
   clearPendingComments: (prKey: string) => void;
   closeAiSetup: () => void;
@@ -353,6 +358,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ pendingComments: map });
     savePending(map);
   },
+  addChatChip: (chip) => {
+    const chips = get().chatChips;
+    const key = (c: ChatRegion) => `${c.filePath}:${c.lineRange}:${c.side}`;
+    if (chips.some((c) => key(c) === key(chip))) {
+      return;
+    }
+    set({ chatChips: [...chips, chip] });
+  },
   aiSetupOpen: false,
   appendChatTurn: (prKey, turn) => {
     const list = [...(get().chatHistory[prKey] ?? []), turn].slice(
@@ -362,6 +375,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ chatHistory: map });
     saveChats(map);
   },
+  chatChips: [],
   chatHistory: loadChats(),
   clearChat: (prKey) => {
     const map = { ...get().chatHistory };
@@ -369,6 +383,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ chatHistory: map });
     saveChats(map);
   },
+  clearChatChips: () => set({ chatChips: [] }),
+  removeChatChip: (index) =>
+    set({ chatChips: get().chatChips.filter((_, i) => i !== index) }),
   closeAiSetup: () => set({ aiSetupOpen: false }),
   closePalette: () => set({ paletteOpen: false }),
   dismiss: (prKey, updatedAt) => {

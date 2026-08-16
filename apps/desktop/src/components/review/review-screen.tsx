@@ -45,6 +45,7 @@ import { useReviewThreadActions } from "../../hooks/use-review-thread-actions.ts
 import { useReviewUnmountCleanup } from "../../hooks/use-review-unmount-cleanup.ts";
 import { useViewedFileReconcile } from "../../hooks/use-viewed-file-reconcile.ts";
 import { api } from "../../lib/api.ts";
+import { regionFromSnapshot } from "../../lib/ask-context.ts";
 import { cn } from "../../lib/cn.ts";
 import {
   type CapturedSelection,
@@ -60,6 +61,7 @@ import {
 import { usePerfStore } from "../../lib/perf.ts";
 import { isGitlabPrUrl } from "../../lib/provider.ts";
 import {
+  buildCursorMover,
   type CursorPos,
   type LineSelection,
   resolveLiveSelection,
@@ -823,11 +825,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     rightPanelRef.current?.openComposer();
   };
 
-  const onToggleChat = () => {
-    if (rightOpenRef.current && rightTabRef.current === "chat") {
-      onCloseRightPanel();
-      return;
-    }
+  const openChatChecked = () => {
     api
       .getAiConfig()
       .then((aiInfo) => {
@@ -838,6 +836,30 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
         }
       })
       .catch(() => useAppStore.getState().openAiSetup());
+  };
+
+  const onToggleChat = () => {
+    if (rightOpenRef.current && rightTabRef.current === "chat") {
+      onCloseRightPanel();
+      return;
+    }
+    openChatChecked();
+  };
+
+  const onAddToChat = () => {
+    const moved = buildCursorMover(cursorMoverRefs).flushNow();
+    const region = regionFromSnapshot({
+      cursor: moved
+        ? { anchor: moved.anchor, fileIndex: moved.fileIndex, kind: moved.kind }
+        : cursorRef.current,
+      files: filesRef.current,
+      model: modelRef.current,
+      selection: liveSelectionRef.current,
+    });
+    if (region) {
+      useAppStore.getState().addChatChip(region);
+    }
+    openChatChecked();
   };
 
   const onEditIssueComment = async (a: { commentId: number; body: string }) => {
@@ -869,6 +891,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   });
 
   useReviewHotkeys({
+    addToChat: onAddToChat,
     askAi: onAskAi,
     askOpenRef,
     closeAsk: askNote.closeAsk,

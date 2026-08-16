@@ -88,6 +88,9 @@ export function useReviewChat(args: {
   const keyValue = prKey(args.pr);
   const turns = useAppStore((s) => s.chatHistory[keyValue]) ?? EMPTY_TURNS;
   const appendChatTurn = useAppStore((s) => s.appendChatTurn);
+  const chips = useAppStore((s) => s.chatChips);
+  const removeChip = useAppStore((s) => s.removeChatChip);
+  const clearChips = useAppStore((s) => s.clearChatChips);
   const [draft, setDraft] = useState("");
   const [live, setLive] = useState<LiveTurn | null>(null);
   const liveRef = useLatest(live);
@@ -195,6 +198,7 @@ export function useReviewChat(args: {
       if (chatPendingRef.current) {
         api.aiChatCancel(keyValue).catch(() => undefined);
       }
+      useAppStore.getState().clearChatChips();
     },
     [keyValue, chatPendingRef]
   );
@@ -206,20 +210,22 @@ export function useReviewChat(args: {
     }
     const turnId = crypto.randomUUID();
     const history = historyMessages(turns);
+    const regions = chips;
     appendChatTurn(keyValue, {
       id: crypto.randomUUID(),
       kind: "user",
-      regions: [],
+      regions,
       text,
     });
     setDraft("");
+    clearChips();
     setLive({ partial: "", toolNote: null, turnId });
     chat.mutate({
       chatId: keyValue,
       context: chatContext(args.files, args.pr),
       history,
       message: text,
-      regions: [],
+      regions,
       turnId,
     });
   };
@@ -262,9 +268,11 @@ export function useReviewChat(args: {
   ];
 
   return {
+    chips,
     draft,
     panelTurns,
     pending: chat.isPending,
+    removeChip,
     send,
     setDraft,
     stop,

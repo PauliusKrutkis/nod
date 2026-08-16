@@ -43,6 +43,7 @@ import { buildCursorMover, type LineSelection } from "../lib/review-cursor.ts";
 import { buildOccNav } from "../lib/review-occurrences.ts";
 
 export function useReviewHotkeys(config: {
+  addToChat: () => void;
   askAi: () => void;
   askOpenRef: React.RefObject<boolean>;
   closeAsk: () => void;
@@ -319,6 +320,13 @@ export function useReviewHotkeys(config: {
       icon: MessagesSquare,
       keys: "m",
       run: config.toggleChat,
+    },
+    {
+      description: "Add code to chat (AI)",
+      group: "General",
+      icon: MessageSquarePlus,
+      keys: "l",
+      run: config.addToChat,
     },
     {
       description: "Widen info panel",

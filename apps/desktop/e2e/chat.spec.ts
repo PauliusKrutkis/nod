@@ -60,8 +60,9 @@ test("m opens the chat tab focused; a message round-trips with PR context", asyn
 
   await input.fill("What does this PR change?");
   await page.keyboard.press("Enter");
-  await expect(chatPanel(page).getByText("What does this PR change?"))
-    .toBeVisible();
+  await expect(
+    chatPanel(page).getByText("What does this PR change?")
+  ).toBeVisible();
   await expect(
     chatPanel(page).getByText("The retry knob is safe", { exact: false })
   ).toBeVisible();
@@ -199,7 +200,9 @@ test("i and m share the panel: tabs switch, second press of the owner closes", a
 
   await page.keyboard.press("i");
   await expect(drawer).toHaveAttribute("aria-hidden", "false");
-  await expect(page.getByRole("heading", { name: "Description" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Description" })
+  ).toBeVisible();
 
   await page.keyboard.press("m");
   await expect(composer(page)).toBeFocused();
@@ -235,6 +238,90 @@ test("esc in the chat composer returns to the diff; esc again closes the panel",
     "aria-hidden",
     "true"
   );
+});
+
+/** Seat the cursor on "// tuned" (RIGHT:2) — the first j only reveals the
+ *  cursor, so wait for it before stepping. */
+async function cursorToTuned(page: Page) {
+  await page.keyboard.press("j");
+  await expect(
+    page.locator('.qf-row-active[data-anchor="RIGHT:1"]')
+  ).toBeVisible();
+  await page.keyboard.press("j");
+  await page.keyboard.press("j");
+  await expect(
+    page.locator('.qf-row-active[data-anchor="RIGHT:2"]')
+  ).toBeVisible();
+}
+
+test("l adds the cursor line as a chip and the region rides the send", async ({
+  page,
+}) => {
+  await setupApp(page, CONFIGURED);
+  await openReview(page);
+  await cursorToTuned(page);
+
+  await page.keyboard.press("l");
+  await expect(composer(page)).toBeFocused();
+  await expect(chatPanel(page).getByText("src/lib/fuzzy.ts:2")).toBeVisible();
+
+  await composer(page).fill("What is this line for?");
+  await page.keyboard.press("Enter");
+  const args = await readChatArgs(page);
+  expect(args.regions).toEqual([
+    {
+      code: "  // tuned",
+      filePath: "src/lib/fuzzy.ts",
+      lineRange: "2",
+      side: "RIGHT",
+    },
+  ]);
+  await expect(chatPanel(page).locator(".qch-foot .qch-chip")).toHaveCount(0);
+});
+
+test("l with a selection chips the whole range; chips dedupe and remove", async ({
+  page,
+}) => {
+  await setupApp(page, CONFIGURED);
+  await openReview(page);
+  await cursorToTuned(page);
+  await page.keyboard.press("Shift+j");
+  await page.keyboard.press("Shift+j");
+  await expect(page.locator(".qf-row-selected")).toHaveCount(3);
+
+  await page.keyboard.press("l");
+  const chip = chatPanel(page).getByText("src/lib/fuzzy.ts:2–4");
+  await expect(chip).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("l");
+  await expect(chatPanel(page).locator(".qch-foot .qch-chip")).toHaveCount(1);
+
+  await page
+    .getByRole("button", { name: "Remove src/lib/fuzzy.ts:2–4" })
+    .click();
+  await expect(chatPanel(page).locator(".qch-foot .qch-chip")).toHaveCount(0);
+});
+
+test("l with no cursor opens the chat focused without a chip", async ({
+  page,
+}) => {
+  await setupApp(page, CONFIGURED);
+  await openReview(page);
+  await page.keyboard.press("l");
+  await expect(composer(page)).toBeFocused();
+  await expect(chatPanel(page).locator(".qch-foot .qch-chip")).toHaveCount(0);
+});
+
+test("l inside the composer types the letter instead of chipping", async ({
+  page,
+}) => {
+  await setupApp(page, CONFIGURED);
+  await openReview(page);
+  await page.keyboard.press("m");
+  await composer(page).pressSequentially("l");
+  await expect(composer(page)).toHaveValue("l");
+  await expect(chatPanel(page).locator(".qch-foot .qch-chip")).toHaveCount(0);
 });
 
 test("a chat draft survives closing and reopening the panel", async ({
