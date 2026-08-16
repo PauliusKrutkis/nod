@@ -480,6 +480,9 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "unicode",
     ],
   },
+  "model-picker": {
+    fixtures: ["crowd", "empty", "loading", "overflow", "typical", "unicode"],
+  },
   "notification-center": {
     dialog: true,
     fixtures: [

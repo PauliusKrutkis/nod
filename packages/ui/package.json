@@ -42,6 +42,7 @@
     "./kbd": "./src/kbd/kbd.tsx",
     "./manifest": "./src/manifest/manifest.ts",
     "./markdown": "./src/markdown/markdown.tsx",
+    "./model-picker": "./src/model-picker/model-picker.tsx",
     "./notification-center": "./src/notification-center/notification-center.tsx",
     "./overview-ruler": "./src/overview-ruler/overview-ruler.tsx",
     "./pr-drawer": "./src/pr-drawer/pr-drawer.tsx",

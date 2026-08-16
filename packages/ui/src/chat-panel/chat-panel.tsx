@@ -35,11 +35,9 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  AiModelCombobox,
-  type AiSetupModel,
-} from "../ai-model-combobox/ai-model-combobox.tsx";
+import type { AiSetupModel } from "../ai-model-combobox/ai-model-combobox.tsx";
 import { CannedSuggestions } from "../canned-suggestions/canned-suggestions.tsx";
+import { ModelPicker } from "../model-picker/model-picker.tsx";
 import { Spinner } from "../spinner/spinner.tsx";
 import "./chat-panel.css";
 
@@ -237,6 +235,10 @@ export function ChatPanel({
     setModelOpen(false);
     model?.onPick(id);
     inputRef.current?.focus();
+  };
+
+  const closeModelPicker = () => {
+    setModelOpen(false);
   };
 
   useEffect(() => {
@@ -495,34 +497,28 @@ export function ChatPanel({
             )}
           </div>
         </div>
-        {model &&
-          (modelOpen ? (
-            <div className="qch-model-pick">
-              <AiModelCombobox
-                initialQuery={model.current}
-                loading={model.models === null}
-                models={model.models ?? []}
-                onCommit={pickModel}
-                onKeyDownFallthrough={(e) => {
-                  if (e.key === "Escape") {
-                    setModelOpen(false);
-                    inputRef.current?.focus();
-                  }
-                }}
-                value={model.current}
+        {model && (
+          <div className="qch-model-row">
+            {modelOpen && (
+              <ModelPicker
+                current={model.current}
+                models={model.models}
+                onClose={closeModelPicker}
+                onPick={pickModel}
               />
-            </div>
-          ) : (
+            )}
             <button
+              aria-expanded={modelOpen}
               aria-label={`Model: ${model.current}. Change model`}
               className="qch-model q-focus"
-              onClick={() => setModelOpen(true)}
+              onClick={() => setModelOpen((open) => !open)}
               type="button"
             >
-              {model.current}
+              <span className="qch-model-id">{model.current}</span>
               <ChevronDown aria-hidden size={11} />
             </button>
-          ))}
+          </div>
+        )}
       </div>
     </div>
   );

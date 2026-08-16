@@ -541,9 +541,10 @@ test("the model button swaps the chat's model and the pick rides the send", asyn
   await expect(modelButton).toContainText("gpt-4o");
   await modelButton.click();
 
-  const picker = page.getByLabel("Model");
-  await picker.fill("claude-sonnet");
-  await page.keyboard.press("Enter");
+  const search = page.getByLabel("Search models");
+  await expect(search).toBeFocused();
+  await search.fill("claude");
+  await page.getByRole("option", { name: /claude-sonnet/ }).click();
   await expect(modelButton).toContainText("claude-sonnet");
 
   await composer(page).fill("Which model are you?");
