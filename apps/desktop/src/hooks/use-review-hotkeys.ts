@@ -25,6 +25,7 @@ import {
   Link,
   MessageSquare,
   MessageSquarePlus,
+  MessagesSquare,
   PanelLeft,
   PanelRightOpen,
   Pencil,
@@ -79,7 +80,9 @@ export function useReviewHotkeys(config: {
   setSelection: (s: LineSelection | null) => void;
   sidebarOverlayOpenRef: React.RefObject<boolean>;
   toggleActiveThread: () => void;
+  toggleChat: () => void;
   toggleDrawerWide: () => void;
+  toggleInfoPanel: () => void;
   toggleFullFile: () => void;
   toggleSidebar: () => void;
   toggleViewedFile: () => void;
@@ -308,7 +311,14 @@ export function useReviewHotkeys(config: {
       group: "General",
       icon: Info,
       keys: "i",
-      run: () => config.setRightOpen((open) => !open),
+      run: config.toggleInfoPanel,
+    },
+    {
+      description: "Chat about this PR (AI)",
+      group: "General",
+      icon: MessagesSquare,
+      keys: "m",
+      run: config.toggleChat,
     },
     {
       description: "Widen info panel",

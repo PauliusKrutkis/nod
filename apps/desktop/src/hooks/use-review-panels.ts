@@ -1,9 +1,12 @@
 /**
- * Panel state for the review screen: the right info panel, the file sidebar
- * (inline column vs overlay drawer under the compact media query), and the
- * drawer's persisted wide preference. The compact flag comes straight from
- * matchMedia via useSyncExternalStore; crossing the breakpoint resets the
- * sidebar to its default for that mode during render.
+ * Panel state for the review screen: the right panel (Info | Chat tabs),
+ * the file sidebar (inline column vs overlay drawer under the compact media
+ * query), and the panel's persisted wide preference. The compact flag comes
+ * straight from matchMedia via useSyncExternalStore; crossing the breakpoint
+ * resets the sidebar to its default for that mode during render. Tab
+ * semantics: `i` opens Info (or switches to it from Chat; closes from Info),
+ * the chat toggle mirrors that for Chat, and opening Chat bumps chatFocusSeq
+ * so the composer takes focus.
  */
 
 import { useLatest } from "@nod/ui/use-latest";
@@ -50,6 +53,9 @@ function persistDrawerWide(wide: boolean): void {
 export function useReviewPanels() {
   const [rightOpen, setRightOpen] = useState(false);
   const rightOpenRef = useLatest(rightOpen);
+  const [rightTab, setRightTab] = useState<"info" | "chat">("info");
+  const rightTabRef = useLatest(rightTab);
+  const [chatFocusSeq, setChatFocusSeq] = useState(0);
   const sidebarCompact = useSyncExternalStore(
     subscribeSidebarCompact,
     getSidebarCompactSnapshot,
@@ -68,7 +74,30 @@ export function useReviewPanels() {
   const [drawerWide, setDrawerWide] = useState(readDrawerWide);
 
   const onToggleRightPanel = () => {
-    setRightOpen((open) => !open);
+    if (!rightOpenRef.current) {
+      setRightTab("info");
+      setRightOpen(true);
+      return;
+    }
+    if (rightTabRef.current === "chat") {
+      setRightTab("info");
+      return;
+    }
+    setRightOpen(false);
+  };
+
+  const openChatTab = () => {
+    setRightTab("chat");
+    setRightOpen(true);
+    setChatFocusSeq((s) => s + 1);
+  };
+
+  const onSelectRightTab = (id: string) => {
+    if (id === "chat") {
+      openChatTab();
+      return;
+    }
+    setRightTab("info");
   };
 
   const onCloseRightPanel = () => {
@@ -100,15 +129,20 @@ export function useReviewPanels() {
   };
 
   return {
+    chatFocusSeq,
     closeSidebarOverlay,
     drawerWide,
     onCloseRightPanel,
     onCloseSidebar,
+    onSelectRightTab,
     onToggleDrawerWide,
     onToggleRightPanel,
     onToggleSidebar,
+    openChatTab,
     rightOpen,
     rightOpenRef,
+    rightTab,
+    rightTabRef,
     setRightOpen,
     setSidebarOpen,
     sidebarCompact,

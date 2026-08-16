@@ -8,6 +8,13 @@
  * network. `installBridge` must stay fully self-contained (no references to
  * module scope): Playwright serializes its SOURCE, so a closed-over import
  * would be undefined at page time.
+ *
+ * Tauri events work here too: transformCallback registers the real callback
+ * functions, the event plugin's listen/unlisten commands track which
+ * callback ids follow which event name, and `window.__emitEvent(event,
+ * payload)` fires an event into the app exactly the way Rust's `app.emit`
+ * would — which is what lets a mocked command (ai_chat's scripted replay) or
+ * a spec drive streaming UI.
  */
 
 import type { BucketFixture, InboxFixture } from "./fixtures.ts";
@@ -30,6 +37,12 @@ export interface AppOptions {
     model: string | null;
   };
   aiAnswer?: string | "error";
+  aiChatAnswer?: string | "error" | "hang";
+  aiChatScript?: {
+    delta?: string;
+    tool?: { tool: string; detail: string };
+    proposal?: Record<string, unknown>;
+  }[];
   aiModels?: { id: string; contextLength: number | null }[];
   aiModelsError?: string;
   detailByCall?: unknown[];
@@ -80,6 +93,9 @@ function aiDefaults(opts: AppOptions) {
   return {
     aiAnswer:
       opts.aiAnswer ?? "It renames the retry knob — see `src/retry.ts:2`.",
+    aiChatAnswer:
+      opts.aiChatAnswer ?? "The retry knob is safe — see `src/retry.ts:2`.",
+    aiChatScript: opts.aiChatScript ?? [],
     aiCompletion: opts.aiCompletion ?? "",
     aiInfo: opts.aiInfo ?? { baseUrl: null, configured: false, model: null },
     aiModelsError: opts.aiModelsError ?? null,
@@ -156,7 +172,69 @@ export function installBridge(cfg: BridgeConfig) {
   let ledgerReviews = 0;
   let ledgerApprovals = 0;
 
+  let callbackId = 0;
+  const eventCallbacks = new Map<number, (event: unknown) => void>();
+  const eventListeners = new Map<string, Set<number>>();
+  const emitEvent = (event: string, payload: unknown) => {
+    for (const id of eventListeners.get(event) ?? []) {
+      eventCallbacks.get(id)?.({ event, id, payload });
+    }
+  };
+  (
+    window as unknown as {
+      __emitEvent: (event: string, payload: unknown) => void;
+    }
+  ).__emitEvent = emitEvent;
+
   const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
+    "plugin:event|listen": (args) => {
+      const event = args.event as string;
+      const set = eventListeners.get(event) ?? new Set<number>();
+      set.add(args.handler as number);
+      eventListeners.set(event, set);
+      return null;
+    },
+    "plugin:event|unlisten": (args) => {
+      eventListeners.get(args.event as string)?.delete(args.eventId as number);
+      return null;
+    },
+    ai_chat: (args) => {
+      countCall("ai_chat");
+      localStorage.setItem("e2e:aiChat", JSON.stringify(args));
+      if (cfg.aiChatAnswer === "error") {
+        throw new Error("AI provider error (402): out of credits");
+      }
+      const ids = { chatId: args.chatId, turnId: args.turnId };
+      return new Promise((resolve) => {
+        let step = 0;
+        const play = () => {
+          const entry = cfg.aiChatScript[step];
+          if (!entry) {
+            if (cfg.aiChatAnswer !== "hang") {
+              resolve(cfg.aiChatAnswer);
+            }
+            return;
+          }
+          step += 1;
+          if (entry.delta) {
+            emitEvent("ai-chat-delta", { ...ids, text: entry.delta });
+          }
+          if (entry.tool) {
+            emitEvent("ai-chat-tool", { ...ids, ...entry.tool });
+          }
+          if (entry.proposal) {
+            emitEvent("ai-chat-proposal", { ...ids, proposal: entry.proposal });
+          }
+          setTimeout(play, 10);
+        };
+        setTimeout(play, 0);
+      });
+    },
+    ai_chat_cancel: (args) => {
+      countCall("ai_chat_cancel");
+      localStorage.setItem("e2e:aiChatCancel", JSON.stringify(args));
+      return null;
+    },
     ai_ask: (args) => {
       countCall("ai_ask");
       localStorage.setItem("e2e:aiAsk", JSON.stringify(args));
@@ -452,13 +530,13 @@ export function installBridge(cfg: BridgeConfig) {
         currentWebview: { label: "main" },
         currentWindow: { label: "main" },
       },
-      transformCallback: (() => {
-        let id = 0;
-        return () => {
-          id += 1;
-          return id;
-        };
-      })(),
+      transformCallback: (callback?: (event: unknown) => void) => {
+        callbackId += 1;
+        if (callback) {
+          eventCallbacks.set(callbackId, callback);
+        }
+        return callbackId;
+      },
     },
   });
 }

@@ -21,6 +21,7 @@ import { openExternal } from "../../lib/open-external.ts";
 import { openOnProviderLabel } from "../../lib/provider.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type {
+  ChangedFile,
   CiStatus,
   IssueComment,
   PullRequest,
@@ -28,17 +29,21 @@ import type {
   ReviewSummary,
 } from "../../types.ts";
 import { Markdown } from "../markdown-loader.tsx";
+import { ChatTab } from "./chat-tab.tsx";
 
 export type { PrDrawerHandle as RightPanelHandle } from "@nod/ui/pr-drawer";
 
-const DOCK_TABS = [{ id: "info", label: "Pull request" }];
-
-const noopSelectTab = () => undefined;
+const DOCK_TABS = [
+  { id: "info", label: "Info" },
+  { id: "chat", label: "Chat" },
+];
 
 interface RightPanelProps {
+  chatFocusSeq: number;
   ci: CiStatus | undefined;
   conversation: IssueComment[];
   fileCount: number;
+  files: readonly ChangedFile[];
   inlineComments: ReviewComment[];
   addIssueCommentPending: boolean;
   onAddIssueComment: (body: string) => Promise<void>;
@@ -47,27 +52,33 @@ interface RightPanelProps {
   onEditIssueComment: (a: { commentId: number; body: string }) => Promise<void>;
   onJumpToThread: (path: string, rootId: number) => void;
   onOpenPr: () => void;
+  onSelectTab: (id: string) => void;
   onToggleWide: () => void;
   open: boolean;
   overlay: boolean;
   pr: PullRequest;
   ref?: Ref<PrDrawerHandle>;
   reviews: ReviewSummary[];
+  tab: "info" | "chat";
   wide: boolean;
 }
 
 export function RightPanel({
   ref,
+  chatFocusSeq,
   ci,
   pr,
   fileCount,
+  files,
   conversation,
   reviews,
   inlineComments,
   open,
   overlay,
+  tab,
   wide,
   onClose,
+  onSelectTab,
   onToggleWide,
   addIssueCommentPending,
   onAddIssueComment,
@@ -97,44 +108,49 @@ export function RightPanel({
 
   return (
     <RightDock
-      activeTab="info"
+      activeTab={tab}
       onClose={onClose}
       onFocusExit={focusScrollHost}
-      onSelectTab={noopSelectTab}
+      onSelectTab={onSelectTab}
       onToggleWide={onToggleWide}
       open={open}
       overlay={overlay}
       tabs={DOCK_TABS}
       wide={wide}
     >
-      <PrDrawer
-        addCommentPending={addIssueCommentPending}
-        callbacks={{
-          onAddComment: onAddIssueComment,
-          onClose,
-          onDeleteComment: onDeleteIssueComment,
-          onEditComment: onEditIssueComment,
-          onJumpToThread,
-          onOpenCiUrl: openExternal,
-          onOpenPr,
-          onOpenTicket: openExternal,
-          onToggleWide,
-        }}
-        ci={ci}
-        conversation={conversation}
-        fileCount={fileCount}
-        frameless
-        inlineComments={inlineComments}
-        open={open}
-        openLabel={openOnProviderLabel(pr.url)}
-        ownLogin={ownLogin}
-        pr={pr}
-        ref={ref}
-        renderMarkdown={renderMarkdown}
-        reviews={reviews}
-        trackerBase={trackerBase}
-        wide={wide}
-      />
+      <div className="qf-dock-tabpane" hidden={tab !== "info"}>
+        <PrDrawer
+          addCommentPending={addIssueCommentPending}
+          callbacks={{
+            onAddComment: onAddIssueComment,
+            onClose,
+            onDeleteComment: onDeleteIssueComment,
+            onEditComment: onEditIssueComment,
+            onJumpToThread,
+            onOpenCiUrl: openExternal,
+            onOpenPr,
+            onOpenTicket: openExternal,
+            onToggleWide,
+          }}
+          ci={ci}
+          conversation={conversation}
+          fileCount={fileCount}
+          frameless
+          inlineComments={inlineComments}
+          open={open}
+          openLabel={openOnProviderLabel(pr.url)}
+          ownLogin={ownLogin}
+          pr={pr}
+          ref={ref}
+          renderMarkdown={renderMarkdown}
+          reviews={reviews}
+          trackerBase={trackerBase}
+          wide={wide}
+        />
+      </div>
+      <div className="qf-dock-tabpane" hidden={tab !== "chat"}>
+        <ChatTab files={files} focusSeq={chatFocusSeq} pr={pr} />
+      </div>
     </RightDock>
   );
 }

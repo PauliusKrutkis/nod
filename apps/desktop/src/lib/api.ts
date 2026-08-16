@@ -5,6 +5,7 @@ import type {
   AiAskContext,
   AiInfo,
   AiModel,
+  ChatRegion,
   FileBlob,
   GitHubUser,
   InboxBucket,
@@ -37,6 +38,15 @@ export const api = {
 
   aiAsk: (args: { question: string; context: AiAskContext; askId: string }) =>
     invoke<string>("ai_ask", args),
+  aiChat: (args: {
+    chatId: string;
+    turnId: string;
+    message: string;
+    regions: ChatRegion[];
+    history: { role: string; content: string }[];
+    context: AiAskContext;
+  }) => invoke<string>("ai_chat", args),
+  aiChatCancel: (chatId: string) => invoke<void>("ai_chat_cancel", { chatId }),
   aiComplete: (args: {
     prefix: string;
     context: { filePath?: string; code?: string };

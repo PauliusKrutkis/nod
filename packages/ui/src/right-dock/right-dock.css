@@ -13,11 +13,16 @@
   transform: none;
 }
 
-.qf-dock-panel {
+.qf-dock-panel,
+.qf-dock-tabpane {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
+}
+
+.qf-dock-tabpane[hidden] {
+  display: none;
 }
 
 .qf-dock-tabs {

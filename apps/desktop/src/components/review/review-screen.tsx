@@ -44,6 +44,7 @@ import {
 import { useReviewThreadActions } from "../../hooks/use-review-thread-actions.ts";
 import { useReviewUnmountCleanup } from "../../hooks/use-review-unmount-cleanup.ts";
 import { useViewedFileReconcile } from "../../hooks/use-viewed-file-reconcile.ts";
+import { api } from "../../lib/api.ts";
 import { cn } from "../../lib/cn.ts";
 import {
   type CapturedSelection,
@@ -214,15 +215,20 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
 
   const [activeIndex, setActiveIndex] = useState(initialMem?.fileIndex ?? 0);
   const {
+    chatFocusSeq,
     closeSidebarOverlay,
     drawerWide,
     onCloseRightPanel,
     onCloseSidebar,
+    onSelectRightTab,
     onToggleDrawerWide,
     onToggleRightPanel,
     onToggleSidebar,
+    openChatTab,
     rightOpen,
     rightOpenRef,
+    rightTab,
+    rightTabRef,
     setRightOpen,
     sidebarCompact,
     sidebarOpen,
@@ -812,8 +818,26 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   };
 
   const onCommentOnPr = () => {
+    onSelectRightTab("info");
     setRightOpen(true);
     rightPanelRef.current?.openComposer();
+  };
+
+  const onToggleChat = () => {
+    if (rightOpenRef.current && rightTabRef.current === "chat") {
+      onCloseRightPanel();
+      return;
+    }
+    api
+      .getAiConfig()
+      .then((aiInfo) => {
+        if (aiInfo.configured) {
+          openChatTab();
+        } else {
+          useAppStore.getState().openAiSetup();
+        }
+      })
+      .catch(() => useAppStore.getState().openAiSetup());
   };
 
   const onEditIssueComment = async (a: { commentId: number; body: string }) => {
@@ -881,7 +905,9 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     setSelection,
     sidebarOverlayOpenRef,
     toggleActiveThread,
+    toggleChat: onToggleChat,
     toggleDrawerWide: onToggleDrawerWide,
+    toggleInfoPanel: onToggleRightPanel,
     toggleFullFile: () => toggleExpandHeld(activeIndexRef.current),
     toggleSidebar: onToggleSidebar,
     closeSidebar: onCloseSidebar,
@@ -990,9 +1016,11 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
 
       <RightPanel
         addIssueCommentPending={addIssueComment.isPending}
+        chatFocusSeq={chatFocusSeq}
         ci={detail.ciStatus}
         conversation={detail.issueComments ?? []}
         fileCount={fileCount}
+        files={files}
         inlineComments={detail.comments}
         onAddIssueComment={onAddIssueComment}
         onClose={onCloseRightPanel}
@@ -1000,12 +1028,14 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
         onEditIssueComment={onEditIssueComment}
         onJumpToThread={jumpToThread}
         onOpenPr={onOpenPrUrl}
+        onSelectTab={onSelectRightTab}
         onToggleWide={onToggleDrawerWide}
         open={rightOpen}
         overlay={sidebarCompact}
         pr={pr}
         ref={rightPanelRef}
         reviews={reviews}
+        tab={rightTab}
         wide={drawerWide}
       />
 

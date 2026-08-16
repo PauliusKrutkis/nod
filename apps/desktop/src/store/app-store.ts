@@ -12,6 +12,7 @@ import type {
   AccountInfo,
   AccountsInfo,
   ChangedFile,
+  ChatTurnRecord,
   InboxTabKey,
   PendingComment,
   ViewedMap,
@@ -194,6 +195,30 @@ function savePending(map: Record<string, PendingComment[]>) {
 }
 let pendingIdCounter = 0;
 
+/**
+ * Chat conversations persist per PR (docs/AI.md § Second surface) so the
+ * background-agent workflow survives restarts. Capped per PR so one long
+ * conversation can never crowd the store.
+ */
+
+const CHAT_KEY = "nod:chatHistory:v1";
+const MAX_CHAT_TURNS = 200;
+function loadChats(): Record<string, ChatTurnRecord[]> {
+  try {
+    const v = JSON.parse(localStorage.getItem(CHAT_KEY) ?? "{}");
+    return v && typeof v === "object" && !Array.isArray(v) ? v : {};
+  } catch {
+    return {};
+  }
+}
+function saveChats(map: Record<string, ChatTurnRecord[]>) {
+  try {
+    localStorage.setItem(CHAT_KEY, JSON.stringify(map));
+  } catch {
+    /* ignore quota / private-mode errors */
+  }
+}
+
 const TRACKERS_KEY = "nod:issueTrackers:v1";
 function loadTrackers(): Record<string, string> {
   try {
@@ -226,6 +251,9 @@ interface AppState {
     }
   ) => void;
   aiSetupOpen: boolean;
+  appendChatTurn: (prKey: string, turn: ChatTurnRecord) => void;
+  chatHistory: Record<string, ChatTurnRecord[]>;
+  clearChat: (prKey: string) => void;
   clearDismissed: (prKey: string) => void;
   clearPendingComments: (prKey: string) => void;
   closeAiSetup: () => void;
@@ -326,6 +354,21 @@ export const useAppStore = create<AppState>((set, get) => ({
     savePending(map);
   },
   aiSetupOpen: false,
+  appendChatTurn: (prKey, turn) => {
+    const list = [...(get().chatHistory[prKey] ?? []), turn].slice(
+      -MAX_CHAT_TURNS
+    );
+    const map = { ...get().chatHistory, [prKey]: list };
+    set({ chatHistory: map });
+    saveChats(map);
+  },
+  chatHistory: loadChats(),
+  clearChat: (prKey) => {
+    const map = { ...get().chatHistory };
+    delete map[prKey];
+    set({ chatHistory: map });
+    saveChats(map);
+  },
   closeAiSetup: () => set({ aiSetupOpen: false }),
   closePalette: () => set({ paletteOpen: false }),
   dismiss: (prKey, updatedAt) => {

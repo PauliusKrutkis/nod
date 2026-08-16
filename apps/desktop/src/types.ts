@@ -199,6 +199,17 @@ export interface AiModel {
   contextLength: number | null;
 }
 
+export interface ChatRegion {
+  code: string;
+  filePath: string;
+  lineRange: string;
+  side: string;
+}
+
+export type ChatTurnRecord =
+  | { kind: "user"; id: string; regions: ChatRegion[]; text: string }
+  | { kind: "assistant"; error: string | null; id: string; text: string };
+
 export interface AiAskContext {
   prTitle: string;
   prBody: string;
