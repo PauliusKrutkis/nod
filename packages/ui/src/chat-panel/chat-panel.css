@@ -305,50 +305,64 @@
   color: var(--faint);
 }
 
-.qch-proposals {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  padding: 8px 18px;
+/* What the chat put in your review, as a way back into the diff: each row
+   names the line and shows the comment's opening words, so you can tell them
+   apart without leaving the panel. Clicking takes you to the line; the x
+   discards the comment outright, since a suggestion you do not want should
+   cost one click, not two. */
+.qch-staged {
+  padding: 8px 18px 10px;
   border-top: 1px dotted var(--line-2);
 }
 
-.qch-proposals-count {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  font-size: 12px;
+.qch-staged-head {
+  margin: 0 0 5px;
+  font-size: 11.5px;
   color: var(--muted);
+}
+
+.qch-staged-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  border-radius: var(--r-md);
+}
+
+.qch-staged-row:hover {
+  background: var(--surface-2);
+}
+
+.qch-staged-go {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 7px;
+  align-items: baseline;
+  min-width: 0;
+  padding: 3px 6px;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+}
+
+.qch-staged-where {
+  flex: none;
+  max-width: 16ch;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.qch-proposals-act {
-  flex: none;
-  padding: 2px 8px;
+.qch-staged-body {
+  min-width: 0;
+  overflow: hidden;
   font-size: 11.5px;
-  color: var(--accent);
-  cursor: pointer;
-  background: transparent;
-  border: 1px solid var(--accent-line);
-  border-radius: var(--r-pill);
-  transition:
-    color 120ms ease,
-    background-color 120ms ease;
-}
-
-.qch-proposals-act:hover {
-  background: var(--accent-soft);
-}
-
-.qch-proposals-discard {
   color: var(--faint);
-  border-color: var(--line-2);
-}
-
-.qch-proposals-discard:hover {
-  color: var(--del);
-  background: var(--surface-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .qch-foot {

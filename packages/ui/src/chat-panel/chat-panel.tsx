@@ -6,20 +6,18 @@
  * panel is a pure function of its props, which is what lets the host
  * persist history per PR and lets every state be shot in the gallery.
  *
- * The machine half wears the AI material vocabulary: sparkle glyph and the
- * `local` tag, ink on the page — nothing here can be mistaken for a posted
- * comment. A turn in flight shows its streamed partial as it grows, the
- * current tool activity as a one-line status ("Searching for …"), and a
- * spinner only before the first delta. Send is disabled while a turn is in
- * flight (one at a time per chat); Stop takes its place and is the only
- * button that stays live.
+ * Two turn shapes and no author labels: what you said sits in a bubble, what
+ * the model said is plain text under a "Worked for 4s" header that expands
+ * into the tools it ran and the thinking it streamed. Send is disabled while
+ * a turn is in flight (one at a time per chat); Stop takes its place and is
+ * the only button that stays live.
  *
  * `renderMarkdown` is the host's markdown pipeline; the built-in fallback
  * renders answers as literal paragraphs, which is also what guarantees an
- * answer full of markup is read, never executed. `proposals` is the
- * suggested-comments summary slot: how many this conversation has staged in
- * the diff, with accept-all / discard-all — the cards themselves live at
- * their anchors in the diff, not here. `suggestions` renders the composer's
+ * answer full of markup is read, never executed. `staged` lists the comments
+ * this chat put in your review — each one a way back to its line in the diff,
+ * with the comment itself living there as an ordinary pending comment.
+ * `suggestions` renders the composer's
  * completion panel (canned mechanism); which items and what happens on a
  * pick belong to the host. Enter sends, Shift+Enter breaks the line, Escape
  * defers to the host (blur back to the diff). `focusSeq` bumps focus the
@@ -85,10 +83,16 @@ export interface ChatAssistantTurn {
 
 export type ChatPanelTurn = ChatUserTurn | ChatAssistantTurn;
 
-export interface ChatProposalsSummary {
-  count: number;
-  onAcceptAll: () => void;
-  onDiscardAll: () => void;
+export interface ChatStagedComment {
+  body: string;
+  id: string;
+  label: string;
+}
+
+export interface ChatStagedState {
+  items: readonly ChatStagedComment[];
+  onDiscard: (id: string) => void;
+  onReveal: (id: string) => void;
 }
 
 export interface ChatThreadsState {
@@ -138,7 +142,7 @@ export interface ChatPanelProps {
    *  when there are none, which is the honest empty state. */
   skillCount?: number;
   pending: boolean;
-  proposals?: ChatProposalsSummary | null;
+  staged?: ChatStagedState | null;
   renderMarkdown?: (text: string) => ReactNode;
   skill?: string | null;
   suggestions?: ChatSuggestionsState | null;
@@ -330,7 +334,7 @@ export function ChatPanel({
   onSend,
   onStop,
   pending,
-  proposals = null,
+  staged = null,
   renderMarkdown = plainText,
   skill = null,
   skillCount = 0,
@@ -510,26 +514,32 @@ export function ChatPanel({
         )}
       </div>
 
-      {proposals && proposals.count > 0 && (
-        <div className="qch-proposals">
-          <span className="qch-proposals-count">
-            {proposals.count} suggested{" "}
-            {proposals.count === 1 ? "comment" : "comments"} in the diff
-          </span>
-          <button
-            className="qch-proposals-act q-focus"
-            onClick={proposals.onAcceptAll}
-            type="button"
-          >
-            Accept all
-          </button>
-          <button
-            className="qch-proposals-act qch-proposals-discard q-focus"
-            onClick={proposals.onDiscardAll}
-            type="button"
-          >
-            Discard all
-          </button>
+      {staged && staged.items.length > 0 && (
+        <div className="qch-staged">
+          <p className="qch-staged-head">
+            {staged.items.length} comment
+            {staged.items.length === 1 ? "" : "s"} waiting in your review
+          </p>
+          {staged.items.map((item) => (
+            <div className="qch-staged-row" key={item.id}>
+              <button
+                className="qch-staged-go"
+                onClick={() => staged.onReveal(item.id)}
+                type="button"
+              >
+                <span className="qch-staged-where">{item.label}</span>
+                <span className="qch-staged-body">{item.body}</span>
+              </button>
+              <button
+                aria-label={`Discard the comment on ${item.label}`}
+                className="qch-chip-x"
+                onClick={() => staged.onDiscard(item.id)}
+                type="button"
+              >
+                <X size={11} />
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
@@ -628,6 +638,7 @@ export function ChatPanel({
         </div>
         {model && modelOpen && (
           <ModelPicker
+            anchorSelector=".qch-model"
             current={model.current}
             models={model.models}
             onClose={closeModelPicker}

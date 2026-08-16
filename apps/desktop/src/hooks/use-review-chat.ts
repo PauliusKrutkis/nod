@@ -33,6 +33,7 @@ import {
   type ChatRegion,
   type ChatThread,
   type ChatTurnRecord,
+  type PendingComment,
   type PullRequest,
   prKey,
 } from "../types.ts";
@@ -61,6 +62,7 @@ function settledTrail(live: LiveTurn | null) {
 }
 
 const EMPTY_TURNS: ChatTurnRecord[] = [];
+const EMPTY_PENDING: PendingComment[] = [];
 const EMPTY_THREADS: ChatThread[] = [];
 
 /** A thread's display name: its opening message, tightly trimmed. */
@@ -156,9 +158,9 @@ export function useReviewChat(args: {
   const chips = useAppStore((s) => s.chatChips);
   const removeChip = useAppStore((s) => s.removeChatChip);
   const clearChips = useAppStore((s) => s.clearChatChips);
-  const suggestedCount = useAppStore(
-    (s) => s.suggestedComments[keyValue]?.length ?? 0
-  );
+  const stagedByAi = useAppStore(
+    (s) => s.pendingComments[keyValue] ?? EMPTY_PENDING
+  ).filter((c) => c.fromAi);
   const [draft, setDraftState] = useState("");
   const [skill, setSkill] = useState<string | null>(null);
   const [suggestionIndex, setSuggestionIndex] = useState(0);
@@ -390,13 +392,13 @@ export function useReviewChat(args: {
       };
     }>("ai-chat-proposal", (event) => {
       const p = event.payload.proposal;
-      useAppStore.getState().addSuggestedComment(event.payload.chatId, {
+      useAppStore.getState().addPendingComment(event.payload.chatId, {
         body: p.body,
+        fromAi: true,
         line: p.line,
         path: p.path,
         side: p.side,
         startLine: p.startLine ?? undefined,
-        turnId: event.payload.turnId,
       });
     });
     return () => {
@@ -531,12 +533,8 @@ export function useReviewChat(args: {
     });
   };
 
-  const acceptAllSuggested = () => {
-    useAppStore.getState().acceptAllSuggested(keyValue);
-  };
-
-  const discardAllSuggested = () => {
-    useAppStore.getState().clearSuggestedComments(keyValue);
+  const discardStaged = (id: string) => {
+    useAppStore.getState().removePendingComment(keyValue, id);
   };
 
   const stop = () => {
@@ -619,10 +617,8 @@ export function useReviewChat(args: {
         };
 
   return {
-    acceptAllSuggested,
     chips,
     contextNote,
-    discardAllSuggested,
     draft,
     model: modelState,
     panelTurns,
@@ -636,7 +632,15 @@ export function useReviewChat(args: {
     setDraft,
     skill,
     stop,
-    suggestedCount,
+    staged: stagedByAi.map((c) => ({
+      body: c.body,
+      id: c.id,
+      label: `${c.path}:${c.line}`,
+      line: c.line,
+      path: c.path,
+      side: c.side,
+    })),
+    stagedDiscard: discardStaged,
     suggestions,
     threads: threadsState,
   };

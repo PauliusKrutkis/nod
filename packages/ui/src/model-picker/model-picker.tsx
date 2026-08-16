@@ -24,6 +24,10 @@ import { cn } from "../cn/cn.ts";
 import "./model-picker.css";
 
 export interface ModelPickerProps {
+  /** Selector for the control that opens this popover. Focus moving there is
+   *  a toggle, not a dismissal — closing on that blur would let the click
+   *  reopen what it meant to close. */
+  anchorSelector?: string;
   current: string;
   models: readonly AiSetupModel[] | null;
   onClose: () => void;
@@ -72,6 +76,7 @@ function preventFocusLoss(e: { preventDefault: () => void }) {
 }
 
 export function ModelPicker({
+  anchorSelector,
   current,
   models,
   onClose,
@@ -120,7 +125,13 @@ export function ModelPicker({
           // biome-ignore lint/a11y/noAutofocus: the popover exists to be typed into; it opens on a deliberate click and traps nothing
           autoFocus
           className="qmp-input"
-          onBlur={onClose}
+          onBlur={(e) => {
+            const next = e.relatedTarget as HTMLElement | null;
+            if (anchorSelector && next?.closest(anchorSelector)) {
+              return;
+            }
+            onClose();
+          }}
           onChange={(e) => {
             setQuery(e.target.value);
             setSelected(0);

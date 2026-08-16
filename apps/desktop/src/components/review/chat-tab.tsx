@@ -55,14 +55,24 @@ export function ChatTab({ files, focusSeq, onRevealRegion, pr }: ChatTabProps) {
       onSend={chat.send}
       onStop={chat.stop}
       pending={chat.pending}
-      proposals={{
-        count: chat.suggestedCount,
-        onAcceptAll: chat.acceptAllSuggested,
-        onDiscardAll: chat.discardAllSuggested,
-      }}
       renderMarkdown={renderMarkdown}
       skill={chat.skill}
       skillCount={chat.skillCount}
+      staged={{
+        items: chat.staged,
+        onDiscard: chat.stagedDiscard,
+        onReveal: (id) => {
+          const item = chat.staged.find((c) => c.id === id);
+          if (item) {
+            onRevealRegion({
+              code: "",
+              filePath: item.path,
+              lineRange: String(item.line),
+              side: item.side,
+            });
+          }
+        },
+      }}
       suggestions={chat.suggestions}
       threads={chat.threads}
       turns={chat.panelTurns}

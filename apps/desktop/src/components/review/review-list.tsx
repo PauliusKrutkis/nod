@@ -17,7 +17,6 @@
 
 import { AddCommentBox } from "@nod/ui/add-comment-box";
 import { AskNote, type AskNoteProps } from "@nod/ui/ask-note";
-import { Avatar } from "@nod/ui/avatar";
 import {
   CommentThread,
   type EditRequest,
@@ -29,8 +28,8 @@ import { DiffRow, type DiffRowKind } from "@nod/ui/diff-row";
 import { FileSectionHeader } from "@nod/ui/file-section-header";
 import { HunkRow } from "@nod/ui/hunk-row";
 import { Kbd } from "@nod/ui/kbd";
-import { SuggestedCommentCard } from "@nod/ui/suggested-comment";
 import { useLatest } from "@nod/ui/use-latest";
+import { Sparkles } from "lucide-react";
 import {
   type HTMLAttributes,
   type MouseEvent,
@@ -51,7 +50,7 @@ import { useCannedComments } from "../../hooks/use-canned-comments.ts";
 import { cn } from "../../lib/cn.ts";
 import { canExpandFile } from "../../lib/expand-file.ts";
 import { findMatchRangesInLine } from "../../lib/find-in-diff.ts";
-import { highlightRowHtml } from "../../lib/highlight.ts";
+import { highlightLine, highlightRowHtml } from "../../lib/highlight.ts";
 import type { IntralineRanges } from "../../lib/intraline.ts";
 import { occurrenceRangesInLine } from "../../lib/occurrences.ts";
 import {
@@ -72,12 +71,7 @@ import {
 } from "../../lib/sticky-header-push.ts";
 import { suggestionHighlight } from "../../lib/suggestion-highlight.ts";
 import { useAppStore } from "../../store/app-store.ts";
-import type {
-  AccountInfo,
-  ChangedFile,
-  PendingComment,
-  SuggestedComment,
-} from "../../types.ts";
+import type { ChangedFile, PendingComment } from "../../types.ts";
 import { Markdown } from "../markdown-loader.tsx";
 import { ImageDiffLoader } from "./image-diff-loader.tsx";
 
@@ -121,7 +115,6 @@ export interface ReviewListHandle {
 }
 
 export interface ReviewListCallbacks {
-  onAcceptSuggested: (id: string) => void;
   onAddComment: (a: {
     path: string;
     line: number;
@@ -139,19 +132,15 @@ export interface ReviewListCallbacks {
   onCloseBox: (fileIndex: number, anchor: string) => void;
   onCopyPath: (fileIndex: number) => void;
   onDeleteComment: (a: { commentId: number }) => Promise<void>;
-  onDiscardSuggested: (id: string) => void;
   onEditComment: (a: { commentId: number; body: string }) => Promise<void>;
-  onEditSuggested: (
-    comment: SuggestedComment,
-    fileIndex: number,
-    anchor: string
-  ) => void;
   onMouseMove: (x: number, y: number) => void;
   onOpenBox: (fileIndex: number, anchor: string, startLine?: number) => void;
   onPlusDragEnd: () => void;
   onPlusDragOver: (fileIndex: number, anchor: string) => void;
   onPlusDragStart: (fileIndex: number, anchor: string) => void;
+  onPendingHover: (id: string | null) => void;
   onRemovePending: (id: string) => void;
+  onUpdatePending: (id: string, body: string) => void;
   onReply: (a: { inReplyTo: number; body: string }) => Promise<void>;
   onResolveThread: (a: { threadId: string; resolved: boolean }) => void;
   onRowEnter: (fileIndex: number, anchor: string, x: number, y: number) => void;
@@ -474,54 +463,91 @@ function MappedCommentThread({
 
 function PendingCommentCard({
   comment,
-  activeAccount,
-  onRemovePending,
+  editing,
+  filename,
+  callbacks,
+  onEdit,
   showDiscardKbd,
 }: {
+  callbacks: ReviewListCallbacks;
   comment: PendingComment;
-  activeAccount: AccountInfo | undefined;
-  onRemovePending: (id: string) => void;
+  editing: boolean;
+  filename: string;
+  onEdit: (id: string | null) => void;
   showDiscardKbd: boolean;
 }) {
   const handleRemove = () => {
-    onRemovePending(comment.id);
+    callbacks.onRemovePending(comment.id);
+  };
+
+  const handleSave = (body: string) => {
+    callbacks.onUpdatePending(comment.id, body);
+    onEdit(null);
   };
 
   return (
-    <div className="qf-thread qf-pending">
+    <div
+      className="qf-thread qf-pending"
+      data-pending-id={comment.id}
+      onMouseEnter={() => callbacks.onPendingHover(comment.id)}
+      onMouseLeave={() => callbacks.onPendingHover(null)}
+    >
       <div className="qf-comment">
         <div className="qf-comment-head">
-          <Avatar
-            name={activeAccount?.login ?? "you"}
-            size={20}
-            url={activeAccount?.avatarUrl ?? ""}
-          />
-          <span className="qf-comment-author">
-            {activeAccount?.login ?? "You"}
+          {comment.fromAi && (
+            <Sparkles aria-hidden className="qf-pending-spark" size={12} />
+          )}
+          <span className="qf-pending-tag">
+            {comment.fromAi ? "Suggested" : "Pending"}
           </span>
-          <span className="qf-pending-tag">Pending</span>
-          {comment.startLine !== null && (
+          {comment.startLine !== undefined && (
             <span className="qf-range-tag">
               Lines {comment.startLine}–{comment.line}
             </span>
           )}
-          <button
-            aria-label="Discard pending comment"
-            className="qf-pending-remove qf-focusable"
-            onClick={handleRemove}
-            type="button"
-          >
-            Discard
-            {showDiscardKbd && (
-              <span aria-hidden className="qf-key-hint">
-                <Kbd combo="shift+d" />
-              </span>
-            )}
-          </button>
+          {!editing && (
+            <div className="qf-pending-tools">
+              <button
+                className="qf-pending-act qf-focusable"
+                onClick={() => onEdit(comment.id)}
+                type="button"
+              >
+                Edit
+              </button>
+              <button
+                aria-label="Discard pending comment"
+                className="qf-pending-act qf-pending-remove qf-focusable"
+                onClick={handleRemove}
+                type="button"
+              >
+                Discard
+                {showDiscardKbd && (
+                  <span aria-hidden className="qf-key-hint">
+                    <Kbd combo="shift+d" />
+                  </span>
+                )}
+              </button>
+            </div>
+          )}
         </div>
-        <div className="qf-comment-body">
-          <Markdown>{comment.body}</Markdown>
-        </div>
+        {editing ? (
+          <AddCommentBox
+            autoFocus
+            extensions={[suggestionHighlight(filename)]}
+            initialMarkdown={comment.body}
+            onCancel={() => onEdit(null)}
+            onSubmit={handleSave}
+            pending={false}
+            placeholder="Edit this comment…"
+            submitLabel="Save"
+          />
+        ) : (
+          <div className="qf-comment-body">
+            <Markdown highlightLine={(code) => highlightLine(code, filename)}>
+              {comment.body}
+            </Markdown>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -630,6 +656,7 @@ function CommentsBlock({
   const activeAccount = useAppStore((s) =>
     s.accounts.find((a) => a.id === s.activeAccountId)
   );
+  const [editingPendingId, setEditingPendingId] = useState<string | null>(null);
   const { target } = item;
 
   return (
@@ -657,25 +684,13 @@ function CommentsBlock({
       ))}
       {item.pending.map((pending, pendingIndex) => (
         <PendingCommentCard
-          activeAccount={activeAccount}
+          callbacks={callbacks}
           comment={pending}
+          editing={editingPendingId === pending.id}
+          filename={filename}
           key={pending.id}
-          onRemovePending={callbacks.onRemovePending}
+          onEdit={setEditingPendingId}
           showDiscardKbd={pendingIndex === item.pending.length - 1}
-        />
-      ))}
-      {item.suggested.map((suggestion) => (
-        <SuggestedCommentCard
-          body={suggestion.body}
-          key={suggestion.id}
-          line={suggestion.line}
-          onAccept={() => callbacks.onAcceptSuggested(suggestion.id)}
-          onDiscard={() => callbacks.onDiscardSuggested(suggestion.id)}
-          onEdit={() =>
-            callbacks.onEditSuggested(suggestion, item.fileIndex, item.anchor)
-          }
-          renderMarkdown={(body) => <Markdown>{body}</Markdown>}
-          startLine={suggestion.startLine}
         />
       ))}
       {item.boxOpen && target !== null && (

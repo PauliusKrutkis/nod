@@ -291,7 +291,7 @@ turns past an input budget, and three events come back keyed
 aborts an in-flight turn — a stop button, not an error. History persists per PR
 (`nod:chatHistory:v1`), same keying as pending comments.
 
-### Suggested comments — the material rule's fourth application
+### Suggested comments are pending comments (revised 2026-08-16, owner)
 
 The model may stage findings via a `propose_comment` tool. Rust validates each
 proposal against the diff's commentable ranges (computed by the frontend from
@@ -299,21 +299,25 @@ the patch — the same `rowTarget` rules that gate the composer, so the model ca
 never anchor where the forges would reject) and returns an actionable error
 listing valid ranges when it misses, letting it self-correct within the turn.
 
-A valid proposal becomes a **suggested comment**: its own store slice
-(`nod:suggestedComments:v1`), never a `PendingComment`, rendered in the diff at
-its anchor in the **AI material** — dotted hairline, no fill, sparkle — so a
-machine draft can never be mistaken for something you wrote. The parked trust
-questions, answered:
+A valid proposal **is a pending comment** — the same object, the same card, the
+same submission path. It shipped first as a separate `suggestedComments` slice
+with an Accept step, on the theory that nothing machine-written should be one
+click from your review. Dogfooding killed that: accepting every good suggestion
+cost a click that never once changed the answer, and two materials for one idea
+made the diff harder to read, not safer. The rule that survives is the one that
+matters — **nothing posts without you pressing submit** — and a suggestion you
+do not want costs exactly one Discard.
 
-- **Accept** converts it into an ordinary pending comment, indistinguishable
-  from a hand-typed one **by design** — accepting is adoption. It carries your
-  name because you chose it, exactly like "Start comment from this".
-- **Ignored suggestions never post.** Review submission maps pending comments
-  only; a suggestion you never touched stays local until discarded.
-- **A bad batch is one click.** Discard per card, discard-all per batch.
+So the material rule is back to three, not four: posted thread = solid card on
+surface; **pending comment = dashed hairline with an accent rail, no fill**
+(the old accent wash read as a highlight over half the file once the chat
+started staging comments, and it fought the diff's own tints); AI note = dotted
+hairline, no fill. A pending comment the chat wrote carries a sparkle and says
+*Suggested* rather than *Pending* — provenance without a second material.
 
-**Edit** discards the suggestion and prefills the normal composer at the same
-anchor — the promote precedent again.
+Pending comments earn the affordances that implies: **edit in place**, discard,
+and the hover-armed hotkeys posted threads already had. The chat lists what it
+staged, each row a way back to its line.
 
 ### Skills — the agent-skills standard, read from the repo
 
@@ -329,10 +333,11 @@ through tools.
 
 Docs (this section) → docked panel → `ai_chat` → chat-panel component → wiring
 + persistence → region chips → `propose_comment` → suggestion cards in the
-diff → skills. Fast-follows: bulk-action hotkeys, citation click-through,
-replaying tool traffic in history. Shipped since: the personal skills dir,
-per-chat model picker, chat threads, the resizable dock, paste-to-chip, and
-`read_diff` (the dogfood-feedback round).
+diff → skills. Fast-follows: citation click-through, replaying tool traffic in
+history. Shipped since, across two dogfood rounds: the personal skills dir,
+per-chat model picker (a searchable popover), chat threads, the resizable
+dock, paste-to-chip, `read_diff`, reasoning-delta streaming with a per-turn
+working trail, and the reversal above — suggestions as pending comments.
 
 ## Guardrails
 

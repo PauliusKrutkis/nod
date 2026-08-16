@@ -149,6 +149,10 @@ export type ReviewEvent = "COMMENT" | "APPROVE" | "REQUEST_CHANGES";
 
 export interface PendingComment {
   body: string;
+  /** Staged by the chat rather than typed. It is a pending comment either
+   *  way — it submits with the rest and can be edited or discarded — the flag
+   *  only lets the card say where it came from. */
+  fromAi?: boolean;
   id: string;
   line: number;
   path: string;
@@ -245,16 +249,6 @@ export interface CommentableSide {
   path: string;
   side: string;
   ranges: [number, number][];
-}
-
-export interface SuggestedComment {
-  body: string;
-  id: string;
-  line: number;
-  path: string;
-  side: string;
-  startLine?: number;
-  turnId: string;
 }
 
 export interface AiAskContext {

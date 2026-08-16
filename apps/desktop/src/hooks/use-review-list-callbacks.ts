@@ -63,6 +63,7 @@ interface ReviewListCallbackArgs {
       line: number;
       side: string;
       body: string;
+      fromAi?: boolean;
       startLine?: number;
     }
   ) => void;
@@ -291,7 +292,7 @@ function reviewListOnPlusDragOver(
 
 type BaseReviewListCallbacks = Omit<
   ReviewListCallbacks,
-  "onAcceptSuggested" | "onDiscardSuggested" | "onEditSuggested"
+  "onPendingHover" | "onUpdatePending"
 >;
 
 export function useReviewListCallbacks(

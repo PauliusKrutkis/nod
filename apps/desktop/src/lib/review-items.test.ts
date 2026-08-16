@@ -233,59 +233,6 @@ describe("buildReviewItems previews", () => {
   });
 });
 
-describe("buildReviewItems suggested", () => {
-  const suggestion = {
-    body: "Guard this.",
-    id: "s1",
-    line: 2,
-    path: FILE.filename,
-    side: "RIGHT",
-    turnId: "t1",
-  };
-
-  it("appends a comment block at the anchor and marks the row", () => {
-    const m = buildReviewItems({
-      ask: null,
-      collapsed: new Map(),
-      commentsByFile: new Map(),
-      expandedRows: new Map(),
-      files: [FILE],
-      isImage: () => false,
-      openBoxes: new Map(),
-      pendingByFile: new Map(),
-      suggestedByFile: new Map([[FILE.filename, [suggestion]]]),
-    });
-
-    const blockNav = m.navIndexOf.get(navKey(0, "RIGHT:2", "comments"));
-    expect(blockNav).toBeDefined();
-    const block = m.items[m.nav[blockNav as number].itemIndex];
-    expect(block.kind).toBe("comments");
-    if (block.kind === "comments") {
-      expect(block.suggested).toEqual([suggestion]);
-      expect(block.pending).toEqual([]);
-    }
-    const rowIdx = m.anchorItem.get(fileAnchorKey(0, "RIGHT:2")) as number;
-    const row = m.items[rowIdx];
-    expect(row.kind === "row" && row.hasAnchored).toBe(true);
-  });
-
-  it("omitting the map changes nothing", () => {
-    const m = buildReviewItems({
-      ask: null,
-      collapsed: new Map(),
-      commentsByFile: new Map(),
-      expandedRows: new Map(),
-      files: [FILE],
-      isImage: () => false,
-      openBoxes: new Map(),
-      pendingByFile: new Map(),
-    });
-    expect(
-      m.items.some((i) => i.kind === "comments" && i.suggested.length > 0)
-    ).toBe(false);
-  });
-});
-
 describe("buildReviewItems ask", () => {
   const withAsk = (ask: { anchor: string; fileIndex: number } | null) =>
     buildReviewItems({

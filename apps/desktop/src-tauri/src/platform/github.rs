@@ -362,6 +362,15 @@ impl GitHubPlatform {
         if status.is_success() {
             return read_capped(resp, MAX_ARCHIVE_BYTES, "repo archive").await;
         }
+        // A 404 here is not "missing" in any useful sense: the two causes are
+        // a head commit that lives in a fork rather than in this repo, and a
+        // private repo the signed-in account cannot see. Saying which two
+        // beats echoing the status.
+        if status == reqwest::StatusCode::NOT_FOUND {
+            return Err(format!(
+                "no archive for {owner}/{repo} at this commit — it may live in a fork, or this account may not have access"
+            ));
+        }
         if !status.is_redirection() {
             return Err(format!("repo archive failed ({})", status.as_u16()));
         }

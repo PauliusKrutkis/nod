@@ -41,7 +41,7 @@ const base = (over: Partial<ChatPanelProps>): ChatPanelProps => ({
   onSend: noop,
   onStop: noop,
   pending: false,
-  proposals: null,
+  staged: null,
   suggestions: null,
   turns: [],
   ...over,
@@ -270,9 +270,24 @@ export const chatPanelEntry = defineEntry(ChatPanel, {
       },
     }),
   },
-  proposals: {
+  staged: {
     props: base({
-      proposals: { count: 3, onAcceptAll: noop, onDiscardAll: noop },
+      staged: {
+        items: [
+          {
+            body: "This constant looks off — should it be 3?",
+            id: "p1",
+            label: "src/lib/fuzzy.ts:2",
+          },
+          {
+            body: "Worth a test for the empty case.",
+            id: "p2",
+            label: "src/lib/fuzzy.ts:9",
+          },
+        ],
+        onDiscard: noop,
+        onReveal: noop,
+      },
       turns: [
         CONVERSATION[0],
         {
@@ -280,7 +295,7 @@ export const chatPanelEntry = defineEntry(ChatPanel, {
           id: "a1",
           kind: "assistant",
           partial: "",
-          text: "I staged 3 suggested comments in the diff — review them at their anchors.",
+          text: "I put 2 comments in your review — they are waiting at their lines.",
           activity: [],
           reasoning: "",
         },

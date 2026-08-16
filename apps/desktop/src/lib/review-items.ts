@@ -23,12 +23,7 @@
  * `askItem` points at it — and its content lives outside the model, in
  * use-ask-note.ts.
  */
-import type {
-  ChangedFile,
-  PendingComment,
-  ReviewComment,
-  SuggestedComment,
-} from "../types.ts";
+import type { ChangedFile, PendingComment, ReviewComment } from "../types.ts";
 import { type DiffHunk, type DiffRow, parsePatch, rowAnchor } from "./diff.ts";
 import { markBlockCommentRows } from "./highlight.ts";
 import {
@@ -315,7 +310,6 @@ export interface ReviewCommentsItem {
   pending: PendingComment[];
   rangeContent: string | null;
   rowContent: string | null;
-  suggested: SuggestedComment[];
   target: { line: number; side: string } | null;
   threads: ReviewComment[][];
 }
@@ -368,7 +362,6 @@ export interface BuildReviewItemsInput {
   isImage: (file: ChangedFile) => boolean;
   openBoxes: ReadonlyMap<string, number | null>;
   pendingByFile: ReadonlyMap<string, PendingComment[]>;
-  suggestedByFile?: ReadonlyMap<string, SuggestedComment[]>;
 }
 
 interface HunkBuildContext {
@@ -384,7 +377,6 @@ interface HunkBuildContext {
   navIndexOf: Map<string, number>;
   openBoxes: ReadonlyMap<string, number | null>;
   pendingByAnchor: Map<string, PendingComment[]>;
-  suggestedByAnchor: Map<string, SuggestedComment[]>;
   threads: Map<string, ReviewComment[][]>;
 }
 
@@ -395,7 +387,6 @@ function appendCommentBlock(
   target: { line: number; side: string },
   rowThreads: ReviewComment[][] | undefined,
   rowPending: PendingComment[] | undefined,
-  rowSuggested: SuggestedComment[] | undefined,
   boxOpen: boolean,
   boxStartLine: number | null
 ): void {
@@ -427,7 +418,6 @@ function appendCommentBlock(
     pending: rowPending ?? [],
     rangeContent,
     rowContent: row.content,
-    suggested: rowSuggested ?? [],
     target,
     threads: rowThreads ?? [],
   });
@@ -441,7 +431,6 @@ function appendHunkRow(ctx: HunkBuildContext, row: DiffRow): void {
   }
   const rowThreads = anchor ? ctx.threads.get(anchor) : undefined;
   const rowPending = anchor ? ctx.pendingByAnchor.get(anchor) : undefined;
-  const rowSuggested = anchor ? ctx.suggestedByAnchor.get(anchor) : undefined;
   const boxStartLine =
     anchor === null
       ? null
@@ -449,9 +438,7 @@ function appendHunkRow(ctx: HunkBuildContext, row: DiffRow): void {
   const boxOpen =
     anchor !== null && ctx.openBoxes.has(fileAnchorKey(ctx.fileIndex, anchor));
   const hasAnchored =
-    (rowThreads?.length ?? 0) > 0 ||
-    (rowPending?.length ?? 0) > 0 ||
-    (rowSuggested?.length ?? 0) > 0;
+    (rowThreads?.length ?? 0) > 0 || (rowPending?.length ?? 0) > 0;
   if (anchor !== null) {
     ctx.anchorItem.set(fileAnchorKey(ctx.fileIndex, anchor), ctx.items.length);
     ctx.navIndexOf.set(navKey(ctx.fileIndex, anchor, "row"), ctx.nav.length);
@@ -479,7 +466,6 @@ function appendHunkRow(ctx: HunkBuildContext, row: DiffRow): void {
       target,
       rowThreads,
       rowPending,
-      rowSuggested,
       boxOpen,
       boxStartLine
     );
@@ -534,8 +520,6 @@ export function buildReviewItems(
     commentsByFile,
     pendingByFile,
   } = input;
-  const suggestedByFile =
-    input.suggestedByFile ?? new Map<string, SuggestedComment[]>();
   const items: ReviewItem[] = [];
   const groupCounts: number[] = [];
   const groupFirstItem: number[] = [];
@@ -576,13 +560,6 @@ export function buildReviewItems(
       arr.push(p);
       pendingByAnchor.set(k, arr);
     }
-    const suggestedByAnchor = new Map<string, SuggestedComment[]>();
-    for (const s of suggestedByFile.get(file.filename) ?? []) {
-      const k = anchorKey(s.side, s.line);
-      const arr = suggestedByAnchor.get(k) ?? [];
-      arr.push(s);
-      suggestedByAnchor.set(k, arr);
-    }
 
     const expanded = expandedRows.get(fileIndex);
     if (expanded) {
@@ -600,7 +577,6 @@ export function buildReviewItems(
           navIndexOf,
           openBoxes,
           pendingByAnchor,
-          suggestedByAnchor,
           threads,
         },
         expanded
@@ -638,7 +614,6 @@ export function buildReviewItems(
           navIndexOf,
           openBoxes,
           pendingByAnchor,
-          suggestedByAnchor,
           threads,
         },
         hunk

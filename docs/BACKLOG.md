@@ -1183,15 +1183,14 @@ each carries an unresolved design question of its own, noted below.
       **Promoted 2026-08-16 (owner)** — being built as part of the chat panel
       ([AI.md § Second surface](./AI.md#second-surface--chat-panel--suggested-comments-decided-2026-08-16)).
       The trust questions this entry parked on, answered there in full; the
-      short form: a suggestion is visually distinct (AI material, dotted, no
-      fill) *until you accept it*, and indistinguishable *after* — by design,
-      because accepting is adoption and the posted comment carries your name
-      because you chose it; ignored suggestions never reach the submitted
-      review (submission maps pending comments only); a bad batch is one
-      discard-all click. One deliberate refinement over the sketch: findings
-      stage as their own `suggestedComments` slice, not as `PendingComment`s —
-      same surface in the diff, but nothing the model wrote can ride a review
-      submission without an explicit accept.
+      short form: a suggestion is visually distinct (sparkle, *Suggested*
+      rather than *Pending*) but is otherwise an ordinary pending comment;
+      ignored ones never post, because nothing posts without you pressing
+      submit; a bad suggestion is one Discard. *Revised 2026-08-16 after
+      dogfooding:* the first build gave findings their own slice and an
+      Accept step, and the step never once changed the answer — it just cost
+      a click per good suggestion and put two materials in the diff for one
+      idea. Findings now stage directly as `PendingComment`s.
 - [ ] ❓ **Code diff layers — grouped changes with a summary** — group related
       hunks across files into labelled layers ("auth wiring", "test fixtures",
       "formatting") with a one-line summary each, so a 40-file PR can be read

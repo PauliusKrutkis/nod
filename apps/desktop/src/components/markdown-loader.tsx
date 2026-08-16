@@ -114,6 +114,7 @@ function AuthenticatedUpload({
 }
 
 export function Markdown({
+  highlightLine,
   children,
   className,
   owner,
@@ -121,6 +122,7 @@ export function Markdown({
 }: {
   children: string;
   className?: string;
+  highlightLine?: (code: string) => string;
   owner?: string;
   repo?: string;
 }) {
@@ -143,6 +145,7 @@ export function Markdown({
   return (
     <MarkdownView
       className={className}
+      highlightLine={highlightLine}
       openExternal={openExternal}
       renderImage={renderImage}
     >

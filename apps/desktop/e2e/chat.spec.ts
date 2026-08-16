@@ -821,85 +821,66 @@ async function stageProposal(page: Page) {
   await page.keyboard.press("m");
   await composer(page).fill("Review this PR");
   await page.keyboard.press("Enter");
-  await expect(
-    chatPanel(page).getByText("1 suggested comment in the diff")
-  ).toBeVisible();
+  await expect(chatPanel(page).locator(".qch-staged-go")).toHaveCount(1);
 }
 
-test("a proposal stages a suggested comment and survives a reload", async ({
+test("a proposal lands as a pending comment, and survives a reload", async ({
   page,
 }) => {
   await setupApp(page, PROPOSAL_SETUP);
   await openReview(page);
   await stageProposal(page);
+
+  const card = page.locator(".qf-pending");
+  await expect(card).toContainText("This constant looks off");
+  await expect(card).toContainText("Suggested");
 
   await page.reload();
   await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
-  await page.keyboard.press("m");
+  await expect(page.locator(".qf-pending")).toContainText(
+    "This constant looks off"
+  );
+});
+
+test("a staged comment submits with the review, no accept step", async ({
+  page,
+}) => {
+  await setupApp(page, PROPOSAL_SETUP);
+  await openReview(page);
+  await stageProposal(page);
+
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("s");
+  await page.keyboard.press("ControlOrMeta+Enter");
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          JSON.parse(localStorage.getItem("e2e:lastReview") ?? "null")?.comments
+            ?.length ?? 0
+      )
+    )
+    .toBe(1);
+});
+
+test("the chat lists what it staged and jumps to the line", async ({
+  page,
+}) => {
+  await setupApp(page, PROPOSAL_SETUP);
+  await openReview(page);
+  await stageProposal(page);
+
+  const row = chatPanel(page).locator(".qch-staged-go");
+  await expect(row).toContainText("src/lib/fuzzy.ts:2");
+  await expect(row).toContainText("This constant looks off");
+  await row.click();
   await expect(
-    chatPanel(page).getByText("1 suggested comment in the diff")
+    page.locator('.qf-row-active[data-anchor="RIGHT:2"]')
   ).toBeVisible();
 });
 
-test("accept all turns suggestions into ordinary pending comments", async ({
-  page,
-}) => {
-  await setupApp(page, PROPOSAL_SETUP);
-  await openReview(page);
-  await stageProposal(page);
-
-  await page.getByRole("button", { name: "Accept all" }).click();
-  await expect(
-    chatPanel(page).getByText("1 suggested comment in the diff")
-  ).toHaveCount(0);
-  await expect(page.locator(".qf-pending")).toBeVisible();
-  await expect(page.locator(".qf-pending")).toContainText(
-    "This constant looks off"
-  );
-});
-
-test("a suggestion renders in the diff at its anchor, in the AI material", async ({
-  page,
-}) => {
-  await setupApp(page, PROPOSAL_SETUP);
-  await openReview(page);
-  await stageProposal(page);
-
-  const card = page.locator(".qf-suggested");
-  await expect(card).toBeVisible();
-  await expect(card).toContainText("This constant looks off");
-  await expect(card).toContainText("Suggested comment");
-  await expect(page.locator(".qf-pending")).toHaveCount(0);
-});
-
-test("accepting the card converts it into a pending comment in place", async ({
-  page,
-}) => {
-  await setupApp(page, PROPOSAL_SETUP);
-  await openReview(page);
-  await stageProposal(page);
-
-  await page.getByRole("button", { name: "Accept", exact: true }).click();
-  await expect(page.locator(".qf-suggested")).toHaveCount(0);
-  await expect(page.locator(".qf-pending")).toContainText(
-    "This constant looks off"
-  );
-});
-
-test("editing the card opens the composer prefilled and drops the suggestion", async ({
-  page,
-}) => {
-  await setupApp(page, PROPOSAL_SETUP);
-  await openReview(page);
-  await stageProposal(page);
-
-  await page.getByRole("button", { name: "Edit", exact: true }).click();
-  await expect(page.locator(".qf-suggested")).toHaveCount(0);
-  const editor = page.locator(".qf-comment-wrap .tiptap");
-  await expect(editor).toContainText("This constant looks off");
-});
-
-test("discarding the card removes it and nothing reaches pending", async ({
+test("discarding from the chat removes the comment from the diff", async ({
   page,
 }) => {
   await setupApp(page, PROPOSAL_SETUP);
@@ -907,23 +888,34 @@ test("discarding the card removes it and nothing reaches pending", async ({
   await stageProposal(page);
 
   await page
-    .locator(".qf-suggested")
-    .getByRole("button", { name: "Discard" })
+    .getByRole("button", { name: /Discard the comment on src\/lib\/fuzzy/ })
     .click();
-  await expect(page.locator(".qf-suggested")).toHaveCount(0);
   await expect(page.locator(".qf-pending")).toHaveCount(0);
+  await expect(chatPanel(page).locator(".qch-staged-go")).toHaveCount(0);
 });
 
-test("discard all drops the batch without touching pending comments", async ({
-  page,
-}) => {
+test("a pending comment edits in place", async ({ page }) => {
   await setupApp(page, PROPOSAL_SETUP);
   await openReview(page);
   await stageProposal(page);
 
-  await page.getByRole("button", { name: "Discard all" }).click();
-  await expect(
-    chatPanel(page).getByText("1 suggested comment in the diff")
-  ).toHaveCount(0);
+  await page.locator(".qf-pending").hover();
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  const editor = page.locator(".qf-pending .tiptap");
+  await editor.click();
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.type("Reworded by hand.");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.locator(".qf-pending")).toContainText("Reworded by hand.");
+});
+
+test("hovering a pending comment arms shift+d", async ({ page }) => {
+  await setupApp(page, PROPOSAL_SETUP);
+  await openReview(page);
+  await stageProposal(page);
+
+  await page.keyboard.press("Escape");
+  await page.locator(".qf-pending").hover();
+  await page.keyboard.press("Shift+d");
   await expect(page.locator(".qf-pending")).toHaveCount(0);
 });

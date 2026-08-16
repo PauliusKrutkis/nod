@@ -60,7 +60,6 @@
     "./spinner": "./src/spinner/spinner.tsx",
     "./styles.css": "./src/styles.css",
     "./submit-review-modal": "./src/submit-review-modal/submit-review-modal.tsx",
-    "./suggested-comment": "./src/suggested-comment/suggested-comment.tsx",
     "./thread-index": "./src/thread-index/thread-index.tsx",
     "./ticket-title": "./src/ticket-title/ticket-title.tsx",
     "./time": "./src/time/time.ts",

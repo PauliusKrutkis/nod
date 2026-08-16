@@ -53,6 +53,10 @@ export type MarkdownImageProps = ComponentPropsWithoutRef<"img">;
 export interface MarkdownProps {
   children: string;
   className?: string;
+  /** Tokenises one line of a ```suggestion block. The host owns the
+   *  highlighter (it knows the file's language); without it the block renders
+   *  as plain text, which is what fixtures do. Must return escaped HTML. */
+  highlightLine?: (code: string) => string;
   openExternal?: (url: string) => void;
   renderImage?: (props: MarkdownImageProps) => ReactNode | null;
 }
@@ -112,7 +116,13 @@ function codeText(children: unknown): string {
   return "";
 }
 
-function SuggestionCard({ text }: { text: string }) {
+function SuggestionCard({
+  highlightLine,
+  text,
+}: {
+  highlightLine?: (code: string) => string;
+  text: string;
+}) {
   const [copied, setCopied] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
@@ -154,15 +164,25 @@ function SuggestionCard({ text }: { text: string }) {
         </button>
       </div>
       <div className="md-suggestion-body">
-        {lines.map((line, index) => (
-          <div
-            className="md-suggestion-line"
-            // biome-ignore lint/suspicious/noArrayIndexKey: suggestion lines are positional and repeat verbatim
-            key={index}
-          >
-            {line}
-          </div>
-        ))}
+        {lines.map((line, index) =>
+          highlightLine ? (
+            <div
+              className="md-suggestion-line"
+              // biome-ignore lint/security/noDangerouslySetInnerHtml: the host highlighter escapes what it does not tokenize (lib/highlight.ts)
+              dangerouslySetInnerHTML={{ __html: highlightLine(line) }}
+              // biome-ignore lint/suspicious/noArrayIndexKey: suggestion lines are positional and repeat verbatim
+              key={index}
+            />
+          ) : (
+            <div
+              className="md-suggestion-line"
+              // biome-ignore lint/suspicious/noArrayIndexKey: suggestion lines are positional and repeat verbatim
+              key={index}
+            >
+              {line}
+            </div>
+          )
+        )}
       </div>
     </div>
   );
@@ -183,15 +203,22 @@ function Pre({ node, children, ...rest }: PreProps) {
 
 type CodeProps = ComponentPropsWithoutRef<"code"> & { node?: unknown };
 
-function Code({ node, className, children, ...rest }: CodeProps) {
-  if (isSuggestionLang(fenceLang(node))) {
-    return <SuggestionCard text={codeText(children)} />;
-  }
-  return (
-    <code className={className} {...rest}>
-      {children}
-    </code>
-  );
+function makeCode(highlightLine: MarkdownProps["highlightLine"]) {
+  return function Code({ node, className, children, ...rest }: CodeProps) {
+    if (isSuggestionLang(fenceLang(node))) {
+      return (
+        <SuggestionCard
+          highlightLine={highlightLine}
+          text={codeText(children)}
+        />
+      );
+    }
+    return (
+      <code className={className} {...rest}>
+        {children}
+      </code>
+    );
+  };
 }
 
 type ImgProps = MarkdownImageProps & { node?: unknown };
@@ -212,6 +239,7 @@ function makeImg(renderImage: MarkdownProps["renderImage"]) {
 export function Markdown({
   children,
   className,
+  highlightLine,
   openExternal,
   renderImage,
 }: MarkdownProps) {
@@ -223,7 +251,7 @@ export function Markdown({
       <ReactMarkdown
         components={{
           a: makeAnchor(openExternal),
-          code: Code,
+          code: makeCode(highlightLine),
           img: makeImg(renderImage),
           pre: Pre,
         }}
