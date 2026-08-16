@@ -13,6 +13,7 @@ import type {
   AccountsInfo,
   ChangedFile,
   ChatRegion,
+  ChatThread,
   ChatTurnRecord,
   InboxTabKey,
   PendingComment,
@@ -199,21 +200,41 @@ let pendingIdCounter = 0;
 
 /**
  * Chat conversations persist per PR (docs/AI.md § Second surface) so the
- * background-agent workflow survives restarts. Capped per PR so one long
- * conversation can never crowd the store.
+ * background-agent workflow survives restarts — as a list of threads per PR
+ * since v2, so one PR can hold several conversations. v1 (one turn list per
+ * PR) migrates by wrapping the list as the single existing thread. Capped in
+ * both directions so neither a long conversation nor a pile of threads can
+ * crowd the store.
  */
 
-const CHAT_KEY = "nod:chatHistory:v1";
+const CHAT_KEY = "nod:chatHistory:v2";
+const LEGACY_CHAT_KEY = "nod:chatHistory:v1";
 const MAX_CHAT_TURNS = 200;
-function loadChats(): Record<string, ChatTurnRecord[]> {
+const MAX_CHAT_THREADS = 20;
+function loadChats(): Record<string, ChatThread[]> {
   try {
-    const v = JSON.parse(localStorage.getItem(CHAT_KEY) ?? "{}");
-    return v && typeof v === "object" && !Array.isArray(v) ? v : {};
+    const v = JSON.parse(localStorage.getItem(CHAT_KEY) ?? "null");
+    if (v && typeof v === "object" && !Array.isArray(v)) {
+      return v;
+    }
+    const legacy = JSON.parse(localStorage.getItem(LEGACY_CHAT_KEY) ?? "null");
+    if (!(legacy && typeof legacy === "object") || Array.isArray(legacy)) {
+      return {};
+    }
+    const migrated: Record<string, ChatThread[]> = {};
+    for (const [key, turns] of Object.entries(legacy)) {
+      if (Array.isArray(turns) && turns.length > 0) {
+        migrated[key] = [{ id: "t1", turns }];
+      }
+    }
+    localStorage.setItem(CHAT_KEY, JSON.stringify(migrated));
+    localStorage.removeItem(LEGACY_CHAT_KEY);
+    return migrated;
   } catch {
     return {};
   }
 }
-function saveChats(map: Record<string, ChatTurnRecord[]>) {
+function saveChats(map: Record<string, ChatThread[]>) {
   try {
     localStorage.setItem(CHAT_KEY, JSON.stringify(map));
   } catch {
@@ -283,10 +304,15 @@ interface AppState {
   addChatChip: (chip: ChatRegion) => void;
   addSuggestedComment: (prKey: string, s: Omit<SuggestedComment, "id">) => void;
   aiSetupOpen: boolean;
-  appendChatTurn: (prKey: string, turn: ChatTurnRecord) => void;
+  appendChatTurn: (
+    prKey: string,
+    threadId: string,
+    turn: ChatTurnRecord
+  ) => void;
   chatChips: ChatRegion[];
-  chatHistory: Record<string, ChatTurnRecord[]>;
+  chatHistory: Record<string, ChatThread[]>;
   clearChat: (prKey: string) => void;
+  removeChatThread: (prKey: string, threadId: string) => void;
   clearChatChips: () => void;
   clearSuggestedComments: (prKey: string) => void;
   removeChatChip: (index: number) => void;
@@ -431,11 +457,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     saveSuggested(map);
   },
   aiSetupOpen: false,
-  appendChatTurn: (prKey, turn) => {
-    const list = [...(get().chatHistory[prKey] ?? []), turn].slice(
-      -MAX_CHAT_TURNS
-    );
-    const map = { ...get().chatHistory, [prKey]: list };
+  appendChatTurn: (prKey, threadId, turn) => {
+    const threads = get().chatHistory[prKey] ?? [];
+    const existing = threads.find((t) => t.id === threadId);
+    const next = existing
+      ? threads.map((t) =>
+          t.id === threadId
+            ? { ...t, turns: [...t.turns, turn].slice(-MAX_CHAT_TURNS) }
+            : t
+        )
+      : [...threads, { id: threadId, turns: [turn] }].slice(-MAX_CHAT_THREADS);
+    const map = { ...get().chatHistory, [prKey]: next };
     set({ chatHistory: map });
     saveChats(map);
   },
@@ -448,6 +480,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     saveChats(map);
   },
   clearChatChips: () => set({ chatChips: [] }),
+  removeChatThread: (prKey, threadId) => {
+    const threads = (get().chatHistory[prKey] ?? []).filter(
+      (t) => t.id !== threadId
+    );
+    const map = { ...get().chatHistory };
+    if (threads.length === 0) {
+      delete map[prKey];
+    } else {
+      map[prKey] = threads;
+    }
+    set({ chatHistory: map });
+    saveChats(map);
+  },
   clearSuggestedComments: (prKey) => {
     const map = { ...get().suggestedComments };
     delete map[prKey];

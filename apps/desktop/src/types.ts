@@ -226,6 +226,11 @@ export interface ChatDiff {
   patch: string;
 }
 
+export interface ChatThread {
+  id: string;
+  turns: ChatTurnRecord[];
+}
+
 export interface CommentableSide {
   path: string;
   side: string;

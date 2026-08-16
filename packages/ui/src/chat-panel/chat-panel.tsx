@@ -26,7 +26,7 @@
  * composer the way the ask note's does.
  */
 
-import { ChevronDown, CornerDownLeft, Sparkles, X } from "lucide-react";
+import { ChevronDown, CornerDownLeft, Plus, Sparkles, X } from "lucide-react";
 import {
   type ClipboardEvent,
   type KeyboardEvent,
@@ -75,6 +75,14 @@ export interface ChatProposalsSummary {
   onDiscardAll: () => void;
 }
 
+export interface ChatThreadsState {
+  active: string | null;
+  items: { id: string; title: string }[];
+  onNew: () => void;
+  onPick: (id: string) => void;
+  onRemove: (id: string) => void;
+}
+
 export interface ChatModelState {
   current: string;
   models: readonly AiSetupModel[] | null;
@@ -108,6 +116,7 @@ export interface ChatPanelProps {
   renderMarkdown?: (text: string) => ReactNode;
   skill?: string | null;
   suggestions?: ChatSuggestionsState | null;
+  threads?: ChatThreadsState | null;
   turns: readonly ChatPanelTurn[];
 }
 
@@ -201,8 +210,10 @@ export function ChatPanel({
   renderMarkdown = plainText,
   skill = null,
   suggestions = null,
+  threads = null,
   turns,
 }: ChatPanelProps) {
+  const [threadsOpen, setThreadsOpen] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [modelOpen, setModelOpen] = useState(false);
@@ -280,6 +291,62 @@ export function ChatPanel({
 
   return (
     <div aria-label="Review chat" className="qch-panel">
+      {threads && threads.items.length > 0 && (
+        <div className="qch-threads">
+          <button
+            aria-expanded={threadsOpen}
+            className="qch-thread-current q-focus"
+            onClick={() => setThreadsOpen((open) => !open)}
+            type="button"
+          >
+            <span className="qch-thread-title">
+              {threads.items.find((t) => t.id === threads.active)?.title ??
+                "New chat"}
+            </span>
+            <ChevronDown aria-hidden size={11} />
+          </button>
+          <button
+            className="qch-thread-new q-focus"
+            onClick={() => {
+              setThreadsOpen(false);
+              threads.onNew();
+            }}
+            type="button"
+          >
+            <Plus aria-hidden size={12} /> New chat
+          </button>
+          {threadsOpen && (
+            <div className="qch-thread-list">
+              {threads.items.map((item) => (
+                <div
+                  className="qch-thread-row"
+                  data-active={item.id === threads.active}
+                  key={item.id}
+                >
+                  <button
+                    className="qch-thread-pick"
+                    onClick={() => {
+                      setThreadsOpen(false);
+                      threads.onPick(item.id);
+                    }}
+                    type="button"
+                  >
+                    {item.title}
+                  </button>
+                  <button
+                    aria-label={`Delete chat ${item.title}`}
+                    className="qch-chip-x"
+                    onClick={() => threads.onRemove(item.id)}
+                    type="button"
+                  >
+                    <X size={11} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       <div className="qch-scroll" ref={scrollRef}>
         {turns.length === 0 && (
           <p className="qch-hint">

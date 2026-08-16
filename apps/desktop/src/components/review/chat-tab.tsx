@@ -55,6 +55,7 @@ export function ChatTab({ files, focusSeq, pr }: ChatTabProps) {
       renderMarkdown={renderMarkdown}
       skill={chat.skill}
       suggestions={chat.suggestions}
+      threads={chat.threads}
       turns={chat.panelTurns}
     />
   );

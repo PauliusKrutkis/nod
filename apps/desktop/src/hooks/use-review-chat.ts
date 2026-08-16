@@ -30,6 +30,7 @@ import {
   type AiAskContext,
   type ChangedFile,
   type ChatRegion,
+  type ChatThread,
   type ChatTurnRecord,
   type PullRequest,
   prKey,
@@ -37,11 +38,23 @@ import {
 
 interface LiveTurn {
   partial: string;
+  threadId: string;
   toolNote: string | null;
   turnId: string;
 }
 
 const EMPTY_TURNS: ChatTurnRecord[] = [];
+const EMPTY_THREADS: ChatThread[] = [];
+
+/** A thread's display name: its opening message, tightly trimmed. */
+function threadTitle(thread: ChatThread): string {
+  const first = thread.turns.find((t) => t.kind === "user");
+  if (!first || first.kind !== "user") {
+    return "New chat";
+  }
+  const line = first.text.split("\n")[0].trim();
+  return line.length > 40 ? `${line.slice(0, 40)}…` : line;
+}
 
 const CHAT_MODEL_KEY = "nod:chatModel:v1";
 
@@ -115,8 +128,14 @@ export function useReviewChat(args: {
   pr: PullRequest;
 }) {
   const keyValue = prKey(args.pr);
-  const turns = useAppStore((s) => s.chatHistory[keyValue]) ?? EMPTY_TURNS;
+  const threads = useAppStore((s) => s.chatHistory[keyValue]) ?? EMPTY_THREADS;
   const appendChatTurn = useAppStore((s) => s.appendChatTurn);
+  const removeChatThread = useAppStore((s) => s.removeChatThread);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(
+    () => threads.at(-1)?.id ?? null
+  );
+  const turns =
+    threads.find((t) => t.id === activeThreadId)?.turns ?? EMPTY_TURNS;
   const chips = useAppStore((s) => s.chatChips);
   const removeChip = useAppStore((s) => s.removeChatChip);
   const clearChips = useAppStore((s) => s.clearChatChips);
@@ -313,7 +332,11 @@ export function useReviewChat(args: {
 
   // react-doctor-disable-next-line query-mutation-missing-invalidation -- a chat turn is a one-shot completion, not cached server state; there is no query to invalidate
   const chat = useMutation({
-    mutationFn: api.aiChat,
+    mutationFn: ({
+      threadId: _threadId,
+      ...request
+    }: { threadId: string } & Parameters<typeof api.aiChat>[0]) =>
+      api.aiChat(request),
     onError: (error, vars) => {
       const message = String(error);
       const partial =
@@ -321,7 +344,7 @@ export function useReviewChat(args: {
       setLive(null);
       if (message === "cancelled") {
         if (partial) {
-          appendChatTurn(keyValue, {
+          appendChatTurn(keyValue, vars.threadId, {
             error: null,
             id: vars.turnId,
             kind: "assistant",
@@ -330,7 +353,7 @@ export function useReviewChat(args: {
         }
         return;
       }
-      appendChatTurn(keyValue, {
+      appendChatTurn(keyValue, vars.threadId, {
         error: message,
         id: vars.turnId,
         kind: "assistant",
@@ -339,7 +362,7 @@ export function useReviewChat(args: {
     },
     onSuccess: (answer, vars) => {
       setLive(null);
-      appendChatTurn(keyValue, {
+      appendChatTurn(keyValue, vars.threadId, {
         error: null,
         id: vars.turnId,
         kind: "assistant",
@@ -369,9 +392,13 @@ export function useReviewChat(args: {
       return;
     }
     const turnId = crypto.randomUUID();
+    const threadId = activeThreadId ?? crypto.randomUUID();
+    if (activeThreadId === null) {
+      setActiveThreadId(threadId);
+    }
     const history = historyMessages(turns);
     const regions = chips;
-    appendChatTurn(keyValue, {
+    appendChatTurn(keyValue, threadId, {
       id: crypto.randomUUID(),
       kind: "user",
       regions,
@@ -381,9 +408,10 @@ export function useReviewChat(args: {
     setDraftState("");
     setSkill(null);
     clearChips();
-    setLive({ partial: "", toolNote: null, turnId });
+    setLive({ partial: "", threadId, toolNote: null, turnId });
     chat.mutate({
       chatId: keyValue,
+      threadId,
       commentable: buildCommentableRanges(args.files),
       context: chatContext(args.files, args.pr),
       diffs: buildChatDiffs(args.files),
@@ -437,7 +465,7 @@ export function useReviewChat(args: {
         toolNote: null,
       };
     }),
-    ...(live
+    ...(live && live.threadId === activeThreadId
       ? [
           {
             error: null,
@@ -450,6 +478,31 @@ export function useReviewChat(args: {
         ]
       : []),
   ];
+
+  const newChat = () => {
+    setActiveThreadId(null);
+    setDraftState("");
+    setSkill(null);
+  };
+
+  const removeThread = (threadId: string) => {
+    removeChatThread(keyValue, threadId);
+    if (threadId === activeThreadId) {
+      const remaining = threads.filter((t) => t.id !== threadId);
+      setActiveThreadId(remaining.at(-1)?.id ?? null);
+    }
+  };
+
+  const threadsState =
+    threads.length > 0
+      ? {
+          active: activeThreadId,
+          items: threads.map((t) => ({ id: t.id, title: threadTitle(t) })),
+          onNew: newChat,
+          onPick: setActiveThreadId,
+          onRemove: removeThread,
+        }
+      : null;
 
   const modelState =
     currentModel === null
@@ -478,5 +531,6 @@ export function useReviewChat(args: {
     stop,
     suggestedCount,
     suggestions,
+    threads: threadsState,
   };
 }

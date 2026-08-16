@@ -61,7 +61,7 @@ test("m opens the chat tab focused; a message round-trips with PR context", asyn
   await input.fill("What does this PR change?");
   await page.keyboard.press("Enter");
   await expect(
-    chatPanel(page).getByText("What does this PR change?")
+    chatPanel(page).locator(".qch-scroll").getByText("What does this PR change?")
   ).toBeVisible();
   await expect(
     chatPanel(page).getByText("The retry knob is safe", { exact: false })
@@ -174,7 +174,9 @@ test("the conversation survives a reload", async ({ page }) => {
   await page.reload();
   await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
   await page.keyboard.press("m");
-  await expect(chatPanel(page).getByText("Remember me")).toBeVisible();
+  await expect(
+    chatPanel(page).locator(".qch-scroll").getByText("Remember me")
+  ).toBeVisible();
   await expect(
     chatPanel(page).getByText("The retry knob is safe", { exact: false })
   ).toBeVisible();
@@ -379,6 +381,75 @@ test("a multi-line paste becomes a chip; single lines paste as text", async ({
       side: "",
     },
   ]);
+});
+
+test("new chat starts a second thread; the picker switches and deletes", async ({
+  page,
+}) => {
+  await setupApp(page, CONFIGURED);
+  await openReview(page);
+  await page.keyboard.press("m");
+
+  await composer(page).fill("First question");
+  await page.keyboard.press("Enter");
+  await expect(chatPanel(page).locator(".qch-thread-title")).toHaveText(
+    "First question"
+  );
+
+  await page.getByRole("button", { name: "New chat" }).click();
+  await expect(
+    chatPanel(page).locator(".qch-scroll").getByText("First question")
+  ).toHaveCount(0);
+
+  await composer(page).fill("Second topic");
+  await page.keyboard.press("Enter");
+  await expect(chatPanel(page).locator(".qch-thread-title")).toHaveText(
+    "Second topic"
+  );
+
+  await chatPanel(page).locator(".qch-thread-current").click();
+  const rows = chatPanel(page).locator(".qch-thread-pick");
+  await expect(rows).toHaveCount(2);
+  await rows.first().click();
+  await expect(
+    chatPanel(page).locator(".qch-scroll").getByText("First question")
+  ).toBeVisible();
+
+  await chatPanel(page).locator(".qch-thread-current").click();
+  await page.getByRole("button", { name: "Delete chat Second topic" }).click();
+  await expect(chatPanel(page).locator(".qch-thread-pick")).toHaveCount(1);
+});
+
+test("threads survive a reload and v1 history migrates into one thread", async ({
+  page,
+}) => {
+  await setupApp(page, CONFIGURED);
+  await openReview(page);
+  await page.keyboard.press("m");
+  await composer(page).fill("Keep this thread");
+  await page.keyboard.press("Enter");
+  await expect(
+    chatPanel(page).getByText("The retry knob is safe", { exact: false })
+  ).toBeVisible();
+
+  await page.evaluate(() => {
+    const v2 = JSON.parse(localStorage.getItem("nod:chatHistory:v2") ?? "{}");
+    const key = Object.keys(v2)[0];
+    localStorage.setItem(
+      "nod:chatHistory:v1",
+      JSON.stringify({ [key]: v2[key][0].turns })
+    );
+    localStorage.removeItem("nod:chatHistory:v2");
+  });
+  await page.reload();
+  await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
+  await page.keyboard.press("m");
+  await expect(
+    chatPanel(page).locator(".qch-scroll").getByText("Keep this thread")
+  ).toBeVisible();
+  await expect(chatPanel(page).locator(".qch-thread-title")).toHaveText(
+    "Keep this thread"
+  );
 });
 
 test("the dock edge drags to a new width that survives a reload", async ({

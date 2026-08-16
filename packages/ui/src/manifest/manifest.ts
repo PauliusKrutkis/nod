@@ -154,6 +154,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "skill-chip",
       "slash-suggestions",
       "thinking",
+      "threads",
       "tool-activity",
       "typical",
       "unicode",

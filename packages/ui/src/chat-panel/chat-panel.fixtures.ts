@@ -284,6 +284,21 @@ export const chatPanelEntry = defineEntry(ChatPanel, {
       ],
     }),
   },
+  threads: {
+    props: base({
+      threads: {
+        active: "t2",
+        items: [
+          { id: "t1", title: "Is this retry loop safe against a wake…" },
+          { id: "t2", title: "Review the error paths" },
+        ],
+        onNew: noop,
+        onPick: noop,
+        onRemove: noop,
+      },
+      turns: CONVERSATION.slice(2),
+    }),
+  },
   "tool-activity": {
     props: base({
       pending: true,
