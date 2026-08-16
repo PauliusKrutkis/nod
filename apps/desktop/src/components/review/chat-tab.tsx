@@ -6,7 +6,9 @@
  * Esc ladder keeps working from wherever the reviewer was typing.
  */
 
+import type { ChatComposerHandle } from "@nod/ui/chat-composer";
 import { ChatPanel } from "@nod/ui/chat-panel";
+import { useEffect, useRef } from "react";
 import { useReviewChat } from "../../hooks/use-review-chat.ts";
 import type { ChangedFile, ChatRegion, PullRequest } from "../../types.ts";
 import { Markdown } from "../markdown-loader.tsx";
@@ -19,7 +21,25 @@ interface ChatTabProps {
 }
 
 export function ChatTab({ files, focusSeq, onRevealRegion, pr }: ChatTabProps) {
-  const chat = useReviewChat({ active: focusSeq > 0, files, pr });
+  const composerRef = useRef<ChatComposerHandle>(null);
+  const chat = useReviewChat({
+    active: focusSeq > 0,
+    composerRef,
+    files,
+    pr,
+  });
+
+  // `l` in the diff stages a region in the store; the composer is where it
+  // belongs, so drain the queue into the caret as soon as it arrives.
+  useEffect(() => {
+    if (chat.chips.length === 0) {
+      return;
+    }
+    for (const chip of chat.chips) {
+      composerRef.current?.insertRegion(chip);
+    }
+    chat.clearChips();
+  }, [chat.chips, chat.clearChips]);
 
   const renderMarkdown = (text: string) => (
     <Markdown owner={pr.owner} repo={pr.name}>
@@ -35,24 +55,21 @@ export function ChatTab({ files, focusSeq, onRevealRegion, pr }: ChatTabProps) {
 
   return (
     <ChatPanel
-      chips={chat.chips}
-      composerValue={chat.draft}
+      composerRef={composerRef}
       contextNote={chat.contextNote}
       focusSeq={focusSeq}
       model={chat.model}
-      onChangeComposer={chat.setDraft}
+      onComposerChange={chat.onComposerChange}
       onEscape={focusScrollHost}
       onOpenSkills={chat.openSkillsFolder}
-      onPasteCode={chat.pasteCode}
-      onRemoveChip={chat.removeChip}
       onRemoveSkill={chat.removeSkill}
-      onRevealChip={(index) => {
-        const chip = chat.chips[index];
-        if (chip) {
-          onRevealRegion(chip);
+      onRevealRegion={onRevealRegion}
+      onSend={() => {
+        const sent = chat.send(composerRef.current?.parts() ?? []);
+        if (sent) {
+          composerRef.current?.clear();
         }
       }}
-      onSend={chat.send}
       onStop={chat.stop}
       pending={chat.pending}
       renderMarkdown={renderMarkdown}

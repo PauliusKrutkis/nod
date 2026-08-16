@@ -35,15 +35,21 @@ import {
   X,
 } from "lucide-react";
 import {
-  type ClipboardEvent,
   type KeyboardEvent,
   type ReactNode,
+  type Ref,
+  type RefObject,
   useEffect,
   useRef,
   useState,
 } from "react";
 import type { AiSetupModel } from "../ai-model-combobox/ai-model-combobox.tsx";
 import { CannedSuggestions } from "../canned-suggestions/canned-suggestions.tsx";
+import {
+  ChatComposer,
+  type ChatComposerHandle,
+  type ChatPart,
+} from "../chat-composer/chat-composer.tsx";
 import { cn } from "../cn/cn.ts";
 import { ModelPicker } from "../model-picker/model-picker.tsx";
 import { formatAbsolute, formatRelativeTime } from "../time/time.ts";
@@ -60,6 +66,9 @@ export interface ChatUserTurn {
   kind: "user";
   at?: string;
   id: string;
+  /** The message as written: prose and code in the order they were put
+   *  there. Older turns carry only `regions` + `text`. */
+  parts?: readonly ChatPart[];
   regions: readonly ChatRegionChip[];
   skill?: string;
   text: string;
@@ -122,19 +131,16 @@ export interface ChatSuggestionsState {
 }
 
 export interface ChatPanelProps {
-  chips: readonly ChatRegionChip[];
-  composerValue: string;
+  composerRef?: Ref<ChatComposerHandle>;
   contextNote?: string | null;
   focusSeq: number;
   model?: ChatModelState | null;
-  onChangeComposer: (value: string) => void;
+  onComposerChange?: (text: string) => void;
   onEscape?: () => void;
-  onPasteCode?: (code: string) => void;
   onOpenSkills?: () => void;
-  onRemoveChip: (index: number) => void;
-  /** Reveal a chip's lines in the diff. Absent for pasted code, which has
-   *  no place in the diff to point at. */
-  onRevealChip?: (index: number) => void;
+  /** Reveal an inline chip's lines in the diff. Pasted code has no lines to
+   *  point at, so the composer only calls this for a region chip. */
+  onRevealRegion?: (region: ChatRegionChip) => void;
   onSend: () => void;
   onStop: () => void;
   onRemoveSkill?: () => void;
@@ -148,6 +154,22 @@ export interface ChatPanelProps {
   suggestions?: ChatSuggestionsState | null;
   threads?: ChatThreadsState | null;
   turns: readonly ChatPanelTurn[];
+}
+
+/** The panel focuses the field itself and the host drives it too, so both
+ *  refs have to reach the same handle. */
+function mergeComposerRefs(
+  local: RefObject<ChatComposerHandle | null>,
+  external: Ref<ChatComposerHandle> | undefined
+) {
+  return (handle: ChatComposerHandle | null) => {
+    local.current = handle;
+    if (typeof external === "function") {
+      external(handle);
+    } else if (external) {
+      (external as { current: ChatComposerHandle | null }).current = handle;
+    }
+  };
 }
 
 function plainText(text: string): ReactNode {
@@ -188,19 +210,39 @@ function UserTurn({ turn }: { turn: ChatUserTurn }) {
   return (
     <div className="qch-turn qch-user">
       <div className="qch-bubble">
-        {(turn.regions.length > 0 || turn.skill !== undefined) && (
+        {turn.skill !== undefined && (
           <div className="qch-turn-chips">
-            {turn.skill !== undefined && (
-              <span className="qch-chip qch-skill-chip">/{turn.skill}</span>
-            )}
-            {turn.regions.map((region, i) => (
-              <span className="qch-chip" key={`${chipLabel(region)}-${i}`}>
-                {chipLabel(region)}
-              </span>
-            ))}
+            <span className="qch-chip qch-skill-chip">/{turn.skill}</span>
           </div>
         )}
-        <p className="qch-text">{turn.text}</p>
+        {turn.parts && turn.parts.length > 0 ? (
+          <p className="qch-text">
+            {turn.parts.map((part, i) =>
+              part.kind === "text" ? (
+                // biome-ignore lint/suspicious/noArrayIndexKey: parts are positional and may repeat verbatim
+                <span key={i}>{part.text}</span>
+              ) : (
+                // biome-ignore lint/suspicious/noArrayIndexKey: parts are positional and may repeat verbatim
+                <span className="qch-chip" key={i}>
+                  {chipLabel(part.region)}
+                </span>
+              )
+            )}
+          </p>
+        ) : (
+          <>
+            {turn.regions.length > 0 && (
+              <div className="qch-turn-chips">
+                {turn.regions.map((region, i) => (
+                  <span className="qch-chip" key={`${chipLabel(region)}-${i}`}>
+                    {chipLabel(region)}
+                  </span>
+                ))}
+              </div>
+            )}
+            <p className="qch-text">{turn.text}</p>
+          </>
+        )}
       </div>
     </div>
   );
@@ -319,18 +361,15 @@ function AssistantTurn({
 }
 
 export function ChatPanel({
-  chips,
-  composerValue,
+  composerRef,
   contextNote = null,
+  onComposerChange,
   focusSeq,
   model = null,
-  onChangeComposer,
   onEscape,
   onOpenSkills,
-  onPasteCode,
-  onRemoveChip,
   onRemoveSkill,
-  onRevealChip,
+  onRevealRegion,
   onSend,
   onStop,
   pending,
@@ -343,14 +382,14 @@ export function ChatPanel({
   turns,
 }: ChatPanelProps) {
   const [threadsOpen, setThreadsOpen] = useState(false);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const localComposer = useRef<ChatComposerHandle>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [modelOpen, setModelOpen] = useState(false);
 
   const pickModel = (id: string) => {
     setModelOpen(false);
     model?.onPick(id);
-    inputRef.current?.focus();
+    localComposer.current?.focus();
   };
 
   const closeModelPicker = () => {
@@ -359,7 +398,7 @@ export function ChatPanel({
 
   useEffect(() => {
     if (focusSeq > 0) {
-      requestAnimationFrame(() => inputRef.current?.focus());
+      requestAnimationFrame(() => localComposer.current?.focus());
     }
   }, [focusSeq]);
 
@@ -385,50 +424,38 @@ export function ChatPanel({
   }, [turns.length, streamLength]);
 
   const send = () => {
-    if (pending || !composerValue.trim()) {
+    if (pending) {
       return;
     }
     onSend();
   };
 
-  const onInputKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (suggestions && suggestions.items.length > 0) {
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        suggestions.onMove(1);
-        return;
-      }
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        suggestions.onMove(-1);
-        return;
-      }
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        suggestions.onPick(suggestions.items[suggestions.selected]);
-        return;
-      }
-      if (e.key === "Escape") {
-        e.preventDefault();
-        suggestions.onDismiss();
-        return;
-      }
+  /** Returns true when the suggestion list swallowed the key. */
+  const onComposerKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (!suggestions || suggestions.items.length === 0) {
+      return false;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      suggestions.onMove(1);
+      return true;
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      suggestions.onMove(-1);
+      return true;
     }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      send();
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      onEscape?.();
+      suggestions.onPick(suggestions.items[suggestions.selected]);
+      return true;
     }
-  };
-
-  const onInputPaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
-    const text = e.clipboardData.getData("text/plain");
-    if (onPasteCode && text.includes("\n") && text.trim()) {
+    if (e.key === "Escape") {
       e.preventDefault();
-      onPasteCode(text);
+      suggestions.onDismiss();
+      return true;
     }
+    return false;
   };
 
   return (
@@ -559,61 +586,32 @@ export function ChatPanel({
           ))}
         {contextNote !== null && <p className="qch-note">{contextNote}</p>}
         <div className="qch-composer">
-          {(chips.length > 0 || skill !== null) && (
+          {skill !== null && (
             <div className="qch-chips">
-              {skill !== null && (
-                <span className="qch-chip qch-skill-chip">
-                  <span className="qch-chip-label">/{skill}</span>
-                  <button
-                    aria-label={`Remove skill ${skill}`}
-                    className="qch-chip-x"
-                    onClick={onRemoveSkill}
-                    type="button"
-                  >
-                    <X size={11} />
-                  </button>
-                </span>
-              )}
-              {chips.map((chip, i) => (
-                <span className="qch-chip" key={`${chipLabel(chip)}-${i}`}>
-                  {chip.filePath && onRevealChip ? (
-                    <button
-                      className="qch-chip-label qch-chip-go"
-                      onClick={() => onRevealChip(i)}
-                      title={`Show ${chipLabel(chip)} in the diff`}
-                      type="button"
-                    >
-                      {chipLabel(chip)}
-                    </button>
-                  ) : (
-                    <span className="qch-chip-label">{chipLabel(chip)}</span>
-                  )}
-                  <button
-                    aria-label={`Remove ${chipLabel(chip)}`}
-                    className="qch-chip-x"
-                    onClick={() => onRemoveChip(i)}
-                    type="button"
-                  >
-                    <X size={11} />
-                  </button>
-                </span>
-              ))}
+              <span className="qch-chip qch-skill-chip">
+                <span className="qch-chip-label">/{skill}</span>
+                <button
+                  aria-label={`Remove skill ${skill}`}
+                  className="qch-chip-x"
+                  onClick={onRemoveSkill}
+                  type="button"
+                >
+                  <X size={11} />
+                </button>
+              </span>
             </div>
           )}
           <div className="qch-field">
-            <textarea
-              aria-label="Message"
-              className="qch-input"
-              onChange={(e) => onChangeComposer(e.target.value)}
-              onKeyDown={onInputKeyDown}
-              onPaste={onInputPaste}
+            <ChatComposer
+              onChange={onComposerChange}
+              onEscape={onEscape}
+              onKeyDown={onComposerKeyDown}
+              onRevealRegion={onRevealRegion}
+              onSend={send}
               placeholder={
                 turns.length > 0 ? "Reply…" : "Ask about this pull request…"
               }
-              ref={inputRef}
-              rows={2}
-              spellCheck={true}
-              value={composerValue}
+              ref={mergeComposerRefs(localComposer, composerRef)}
             />
             {pending ? (
               <button
@@ -627,7 +625,6 @@ export function ChatPanel({
               <button
                 aria-label="Send"
                 className="qch-send q-focus"
-                disabled={!composerValue.trim()}
                 onClick={send}
                 type="button"
               >

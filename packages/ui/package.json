@@ -15,6 +15,7 @@
     "./canned-comments-dialog": "./src/canned-comments-dialog/canned-comments-dialog.tsx",
     "./canned-suggestions": "./src/canned-suggestions/canned-suggestions.tsx",
     "./catalog": "./src/catalog/catalog.ts",
+    "./chat-composer": "./src/chat-composer/chat-composer.tsx",
     "./chat-panel": "./src/chat-panel/chat-panel.tsx",
     "./ci-pill": "./src/ci-pill/ci-pill.tsx",
     "./code-cell": "./src/code-cell/code-cell.tsx",

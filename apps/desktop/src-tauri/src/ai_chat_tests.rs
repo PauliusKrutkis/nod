@@ -3,7 +3,7 @@ use super::{
     execute_read_diff, execute_skill_tool, format_ranges, frontmatter_description,
     history_messages, merge_skills, parse_proposal, resolve_skill_body, skill_instructions,
     skill_name_from_path, tool_note, validate_proposal, ChatCancels, ChatDelta, ChatDiffFile,
-    ChatProposal, ChatRegion, ChatToolNote, ChatTurn, CommentableSide, SkillInfo,
+    ChatPart, ChatProposal, ChatRegion, ChatToolNote, ChatTurn, CommentableSide, SkillInfo,
 };
 use crate::ai::AskContext;
 use crate::snapshot::store::{partial_dir, promote, SnapshotKey};
@@ -75,7 +75,7 @@ fn context() -> AskContext {
 
 #[test]
 fn first_turn_carries_the_pr_context_sections() {
-    let prompt = build_chat_turn("What changed?", &[], &context(), true, None);
+    let prompt = build_chat_turn("What changed?", &[], &[], &context(), true, None);
     assert!(prompt.starts_with("Pull request: Add retry"));
     assert!(prompt.contains("PR description:\nRetries the poll."));
     assert!(prompt.contains("Changed files:\nsrc/poll.ts (+10 -2)"));
@@ -84,7 +84,7 @@ fn first_turn_carries_the_pr_context_sections() {
 
 #[test]
 fn later_turns_skip_the_context_and_keep_the_message_last() {
-    let prompt = build_chat_turn("And why?", &[], &context(), false, None);
+    let prompt = build_chat_turn("And why?", &[], &[], &context(), false, None);
     assert_eq!(prompt, "And why?");
 }
 
@@ -102,7 +102,7 @@ fn regions_render_as_fenced_blocks_with_path_and_range() {
             code: "let y;".to_string(),
         },
     ];
-    let prompt = build_chat_turn("Compare these.", &regions, &context(), false, None);
+    let prompt = build_chat_turn("Compare these.", &[], &regions, &context(), false, None);
     assert!(prompt.contains("Code from src/a.ts (lines 3–5):\n```\nconst x = 1;\n```"));
     assert!(prompt.contains("Code from src/b.ts:\n```\nlet y;\n```"));
     assert!(prompt.ends_with("Compare these."));
@@ -485,6 +485,7 @@ fn skill_tools_list_and_read_and_answer_mistakes_readably() {
 fn an_invoked_skill_rides_the_user_turn_before_regions() {
     let prompt = build_chat_turn(
         "Go.",
+        &[],
         &[ChatRegion {
             code: "let x;".to_string(),
             file_path: "a.ts".to_string(),
@@ -560,6 +561,7 @@ fn read_diff_truncation_names_what_was_left_out() {
 fn pasted_regions_get_the_pathless_heading() {
     let prompt = build_chat_turn(
         "Look.",
+        &[],
         &[ChatRegion {
             code: "let z;".to_string(),
             file_path: String::new(),
@@ -617,4 +619,51 @@ fn personal_skills_merge_behind_repo_ones_and_read_without_a_snapshot() {
         .contains("Personal instructions."));
 
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn inline_parts_keep_code_where_the_reviewer_put_it() {
+    let region = |path: &str| ChatRegion {
+        code: format!("// {path}"),
+        file_path: path.to_string(),
+        line_range: "1".to_string(),
+    };
+    let parts = vec![
+        ChatPart::Text {
+            text: "Why does ".to_string(),
+        },
+        ChatPart::Code {
+            region: region("a.ts"),
+        },
+        ChatPart::Text {
+            text: " disagree with ".to_string(),
+        },
+        ChatPart::Code {
+            region: region("b.ts"),
+        },
+        ChatPart::Text {
+            text: "?".to_string(),
+        },
+    ];
+    let body = build_chat_turn("ignored", &parts, &[], &context(), false, None);
+
+    let first = body.find("Code from a.ts").expect("first block");
+    let second = body.find("Code from b.ts").expect("second block");
+    let between = body.find("disagree with").expect("prose between");
+    assert!(first < between && between < second);
+    assert!(body.starts_with("Why does"));
+    assert!(body.ends_with('?'));
+    assert!(!body.contains("ignored"));
+}
+
+#[test]
+fn a_turn_without_parts_keeps_the_old_shape() {
+    let regions = vec![ChatRegion {
+        code: "let x;".to_string(),
+        file_path: "a.ts".to_string(),
+        line_range: String::new(),
+    }];
+    let body = build_chat_turn("Explain.", &[], &regions, &context(), false, None);
+    assert!(body.starts_with("Code from a.ts:"));
+    assert!(body.ends_with("Explain."));
 }

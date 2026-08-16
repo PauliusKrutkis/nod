@@ -203,6 +203,10 @@ export interface AiModel {
   contextLength: number | null;
 }
 
+export type ChatPart =
+  | { kind: "text"; text: string }
+  | { kind: "code"; region: ChatRegion };
+
 export interface ChatRegion {
   code: string;
   filePath: string;
@@ -215,6 +219,8 @@ export type ChatTurnRecord =
       kind: "user";
       at?: string;
       id: string;
+      /** Prose and code in the order they were written. */
+      parts?: ChatPart[];
       regions: ChatRegion[];
       skill?: string;
       text: string;

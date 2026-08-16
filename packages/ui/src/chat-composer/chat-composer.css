@@ -1,0 +1,49 @@
+/* One editable line of thought: prose and code chips share the field, so the
+   order you attached things in is the order the model reads. The chip is a
+   token — it never wraps mid-label and never grows the field sideways; a long
+   path ellipsizes instead. */
+
+.qcc-field {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-height: 40vh;
+  padding: 8px 4px 8px 12px;
+  overflow-y: auto;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.qcc-field:empty::before {
+  content: attr(data-placeholder);
+  color: var(--faint);
+}
+
+.qcc-chip {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  max-width: 22ch;
+  padding: 1px 6px;
+  margin: 0 1px;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: baseline;
+  cursor: pointer;
+  background: var(--surface-hi);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-pill);
+}
+
+.qcc-chip:hover {
+  color: var(--accent);
+  border-color: var(--accent-line);
+}

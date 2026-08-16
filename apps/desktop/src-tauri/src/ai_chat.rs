@@ -50,6 +50,18 @@ pub struct CommentableSide {
     pub ranges: Vec<(u32, u32)>,
 }
 
+/// One piece of the message as written: prose, or code the reviewer attached
+/// at that point in the sentence. Order is the whole point — two snippets in
+/// one message are only tellable apart by where they sit in the text.
+#[derive(Deserialize, Clone)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum ChatPart {
+    #[serde(rename_all = "camelCase")]
+    Text { text: String },
+    #[serde(rename_all = "camelCase")]
+    Code { region: ChatRegion },
+}
+
 #[derive(Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ChatDiffFile {
@@ -172,8 +184,48 @@ fn history_messages(history: &[ChatTurn], budget: usize) -> Vec<Value> {
 /// skill's instructions, then one fenced block per attached region, then
 /// the message itself. The skill rides the user turn rather than a second
 /// system message — safer across OpenAI-compatible gateways.
+fn region_block(region: &ChatRegion) -> String {
+    let heading = if region.file_path.is_empty() {
+        "Pasted code:".to_string()
+    } else if region.line_range.is_empty() {
+        format!("Code from {}:", region.file_path)
+    } else {
+        format!(
+            "Code from {} (lines {}):",
+            region.file_path, region.line_range
+        )
+    };
+    format!("{heading}\n```\n{}\n```", region.code)
+}
+
+/// The message as the reviewer wrote it, code inline where they put it.
+/// Falls back to the older shape (all regions, then the text) for turns that
+/// predate the inline composer.
+fn build_message_body(message: &str, parts: &[ChatPart], regions: &[ChatRegion]) -> String {
+    if parts.is_empty() {
+        let mut out: Vec<String> = regions.iter().map(region_block).collect();
+        out.push(message.to_string());
+        return out.join("\n\n");
+    }
+    let mut out = String::new();
+    for part in parts {
+        match part {
+            ChatPart::Text { text } => out.push_str(text),
+            ChatPart::Code { region } => {
+                if !out.ends_with('\n') {
+                    out.push('\n');
+                }
+                out.push_str(&region_block(region));
+                out.push('\n');
+            }
+        }
+    }
+    out.trim().to_string()
+}
+
 fn build_chat_turn(
     message: &str,
+    parts: &[ChatPart],
     regions: &[ChatRegion],
     context: &AskContext,
     first_turn: bool,
@@ -194,20 +246,7 @@ fn build_chat_turn(
             "Follow these instructions for this task:\n\n{body}"
         ));
     }
-    for region in regions {
-        let heading = if region.file_path.is_empty() {
-            "Pasted code:".to_string()
-        } else if region.line_range.is_empty() {
-            format!("Code from {}:", region.file_path)
-        } else {
-            format!(
-                "Code from {} (lines {}):",
-                region.file_path, region.line_range
-            )
-        };
-        sections.push(format!("{heading}\n```\n{}\n```", region.code));
-    }
-    sections.push(message.to_string());
+    sections.push(build_message_body(message, parts, regions));
     sections.join("\n\n")
 }
 
@@ -795,6 +834,7 @@ pub async fn ai_chat(
     turn_id: String,
     message: String,
     regions: Vec<ChatRegion>,
+    parts: Vec<ChatPart>,
     history: Vec<ChatTurn>,
     context: AskContext,
     commentable: Vec<CommentableSide>,
@@ -829,6 +869,7 @@ pub async fn ai_chat(
         "role": "user",
         "content": build_chat_turn(
             &message,
+            &parts,
             &regions,
             &context,
             history.is_empty(),

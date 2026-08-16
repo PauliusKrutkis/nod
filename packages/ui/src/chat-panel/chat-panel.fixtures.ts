@@ -29,15 +29,11 @@ const chip = (over: Partial<ChatRegionChip>): ChatRegionChip => ({
 });
 
 const base = (over: Partial<ChatPanelProps>): ChatPanelProps => ({
-  chips: [],
   onOpenSkills: noop,
   skillCount: 2,
-  onRevealChip: noop,
-  composerValue: "",
   focusSeq: 0,
-  onChangeComposer: noop,
+  onComposerChange: noop,
   onEscape: noop,
-  onRemoveChip: noop,
   onSend: noop,
   onStop: noop,
   pending: false,
@@ -90,22 +86,30 @@ const CONVERSATION: ChatPanelProps["turns"] = [
 const LONG_TOKEN = `req_${"9f8e7d6c".repeat(250)}`;
 
 export const chatPanelEntry = defineEntry(ChatPanel, {
-  "chips-crowd": {
+  "inline-parts": {
     props: base({
-      chips: Array.from({ length: 30 }, (_, i) =>
-        chip({ filePath: `src/module-${i}/handler.ts`, lineRange: `${i + 1}` })
-      ),
-      composerValue: "Compare these hot paths.",
-    }),
-  },
-  "draft-and-chips": {
-    props: base({
-      chips: [
-        chip({}),
-        chip({ filePath: "src/store/app-store.ts", lineRange: "306–315" }),
+      turns: [
+        {
+          at: "2025-06-03T09:59:00Z",
+          id: "u1",
+          kind: "user",
+          parts: [
+            { kind: "text", text: "Why does " },
+            { kind: "code", region: chip({}) },
+            { kind: "text", text: " disagree with " },
+            {
+              kind: "code",
+              region: chip({
+                filePath: "src/store/app-store.ts",
+                lineRange: "306–315",
+              }),
+            },
+            { kind: "text", text: " about the pending key?" },
+          ],
+          regions: [],
+          text: "Why does this disagree?",
+        },
       ],
-      composerValue: "Why do these two disagree about the pending key?",
-      turns: CONVERSATION,
     }),
   },
   empty: {
@@ -168,7 +172,6 @@ export const chatPanelEntry = defineEntry(ChatPanel, {
   },
   overflow: {
     props: base({
-      chips: [chip({ filePath: LONG_TOKEN, lineRange: "" })],
       turns: [
         CONVERSATION[0],
         {
@@ -202,7 +205,6 @@ export const chatPanelEntry = defineEntry(ChatPanel, {
   },
   "model-picker": {
     props: base({
-      composerValue: "Which model answers this?",
       model: {
         current: "anthropic.claude-sonnet-4-5 (eu-west1)",
         models: [
@@ -219,14 +221,6 @@ export const chatPanelEntry = defineEntry(ChatPanel, {
   },
   "pasted-and-note": {
     props: base({
-      chips: [
-        chip({
-          code: "const a = 1;\nconst b = 2;",
-          filePath: "",
-          lineRange: "",
-          side: "",
-        }),
-      ],
       contextNote:
         "Preparing the repository snapshot — repo-wide tools arrive when it's ready.",
       turns: [CONVERSATION[0]],
@@ -234,8 +228,6 @@ export const chatPanelEntry = defineEntry(ChatPanel, {
   },
   "skill-chip": {
     props: base({
-      chips: [chip({})],
-      composerValue: "Focus on the retry loop.",
       skill: "pr-validity",
       turns: [
         {
@@ -259,7 +251,6 @@ export const chatPanelEntry = defineEntry(ChatPanel, {
   },
   "slash-suggestions": {
     props: base({
-      composerValue: "/pr",
       suggestions: {
         items: ["pr-validity", "pr-summary"],
         onDismiss: noop,
@@ -376,7 +367,6 @@ export const chatPanelEntry = defineEntry(ChatPanel, {
   },
   unicode: {
     props: base({
-      chips: [chip({ filePath: "src/検索/一致.ts", lineRange: "3–9" })],
       turns: [
         {
           id: "u1",

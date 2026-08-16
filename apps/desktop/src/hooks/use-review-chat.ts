@@ -17,10 +17,12 @@
  */
 
 import { matchCanned } from "@nod/ui/canned-suggestions";
+import type { ChatComposerHandle } from "@nod/ui/chat-composer";
 import type { ChatPanelTurn, ChatSuggestionsState } from "@nod/ui/chat-panel";
 import { useLatest } from "@nod/ui/use-latest";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { listen } from "@tauri-apps/api/event";
+import type React from "react";
 import { useEffect, useState } from "react";
 import { api } from "../lib/api.ts";
 import { buildChatDiffs } from "../lib/chat-diffs.ts";
@@ -30,6 +32,7 @@ import { useAppStore } from "../store/app-store.ts";
 import {
   type AiAskContext,
   type ChangedFile,
+  type ChatPart,
   type ChatRegion,
   type ChatThread,
   type ChatTurnRecord,
@@ -143,6 +146,7 @@ function chatContext(
 
 export function useReviewChat(args: {
   active: boolean;
+  composerRef: React.RefObject<ChatComposerHandle | null>;
   files: readonly ChangedFile[];
   pr: PullRequest;
 }) {
@@ -156,7 +160,6 @@ export function useReviewChat(args: {
   const turns =
     threads.find((t) => t.id === activeThreadId)?.turns ?? EMPTY_TURNS;
   const chips = useAppStore((s) => s.chatChips);
-  const removeChip = useAppStore((s) => s.removeChatChip);
   const clearChips = useAppStore((s) => s.clearChatChips);
   const stagedByAi = useAppStore(
     (s) => s.pendingComments[keyValue] ?? EMPTY_PENDING
@@ -248,12 +251,6 @@ export function useReviewChat(args: {
     }. Repo-wide search and file reads are off.`;
   }
 
-  const setDraft = (value: string) => {
-    setDraftState(value);
-    setSuggestionIndex(0);
-    setSuggestionsDismissed(false);
-  };
-
   const slashQuery =
     skill === null && draft.startsWith("/") && !/[\s]/.test(draft)
       ? draft.slice(1)
@@ -270,6 +267,8 @@ export function useReviewChat(args: {
   const pickSkill = (name: string) => {
     setSkill(name);
     setDraftState("");
+    args.composerRef.current?.clear();
+    args.composerRef.current?.focus();
   };
 
   const skillsEmptyHint =
@@ -464,14 +463,14 @@ export function useReviewChat(args: {
     [keyValue, chatPendingRef]
   );
 
-  const send = () => {
-    if (slashQuery !== null && skillNames.includes(slashQuery.trim())) {
-      pickSkill(slashQuery.trim());
-      return;
-    }
-    const text = draft.trim();
-    if (!text || chat.isPending) {
-      return;
+  const send = (parts: ChatPart[]): boolean => {
+    const text = parts
+      .filter((p) => p.kind === "text")
+      .map((p) => (p.kind === "text" ? p.text : ""))
+      .join("")
+      .trim();
+    if (parts.length === 0 || chat.isPending) {
+      return false;
     }
     const turnId = crypto.randomUUID();
     const threadId = activeThreadId ?? crypto.randomUUID();
@@ -479,18 +478,20 @@ export function useReviewChat(args: {
       setActiveThreadId(threadId);
     }
     const history = historyMessages(turns);
-    const regions = chips;
+    const regions = parts
+      .filter((p) => p.kind === "code")
+      .map((p) => (p.kind === "code" ? p.region : null))
+      .filter((r): r is ChatRegion => r !== null);
     appendChatTurn(keyValue, threadId, {
       at: new Date().toISOString(),
       id: crypto.randomUUID(),
       kind: "user",
+      parts,
       regions,
       skill: skill ?? undefined,
       text,
     });
-    setDraftState("");
     setSkill(null);
-    clearChips();
     setLive({
       activity: [],
       partial: "",
@@ -508,10 +509,12 @@ export function useReviewChat(args: {
       history,
       message: text,
       model: modelOverride,
+      parts,
       regions,
       skill,
       turnId,
     });
+    return true;
   };
 
   const openSkillsFolder = () => {
@@ -522,15 +525,6 @@ export function useReviewChat(args: {
         return skills.refetch();
       })
       .catch(() => undefined);
-  };
-
-  const pasteCode = (code: string) => {
-    useAppStore.getState().addChatChip({
-      code: code.replace(/\n+$/, ""),
-      filePath: "",
-      lineRange: "",
-      side: "",
-    });
   };
 
   const discardStaged = (id: string) => {
@@ -548,6 +542,7 @@ export function useReviewChat(args: {
           at: turn.at,
           id: turn.id,
           kind: "user",
+          parts: turn.parts,
           regions: turn.regions,
           skill: turn.skill,
           text: turn.text,
@@ -618,18 +613,19 @@ export function useReviewChat(args: {
 
   return {
     chips,
+    clearChips,
     contextNote,
-    draft,
     model: modelState,
     panelTurns,
-    pasteCode,
     pending: chat.isPending,
-    removeChip,
     openSkillsFolder,
     removeSkill: () => setSkill(null),
     skillCount: skillNames.length,
     send,
-    setDraft,
+    onComposerChange: (text: string) => {
+      setDraftState(text);
+      setSuggestionsDismissed(false);
+    },
     skill,
     stop,
     staged: stagedByAi.map((c) => ({

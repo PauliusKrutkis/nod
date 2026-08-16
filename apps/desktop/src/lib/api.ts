@@ -6,6 +6,7 @@ import type {
   AiInfo,
   AiModel,
   ChatDiff,
+  ChatPart,
   ChatRegion,
   CommentableSide,
   FileBlob,
@@ -45,6 +46,7 @@ export const api = {
     chatId: string;
     turnId: string;
     message: string;
+    parts: ChatPart[];
     regions: ChatRegion[];
     history: { role: string; content: string }[];
     context: AiAskContext;
