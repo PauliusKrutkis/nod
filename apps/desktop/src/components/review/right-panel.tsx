@@ -22,6 +22,7 @@ import { openOnProviderLabel } from "../../lib/provider.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type {
   ChangedFile,
+  ChatRegion,
   CiStatus,
   IssueComment,
   PullRequest,
@@ -54,6 +55,7 @@ interface RightPanelProps {
   onDockResize: (width: number) => void;
   onJumpToThread: (path: string, rootId: number) => void;
   onOpenPr: () => void;
+  onRevealRegion: (region: ChatRegion) => void;
   onSelectTab: (id: string) => void;
   onToggleWide: () => void;
   open: boolean;
@@ -74,6 +76,7 @@ export function RightPanel({
   fileCount,
   files,
   onDockResize,
+  onRevealRegion,
   conversation,
   reviews,
   inlineComments,
@@ -155,7 +158,12 @@ export function RightPanel({
         />
       </div>
       <div className="qf-dock-tabpane" hidden={tab !== "chat"}>
-        <ChatTab files={files} focusSeq={chatFocusSeq} pr={pr} />
+        <ChatTab
+          files={files}
+          focusSeq={chatFocusSeq}
+          onRevealRegion={onRevealRegion}
+          pr={pr}
+        />
       </div>
     </RightDock>
   );

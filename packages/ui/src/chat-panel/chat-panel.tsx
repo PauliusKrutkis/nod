@@ -114,6 +114,9 @@ export interface ChatPanelProps {
   onEscape?: () => void;
   onPasteCode?: (code: string) => void;
   onRemoveChip: (index: number) => void;
+  /** Reveal a chip's lines in the diff. Absent for pasted code, which has
+   *  no place in the diff to point at. */
+  onRevealChip?: (index: number) => void;
   onSend: () => void;
   onStop: () => void;
   onRemoveSkill?: () => void;
@@ -214,6 +217,7 @@ export function ChatPanel({
   onPasteCode,
   onRemoveChip,
   onRemoveSkill,
+  onRevealChip,
   onSend,
   onStop,
   pending,
@@ -412,67 +416,84 @@ export function ChatPanel({
               <div className="qch-suggest-empty">{suggestions.emptyHint}</div>
             )
           ))}
-        {(chips.length > 0 || skill !== null) && (
-          <div className="qch-chips">
-            {skill !== null && (
-              <span className="qch-chip qch-skill-chip">
-                /{skill}
-                <button
-                  aria-label={`Remove skill ${skill}`}
-                  className="qch-chip-x"
-                  onClick={onRemoveSkill}
-                  type="button"
-                >
-                  <X size={11} />
-                </button>
-              </span>
-            )}
-            {chips.map((chip, i) => (
-              <span className="qch-chip" key={`${chipLabel(chip)}-${i}`}>
-                {chipLabel(chip)}
-                <button
-                  aria-label={`Remove ${chipLabel(chip)}`}
-                  className="qch-chip-x"
-                  onClick={() => onRemoveChip(i)}
-                  type="button"
-                >
-                  <X size={11} />
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
         {contextNote !== null && <p className="qch-note">{contextNote}</p>}
-        <div className="qch-field">
-          <textarea
-            aria-label="Message"
-            className="qch-input"
-            onChange={(e) => onChangeComposer(e.target.value)}
-            onKeyDown={onInputKeyDown}
-            onPaste={onInputPaste}
-            placeholder={
-              turns.length > 0 ? "Reply…" : "Ask about this pull request…"
-            }
-            ref={inputRef}
-            rows={2}
-            spellCheck={true}
-            value={composerValue}
-          />
-          {pending ? (
-            <button className="qch-stop q-focus" onClick={onStop} type="button">
-              Stop
-            </button>
-          ) : (
-            <button
-              aria-label="Send"
-              className="qch-send q-focus"
-              disabled={!composerValue.trim()}
-              onClick={send}
-              type="button"
-            >
-              <CornerDownLeft aria-hidden size={13} />
-            </button>
+        <div className="qch-composer">
+          {(chips.length > 0 || skill !== null) && (
+            <div className="qch-chips">
+              {skill !== null && (
+                <span className="qch-chip qch-skill-chip">
+                  <span className="qch-chip-label">/{skill}</span>
+                  <button
+                    aria-label={`Remove skill ${skill}`}
+                    className="qch-chip-x"
+                    onClick={onRemoveSkill}
+                    type="button"
+                  >
+                    <X size={11} />
+                  </button>
+                </span>
+              )}
+              {chips.map((chip, i) => (
+                <span className="qch-chip" key={`${chipLabel(chip)}-${i}`}>
+                  {chip.filePath && onRevealChip ? (
+                    <button
+                      className="qch-chip-label qch-chip-go"
+                      onClick={() => onRevealChip(i)}
+                      title={`Show ${chipLabel(chip)} in the diff`}
+                      type="button"
+                    >
+                      {chipLabel(chip)}
+                    </button>
+                  ) : (
+                    <span className="qch-chip-label">{chipLabel(chip)}</span>
+                  )}
+                  <button
+                    aria-label={`Remove ${chipLabel(chip)}`}
+                    className="qch-chip-x"
+                    onClick={() => onRemoveChip(i)}
+                    type="button"
+                  >
+                    <X size={11} />
+                  </button>
+                </span>
+              ))}
+            </div>
           )}
+          <div className="qch-field">
+            <textarea
+              aria-label="Message"
+              className="qch-input"
+              onChange={(e) => onChangeComposer(e.target.value)}
+              onKeyDown={onInputKeyDown}
+              onPaste={onInputPaste}
+              placeholder={
+                turns.length > 0 ? "Reply…" : "Ask about this pull request…"
+              }
+              ref={inputRef}
+              rows={2}
+              spellCheck={true}
+              value={composerValue}
+            />
+            {pending ? (
+              <button
+                className="qch-stop q-focus"
+                onClick={onStop}
+                type="button"
+              >
+                Stop
+              </button>
+            ) : (
+              <button
+                aria-label="Send"
+                className="qch-send q-focus"
+                disabled={!composerValue.trim()}
+                onClick={send}
+                type="button"
+              >
+                <CornerDownLeft aria-hidden size={13} />
+              </button>
+            )}
+          </div>
         </div>
         {model &&
           (modelOpen ? (

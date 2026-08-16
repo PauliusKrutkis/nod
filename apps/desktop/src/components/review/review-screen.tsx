@@ -88,6 +88,7 @@ import {
 import { useAppStore } from "../../store/app-store.ts";
 import type {
   ChangedFile,
+  ChatRegion,
   PendingComment,
   PullRequest,
   ReviewComment,
@@ -871,6 +872,47 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     openChatChecked();
   };
 
+  const onRevealChatRegion = (region: ChatRegion) => {
+    const model = modelRef.current;
+    const fileIndex = filesRef.current.findIndex(
+      (f) => f.filename === region.filePath
+    );
+    if (fileIndex < 0) {
+      return;
+    }
+    if (sidebarCompact) {
+      onCloseRightPanel();
+    }
+    setActiveIndex(fileIndex);
+    activeIndexRef.current = fileIndex;
+    const [first, last] = region.lineRange.split(/[–—-]/);
+    const startAnchor = `${region.side}:${Number(first)}`;
+    const endAnchor = `${region.side}:${Number(last ?? first)}`;
+    const endIndex = model.anchorItem.get(fileAnchorKey(fileIndex, endAnchor));
+    const startIndex = model.anchorItem.get(
+      fileAnchorKey(fileIndex, startAnchor)
+    );
+    if (endIndex === undefined || startIndex === undefined) {
+      listRef.current?.scrollToFileStart(fileIndex);
+      return;
+    }
+    const endItem = model.items[endIndex];
+    setInputMode("keyboard");
+    setCursor({ anchor: endAnchor, fileIndex, kind: "row" });
+    setSelection(
+      startAnchor === endAnchor || endItem.kind !== "row"
+        ? null
+        : {
+            fileIndex,
+            from: startAnchor,
+            hunkIndex: endItem.hunkIndex,
+            side: region.side,
+            to: endAnchor,
+          }
+    );
+    listRef.current?.centerItem(endIndex);
+  };
+
   const onAcceptSuggested = (id: string) => {
     useAppStore.getState().acceptSuggestedComment(keyValue, id);
   };
@@ -1086,6 +1128,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
         onEditIssueComment={onEditIssueComment}
         onJumpToThread={jumpToThread}
         onOpenPr={onOpenPrUrl}
+        onRevealRegion={onRevealChatRegion}
         onSelectTab={onSelectRightTab}
         onToggleWide={onToggleDrawerWide}
         open={rightOpen}

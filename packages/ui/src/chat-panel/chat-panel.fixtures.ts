@@ -30,6 +30,7 @@ const chip = (over: Partial<ChatRegionChip>): ChatRegionChip => ({
 
 const base = (over: Partial<ChatPanelProps>): ChatPanelProps => ({
   chips: [],
+  onRevealChip: noop,
   composerValue: "",
   focusSeq: 0,
   onChangeComposer: noop,

@@ -307,6 +307,51 @@ test("l with a selection chips the whole range; chips dedupe and remove", async 
   await expect(chatPanel(page).locator(".qch-foot .qch-chip")).toHaveCount(0);
 });
 
+test("clicking a region chip selects those lines back in the diff", async ({
+  page,
+}) => {
+  await setupApp(page, CONFIGURED);
+  await openReview(page);
+  await cursorToTuned(page);
+  await page.keyboard.press("Shift+j");
+  await expect(page.locator(".qf-row-selected")).toHaveCount(2);
+  await page.keyboard.press("l");
+  await expect(chatPanel(page).locator(".qch-chip-go")).toHaveCount(1);
+
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("j");
+  await expect(page.locator(".qf-row-selected")).toHaveCount(0);
+
+  await chatPanel(page).locator(".qch-chip-go").click();
+  await expect(page.locator(".qf-row-selected")).toHaveCount(2);
+  await expect(
+    page.locator('.qf-row-active[data-anchor="RIGHT:3"]')
+  ).toBeVisible();
+});
+
+test("a pasted chip has nothing to reveal, only a remove", async ({ page }) => {
+  await setupApp(page, CONFIGURED);
+  await openReview(page);
+  await page.keyboard.press("m");
+  await composer(page).focus();
+  await page.evaluate(() => {
+    const el = document.querySelector<HTMLTextAreaElement>(".qch-input");
+    const data = new DataTransfer();
+    data.setData("text/plain", "const a = 1;\nconst b = 2;");
+    el?.dispatchEvent(
+      new ClipboardEvent("paste", {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: data,
+      })
+    );
+  });
+  await expect(chatPanel(page).locator(".qch-chip")).toHaveCount(1);
+  await expect(chatPanel(page).locator(".qch-chip-go")).toHaveCount(0);
+  await page.getByRole("button", { name: /Remove pasted code/ }).click();
+  await expect(chatPanel(page).locator(".qch-chip")).toHaveCount(0);
+});
+
 test("l with no cursor opens the chat focused without a chip", async ({
   page,
 }) => {

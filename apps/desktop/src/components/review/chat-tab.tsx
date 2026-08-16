@@ -8,16 +8,17 @@
 
 import { ChatPanel } from "@nod/ui/chat-panel";
 import { useReviewChat } from "../../hooks/use-review-chat.ts";
-import type { ChangedFile, PullRequest } from "../../types.ts";
+import type { ChangedFile, ChatRegion, PullRequest } from "../../types.ts";
 import { Markdown } from "../markdown-loader.tsx";
 
 interface ChatTabProps {
   files: readonly ChangedFile[];
   focusSeq: number;
+  onRevealRegion: (region: ChatRegion) => void;
   pr: PullRequest;
 }
 
-export function ChatTab({ files, focusSeq, pr }: ChatTabProps) {
+export function ChatTab({ files, focusSeq, onRevealRegion, pr }: ChatTabProps) {
   const chat = useReviewChat({ active: focusSeq > 0, files, pr });
 
   const renderMarkdown = (text: string) => (
@@ -44,6 +45,12 @@ export function ChatTab({ files, focusSeq, pr }: ChatTabProps) {
       onPasteCode={chat.pasteCode}
       onRemoveChip={chat.removeChip}
       onRemoveSkill={chat.removeSkill}
+      onRevealChip={(index) => {
+        const chip = chat.chips[index];
+        if (chip) {
+          onRevealRegion(chip);
+        }
+      }}
       onSend={chat.send}
       onStop={chat.stop}
       pending={chat.pending}

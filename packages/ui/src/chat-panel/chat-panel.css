@@ -272,27 +272,66 @@
   border-top: 1px solid var(--line);
 }
 
+/* The composer is a token field: chips and the input share one box, so a
+   region you attached reads as part of the message you are writing rather
+   than as a banner above it. The box owns the border and the focus ring;
+   the textarea inside is bare. */
+.qch-composer {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.qch-composer:focus-within {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
 .qch-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-bottom: 8px;
+  padding: 7px 8px 0;
 }
 
 .qch-chip {
   display: inline-flex;
-  gap: 4px;
+  gap: 3px;
   align-items: center;
   max-width: 100%;
-  padding: 2px 7px;
+  padding: 2px 5px 2px 7px;
   overflow: hidden;
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--muted);
-  text-overflow: ellipsis;
   white-space: nowrap;
+  background: var(--surface-hi);
   border: 1px solid var(--line-2);
   border-radius: var(--r-pill);
+}
+
+.qch-chip-label {
+  max-width: 22ch;
+  overflow: hidden;
+  font: inherit;
+  color: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: none;
+  border: none;
+}
+
+.qch-chip-go {
+  padding: 0;
+  cursor: pointer;
+}
+
+.qch-chip-go:hover {
+  color: var(--accent);
+  text-decoration: underline;
 }
 
 .qch-skill-chip {
@@ -316,14 +355,15 @@
 
 .qch-field {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   align-items: flex-end;
+  padding: 0 6px 6px 0;
 }
 
 .qch-input {
   flex: 1 1 auto;
   min-width: 0;
-  padding: 8px 12px;
+  padding: 8px 4px 8px 12px;
   overflow-x: hidden;
   font-family: var(--font-ui);
   font-size: 13px;
@@ -331,21 +371,12 @@
   overflow-wrap: anywhere;
   white-space: pre-wrap;
   resize: none;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  transition:
-    border-color 120ms ease,
-    box-shadow 120ms ease;
+  background: transparent;
+  border: none;
 }
 
 .qch-input::placeholder {
   color: var(--faint);
-}
-
-.qch-input:focus {
-  border-color: var(--accent-line);
-  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .qch-model {
@@ -387,7 +418,8 @@
 }
 
 .qch-send {
-  width: 34px;
+  width: 30px;
+  height: 28px;
   color: var(--muted);
   background: var(--surface-hi);
   border: 1px solid var(--line-2);
@@ -418,7 +450,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .qch-proposals-act,
-  .qch-input,
+  .qch-composer,
   .qch-model {
     transition: none;
   }
