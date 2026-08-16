@@ -46,7 +46,7 @@ export interface AppOptions {
   }[];
   aiModels?: { id: string; contextLength: number | null }[];
   aiModelsError?: string;
-  chatSkills?: { name: string; description: string }[];
+  chatSkills?: { name: string; description: string; source: string }[];
   snapshotState?: "ready" | "downloading" | "failed" | "skipped";
   detailByCall?: unknown[];
   detailByLoad?: unknown[];
@@ -252,6 +252,11 @@ export function installBridge(cfg: BridgeConfig) {
     list_chat_skills: () => {
       countCall("list_chat_skills");
       return cfg.chatSkills;
+    },
+    create_skill: (args) => {
+      countCall("create_skill");
+      localStorage.setItem("e2e:createdSkill", String(args.name));
+      return "/tmp/nod/skills/new";
     },
     open_skills_dir: () => {
       countCall("open_skills_dir");

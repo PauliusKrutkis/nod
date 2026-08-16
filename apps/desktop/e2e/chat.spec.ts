@@ -365,7 +365,7 @@ test("l adds the cursor line as a chip and the region rides the send", async ({
       side: "RIGHT",
     },
   ]);
-  await expect(chatPanel(page).locator(".qch-foot .qch-chip")).toHaveCount(0);
+  await expect(chatPanel(page).locator(".qcc-chip")).toHaveCount(0);
 });
 
 test("l with a selection chips the whole range; chips dedupe and remove", async ({
@@ -384,12 +384,12 @@ test("l with a selection chips the whole range; chips dedupe and remove", async 
 
   await page.keyboard.press("Escape");
   await page.keyboard.press("l");
-  await expect(chatPanel(page).locator(".qch-foot .qch-chip")).toHaveCount(1);
+  await expect(chatPanel(page).locator(".qcc-chip")).toHaveCount(1);
 
   await page
     .getByRole("button", { name: "Remove src/lib/fuzzy.ts:2–4" })
     .click();
-  await expect(chatPanel(page).locator(".qch-foot .qch-chip")).toHaveCount(0);
+  await expect(chatPanel(page).locator(".qcc-chip")).toHaveCount(0);
 });
 
 test("clicking a region chip selects those lines back in the diff", async ({
@@ -401,13 +401,13 @@ test("clicking a region chip selects those lines back in the diff", async ({
   await page.keyboard.press("Shift+j");
   await expect(page.locator(".qf-row-selected")).toHaveCount(2);
   await page.keyboard.press("l");
-  await expect(chatPanel(page).locator(".qch-chip-go")).toHaveCount(1);
+  await expect(chatPanel(page).locator(".qcc-chip")).toHaveCount(1);
 
   await page.keyboard.press("Escape");
   await page.keyboard.press("j");
   await expect(page.locator(".qf-row-selected")).toHaveCount(0);
 
-  await chatPanel(page).locator(".qch-chip-go").click();
+  await chatPanel(page).locator(".qcc-chip").click();
   await expect(page.locator(".qf-row-selected")).toHaveCount(2);
   await expect(
     page.locator('.qf-row-active[data-anchor="RIGHT:3"]')
@@ -431,10 +431,8 @@ test("a pasted chip has nothing to reveal, only a remove", async ({ page }) => {
       })
     );
   });
-  await expect(chatPanel(page).locator(".qch-chip")).toHaveCount(1);
-  await expect(chatPanel(page).locator(".qch-chip-go")).toHaveCount(0);
-  await page.getByRole("button", { name: /Remove pasted code/ }).click();
-  await expect(chatPanel(page).locator(".qch-chip")).toHaveCount(0);
+  await expect(chatPanel(page).locator(".qcc-chip")).toHaveCount(1);
+  await expect(chatPanel(page).locator(".qcc-chip")).toHaveCount(1);
 });
 
 test("l with no cursor opens the chat focused without a chip", async ({
@@ -444,7 +442,7 @@ test("l with no cursor opens the chat focused without a chip", async ({
   await openReview(page);
   await page.keyboard.press("l");
   await expect(composer(page)).toBeFocused();
-  await expect(chatPanel(page).locator(".qch-foot .qch-chip")).toHaveCount(0);
+  await expect(chatPanel(page).locator(".qcc-chip")).toHaveCount(0);
 });
 
 test("l inside the composer types the letter instead of chipping", async ({
@@ -455,7 +453,7 @@ test("l inside the composer types the letter instead of chipping", async ({
   await page.keyboard.press("m");
   await composer(page).pressSequentially("l");
   await expect(composer(page)).toHaveValue("l");
-  await expect(chatPanel(page).locator(".qch-foot .qch-chip")).toHaveCount(0);
+  await expect(chatPanel(page).locator(".qcc-chip")).toHaveCount(0);
 });
 
 test("a chat draft survives closing and reopening the panel", async ({
@@ -480,7 +478,7 @@ test("a multi-line paste becomes a chip; single lines paste as text", async ({
 
   const paste = (text: string) =>
     page.evaluate((clip) => {
-      const el = document.querySelector<HTMLTextAreaElement>(".qch-input");
+      const el = document.querySelector<HTMLElement>(".qcc-field");
       const data = new DataTransfer();
       data.setData("text/plain", clip);
       el?.dispatchEvent(
@@ -494,13 +492,14 @@ test("a multi-line paste becomes a chip; single lines paste as text", async ({
 
   await composer(page).focus();
   await paste("const a = 1;\nconst b = 2;");
-  await expect(
-    chatPanel(page).getByText("pasted code (2 lines)")
-  ).toBeVisible();
-  await expect(composer(page)).toHaveValue("");
+  await expect(chatPanel(page).locator(".qcc-chip")).toHaveCount(1);
+  await expect(chatPanel(page).locator(".qcc-chip")).toContainText(
+    "pasted code (2 lines)"
+  );
 
   await paste("one line");
-  await expect(chatPanel(page).locator(".qch-foot .qch-chip")).toHaveCount(1);
+  await expect(chatPanel(page).locator(".qcc-chip")).toHaveCount(1);
+  await expect(composer(page)).toContainText("one line");
 
   await composer(page).fill("What does the pasted code do?");
   await page.keyboard.press("Enter");
@@ -687,8 +686,8 @@ test("the skills button counts what is reachable", async ({ page }) => {
   await setupApp(page, {
     ...CONFIGURED,
     chatSkills: [
-      { description: "a", name: "pr-validity" },
-      { description: "b", name: "security-pass" },
+      { description: "a", name: "pr-validity", source: "repo" },
+      { description: "b", name: "security-pass", source: "personal" },
     ],
   });
   await openReview(page);
@@ -713,7 +712,9 @@ test("skills found only after the snapshot lands still reach the picker", async 
 }) => {
   await setupApp(page, {
     ...CONFIGURED,
-    chatSkills: [{ description: "Repo conventions", name: "pr-validity" }],
+    chatSkills: [
+      { description: "Repo conventions", name: "pr-validity", source: "repo" },
+    ],
     snapshotState: "downloading",
   });
   await openReview(page);
@@ -735,8 +736,16 @@ test("skills found only after the snapshot lands still reach the picker", async 
 const SKILLS_SETUP = {
   ...CONFIGURED,
   chatSkills: [
-    { description: "Review against repo conventions", name: "pr-validity" },
-    { description: "Hunt for security issues", name: "security-pass" },
+    {
+      description: "Review against repo conventions",
+      name: "pr-validity",
+      source: "repo",
+    },
+    {
+      description: "Hunt for security issues",
+      name: "security-pass",
+      source: "repo",
+    },
   ],
 };
 

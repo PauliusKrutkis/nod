@@ -8,7 +8,8 @@
 
 import type { ChatComposerHandle } from "@nod/ui/chat-composer";
 import { ChatPanel } from "@nod/ui/chat-panel";
-import { useEffect, useRef } from "react";
+import { SkillsDialog } from "@nod/ui/skills-dialog";
+import { useEffect, useRef, useState } from "react";
 import { useReviewChat } from "../../hooks/use-review-chat.ts";
 import type { ChangedFile, ChatRegion, PullRequest } from "../../types.ts";
 import { Markdown } from "../markdown-loader.tsx";
@@ -22,6 +23,7 @@ interface ChatTabProps {
 
 export function ChatTab({ files, focusSeq, onRevealRegion, pr }: ChatTabProps) {
   const composerRef = useRef<ChatComposerHandle>(null);
+  const [skillsOpen, setSkillsOpen] = useState(false);
   const chat = useReviewChat({
     active: focusSeq > 0,
     composerRef,
@@ -54,45 +56,54 @@ export function ChatTab({ files, focusSeq, onRevealRegion, pr }: ChatTabProps) {
   };
 
   return (
-    <ChatPanel
-      composerRef={composerRef}
-      contextNote={chat.contextNote}
-      focusSeq={focusSeq}
-      model={chat.model}
-      onComposerChange={chat.onComposerChange}
-      onEscape={focusScrollHost}
-      onOpenSkills={chat.openSkillsFolder}
-      onRemoveSkill={chat.removeSkill}
-      onRevealRegion={onRevealRegion}
-      onSend={() => {
-        const sent = chat.send(composerRef.current?.parts() ?? []);
-        if (sent) {
-          composerRef.current?.clear();
-        }
-      }}
-      onStop={chat.stop}
-      pending={chat.pending}
-      renderMarkdown={renderMarkdown}
-      skill={chat.skill}
-      skillCount={chat.skillCount}
-      staged={{
-        items: chat.staged,
-        onDiscard: chat.stagedDiscard,
-        onReveal: (id) => {
-          const item = chat.staged.find((c) => c.id === id);
-          if (item) {
-            onRevealRegion({
-              code: "",
-              filePath: item.path,
-              lineRange: String(item.line),
-              side: item.side,
-            });
+    <>
+      <SkillsDialog
+        onCreate={chat.createSkill}
+        onOpenChange={setSkillsOpen}
+        onOpenFolder={chat.openSkillsFolder}
+        open={skillsOpen}
+        skills={chat.skills}
+      />
+      <ChatPanel
+        composerRef={composerRef}
+        contextNote={chat.contextNote}
+        focusSeq={focusSeq}
+        model={chat.model}
+        onComposerChange={chat.onComposerChange}
+        onEscape={focusScrollHost}
+        onOpenSkills={() => setSkillsOpen(true)}
+        onRemoveSkill={chat.removeSkill}
+        onRevealRegion={onRevealRegion}
+        onSend={() => {
+          const sent = chat.send(composerRef.current?.parts() ?? []);
+          if (sent) {
+            composerRef.current?.clear();
           }
-        },
-      }}
-      suggestions={chat.suggestions}
-      threads={chat.threads}
-      turns={chat.panelTurns}
-    />
+        }}
+        onStop={chat.stop}
+        pending={chat.pending}
+        renderMarkdown={renderMarkdown}
+        skill={chat.skill}
+        skillCount={chat.skillCount}
+        staged={{
+          items: chat.staged,
+          onDiscard: chat.stagedDiscard,
+          onReveal: (id) => {
+            const item = chat.staged.find((c) => c.id === id);
+            if (item) {
+              onRevealRegion({
+                code: "",
+                filePath: item.path,
+                lineRange: String(item.line),
+                side: item.side,
+              });
+            }
+          },
+        }}
+        suggestions={chat.suggestions}
+        threads={chat.threads}
+        turns={chat.panelTurns}
+      />
+    </>
   );
 }

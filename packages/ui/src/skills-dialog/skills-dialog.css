@@ -1,0 +1,135 @@
+/* Sized to its list: a repo carries a handful of skills, not a catalogue, so
+   the panel is a card rather than a browser. The source column is the load-
+   bearing column — which folder a skill came from decides whether editing it
+   changes this repo for everyone or only for you. */
+
+.qsk {
+  width: min(460px, 90vw);
+  padding: 18px;
+}
+
+.qsk-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--accent);
+}
+
+.qsk-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.qsk-lede {
+  margin: 8px 0 14px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.qsk-lede code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.qsk-empty {
+  margin: 0 0 14px;
+  font-size: 12.5px;
+  color: var(--faint);
+}
+
+.qsk-list {
+  max-height: 240px;
+  padding: 0;
+  margin: 0 0 14px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.qsk-row {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 8px;
+  align-items: baseline;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.qsk-name {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--fg);
+}
+
+.qsk-where {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--faint);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.qsk-desc {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qsk-new {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.qsk-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 7px 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+
+.qsk-error {
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  color: var(--del);
+}
+
+.qsk-foot {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+}
+
+.qsk-link {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  padding: 4px 6px;
+  font-size: 12px;
+  color: var(--faint);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-md);
+}
+
+.qsk-link:hover {
+  color: var(--accent);
+}
+
+.qsk-inline {
+  position: static;
+  display: block;
+}

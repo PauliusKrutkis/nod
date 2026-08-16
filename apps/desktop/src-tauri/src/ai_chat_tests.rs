@@ -426,10 +426,12 @@ fn discovery_lists_manifest_skills_sorted_with_descriptions() {
             SkillInfo {
                 description: "Review against repo conventions".to_string(),
                 name: "pr-validity".to_string(),
+                source: "repo".to_string(),
             },
             SkillInfo {
                 description: String::new(),
                 name: "security-pass".to_string(),
+                source: "repo".to_string(),
             },
         ]
     );
@@ -599,6 +601,7 @@ fn personal_skills_merge_behind_repo_ones_and_read_without_a_snapshot() {
     let repo = vec![SkillInfo {
         description: "Repo-tuned pass".to_string(),
         name: "pr-validity".to_string(),
+        source: "repo".to_string(),
     }];
     let merged = merge_skills(repo, personal);
     assert_eq!(

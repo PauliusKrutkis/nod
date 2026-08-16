@@ -258,6 +258,7 @@ const MAX_SKILL_BODY_CHARS: usize = 32_000;
 pub struct SkillInfo {
     pub name: String,
     pub description: String,
+    pub source: String,
 }
 
 /// `.claude/skills/<name>/SKILL.md` → the skill's name; anything else — a
@@ -371,6 +372,7 @@ fn discover_personal_skills(dir: &std::path::Path) -> Vec<SkillInfo> {
         out.push(SkillInfo {
             description: frontmatter_description(&body),
             name,
+            source: "personal".to_string(),
         });
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));
@@ -415,6 +417,7 @@ fn discover_skills(root: &std::path::Path, key: &SnapshotKey) -> Vec<SkillInfo> 
         out.push(SkillInfo {
             description,
             name: name.to_string(),
+            source: "repo".to_string(),
         });
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));
@@ -511,6 +514,34 @@ pub async fn open_skills_dir(app: AppHandle) -> Result<String, String> {
     })
     .await
     .map_err(|e| format!("skills folder failed: {e}"))?
+}
+
+/// Writes a scaffold for a new personal skill and hands back its folder, so
+/// the reviewer edits a file that already has the frontmatter right rather
+/// than learning the format from a doc. Refuses to overwrite: a name that
+/// exists is an edit, not a create.
+#[tauri::command]
+pub async fn create_skill(app: AppHandle, name: String) -> Result<String, String> {
+    let dir = personal_skills_dir(&app)
+        .ok_or_else(|| "could not resolve the config directory".to_string())?;
+    if !safe_skill_name(&name) {
+        return Err("a skill name cannot contain slashes or start with a dot".to_string());
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let skill = dir.join(&name);
+        if skill.join("SKILL.md").exists() {
+            return Err(format!("'{name}' already exists"));
+        }
+        std::fs::create_dir_all(&skill).map_err(|e| format!("could not create {skill:?}: {e}"))?;
+        let body = format!(
+            "---\nname: {name}\ndescription: What this skill reviews for\n---\n\nWrite the instructions the model should follow when this skill is invoked.\n"
+        );
+        std::fs::write(skill.join("SKILL.md"), body)
+            .map_err(|e| format!("could not write the skill: {e}"))?;
+        Ok(skill.to_string_lossy().to_string())
+    })
+    .await
+    .map_err(|e| format!("skill creation failed: {e}"))?
 }
 
 #[tauri::command]

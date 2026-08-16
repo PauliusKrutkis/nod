@@ -67,6 +67,8 @@ export const api = {
 
   openSkillsDir: () => invoke<string>("open_skills_dir"),
 
+  createSkill: (name: string) => invoke<string>("create_skill", { name }),
+
   checkForUpdate: () => invoke<UpdateInfo | null>("check_for_update"),
   clearAiConfig: () => invoke<void>("clear_ai_config"),
   clearToken: () => invoke<void>("clear_token"),

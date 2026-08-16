@@ -39,6 +39,7 @@ import {
   type PendingComment,
   type PullRequest,
   prKey,
+  type SkillInfo,
 } from "../types.ts";
 
 interface LiveTurn {
@@ -66,6 +67,7 @@ function settledTrail(live: LiveTurn | null) {
 
 const EMPTY_TURNS: ChatTurnRecord[] = [];
 const EMPTY_PENDING: PendingComment[] = [];
+const EMPTY_SKILLS: SkillInfo[] = [];
 const EMPTY_THREADS: ChatThread[] = [];
 
 /** A thread's display name: its opening message, tightly trimmed. */
@@ -517,6 +519,16 @@ export function useReviewChat(args: {
     return true;
   };
 
+  const createSkill = (name: string) => {
+    api
+      .createSkill(name)
+      .then((path) => {
+        revealFolder(path);
+        return skills.refetch();
+      })
+      .catch(() => undefined);
+  };
+
   const openSkillsFolder = () => {
     api
       .openSkillsDir()
@@ -618,7 +630,9 @@ export function useReviewChat(args: {
     model: modelState,
     panelTurns,
     pending: chat.isPending,
+    createSkill,
     openSkillsFolder,
+    skills: skills.data ?? EMPTY_SKILLS,
     removeSkill: () => setSkill(null),
     skillCount: skillNames.length,
     send,

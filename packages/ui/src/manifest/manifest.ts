@@ -683,6 +683,10 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "unicode",
     ],
   },
+  "skills-dialog": {
+    dialog: true,
+    fixtures: ["crowd", "empty", "overflow", "repo-only", "typical", "unicode"],
+  },
   spinner: {
     fixtures: ["bare", "labelled", "overflow"],
   },
