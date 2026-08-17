@@ -157,6 +157,12 @@ fn chat_system_prompt(snapshot_ready: bool, skills: bool, proposals: bool, diffs
 
 const CHAT_INPUT_CHAR_BUDGET: usize = 120_000;
 
+/// How many tool rounds a chat turn may take. The ask-note's eight is right
+/// for one question about one line; a review pass reads a file per round and
+/// hits eight before it has seen the diff, then answers with nothing because
+/// the tools were taken away mid-plan.
+const CHAT_TOOL_ROUNDS: usize = 16;
+
 /// Prior turns as wire messages, newest kept first when the budget bites.
 /// Only user/assistant roles pass through — the webview can never smuggle a
 /// system message into the conversation.
@@ -1174,7 +1180,10 @@ fn empty_answer(message: &Value) -> String {
              pick a model that thinks less."
             .to_string();
     }
-    "The provider returned an empty answer.".to_string()
+    if reason.is_empty() || reason == "stop" {
+        return "The provider returned an empty answer.".to_string();
+    }
+    format!("The model stopped without answering (the provider said: {reason}).")
 }
 
 /// Validates and, when valid, emits the proposal to the webview to stage.
@@ -1260,6 +1269,8 @@ pub async fn ai_chat(
     let url = format!("{}/v1/chat/completions", config.base_url);
     let mut tools_enabled = snapshot.is_some() || proposals || has_diffs;
     let mut rounds = 0;
+    // Set once, after a round that produced neither text nor a tool call.
+    let mut forced_text = false;
     loop {
         if state.requested(&chat_id) {
             state.clear(&chat_id);
@@ -1277,7 +1288,7 @@ pub async fn ai_chat(
         });
         if tools_enabled {
             body["tools"] = chat_tools(snapshot.is_some(), skills_available, proposals, has_diffs);
-            if rounds >= ai::MAX_TOOL_ROUNDS {
+            if forced_text || rounds >= CHAT_TOOL_ROUNDS {
                 body["tool_choice"] = serde_json::json!("none");
             }
         }
@@ -1333,9 +1344,25 @@ pub async fn ai_chat(
             .cloned()
             .unwrap_or_default();
         if calls.is_empty() || !tools_enabled {
-            return ai::message_answer(&message_value).ok_or_else(|| empty_answer(&message_value));
+            if let Some(answer) = ai::message_answer(&message_value) {
+                return Ok(answer);
+            }
+            // A round that ends with neither text nor a tool call is a model
+            // that has finished reading and not started writing — a thinking
+            // model spending a round on thought, or one that ran out of tool
+            // budget mid-plan. Ask it for the answer once, with the tools
+            // taken away, before calling the turn empty.
+            if tools_enabled && !forced_text {
+                forced_text = true;
+                messages.push(serde_json::json!({
+                    "role": "user",
+                    "content": "Answer now, in text, from what you have already read."
+                }));
+                continue;
+            }
+            return Err(empty_answer(&message_value));
         }
-        if rounds > ai::MAX_TOOL_ROUNDS {
+        if rounds > CHAT_TOOL_ROUNDS {
             return Err("The model kept requesting tools past the limit.".to_string());
         }
         for call in &calls {

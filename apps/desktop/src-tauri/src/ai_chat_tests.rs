@@ -855,6 +855,15 @@ fn an_empty_answer_says_whether_the_budget_ran_out() {
     let just_empty = serde_json::json!({ "content": "", "finish_reason": "stop" });
     assert!(empty_answer(&just_empty).contains("empty answer"));
     assert!(empty_answer(&serde_json::json!({})).contains("empty answer"));
+
+    // Anything else the provider says is worth repeating verbatim — it is
+    // the only clue the next report will carry.
+    let odd = serde_json::json!({ "content": "", "finish_reason": "content_filter" });
+    assert!(
+        empty_answer(&odd).contains("content_filter"),
+        "got {}",
+        empty_answer(&odd)
+    );
 }
 
 #[test]
