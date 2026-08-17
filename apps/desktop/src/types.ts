@@ -222,7 +222,9 @@ export type ChatTurnRecord =
       /** Prose and code in the order they were written. */
       parts?: ChatPart[];
       regions: ChatRegion[];
+      /** v2 history kept one skill per turn. */
       skill?: string;
+      skills?: string[];
       text: string;
     }
   | {

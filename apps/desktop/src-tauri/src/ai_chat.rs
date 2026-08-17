@@ -229,7 +229,7 @@ fn build_chat_turn(
     regions: &[ChatRegion],
     context: &AskContext,
     first_turn: bool,
-    skill: Option<&str>,
+    skills: &[String],
 ) -> String {
     let mut sections: Vec<String> = Vec::new();
     if first_turn {
@@ -241,10 +241,16 @@ fn build_chat_turn(
             sections.push(format!("Changed files:\n{summary}"));
         }
     }
-    if let Some(body) = skill {
-        sections.push(format!(
-            "Follow these instructions for this task:\n\n{body}"
-        ));
+    // Several skills can ride one message — a validity pass and a security
+    // pass over the same diff is a reasonable ask — so they are numbered
+    // rather than concatenated into one wall of instructions.
+    for (i, body) in skills.iter().enumerate() {
+        let heading = if skills.len() == 1 {
+            "Follow these instructions for this task:".to_string()
+        } else {
+            format!("Instructions {} of {}:", i + 1, skills.len())
+        };
+        sections.push(format!("{heading}\n\n{body}"));
     }
     sections.push(build_message_body(message, parts, regions));
     sections.join("\n\n")
@@ -1136,7 +1142,7 @@ pub async fn ai_chat(
     context: AskContext,
     commentable: Vec<CommentableSide>,
     diffs: Vec<ChatDiffFile>,
-    skill: Option<String>,
+    skills: Vec<String>,
     model: Option<String>,
 ) -> Result<String, String> {
     let config = ai::load(&app)?.ok_or_else(|| "AI is not configured".to_string())?;
@@ -1147,14 +1153,13 @@ pub async fn ai_chat(
     state.clear(&chat_id);
     let snapshot = ai::ready_snapshot(&app, &context).await;
     let personal_skills = personal_skills_dir(&app);
-    let skill_body = match &skill {
-        Some(name) => match resolve_skill_body(snapshot.as_ref(), personal_skills.as_deref(), name)
-        {
-            Some(body) => Some(skill_instructions(&body).to_string()),
+    let mut skill_bodies: Vec<String> = Vec::new();
+    for name in &skills {
+        match resolve_skill_body(snapshot.as_ref(), personal_skills.as_deref(), name) {
+            Some(body) => skill_bodies.push(skill_instructions(&body).to_string()),
             None => return Err(format!("Skill '{name}' was not found.")),
-        },
-        None => None,
-    };
+        }
+    }
     // Built-ins mean the skill tools are always worth offering: /find-skill
     // exists before the reviewer has written anything.
     let skills_available = true;
@@ -1171,7 +1176,7 @@ pub async fn ai_chat(
             &regions,
             &context,
             history.is_empty(),
-            skill_body.as_deref(),
+            &skill_bodies,
         ),
     }));
     let client = ai::ask_client()?;

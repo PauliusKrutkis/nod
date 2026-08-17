@@ -52,7 +52,7 @@ export const api = {
     context: AiAskContext;
     commentable: CommentableSide[];
     diffs: ChatDiff[];
-    skill: string | null;
+    skills: string[];
     model: string | null;
   }) => invoke<string>("ai_chat", args),
   aiChatCancel: (chatId: string) => invoke<void>("ai_chat_cancel", { chatId }),

@@ -38,13 +38,13 @@ export interface ChatComposerHandle {
   focus: () => void;
   insertRegion: (region: ChatRegionChip) => void;
   /** Puts the invoked skill in the field as a chip, replacing the `/query`
-   *  that summoned it (`typed` characters back from the caret). One at a
-   *  time — a second invocation replaces the first, because a message runs
-   *  one skill. */
+   *  that summoned it (`typed` characters back from the caret). Several can
+   *  ride one message — a validity pass and a security pass over the same
+   *  diff — so this appends unless the same skill is already there. */
   insertSkill: (name: string, typed?: number) => void;
   isEmpty: () => boolean;
   parts: () => ChatPart[];
-  skill: () => string | null;
+  skills: () => string[];
 }
 
 export interface ChatComposerProps {
@@ -58,9 +58,9 @@ export interface ChatComposerProps {
    *  from the text alone gets it wrong the moment a chip or a trailing space
    *  is involved. */
   onSlashQuery?: (query: string | null) => void;
-  /** The skill chip appeared or was deleted. The host mirrors it because the
-   *  skill rides the request beside the message, not inside it. */
-  onSkillChange?: (name: string | null) => void;
+  /** The skill chips changed. The host mirrors them because skills ride the
+   *  request beside the message, not inside it. */
+  onSkillChange?: (names: string[]) => void;
   placeholder: string;
   ref?: Ref<ChatComposerHandle>;
 }
@@ -133,6 +133,13 @@ function skillElement(name: string): HTMLElement {
   remove.textContent = "×";
   chip.append(label, remove);
   return chip;
+}
+
+/** The skills currently in the field, in the order they were invoked. */
+function chipSkills(root: HTMLElement | null): string[] {
+  return [...(root?.querySelectorAll(`[${SKILL_ATTR}]`) ?? [])]
+    .map((chip) => chip.getAttribute(SKILL_ATTR) ?? "")
+    .filter((name) => name !== "");
 }
 
 function isChip(node: Node | null): node is HTMLElement {
@@ -351,6 +358,10 @@ export function ChatComposer({
     return SLASH_AT_CARET.exec(before)?.[1] ?? null;
   };
 
+  const reportSkills = (el: HTMLElement | null) => {
+    onSkillChangeRef.current?.(chipSkills(el));
+  };
+
   /** Every edit reports both the text and where the caret stands in it. */
   const report = (el: HTMLElement | null) => {
     onChange?.(el?.textContent ?? "");
@@ -360,13 +371,10 @@ export function ChatComposer({
   useImperativeHandle(ref, () => ({
     clear: () => {
       const el = fieldRef.current;
-      const hadSkill = el?.querySelector(`[${SKILL_ATTR}]`) !== null;
       if (el) {
         el.textContent = "";
       }
-      if (hadSkill) {
-        onSkillChangeRef.current?.(null);
-      }
+      onSkillChangeRef.current?.([]);
       onChange?.("");
       onSlashQueryRef.current?.(null);
     },
@@ -393,22 +401,20 @@ export function ChatComposer({
       if (!el) {
         return;
       }
-      for (const existing of el.querySelectorAll(`[${SKILL_ATTR}]`)) {
-        existing.remove();
-      }
       el.focus();
       deleteBeforeCaret(typed);
+      if (el.querySelector(`[${SKILL_ATTR}="${CSS.escape(name)}"]`)) {
+        report(el);
+        return;
+      }
       insertAtCaret(el, skillElement(name));
       insertAtCaret(el, document.createTextNode(" "));
-      onSkillChangeRef.current?.(name);
+      reportSkills(el);
       report(el);
     },
     isEmpty: () => (fieldRef.current?.textContent ?? "").trim() === "",
     parts: () => (fieldRef.current ? serialize(fieldRef.current) : []),
-    skill: () =>
-      fieldRef.current
-        ?.querySelector(`[${SKILL_ATTR}]`)
-        ?.getAttribute(SKILL_ATTR) ?? null,
+    skills: () => chipSkills(fieldRef.current),
   }));
 
   /** The chip a collapsed caret is sitting immediately after, if any. A
@@ -500,7 +506,7 @@ export function ChatComposer({
     const wasSkill = chip.hasAttribute(SKILL_ATTR);
     chip.remove();
     if (wasSkill) {
-      onSkillChangeRef.current?.(null);
+      reportSkills(fieldRef.current);
     }
   }
 

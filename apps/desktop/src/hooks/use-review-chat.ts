@@ -219,7 +219,6 @@ function useSlashSuggestions(args: {
   hints: Record<string, string>;
   loading: boolean;
   onPick: (name: string) => void;
-  skill: string | null;
   skillNames: string[];
   /** What the caret is typing after a `/`, straight from the field. */
   slash: string | null;
@@ -228,8 +227,7 @@ function useSlashSuggestions(args: {
   // Dismissal remembers the exact query it applied to, so Escape closes the
   // list and the next keystroke opens it again — no effect to keep in sync.
   const [dismissedFor, setDismissedFor] = useState<string | null>(null);
-  const query =
-    args.skill === null && args.slash !== dismissedFor ? args.slash : null;
+  const query = args.slash === dismissedFor ? null : args.slash;
   const items = query === null ? [] : matchCanned(query, args.skillNames, 0);
   const selected = Math.min(index, Math.max(items.length - 1, 0));
 
@@ -379,7 +377,9 @@ export function useReviewChat(args: {
   const stagedByAi = useAppStore(
     (s) => s.pendingComments[keyValue] ?? EMPTY_PENDING
   ).filter((c) => c.fromAi);
-  const [skill, setSkill] = useState<string | null>(null);
+  // The chips in the field are the truth; this mirror only exists so the
+  // panel can gate on whether anything is invoked.
+  const [, setInvokedSkills] = useState<string[]>([]);
   const [slash, setSlash] = useState<string | null>(null);
   const [live, setLive] = useState<LiveTurn | null>(null);
   const liveRef = useLatest(live);
@@ -436,7 +436,6 @@ export function useReviewChat(args: {
     hints: skillHints,
     loading: skills.isPending && args.active,
     onPick: pickSkill,
-    skill,
     skillNames,
     slash,
   });
@@ -535,9 +534,9 @@ export function useReviewChat(args: {
   );
 
   const send = (parts: ChatPart[]): boolean => {
-    // The chip in the field is the truth about which skill this message runs;
-    // the state is only its mirror, kept for the `/` picker's gating.
-    const skill = args.composerRef.current?.skill() ?? null;
+    // The chips in the field are the truth about which skills this message
+    // runs; the state is only their mirror.
+    const invoked = args.composerRef.current?.skills() ?? [];
     const text = parts
       .filter((p) => p.kind === "text")
       .map((p) => (p.kind === "text" ? p.text : ""))
@@ -545,7 +544,7 @@ export function useReviewChat(args: {
       .trim();
     // A skill on its own is a whole request — "run this pass" — so an empty
     // message sends when a skill chip is in the field.
-    if ((parts.length === 0 && skill === null) || chat.isPending) {
+    if ((parts.length === 0 && invoked.length === 0) || chat.isPending) {
       return false;
     }
     const turnId = crypto.randomUUID();
@@ -564,10 +563,10 @@ export function useReviewChat(args: {
       kind: "user",
       parts,
       regions,
-      skill: skill ?? undefined,
+      skills: invoked,
       text,
     });
-    setSkill(null);
+    setInvokedSkills([]);
     setLive({
       activity: [],
       partial: "",
@@ -587,7 +586,7 @@ export function useReviewChat(args: {
       model: modelOverride,
       parts,
       regions,
-      skill,
+      skills: invoked,
       turnId,
     });
     return true;
@@ -631,6 +630,7 @@ export function useReviewChat(args: {
           parts: turn.parts,
           regions: turn.regions,
           skill: turn.skill,
+          skills: turn.skills,
           text: turn.text,
         };
       }
@@ -665,7 +665,7 @@ export function useReviewChat(args: {
 
   const newChat = () => {
     setActiveThreadId(null);
-    setSkill(null);
+    setInvokedSkills([]);
   };
 
   const removeThread = (threadId: string) => {
@@ -705,11 +705,10 @@ export function useReviewChat(args: {
     // The stop button clears `live` at once, so the composer stops offering
     // to stop something that is, as far as the reviewer is concerned, over.
     pending: chat.isPending && live !== null,
-    skills: skills.data ?? EMPTY_SKILLS,
     send,
-    onSkillChange: setSkill,
+    onSkillChange: setInvokedSkills,
     onSlashQuery: setSlash,
-    skill,
+    skills: skills.data ?? EMPTY_SKILLS,
     stop,
     staged: stagedByAi.map((c) => ({
       body: c.body,

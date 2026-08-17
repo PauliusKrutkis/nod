@@ -328,8 +328,10 @@ skill — via the snapshot — a repo carries its
 review conventions with it — and a personal directory beside the app config
 (`<config>/skills/<name>/SKILL.md`), so your own review passes work in every
 repo. The repo wins a name clash. Invoking one injects its body into the
-outgoing turn as instructions; the model can also list and read them itself
-through tools.
+outgoing turn as instructions — several can ride one message, numbered in the
+order they were invoked, because "run the validity pass and the security
+pass" is one request. The model can also list and read them itself through
+tools.
 
 One skill ships with the app: **`/find-skill`**, which is how the other ones
 get written — and, since it is always there, the reason `/` is never an empty

@@ -69,7 +69,9 @@ export interface ChatUserTurn {
    *  there. Older turns carry only `regions` + `text`. */
   parts?: readonly ChatPart[];
   regions: readonly ChatRegionChip[];
+  /** v2 history kept one skill per turn; `skills` is the current shape. */
   skill?: string;
+  skills?: readonly string[];
   text: string;
 }
 
@@ -142,7 +144,7 @@ export interface ChatPanelProps {
    *  point at, so the composer only calls this for a region chip. */
   onRevealRegion?: (region: ChatRegionChip) => void;
   onSend: () => void;
-  onSkillChange?: (name: string | null) => void;
+  onSkillChange?: (names: string[]) => void;
   onSlashQuery?: (query: string | null) => void;
   onStop: () => void;
   /** How many skills are reachable right now — the button says "Add skills"
@@ -209,15 +211,19 @@ function TurnTime({ at, pinned }: { at: string | undefined; pinned: boolean }) {
  *  chips sit inline in the sentence, where the reviewer put them, rather
  *  than in a row above it. */
 function UserTurn({ turn }: { turn: ChatUserTurn }) {
-  const skillChip = turn.skill !== undefined && (
-    <span className="qch-chip qch-skill-chip">/{turn.skill}</span>
-  );
+  // v2 history stored a single `skill`; a turn can carry several now.
+  const skills = turn.skills ?? (turn.skill === undefined ? [] : [turn.skill]);
+  const skillChips = skills.map((name) => (
+    <span className="qch-chip qch-skill-chip" key={name}>
+      /{name}
+    </span>
+  ));
   return (
     <div className="qch-turn qch-user">
       <div className="qch-bubble">
         {turn.parts && turn.parts.length > 0 ? (
           <p className="qch-text">
-            {skillChip}
+            {skillChips}
             {turn.parts.map((part, i) =>
               part.kind === "text" ? (
                 // biome-ignore lint/suspicious/noArrayIndexKey: parts are positional and may repeat verbatim
@@ -243,7 +249,7 @@ function UserTurn({ turn }: { turn: ChatUserTurn }) {
               </div>
             )}
             <p className="qch-text">
-              {skillChip}
+              {skillChips}
               {turn.text}
             </p>
           </>
@@ -347,8 +353,18 @@ function AssistantTurn({
 }) {
   const inFlight = turn.text === null && turn.error === null;
   const body = turn.text ?? (inFlight ? turn.partial : "");
+  // Pointer state, not `:hover`. The transcript repaints under a stationary
+  // pointer while an answer streams, and a `:hover` caught mid-repaint stays
+  // lit after the pointer has gone — leaving a column of timestamps, which is
+  // exactly what shy timestamps exist to avoid.
+  const [hovered, setHovered] = useState(false);
   return (
-    <div className="qch-turn qch-ai">
+    <div
+      className="qch-turn qch-ai"
+      data-hover={hovered}
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
+    >
       <ActivityTrail elapsedMs={elapsedMs} turn={turn} />
       {body && <div className="qch-answer">{render(body)}</div>}
       {turn.error !== null && (
@@ -359,7 +375,7 @@ function AssistantTurn({
       {!inFlight && (
         <div className="qch-turn-foot">
           {turn.text && <CopyAnswer text={turn.text} />}
-          <TurnTime at={turn.at} pinned={pinned} />
+          <TurnTime at={turn.at} pinned={pinned || hovered} />
         </div>
       )}
     </div>
@@ -628,7 +644,13 @@ export function ChatPanel({
           <div className="qch-field">
             <ChatComposer
               onChange={onComposerChange}
-              onEscape={onEscape}
+              onEscape={() => {
+                if (pending) {
+                  onStop();
+                  return;
+                }
+                onEscape?.();
+              }}
               onKeyDown={onComposerKeyDown}
               onRevealRegion={onRevealRegion}
               onSend={send}

@@ -825,7 +825,7 @@ test("a typed prefix narrows the skills and the pick rides the send", async ({
   await composer(page).pressSequentially("Run it on this PR");
   await page.keyboard.press("Enter");
   const args = await readChatArgs(page);
-  expect(args.skill).toBe("pr-validity");
+  expect(args.skills).toEqual(["pr-validity"]);
   expect(args.message).toBe("Run it on this PR");
   await expect(chatPanel(page).locator(".qcc-chip-skill")).toHaveCount(0);
   await expect(chatPanel(page).getByText("/pr-validity")).toBeVisible();
@@ -881,9 +881,77 @@ test("a skill runs on its own, with nothing typed after it", async ({
   await page.keyboard.press("Enter");
 
   const args = await readChatArgs(page);
-  expect(args.skill).toBe("pr-validity");
+  expect(args.skills).toEqual(["pr-validity"]);
   expect(args.message).toBe("");
   await expect(chatPanel(page).locator(".qcc-chip-skill")).toHaveCount(0);
+});
+
+test("a shy timestamp goes away with the pointer", async ({ page }) => {
+  await setupApp(page, { ...CONFIGURED, aiChatAnswer: "First answer." });
+  await openReview(page);
+  await page.keyboard.press("m");
+  await composer(page).pressSequentially("one");
+  await page.keyboard.press("Enter");
+  await expect(chatPanel(page).getByText("First answer.")).toBeVisible();
+  await composer(page).pressSequentially("two");
+  await page.keyboard.press("Enter");
+
+  // The newest turn keeps its time; the older one shows it only while the
+  // pointer is on it, and stops showing it when the pointer leaves.
+  const older = chatPanel(page).locator(".qch-ai").first();
+  await expect(older.locator(".qch-time")).toHaveCSS("opacity", "0");
+  await older.hover();
+  await expect(older.locator(".qch-time")).toHaveCSS("opacity", "1");
+  await chatPanel(page).locator(".qch-composer").hover();
+  await expect(older.locator(".qch-time")).toHaveCSS("opacity", "0");
+});
+
+test("two skills ride one message, in the order they were invoked", async ({
+  page,
+}) => {
+  await setupApp(page, SKILLS_SETUP);
+  await openReview(page);
+  await page.keyboard.press("m");
+
+  await composer(page).pressSequentially("/security");
+  await page.keyboard.press("Tab");
+  await composer(page).pressSequentially("/pr");
+  await page.keyboard.press("Tab");
+  await expect(chatPanel(page).locator(".qcc-chip-skill")).toHaveCount(2);
+
+  // The same skill twice is one chip — invoking it again is not a second run.
+  await composer(page).pressSequentially("/pr");
+  await page.keyboard.press("Tab");
+  await expect(chatPanel(page).locator(".qcc-chip-skill")).toHaveCount(2);
+
+  await composer(page).pressSequentially("both passes please");
+  await page.keyboard.press("Enter");
+  const args = await readChatArgs(page);
+  expect(args.skills).toEqual(["security-pass", "pr-validity"]);
+  expect(args.message).toBe("both passes please");
+});
+
+test("escape stops a turn in flight instead of leaving the composer", async ({
+  page,
+}) => {
+  await setupApp(page, {
+    ...CONFIGURED,
+    aiChatAnswer: "hang",
+    aiChatScript: [{ delta: "Reading the diff" }],
+  });
+  await openReview(page);
+  await page.keyboard.press("m");
+  await composer(page).pressSequentially("what changed?");
+  await page.keyboard.press("Enter");
+  await expect(chatPanel(page).getByText("Reading the diff")).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(chatPanel(page).getByRole("button", { name: "Send" })).toBeVisible();
+  await expect(composer(page)).toBeFocused();
+  const cancelled = await page.evaluate(() =>
+    localStorage.getItem("e2e:aiChatCancel")
+  );
+  expect(cancelled).not.toBeNull();
 });
 
 test("the skill chip removes; a repo with no skills offers nothing on /", async ({
@@ -928,9 +996,14 @@ const PROPOSAL_SETUP = {
 
 async function stageProposal(page: Page) {
   await page.keyboard.press("m");
-  await composer(page).fill("Review this PR");
+  await composer(page).pressSequentially("Review this PR");
   await page.keyboard.press("Enter");
   await expect(chatPanel(page).locator(".qch-staged-go")).toHaveCount(1);
+  // Let the turn settle before anyone presses Escape: while it is in flight,
+  // Escape means "stop", not "leave the composer".
+  await expect(
+    chatPanel(page).getByRole("button", { name: "Send" })
+  ).toBeVisible();
 }
 
 test("a proposal lands as a pending comment, and survives a reload", async ({

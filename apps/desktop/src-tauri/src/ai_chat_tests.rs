@@ -76,7 +76,7 @@ fn context() -> AskContext {
 
 #[test]
 fn first_turn_carries_the_pr_context_sections() {
-    let prompt = build_chat_turn("What changed?", &[], &[], &context(), true, None);
+    let prompt = build_chat_turn("What changed?", &[], &[], &context(), true, &[]);
     assert!(prompt.starts_with("Pull request: Add retry"));
     assert!(prompt.contains("PR description:\nRetries the poll."));
     assert!(prompt.contains("Changed files:\nsrc/poll.ts (+10 -2)"));
@@ -85,7 +85,7 @@ fn first_turn_carries_the_pr_context_sections() {
 
 #[test]
 fn later_turns_skip_the_context_and_keep_the_message_last() {
-    let prompt = build_chat_turn("And why?", &[], &[], &context(), false, None);
+    let prompt = build_chat_turn("And why?", &[], &[], &context(), false, &[]);
     assert_eq!(prompt, "And why?");
 }
 
@@ -103,7 +103,7 @@ fn regions_render_as_fenced_blocks_with_path_and_range() {
             code: "let y;".to_string(),
         },
     ];
-    let prompt = build_chat_turn("Compare these.", &[], &regions, &context(), false, None);
+    let prompt = build_chat_turn("Compare these.", &[], &regions, &context(), false, &[]);
     assert!(prompt.contains("Code from src/a.ts (lines 3–5):\n```\nconst x = 1;\n```"));
     assert!(prompt.contains("Code from src/b.ts:\n```\nlet y;\n```"));
     assert!(prompt.ends_with("Compare these."));
@@ -530,7 +530,7 @@ fn an_invoked_skill_rides_the_user_turn_before_regions() {
         }],
         &context(),
         false,
-        Some("Check comment placement."),
+        &["Check comment placement.".to_string()],
     );
     let skill_at = prompt
         .find("Follow these instructions for this task:\n\nCheck comment placement.")
@@ -606,7 +606,7 @@ fn pasted_regions_get_the_pathless_heading() {
         }],
         &context(),
         false,
-        None,
+        &[],
     );
     assert!(prompt.contains("Pasted code:\n```\nlet z;\n```"));
 }
@@ -683,7 +683,7 @@ fn inline_parts_keep_code_where_the_reviewer_put_it() {
             text: "?".to_string(),
         },
     ];
-    let body = build_chat_turn("ignored", &parts, &[], &context(), false, None);
+    let body = build_chat_turn("ignored", &parts, &[], &context(), false, &[]);
 
     let first = body.find("Code from a.ts").expect("first block");
     let second = body.find("Code from b.ts").expect("second block");
@@ -701,7 +701,7 @@ fn a_turn_without_parts_keeps_the_old_shape() {
         file_path: "a.ts".to_string(),
         line_range: String::new(),
     }];
-    let body = build_chat_turn("Explain.", &[], &regions, &context(), false, None);
+    let body = build_chat_turn("Explain.", &[], &regions, &context(), false, &[]);
     assert!(body.starts_with("Code from a.ts:"));
     assert!(body.ends_with("Explain."));
 }
@@ -824,4 +824,26 @@ fn skills_outside_dot_claude_are_reachable_too() {
     assert!(grouped.contains("Body."));
 
     let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn several_skills_ride_one_turn_numbered_in_order() {
+    let prompt = build_chat_turn(
+        "Both, please.",
+        &[],
+        &[],
+        &context(),
+        false,
+        &[
+            "Check comment placement.".to_string(),
+            "Hunt for secrets.".to_string(),
+        ],
+    );
+    // Numbered, so the model can tell one set of instructions from the next,
+    // and in the order the reviewer invoked them.
+    let first = prompt.find("Instructions 1 of 2:").expect("first heading");
+    let second = prompt.find("Instructions 2 of 2:").expect("second heading");
+    assert!(first < second);
+    assert!(prompt.find("Check comment placement.").expect("first body") < second);
+    assert!(second < prompt.find("Both, please.").expect("message"));
 }

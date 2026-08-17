@@ -161,8 +161,7 @@
   transition: opacity 120ms ease;
 }
 
-.qch-time-on,
-.qch-turn:hover .qch-time {
+.qch-time-on {
   opacity: 1;
 }
 
