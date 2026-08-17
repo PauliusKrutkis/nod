@@ -29,7 +29,11 @@ import { matchCanned } from "@nod/ui/canned-suggestions";
 import type { ChatComposerHandle } from "@nod/ui/chat-composer";
 import type { ChatPanelTurn, ChatSuggestionsState } from "@nod/ui/chat-panel";
 import { useLatest } from "@nod/ui/use-latest";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { listen } from "@tauri-apps/api/event";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
@@ -103,13 +107,49 @@ function threadTitle(thread: ChatThread): string {
   return label.length > 40 ? `${label.slice(0, 40)}…` : label;
 }
 
+/** The prose in a message, with the code chips left out. */
+function partsText(parts: readonly ChatPart[]): string {
+  let text = "";
+  for (const part of parts) {
+    if (part.kind === "text") {
+      text += part.text;
+    }
+  }
+  return text.trim();
+}
+
+/** The code chips in a message, in the order they were attached. */
+function partsRegions(parts: readonly ChatPart[]): ChatRegion[] {
+  const regions: ChatRegion[] = [];
+  for (const part of parts) {
+    if (part.kind === "code") {
+      regions.push(part.region);
+    }
+  }
+  return regions;
+}
+
+/** The comments one turn staged, as the panel's rows. */
+function stagedForTurn(
+  pending: readonly PendingComment[],
+  turnId: string
+): { body: string; id: string; label: string }[] {
+  const rows: { body: string; id: string; label: string }[] = [];
+  for (const comment of pending) {
+    if (comment.turnId === turnId) {
+      rows.push({
+        body: comment.body,
+        id: comment.id,
+        label: `${comment.path}:${comment.line}`,
+      });
+    }
+  }
+  return rows;
+}
+
 /** The parked message, compressed to one recognisable line. */
 function queuedLabel(queued: { parts: ChatPart[]; skills: string[] }): string {
-  const text = queued.parts
-    .filter((p) => p.kind === "text")
-    .map((p) => (p.kind === "text" ? p.text : ""))
-    .join("")
-    .trim();
+  const text = partsText(queued.parts);
   const skills = queued.skills.map((name) => `/${name}`).join(" ");
   const label = [skills, text].filter(Boolean).join(" ");
   return label.length > 60 ? `${label.slice(0, 60)}…` : label;
@@ -232,33 +272,26 @@ function useChatSnapshot(args: { active: boolean; pr: PullRequest }): {
       query.state.data?.state === "downloading" ? 2000 : false,
   });
   const snapshotState = snapshot.data?.state;
-  const refetchSnapshot = snapshot.refetch;
+  const queryClient = useQueryClient();
+  const statusKey = ["snapshotStatus", prKey(args.pr), args.pr.headSha];
 
-  const headShaRef = useLatest(args.pr.headSha);
-  const ownerRef = useLatest(args.pr.owner);
-  const repoRef = useLatest(args.pr.name);
+  const ensure = useMutation({
+    mutationFn: () =>
+      api.ensureRepoSnapshot(args.pr.owner, args.pr.name, args.pr.headSha),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: statusKey }),
+  });
+
+  const kickRef = useLatest(ensure.mutate);
+  const idleRef = useLatest(ensure.isIdle);
   useEffect(() => {
     if (
       args.active &&
+      idleRef.current &&
       (snapshotState === "idle" || snapshotState === "failed")
     ) {
-      api
-        .ensureRepoSnapshot(
-          ownerRef.current,
-          repoRef.current,
-          headShaRef.current
-        )
-        .then(() => refetchSnapshot())
-        .catch(() => undefined);
+      kickRef.current();
     }
-  }, [
-    args.active,
-    snapshotState,
-    headShaRef,
-    ownerRef,
-    repoRef,
-    refetchSnapshot,
-  ]);
+  }, [args.active, snapshotState, idleRef, kickRef]);
 
   let contextNote: string | null = null;
   if (snapshotState === "downloading" || snapshotState === "idle") {
@@ -538,16 +571,11 @@ export function useReviewChat(args: {
     };
   }, []);
 
-  // react-doctor-disable-next-line query-mutation-missing-invalidation -- a chat turn is a one-shot completion, not cached server state; there is no query to invalidate
   const [queued, setQueued] = useState<{
     parts: ChatPart[];
     skills: string[];
   } | null>(null);
   const queuedRef = useLatest(queued);
-  const sendRef = useRef<(parts: ChatPart[], skills: string[]) => boolean>(
-    () => false
-  );
-
   /** Sends the parked message, if there is one. Called when a turn settles
    *  rather than from an effect watching `isPending`: the settle IS the
    *  event, and an effect would fire on unrelated renders too. */
@@ -557,9 +585,10 @@ export function useReviewChat(args: {
       return;
     }
     setQueued(null);
-    sendRef.current(parked.parts, parked.skills);
+    dispatchRef.current(parked.parts, parked.skills);
   };
 
+  // react-doctor-disable-next-line query-mutation-missing-invalidation -- a chat turn is a one-shot completion, not cached server state; there is no query to invalidate
   const chat = useMutation({
     mutationFn: ({
       threadId: _threadId,
@@ -629,21 +658,14 @@ export function useReviewChat(args: {
    *  come straight here from the mutation's settle — at that moment
    *  `isPending` is still true and asking again would park it forever. */
   const dispatch = (parts: ChatPart[], invoked: string[]): boolean => {
-    const text = parts
-      .filter((p) => p.kind === "text")
-      .map((p) => (p.kind === "text" ? p.text : ""))
-      .join("")
-      .trim();
+    const text = partsText(parts);
     const turnId = crypto.randomUUID();
     const threadId = activeThreadId ?? crypto.randomUUID();
     if (activeThreadId === null) {
       setActiveThreadId(threadId);
     }
     const history = historyMessages(turns);
-    const regions = parts
-      .filter((p) => p.kind === "code")
-      .map((p) => (p.kind === "code" ? p.region : null))
-      .filter((r): r is ChatRegion => r !== null);
+    const regions = partsRegions(parts);
     appendChatTurn(keyValue, threadId, {
       at: new Date().toISOString(),
       id: crypto.randomUUID(),
@@ -679,7 +701,7 @@ export function useReviewChat(args: {
     });
     return true;
   };
-  sendRef.current = dispatch;
+  const dispatchRef = useLatest(dispatch);
 
   /** Sends, or parks the message when a turn is already running. A skill on
    *  its own is a whole request, so an empty message sends when a skill chip
@@ -740,13 +762,7 @@ export function useReviewChat(args: {
       }
       return {
         activity: turn.activity ?? [],
-        staged: stagedByAi
-          .filter((c) => c.turnId === turn.id)
-          .map((c) => ({
-            body: c.body,
-            id: c.id,
-            label: `${c.path}:${c.line}`,
-          })),
+        staged: stagedForTurn(stagedByAi, turn.id),
         at: turn.at,
         error: turn.error,
         id: turn.id,
@@ -767,13 +783,7 @@ export function useReviewChat(args: {
             kind: "assistant" as const,
             partial: live.partial,
             reasoning: live.reasoning,
-            staged: stagedByAi
-              .filter((c) => c.turnId === live.turnId)
-              .map((c) => ({
-                body: c.body,
-                id: c.id,
-                label: `${c.path}:${c.line}`,
-              })),
+            staged: stagedForTurn(stagedByAi, live.turnId),
             startedAt: live.startedAt,
             text: null,
           },
