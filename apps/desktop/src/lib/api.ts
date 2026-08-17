@@ -5,6 +5,10 @@ import type {
   AiAskContext,
   AiInfo,
   AiModel,
+  ChatDiff,
+  ChatPart,
+  ChatRegion,
+  CommentableSide,
   FileBlob,
   GitHubUser,
   InboxBucket,
@@ -17,6 +21,7 @@ import type {
   RepoHit,
   ReviewComment,
   ReviewEvent,
+  SkillInfo,
   SnapshotStatus,
   UpdateInfo,
   ViewedMap,
@@ -37,11 +42,29 @@ export const api = {
 
   aiAsk: (args: { question: string; context: AiAskContext; askId: string }) =>
     invoke<string>("ai_ask", args),
+  aiChat: (args: {
+    chatId: string;
+    turnId: string;
+    message: string;
+    parts: ChatPart[];
+    regions: ChatRegion[];
+    history: { role: string; content: string }[];
+    context: AiAskContext;
+    commentable: CommentableSide[];
+    diffs: ChatDiff[];
+    skills: string[];
+    model: string | null;
+    effort: string | null;
+  }) => invoke<string>("ai_chat", args),
+  aiChatCancel: (chatId: string) => invoke<void>("ai_chat_cancel", { chatId }),
   aiComplete: (args: {
     prefix: string;
     context: { filePath?: string; code?: string };
   }) => invoke<string>("ai_complete", args),
   aiListModels: () => invoke<AiModel[]>("ai_list_models"),
+
+  listChatSkills: (owner: string, repo: string, headSha: string) =>
+    invoke<SkillInfo[]>("list_chat_skills", { headSha, owner, repo }),
 
   checkForUpdate: () => invoke<UpdateInfo | null>("check_for_update"),
   clearAiConfig: () => invoke<void>("clear_ai_config"),
@@ -92,6 +115,9 @@ export const api = {
 
   ensureRepoSnapshot: (owner: string, repo: string, sha: string) =>
     invoke<SnapshotStatus>("ensure_repo_snapshot", { owner, repo, sha }),
+
+  snapshotStatus: (owner: string, repo: string, sha: string) =>
+    invoke<SnapshotStatus>("snapshot_status", { owner, repo, sha }),
 
   getFileBlob: (owner: string, repo: string, path: string, ref: string) =>
     invoke<FileBlob>("get_file_blob", { owner, path, ref, repo }),

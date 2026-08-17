@@ -55,12 +55,20 @@ export function CommentBody({ body, renderMarkdown }: CommentBodyProps) {
 
 export interface CommentItemProps {
   body: string;
-  commentId: number;
   composer?: ReactNode;
-  createdAt: string;
+  confirmDelete?: boolean;
+  /** Absent on a comment that has not been sent — an unsent draft has no
+   *  posted time, and the pending tag stands where the timestamp would. */
+  createdAt?: string;
+  deleteKbd?: string;
+  deleteLabel?: string;
   editKbd?: string;
-  onDelete?: (commentId: number) => void;
-  onStartEdit?: (commentId: number) => void;
+  /** Marks the draft as written by the chat rather than typed. */
+  onDelete?: () => void;
+  onPostNow?: () => void;
+  onStartEdit?: () => void;
+  /** "Pending" or "Suggested" — shown in place of the timestamp. */
+  pendingLabel?: string;
   renderMarkdown?: (body: string) => ReactNode;
   reply?: boolean;
   tools?: boolean;
@@ -70,12 +78,16 @@ export interface CommentItemProps {
 
 export function CommentItem({
   body,
-  commentId,
   composer,
+  confirmDelete,
   createdAt,
+  deleteKbd,
+  deleteLabel,
   editKbd,
   onDelete,
+  onPostNow,
   onStartEdit,
+  pendingLabel,
   renderMarkdown,
   reply = false,
   tools = true,
@@ -87,15 +99,25 @@ export function CommentItem({
       <div className="qf-comment-head">
         <Avatar name={user} size={20} url={userAvatarUrl} />
         <span className="qf-comment-author">{user}</span>
-        <span className="qf-comment-time" title={formatAbsolute(createdAt)}>
-          {formatRelativeTime(createdAt)}
-        </span>
+        {pendingLabel === undefined ? (
+          <span
+            className="qf-comment-time"
+            title={createdAt ? formatAbsolute(createdAt) : undefined}
+          >
+            {createdAt ? formatRelativeTime(createdAt) : ""}
+          </span>
+        ) : (
+          <span className="qf-pending-tag">{pendingLabel}</span>
+        )}
         {!!tools && (
           <CommentTools
             body={body}
-            commentId={commentId}
+            confirmDelete={confirmDelete}
+            deleteKbd={deleteKbd}
+            deleteLabel={deleteLabel}
             editKbd={editKbd}
             onDelete={onDelete}
+            onPostNow={onPostNow}
             onStartEdit={onStartEdit}
           />
         )}

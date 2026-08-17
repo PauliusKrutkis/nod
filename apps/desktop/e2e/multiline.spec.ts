@@ -220,3 +220,82 @@ test("a pending range survives leaving and reopening the PR", async ({
   await page.keyboard.press("Enter"); // reopen
   await expect(page.locator(".qf-range-tag")).toHaveText("Lines 2–3");
 });
+
+/** Sweep a native text selection across two code rows and release, the way a
+ *  pointer drag over code does. */
+async function dragSelectRows(
+  page: import("@playwright/test").Page,
+  fromAnchor: string,
+  toAnchor: string
+) {
+  await page.evaluate(
+    ({ from, to }) => {
+      const cell = (anchor: string) =>
+        document
+          .querySelector(`.qf-row[data-anchor="${anchor}"]`)
+          ?.querySelector(".qf-code");
+      const start = cell(from);
+      const end = cell(to);
+      if (!(start && end)) {
+        throw new Error("rows not rendered");
+      }
+      const range = document.createRange();
+      range.setStart(start, 0);
+      range.setEnd(end, end.childNodes.length);
+      const selection = document.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      document.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+    },
+    { from: fromAnchor, to: toAnchor }
+  );
+}
+
+test("dragging across code rows arms the same range shift+j builds", async ({
+  page,
+}) => {
+  await dragSelectRows(page, "RIGHT:1", "RIGHT:3");
+  await expect(page.locator(".qf-row-selected")).toHaveCount(4);
+  await expect(
+    page.locator('.qf-row-active[data-anchor="RIGHT:3"]')
+  ).toBeVisible();
+
+  await page.keyboard.press("c");
+  await expect(page.getByText("Lines 1–3")).toBeVisible();
+});
+
+test("a drag inside one row leaves the range alone", async ({ page }) => {
+  await dragSelectRows(page, "RIGHT:2", "RIGHT:2");
+  await expect(page.locator(".qf-row-selected")).toHaveCount(0);
+});
+
+test("clicking clears the drag range, even inside the selection", async ({
+  page,
+}) => {
+  await dragSelectRows(page, "RIGHT:1", "RIGHT:3");
+  await expect(page.locator(".qf-row-selected")).toHaveCount(4);
+
+  // The browser can hold the old selection until mouseup so the text can be
+  // dragged, so a click inside the run cannot be decided by reading it.
+  const target = page
+    .locator('.qf-row[data-anchor="RIGHT:2"] .qf-code')
+    .first();
+  const box = await target.boundingBox();
+  if (!box) {
+    throw new Error("row not measurable");
+  }
+  await page.mouse.move(box.x + 20, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.up();
+  await expect(page.locator(".qf-row-selected")).toHaveCount(0);
+});
+
+test("a selection cleared by anything else takes the range with it", async ({
+  page,
+}) => {
+  await dragSelectRows(page, "RIGHT:1", "RIGHT:3");
+  await expect(page.locator(".qf-row-selected")).toHaveCount(4);
+
+  await page.evaluate(() => document.getSelection()?.removeAllRanges());
+  await expect(page.locator(".qf-row-selected")).toHaveCount(0);
+});

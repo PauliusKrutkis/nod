@@ -27,7 +27,7 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 # futures Stream, and this is the standard adapter for consuming it.
 futures-util = { version = "0.3", default-features = false }
 url = "2"
-tokio = { version = "1", features = ["rt"] }
+tokio = { version = "1", features = ["rt", "time"] }
 # Image diffs: file blobs are shipped to the webview as base64 data URLs.
 base64 = "0.22"
 # GitLab OAuth (PKCE): code-challenge hashing + verifier generation.

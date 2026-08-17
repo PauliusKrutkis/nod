@@ -7,6 +7,8 @@ import { badgeEntry } from "../badge/badge.fixtures.ts";
 import { buttonEntry } from "../button/button.fixtures.ts";
 import { cannedCommentsDialogEntry } from "../canned-comments-dialog/canned-comments-dialog.fixtures.ts";
 import { cannedSuggestionsEntry } from "../canned-suggestions/canned-suggestions.fixtures.ts";
+import { chatComposerEntry } from "../chat-composer/chat-composer.fixtures.ts";
+import { chatPanelEntry } from "../chat-panel/chat-panel.fixtures.ts";
 import { ciPillEntry } from "../ci-pill/ci-pill.fixtures.ts";
 import { codeCellEntry } from "../code-cell/code-cell.fixtures.ts";
 import { commandPaletteEntry } from "../command-palette/command-palette.fixtures.ts";
@@ -30,6 +32,7 @@ import { inboxZeroEntry } from "../inbox-zero/inbox-zero.fixtures.ts";
 import { issueTrackerDialogEntry } from "../issue-tracker-dialog/issue-tracker-dialog.fixtures.ts";
 import { kbdEntry } from "../kbd/kbd.fixtures.ts";
 import { markdownEntry } from "../markdown/markdown.fixtures.ts";
+import { modelPickerEntry } from "../model-picker/model-picker.fixtures.ts";
 import { notificationCenterEntry } from "../notification-center/notification-center.fixtures.ts";
 import { overviewRulerEntry } from "../overview-ruler/overview-ruler.fixtures.ts";
 import { prDrawerEntry } from "../pr-drawer/pr-drawer.fixtures.ts";
@@ -42,6 +45,7 @@ import { reviewHeaderEntry } from "../review-header/review-header.fixtures.ts";
 import { reviewScreenPendingEntry } from "../review-screen-pending/review-screen-pending.fixtures.ts";
 import { reviewToastEntry } from "../review-toast/review-toast.fixtures.ts";
 import { reviewVerdictsEntry } from "../review-verdicts/review-verdicts.fixtures.ts";
+import { rightDockEntry } from "../right-dock/right-dock.fixtures.ts";
 import { searchPaneEntry } from "../search-pane/search-pane.fixtures.ts";
 import { spinnerEntry } from "../spinner/spinner.fixtures.ts";
 import { submitReviewModalEntry } from "../submit-review-modal/submit-review-modal.fixtures.ts";
@@ -64,6 +68,8 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   button: buttonEntry,
   "canned-comments-dialog": cannedCommentsDialogEntry,
   "canned-suggestions": cannedSuggestionsEntry,
+  "chat-composer": chatComposerEntry,
+  "chat-panel": chatPanelEntry,
   "ci-pill": ciPillEntry,
   "code-cell": codeCellEntry,
   "command-palette": commandPaletteEntry,
@@ -86,6 +92,7 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   "issue-tracker-dialog": issueTrackerDialogEntry,
   kbd: kbdEntry,
   markdown: markdownEntry,
+  "model-picker": modelPickerEntry,
   "notification-center": notificationCenterEntry,
   "overview-ruler": overviewRulerEntry,
   "pr-drawer": prDrawerEntry,
@@ -98,6 +105,7 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   "review-screen-pending": reviewScreenPendingEntry,
   "review-toast": reviewToastEntry,
   "review-verdicts": reviewVerdictsEntry,
+  "right-dock": rightDockEntry,
   "search-pane": searchPaneEntry,
   spinner: spinnerEntry,
   "submit-review-modal": submitReviewModalEntry,

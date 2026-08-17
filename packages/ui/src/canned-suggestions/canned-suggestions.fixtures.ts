@@ -23,6 +23,21 @@ const PARAGRAPH =
   "Not blocking, but this is the third place that reimplements the same retry loop, and the next one to touch it will not know the other two exist — worth pulling out before it spreads again.";
 
 export const cannedSuggestionsEntry = defineEntry(CannedSuggestions, {
+  /** The chat's skill picker: names carry a description, and a long one has
+   *  to give up its width rather than push the row wider. */
+  "described-items": {
+    props: {
+      ...shared,
+      hints: {
+        "find-skill": "Find a skill for what you are about to do, or write one",
+        "pr-validity": "Review against this repository's conventions",
+        "security-pass":
+          "Hunt for injection, secrets in the diff, and unchecked input reaching a shell — the long kind of description nobody trims",
+      },
+      items: ["find-skill", "pr-validity", "security-pass"],
+      query: "",
+    },
+  },
   empty: {
     props: { ...shared, items: [], query: "zz" },
     rendersNothing: true,

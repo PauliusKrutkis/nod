@@ -24,7 +24,7 @@ test("resolve collapses the thread; expanding offers unresolve", async ({
   await expect(collapsed).toContainText("Is this constant right?");
   await expect(page.locator(".qf-comment")).toHaveCount(0);
 
-  await page.keyboard.press("i");
+  await page.keyboard.press("ControlOrMeta+i");
   await expect(page.locator(".qf-thread-row .qf-thread-check")).toBeVisible();
   await page.keyboard.press("Escape");
 

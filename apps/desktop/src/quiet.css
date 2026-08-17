@@ -284,10 +284,27 @@ textarea.q-input {
    and animating the column made it feel slower than it was while forcing the
    virtualizer to re-measure through every intermediate width. */
 .dir-quiet .qf-sidebar-col {
+  position: relative;
   flex-shrink: 0;
   width: 300px;
   overflow: hidden;
   border-right: 1px solid var(--line);
+}
+/* The file tree's drag grip, the dock's mirrored. It sits just inside the
+   right edge rather than straddling it, because the column clips its
+   overflow — a grip hanging outside would be half unclickable. */
+.dir-quiet .qf-sidebar-resize {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.dir-quiet .qf-sidebar-resize:hover {
+  background: var(--accent-soft);
 }
 .dir-quiet .qf-sidebar-inline:not(.qf-sidebar-open) {
   width: 0;
@@ -605,24 +622,54 @@ textarea.q-input {
 }
 
 /* pending */
+/* A pending comment wears the SAME card as a posted one (owner decision,
+   2026-08-17, reversing the dashed-draft material): one component, one look,
+   and the PENDING tag plus an accent rail carry the "not sent yet". The rail
+   alone survives from the draft material because it answers, at a glance,
+   which comments will leave with the review. */
 .dir-quiet .qf-pending {
-  background:
-    linear-gradient(0deg, var(--accent-soft), var(--accent-soft)),
-    var(--surface);
-  border-color: var(--accent-line);
-  border-style: dashed;
+  border-left: 2px solid var(--accent-line);
+}
+.dir-quiet .qf-pending:hover,
+.dir-quiet .qf-pending:focus-within {
+  border-left-color: var(--accent);
+}
+.dir-quiet .qf-pending-tools {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.dir-quiet .qf-pending:hover .qf-pending-tools,
+.dir-quiet .qf-pending:focus-within .qf-pending-tools {
+  opacity: 1;
+}
+.dir-quiet .qf-pending-act {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  padding: 2px 6px;
+  font-size: 11.5px;
+  color: var(--faint);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-md);
+}
+.dir-quiet .qf-pending-act:hover {
+  color: var(--fg);
+  background: var(--surface-2);
+}
+.dir-quiet .qf-pending-remove:hover {
+  color: var(--del);
 }
 .dir-quiet .qf-pending-tag {
-  padding: 2px 7px;
   font-family: var(--font-mono);
   font-size: 10px;
-  font-weight: 600;
   color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  background: var(--bg);
-  border: 1px solid var(--accent-line);
-  border-radius: var(--r-pill);
 }
 .dir-quiet .qf-pending-remove {
   display: inline-flex;

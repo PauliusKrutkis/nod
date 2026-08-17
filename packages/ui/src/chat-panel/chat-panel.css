@@ -1,0 +1,617 @@
+/* The chat surface inside the right dock's Chat tab. Same material grammar
+   as the ask note — the machine half is ink, not paper: sparkle plus the
+   mono `local` tag, no card fill anywhere in the transcript. The transcript
+   owns the scroll (flex: 1 1 auto with min-height 0 — WKWebView collapses
+   a bare flex: 1 column child of an auto-height panel) and the footer docks
+   below it: proposals summary, pending region chips, then the composer.
+   Text breaks anywhere: a pasted token, a path chip at sidebar width, or a
+   10k-character streamed partial must never push the dock open sideways. */
+
+.qch-panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  font-family: var(--font-ui);
+}
+
+.qch-threads {
+  position: relative;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.qch-thread-current {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  min-width: 0;
+  padding: 2px 6px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-md);
+}
+
+.qch-thread-current:hover {
+  color: var(--fg);
+  background: var(--surface-2);
+}
+
+.qch-thread-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qch-thread-new {
+  display: inline-flex;
+  flex: none;
+  gap: 4px;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 11.5px;
+  color: var(--faint);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-pill);
+}
+
+.qch-thread-new:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+
+.qch-thread-list {
+  position: absolute;
+  top: calc(100% - 2px);
+  right: 18px;
+  left: 18px;
+  z-index: 5;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-lg);
+  box-shadow: 0 12px 32px -16px rgba(0, 0, 0, 0.5);
+}
+
+.qch-thread-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 0 6px 0 0;
+  border-radius: var(--r-md);
+}
+
+.qch-thread-row:hover,
+.qch-thread-row[data-active="true"] {
+  background: var(--surface-2);
+}
+
+.qch-thread-pick {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 5px 8px;
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--fg);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+}
+
+.qch-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 14px 18px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.qch-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--faint);
+}
+
+/* Two shapes, the way every chat reads: what you said sits in a bubble, what
+   the model said is plain text on the page. No author labels — the shapes
+   are the attribution, and a tag on every turn is noise once you have read
+   two of them. */
+.qch-turn {
+  margin-bottom: 16px;
+}
+
+.qch-bubble {
+  padding: 8px 11px;
+  background: var(--surface-hi);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+
+.qch-turn-foot {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-height: 18px;
+  margin-top: 4px;
+}
+
+.qch-user .qch-turn-foot {
+  justify-content: flex-end;
+}
+
+/* The timestamp is pinned on the newest turn and shy on the rest: you nearly
+   always want the last one, and never want a column of them. */
+.qch-time {
+  font-size: 10.5px;
+  color: var(--faint);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.qch-time-on {
+  opacity: 1;
+}
+
+/* The parked message: one quiet line above the composer, in the same voice
+   as the context note — it is status, not a turn. */
+.qch-queued {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 0 2px 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.qch-queued-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qch-queued-x {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  padding: 1px;
+  color: var(--faint);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-md);
+}
+
+.qch-queued-x:hover {
+  color: var(--del);
+}
+
+/* Copy stays visible. It is the one action on an answer, and an action you
+   have to hover to discover is one you forget the panel has — the timestamp
+   below it still fades, because a time you did not ask for is noise. */
+.qch-act {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  color: var(--faint);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-md);
+  transition: color 120ms ease;
+}
+
+.qch-act:hover {
+  color: var(--fg);
+  background: var(--surface-2);
+}
+
+/* The working, folded away. Running, it names what the model is doing right
+   now; finished, it is one quiet line you can open when the answer surprises
+   you. */
+.qch-trail {
+  margin-bottom: 5px;
+}
+
+/* One line, always: the elapsed label holds its shape ("Working… 1m 37s"
+   was wrapping between the minutes and the seconds at panel widths), and
+   whatever the model is doing right now gives way with an ellipsis. */
+.qch-trail-head {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  width: 100%;
+  max-width: 100%;
+  padding: 0;
+  font-size: 11.5px;
+  color: var(--faint);
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+}
+
+.qch-trail-label {
+  flex: none;
+  white-space: nowrap;
+}
+
+.qch-trail-head:disabled {
+  cursor: default;
+}
+
+.qch-trail-head:not(:disabled):hover {
+  color: var(--muted);
+}
+
+.qch-trail-running {
+  color: var(--muted);
+}
+
+.qch-trail-now {
+  min-width: 0;
+  overflow: hidden;
+  font-style: italic;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qch-trail-body {
+  padding: 6px 0 4px 10px;
+  margin-top: 4px;
+  border-left: 1px solid var(--line-2);
+}
+
+.qch-trail-step {
+  margin: 0 0 3px;
+  font-size: 11.5px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.qch-trail-think {
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  color: var(--faint);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.qch-turn-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.qch-text {
+  margin: 0;
+  font-size: 13px;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.qch-answer {
+  font-size: 13px;
+}
+
+.qch-answer {
+  font-size: 13px;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+
+.qch-para {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.qch-err {
+  margin: 0;
+  font-size: 12px;
+  color: var(--del);
+  overflow-wrap: anywhere;
+}
+
+.qch-suggest-empty {
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  font-size: 11.5px;
+  color: var(--faint);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-lg);
+}
+
+.qch-note {
+  margin: 0 0 8px;
+  font-size: 11.5px;
+  color: var(--faint);
+}
+
+/* What the chat put in your review, as a way back into the diff: each row
+   names the line and shows the comment's opening words, so you can tell them
+   apart without leaving the panel. Clicking takes you to the line; the x
+   discards the comment outright, since a suggestion you do not want should
+   cost one click, not two. */
+/* A turn's staged comments, inside the turn that made them: the findings
+   travel with their answer, so a long conversation scrolls past them the
+   way it scrolls past everything else instead of them squatting over the
+   composer. */
+.qch-staged {
+  padding: 6px 8px;
+  margin-top: 8px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-lg);
+}
+
+.qch-staged-head {
+  margin: 0 0 5px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.qch-staged-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  border-radius: var(--r-md);
+}
+
+.qch-staged-row:hover {
+  background: var(--surface-2);
+}
+
+.qch-staged-go {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 7px;
+  align-items: baseline;
+  min-width: 0;
+  padding: 3px 6px;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+}
+
+.qch-staged-where {
+  flex: none;
+  max-width: 16ch;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qch-staged-body {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11.5px;
+  color: var(--faint);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qch-foot {
+  position: relative;
+  padding: 10px 18px 14px;
+  border-top: 1px solid var(--line);
+}
+
+/* The composer is a token field: chips and the input share one box, so a
+   region you attached reads as part of the message you are writing rather
+   than as a banner above it. The box owns the border and the focus ring;
+   the textarea inside is bare. */
+.qch-composer {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.qch-composer:focus-within {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.qch-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 7px 8px 0;
+}
+
+/* Chips sit in the sentence, so they sit on its baseline: inline-block, no
+   overflow (which would take the baseline from the box's bottom edge and
+   float the chip above the line), and the same 11px mono the composer's
+   chips use — a message should read back the way it was typed. */
+.qch-chip {
+  display: inline-block;
+  padding: 0 5px 1px;
+  margin-right: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted);
+  white-space: nowrap;
+  vertical-align: baseline;
+  background: var(--surface-hi);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-pill);
+}
+
+.qch-chip-label {
+  max-width: 22ch;
+  overflow: hidden;
+  font: inherit;
+  color: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: none;
+  border: none;
+}
+
+.qch-chip-go {
+  padding: 0;
+  cursor: pointer;
+}
+
+.qch-chip-go:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.qch-skill-chip {
+  color: var(--accent);
+  border-color: var(--accent-line);
+}
+
+.qch-chip-x {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  color: var(--faint);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+}
+
+.qch-chip-x:hover {
+  color: var(--del);
+}
+
+.qch-field {
+  display: flex;
+  gap: 4px;
+  align-items: flex-end;
+  padding: 0 6px 6px 0;
+}
+
+.qch-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 8px 4px 8px 12px;
+  overflow-x: hidden;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  resize: none;
+  background: transparent;
+  border: none;
+}
+
+.qch-input::placeholder {
+  color: var(--faint);
+}
+
+.qch-model {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  max-width: 100%;
+  min-width: 0;
+  padding: 3px 2px 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--faint);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-md);
+  transition: color 120ms ease;
+}
+
+.qch-model:hover {
+  color: var(--muted);
+}
+
+.qch-model-id {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* One control lives here now (the model), so the row ends where the send
+   button does rather than spreading a lone button across the width. */
+.qch-footer-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 3px;
+}
+
+.qch-send,
+.qch-stop {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  cursor: pointer;
+  border-radius: var(--r-lg);
+}
+
+.qch-send {
+  width: 30px;
+  height: 28px;
+  color: var(--muted);
+  background: var(--surface-hi);
+  border: 1px solid var(--line-2);
+}
+
+.qch-send:hover:not(:disabled) {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+
+.qch-send:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.qch-stop {
+  padding: 0 12px;
+  font-size: 12px;
+  color: var(--del);
+  background: transparent;
+  border: 1px solid var(--line-2);
+}
+
+.qch-stop:hover {
+  background: var(--surface-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qch-proposals-act,
+  .qch-composer,
+  .qch-model,
+  .qch-time,
+  .qch-act {
+    transition: none;
+  }
+}

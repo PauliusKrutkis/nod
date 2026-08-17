@@ -149,11 +149,18 @@ export type ReviewEvent = "COMMENT" | "APPROVE" | "REQUEST_CHANGES";
 
 export interface PendingComment {
   body: string;
+  /** Staged by the chat rather than typed. It is a pending comment either
+   *  way — it submits with the rest and can be edited or discarded — the flag
+   *  only lets the card say where it came from. */
+  fromAi?: boolean;
   id: string;
   line: number;
   path: string;
   side: string;
   startLine?: number;
+  /** The chat turn that staged it, so the transcript can list a turn's
+   *  comments inside that turn. */
+  turnId?: string;
 }
 
 export type ViewedFileMap = Record<string, string>;
@@ -197,6 +204,63 @@ export interface AiInfo {
 export interface AiModel {
   id: string;
   contextLength: number | null;
+}
+
+export type ChatPart =
+  | { kind: "text"; text: string }
+  | { kind: "code"; region: ChatRegion };
+
+export interface ChatRegion {
+  code: string;
+  filePath: string;
+  lineRange: string;
+  side: string;
+}
+
+export type ChatTurnRecord =
+  | {
+      kind: "user";
+      at?: string;
+      id: string;
+      /** Prose and code in the order they were written. */
+      parts?: ChatPart[];
+      regions: ChatRegion[];
+      /** v2 history kept one skill per turn. */
+      skill?: string;
+      skills?: string[];
+      text: string;
+    }
+  | {
+      kind: "assistant";
+      activity?: string[];
+      at?: string;
+      error: string | null;
+      id: string;
+      reasoning?: string;
+      text: string;
+      workedMs?: number;
+    };
+
+export interface SkillInfo {
+  name: string;
+  description: string;
+  source: "repo" | "personal" | "built-in";
+}
+
+export interface ChatDiff {
+  path: string;
+  patch: string;
+}
+
+export interface ChatThread {
+  id: string;
+  turns: ChatTurnRecord[];
+}
+
+export interface CommentableSide {
+  path: string;
+  side: string;
+  ranges: [number, number][];
 }
 
 export interface AiAskContext {

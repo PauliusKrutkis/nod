@@ -1,0 +1,73 @@
+/* One editable line of thought: prose and code chips share the field, so the
+   order you attached things in is the order the model reads. The chip is a
+   token — it never wraps mid-label and never grows the field sideways; a long
+   path loses its middle instead.
+
+   It also sits ON the prose baseline. Nothing here clips: an inline-block
+   with `overflow: hidden` takes its baseline from its bottom edge instead of
+   its text, which floated the chip a few pixels above the sentence and ate
+   the × with the ellipsis. The label is shortened in JS instead (middle
+   ellipsis, so the file name and line range survive), leaving plain inline
+   text whose baseline is the real one. Height — 11px text on a 1.4 line plus
+   a pixel of padding and a hairline — stays inside the 13px/1.55 line box
+   the prose already reserves, so a chip never grows its row. */
+
+.qcc-field {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-height: 40vh;
+  padding: 8px 4px 8px 12px;
+  overflow-y: auto;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.qcc-field:empty::before {
+  content: attr(data-placeholder);
+  color: var(--faint);
+}
+
+.qcc-chip {
+  display: inline-block;
+  padding: 0 5px 1px;
+  margin: 0 1px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted);
+  white-space: nowrap;
+  vertical-align: baseline;
+  cursor: pointer;
+  background: var(--surface-hi);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-pill);
+}
+
+/* A skill is an instruction, not a snippet: same token, accent-drawn, so a
+   glance at the field says what this message will run. */
+.qcc-chip-skill {
+  color: var(--accent);
+  border-color: var(--accent-line);
+}
+
+.qcc-chip:hover {
+  color: var(--accent);
+  border-color: var(--accent-line);
+}
+
+.qcc-chip-label {
+  white-space: nowrap;
+}
+
+.qcc-chip-x {
+  padding-left: 4px;
+  color: var(--faint);
+}
+
+.qcc-chip-x:hover {
+  color: var(--del);
+}

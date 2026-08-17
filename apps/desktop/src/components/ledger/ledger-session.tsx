@@ -328,7 +328,11 @@ export function LedgerSession({
   const callbacks: ReviewListCallbacks = {
     onAddComment: asyncNoop,
     onAddPending: noop,
+    onPostPendingNow: asyncNoop,
     onCloseBox: noop,
+    onEditPending: noop,
+    onPendingHover: noop,
+    onUpdatePending: noop,
     onCopyPath: (fileIndex) => {
       const file = filesRef.current[fileIndex];
       if (!file) {
@@ -514,6 +518,7 @@ export function LedgerSession({
         closeFind={find.closeFind}
         copiedPathIndex={copiedPathIndex}
         dragging={false}
+        editingPending={null}
         editReq={null}
         expandedNames={EMPTY_SET}
         expandingNames={EMPTY_SET}

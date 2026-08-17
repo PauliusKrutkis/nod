@@ -113,7 +113,28 @@ Baselines are platform-suffixed and only comparable within one platform:
 - CI (`gallery-shots.yml`, pinned ubuntu image): compares against `-linux`
   baselines. Until those are committed the job bootstraps them and uploads
   the set as an artifact to review and commit — after that, a visual change
-  only merges through an explicit baseline update.
+  only merges through an explicit baseline update. Darwin baselines are not
+  committed at all (they gate nothing and doubled the weight of every visual
+  change); `shots:update` regenerates them locally when you want to look.
+
+To land a visual change: push, let the shots job fail, then
+`gh run download <run-id> -n gallery-linux-baselines`, drop the PNGs into
+`apps/gallery/e2e/gallery.shots.ts-snapshots/`, and commit them. Look at what
+you are committing — a fixture that quietly stopped rendering its subject
+produces a perfectly clean baseline of the wrong thing.
+
+## React Doctor (`react-doctor.yml`)
+
+Runs `blocking: warning` over `apps/desktop`, scoped to the branch's changes,
+so a **warning** fails the PR. Two consequences worth knowing:
+
+- Reproduce it with `pnpm exec react-doctor --scope changed` from
+  `apps/desktop` — the repo root has no binary and a full-project scan
+  reports pre-existing findings the gate ignores.
+- `react-doctor-disable-next-line` covers exactly the next line. Inserting
+  anything between a suppression and the declaration it was written for
+  silently un-suppresses a pre-existing finding, and the PR that inserted it
+  gets the blame.
 
 ## Marketing site (`apps/web`)
 

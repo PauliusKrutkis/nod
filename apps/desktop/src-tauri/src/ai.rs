@@ -256,7 +256,11 @@ fn build_ask_prompt(question: &str, context: &AskContext) -> String {
     sections.join("\n\n")
 }
 
-const MAX_TOOL_ROUNDS: usize = 8;
+pub(crate) const MAX_TOOL_ROUNDS: usize = 8;
+
+/// The error a cancelled stream returns. The frontend treats it as a benign
+/// stop (the reviewer pressed the button), never an error card.
+pub(crate) const CANCELLED: &str = "cancelled";
 
 /// One assistant message assembled from SSE chunks. The wire shape was
 /// verified against a live key (docs/AI.md § Probe findings): content arrives
@@ -266,6 +270,10 @@ const MAX_TOOL_ROUNDS: usize = 8;
 #[derive(Default)]
 struct StreamedMessage {
     content: String,
+    /// Why the provider stopped. Kept because an empty answer means something
+    /// different when the budget ran out than when the model simply said
+    /// nothing, and only the caller can phrase that usefully.
+    finish_reason: String,
     tool_calls: Vec<Value>,
 }
 
@@ -275,6 +283,9 @@ impl StreamedMessage {
             "role": "assistant",
             "content": self.content,
         });
+        if !self.finish_reason.is_empty() {
+            message["finish_reason"] = Value::String(self.finish_reason);
+        }
         if !self.tool_calls.is_empty() {
             message["tool_calls"] = Value::Array(self.tool_calls);
         }
@@ -320,32 +331,64 @@ fn merge_tool_call_fragment(acc: &mut StreamedMessage, fragment: &Value) {
 /// Applies one SSE line to the accumulator; returns the content piece the
 /// line carried, if any. Non-data lines, `[DONE]`, and unknown fields are
 /// ignored — chunks may carry extra keys (`provider`, usage costs).
-fn apply_stream_line(acc: &mut StreamedMessage, line: &str) -> Option<String> {
+/// What one SSE line carried. A reasoning model sends its thinking first and
+/// its answer last, under a key that is not standardised — Nexos and
+/// DeepSeek use `reasoning_content`, OpenRouter uses `reasoning` — so both
+/// are read. Without this the whole thinking phase looks like a stall: the
+/// answer only starts arriving once the model has finished reasoning, which
+/// is exactly the "it never streams" report for Opus while GPT streamed fine.
+#[derive(Default, PartialEq, Debug)]
+pub(crate) struct StreamPiece {
+    pub content: Option<String>,
+    pub reasoning: Option<String>,
+}
+
+impl StreamPiece {
+    fn is_empty(&self) -> bool {
+        self.content.is_none() && self.reasoning.is_none()
+    }
+}
+
+fn text_piece(delta: &Value, key: &str) -> Option<String> {
+    let piece = delta.get(key).and_then(Value::as_str)?;
+    (!piece.is_empty()).then(|| piece.to_string())
+}
+
+fn apply_stream_line(acc: &mut StreamedMessage, line: &str) -> Option<StreamPiece> {
     let payload = line.strip_prefix("data:")?.trim();
     if payload.is_empty() || payload == "[DONE]" {
         return None;
     }
     let chunk: Value = serde_json::from_str(payload).ok()?;
+    if let Some(reason) = chunk
+        .pointer("/choices/0/finish_reason")
+        .and_then(Value::as_str)
+    {
+        acc.finish_reason = reason.to_string();
+    }
     let delta = chunk.pointer("/choices/0/delta")?;
     if let Some(fragments) = delta.get("tool_calls").and_then(Value::as_array) {
         for fragment in fragments {
             merge_tool_call_fragment(acc, fragment);
         }
     }
-    let piece = delta.get("content").and_then(Value::as_str)?;
-    if piece.is_empty() {
-        return None;
+    let content = text_piece(delta, "content");
+    if let Some(piece) = &content {
+        acc.content.push_str(piece);
     }
-    acc.content.push_str(piece);
-    Some(piece.to_string())
+    let reasoning =
+        text_piece(delta, "reasoning_content").or_else(|| text_piece(delta, "reasoning"));
+    let out = StreamPiece { content, reasoning };
+    (!out.is_empty()).then_some(out)
 }
 
-async fn stream_chat(
+pub(crate) async fn stream_chat(
     client: &reqwest::Client,
     url: &str,
     api_key: &str,
     body: &Value,
-    mut on_delta: impl FnMut(&str),
+    mut on_delta: impl FnMut(&StreamPiece),
+    mut should_stop: impl FnMut() -> bool,
 ) -> Result<Value, String> {
     use futures_util::StreamExt;
 
@@ -365,6 +408,9 @@ async fn stream_chat(
     let mut buffer = String::new();
     let mut chunks = resp.bytes_stream();
     while let Some(chunk) = chunks.next().await {
+        if should_stop() {
+            return Err(CANCELLED.to_string());
+        }
         let bytes = chunk.map_err(net_err)?;
         buffer.push_str(&String::from_utf8_lossy(&bytes));
         while let Some(newline) = buffer.find('\n') {
@@ -381,7 +427,7 @@ async fn stream_chat(
     Ok(acc.into_message())
 }
 
-fn ask_tools() -> Value {
+pub(crate) fn ask_tools() -> Value {
     serde_json::json!([
         {
             "type": "function",
@@ -460,7 +506,12 @@ fn format_grep(result: snapshot_search::GrepResult) -> String {
 /// Runs one tool call against the local snapshot. Always returns text — an
 /// unknown tool or bad arguments become an error string the model can read
 /// and correct, never a failed request.
-fn execute_tool(root: &std::path::Path, key: &SnapshotKey, name: &str, arguments: &str) -> String {
+pub(crate) fn execute_tool(
+    root: &std::path::Path,
+    key: &SnapshotKey,
+    name: &str,
+    arguments: &str,
+) -> String {
     let args: Value = serde_json::from_str(arguments).unwrap_or(Value::Null);
     let path_contains = args.get("path_contains").and_then(Value::as_str);
     match name {
@@ -498,7 +549,7 @@ fn execute_tool(root: &std::path::Path, key: &SnapshotKey, name: &str, arguments
 
 /// The snapshot the ask can ground itself in — present only when the context
 /// names a commit and layer 1 has finished extracting it.
-async fn ready_snapshot(
+pub(crate) async fn ready_snapshot(
     app: &AppHandle,
     context: &AskContext,
 ) -> Option<(std::path::PathBuf, SnapshotKey)> {
@@ -520,7 +571,7 @@ async fn ready_snapshot(
     Some((root, key))
 }
 
-fn tool_result_messages(
+pub(crate) fn tool_result_messages(
     root: std::path::PathBuf,
     key: SnapshotKey,
     calls: Vec<Value>,
@@ -553,7 +604,7 @@ struct AskDelta {
     text: String,
 }
 
-fn message_answer(message: &Value) -> Option<String> {
+pub(crate) fn message_answer(message: &Value) -> Option<String> {
     let content = message.get("content").and_then(Value::as_str)?.trim();
     if content.is_empty() {
         return None;
@@ -708,18 +759,23 @@ pub async fn ai_ask(
                 body["tool_choice"] = serde_json::json!("none");
             }
         }
-        let emit_delta = |piece: &str| {
+        let emit_delta = |piece: &StreamPiece| {
+            let Some(text) = &piece.content else {
+                return;
+            };
             if let Some(id) = &ask_id {
                 let _ = app.emit(
                     "ai-ask-delta",
                     AskDelta {
                         ask_id: id.clone(),
-                        text: piece.to_string(),
+                        text: text.clone(),
                     },
                 );
             }
         };
-        let message = match stream_chat(&client, &url, &config.api_key, &body, emit_delta).await {
+        let message = match stream_chat(&client, &url, &config.api_key, &body, emit_delta, || false)
+            .await
+        {
             Ok(message) => message,
             Err(error)
                 if tools_enabled && rounds == 0 && error.starts_with("AI provider error (4") =>
@@ -753,7 +809,7 @@ pub async fn ai_ask(
 
 /// Completions get a longer timeout than the metadata calls: a big-model
 /// answer can legitimately take a minute.
-fn ask_client() -> Result<reqwest::Client, String> {
+pub(crate) fn ask_client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         .user_agent("nod")
         .timeout(std::time::Duration::from_secs(120))

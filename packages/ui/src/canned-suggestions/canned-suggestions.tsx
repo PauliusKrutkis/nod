@@ -27,6 +27,10 @@ import { HighlightIndices } from "../highlight-indices/highlight-indices.tsx";
 import "./canned-suggestions.css";
 
 export interface CannedSuggestionsProps {
+  /** One line about each item, keyed by the item itself. A skill's
+   *  description says what it does; a canned comment is its own description
+   *  and passes none. */
+  hints?: Record<string, string>;
   items: string[];
   onPick: (text: string) => void;
   query: string;
@@ -43,11 +47,17 @@ const MAX_ITEMS = 6;
  * The saved lines that continue `query`, in the order the reviewer keeps
  * them. A line the reviewer has already typed out in full is dropped: there
  * is nothing left to complete, and offering it would put a panel over the
- * text at the exact moment the line is finished.
+ * text at the exact moment the line is finished. `minQuery` defaults to the
+ * composer's two-letter threshold; a driver with its own opening gesture
+ * (the chat's `/` skill picker) passes 0 to offer the whole list at once.
  */
-export function matchCanned(query: string, items: string[]): string[] {
+export function matchCanned(
+  query: string,
+  items: string[],
+  minQuery: number = MIN_QUERY
+): string[] {
   const typed = query.trimStart();
-  if (typed.length < MIN_QUERY) {
+  if (typed.length < minQuery) {
     return [];
   }
   const needle = typed.toLowerCase();
@@ -65,6 +75,7 @@ export function matchCanned(query: string, items: string[]): string[] {
 }
 
 export function CannedSuggestions({
+  hints,
   items,
   selected,
   query,
@@ -80,6 +91,7 @@ export function CannedSuggestions({
     <div className="qcs-panel">
       {items.map((text, i) => (
         <CannedSuggestionRow
+          hint={hints?.[text]}
           indices={indices}
           key={text}
           onPick={onPick}
@@ -92,11 +104,13 @@ export function CannedSuggestions({
 }
 
 function CannedSuggestionRow({
+  hint,
   text,
   indices,
   selected,
   onPick,
 }: {
+  hint?: string;
   indices: number[];
   onPick: (text: string) => void;
   selected: boolean;
@@ -124,6 +138,9 @@ function CannedSuggestionRow({
         <span className="qcs-text">
           <HighlightIndices indices={indices} text={text} />
         </span>
+        {hint !== undefined && hint !== "" && (
+          <span className="qcs-hint">{hint}</span>
+        )}
         {selected && (
           <CornerDownLeft aria-hidden className="qcs-enter" size={12} />
         )}

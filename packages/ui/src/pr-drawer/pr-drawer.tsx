@@ -41,6 +41,12 @@
  * normal flow without the scrim and skips that focus traffic — it exists
  * for hosts with no positioned frame to dock into (the gallery), where the
  * drawer is a specimen rather than an overlay.
+ *
+ * `frameless` strips the frame entirely — no scrim, no aside, no head, no
+ * focus traffic — and renders just the body and docked footer, for a host
+ * that seats this content behind its own chrome (the right-dock's Info tab).
+ * The wrapper stays focusable so collapsing the composer still parks focus
+ * somewhere Esc can act on.
  */
 
 import { PanelRightClose, PanelRightOpen } from "lucide-react";
@@ -118,7 +124,8 @@ export interface PrDrawerCallbacks {
   onOpenCiUrl: (url: string) => void;
   onOpenPr: () => void;
   onOpenTicket: (url: string) => void;
-  onToggleWide: () => void;
+  /** Only the drawer's own (non-frameless) head shows the widen button. */
+  onToggleWide?: () => void;
 }
 
 export interface DrawerComposerHandle {
@@ -145,6 +152,7 @@ export interface PrDrawerProps {
   conversation: DrawerComment[];
   embedded?: boolean;
   fileCount: number;
+  frameless?: boolean;
   initialDraft?: string;
   inlineComments: DrawerInlineComment[];
   open: boolean;
@@ -155,7 +163,8 @@ export interface PrDrawerProps {
   renderMarkdown?: (body: string) => ReactNode;
   reviews: DrawerReview[];
   trackerBase?: string;
-  wide: boolean;
+  /** Only the drawer's own (non-frameless) seating reads this. */
+  wide?: boolean;
 }
 
 type TimelineEntry =
@@ -189,6 +198,7 @@ export function PrDrawer({
   conversation,
   embedded = false,
   fileCount,
+  frameless = false,
   initialDraft,
   inlineComments,
   open,
@@ -198,7 +208,7 @@ export function PrDrawer({
   renderMarkdown,
   reviews,
   trackerBase,
-  wide,
+  wide = false,
 }: PrDrawerProps) {
   const body = pr.body.trim();
   const callbacksRef = useLatest(callbacks);
@@ -221,7 +231,7 @@ export function PrDrawer({
 
   useEffect(() => {
     const el = panelRef.current;
-    if (embedded || !el) {
+    if (embedded || frameless || !el) {
       return;
     }
     if (open) {
@@ -230,7 +240,7 @@ export function PrDrawer({
       (document.activeElement as HTMLElement).blur();
       callbacksRef.current.onFocusExit?.();
     }
-  }, [open, embedded, callbacksRef]);
+  }, [open, embedded, frameless, callbacksRef]);
 
   const [composing, setComposing] = useState(false);
   const [draftEmpty, setDraftEmpty] = useState(() => !initialDraft?.trim());
@@ -325,6 +335,122 @@ export function PrDrawer({
     el.scrollIntoView({ behavior: "instant", block: "nearest" });
   };
 
+  const head = (
+    <div className="qf-drawer-head">
+      <span className="qf-drawer-title">Pull request</span>
+      <div className="qf-drawer-head-actions">
+        <Tooltip combo="shift+i" label={`${wide ? "Narrow" : "Widen"} panel`}>
+          <button
+            aria-label={wide ? "Narrow panel" : "Widen panel"}
+            aria-pressed={wide}
+            className="qf-drawer-wide-btn q-focus"
+            onClick={callbacks.onToggleWide}
+            type="button"
+          >
+            {wide ? (
+              <PanelRightClose aria-hidden size={15} />
+            ) : (
+              <PanelRightOpen aria-hidden size={15} />
+            )}
+          </button>
+        </Tooltip>
+        <Tooltip combo="esc" label="Close">
+          <button
+            aria-label="Close"
+            className="qf-drawer-close q-focus"
+            onClick={callbacks.onClose}
+            type="button"
+          >
+            Esc
+          </button>
+        </Tooltip>
+      </div>
+    </div>
+  );
+
+  const content = (
+    <>
+      <div className="qf-drawer-body" ref={bodyRef}>
+        <PrSummary
+          ci={ci}
+          fileCount={fileCount}
+          onOpenCiUrl={callbacks.onOpenCiUrl}
+          onOpenPr={callbacks.onOpenPr}
+          onOpenTicket={callbacks.onOpenTicket}
+          openLabel={openLabel}
+          pr={pr}
+          trackerBase={trackerBase}
+        />
+
+        <DrawerDescription body={body} renderMarkdown={renderMarkdown} />
+
+        <DrawerConversation
+          composer={composer}
+          editingId={editingId}
+          newestRef={revealNewestComment}
+          onCancelEdit={cancelEdit}
+          onDelete={callbacks.onDeleteComment}
+          onStartEdit={startEdit}
+          onSubmitEdit={submitEdit}
+          ownLogin={ownLogin}
+          renderMarkdown={renderMarkdown}
+          timeline={timeline}
+        />
+
+        <ThreadIndex onJump={callbacks.onJumpToThread} threads={threads} />
+      </div>
+
+      <div
+        className={cn(
+          "qf-drawer-foot",
+          bodyScrolls && "qf-drawer-foot-divided"
+        )}
+      >
+        <div hidden={!composing}>
+          {composer({
+            autoFocus: false,
+            initialMarkdown: initialDraft,
+            onCancel: collapseComposer,
+            onEmptyChange: setDraftEmpty,
+            onSubmit: handleAddComment,
+            pending: addCommentPending,
+            placeholder: "Comment on this pull request…",
+            ref: composerRef,
+            submitLabel: "Comment",
+          })}
+        </div>
+        {!composing && (
+          <button
+            className="qf-comment-prompt q-focus"
+            onClick={startComposing}
+            type="button"
+          >
+            <span>
+              {draftEmpty
+                ? "Comment on this pull request…"
+                : "Continue your draft…"}
+            </span>
+            <span aria-hidden className="qf-comment-prompt-key">
+              <Kbd combo="shift+c" />
+            </span>
+          </button>
+        )}
+      </div>
+    </>
+  );
+
+  if (frameless) {
+    return (
+      <div
+        className="qf-drawer-frameless"
+        ref={panelRef as Ref<HTMLDivElement>}
+        tabIndex={-1}
+      >
+        {content}
+      </div>
+    );
+  }
+
   return (
     <>
       {!embedded && (
@@ -347,106 +473,8 @@ export function PrDrawer({
         ref={panelRef}
         tabIndex={-1}
       >
-        <div className="qf-drawer-head">
-          <span className="qf-drawer-title">Pull request</span>
-          <div className="qf-drawer-head-actions">
-            <Tooltip
-              combo="shift+i"
-              label={`${wide ? "Narrow" : "Widen"} panel`}
-            >
-              <button
-                aria-label={wide ? "Narrow panel" : "Widen panel"}
-                aria-pressed={wide}
-                className="qf-drawer-wide-btn q-focus"
-                onClick={callbacks.onToggleWide}
-                type="button"
-              >
-                {wide ? (
-                  <PanelRightClose aria-hidden size={15} />
-                ) : (
-                  <PanelRightOpen aria-hidden size={15} />
-                )}
-              </button>
-            </Tooltip>
-            <Tooltip combo="esc" label="Close">
-              <button
-                aria-label="Close"
-                className="qf-drawer-close q-focus"
-                onClick={callbacks.onClose}
-                type="button"
-              >
-                Esc
-              </button>
-            </Tooltip>
-          </div>
-        </div>
-
-        <div className="qf-drawer-body" ref={bodyRef}>
-          <PrSummary
-            ci={ci}
-            fileCount={fileCount}
-            onOpenCiUrl={callbacks.onOpenCiUrl}
-            onOpenPr={callbacks.onOpenPr}
-            onOpenTicket={callbacks.onOpenTicket}
-            openLabel={openLabel}
-            pr={pr}
-            trackerBase={trackerBase}
-          />
-
-          <DrawerDescription body={body} renderMarkdown={renderMarkdown} />
-
-          <DrawerConversation
-            composer={composer}
-            editingId={editingId}
-            newestRef={revealNewestComment}
-            onCancelEdit={cancelEdit}
-            onDelete={callbacks.onDeleteComment}
-            onStartEdit={startEdit}
-            onSubmitEdit={submitEdit}
-            ownLogin={ownLogin}
-            renderMarkdown={renderMarkdown}
-            timeline={timeline}
-          />
-
-          <ThreadIndex onJump={callbacks.onJumpToThread} threads={threads} />
-        </div>
-
-        <div
-          className={cn(
-            "qf-drawer-foot",
-            bodyScrolls && "qf-drawer-foot-divided"
-          )}
-        >
-          <div hidden={!composing}>
-            {composer({
-              autoFocus: false,
-              initialMarkdown: initialDraft,
-              onCancel: collapseComposer,
-              onEmptyChange: setDraftEmpty,
-              onSubmit: handleAddComment,
-              pending: addCommentPending,
-              placeholder: "Comment on this pull request…",
-              ref: composerRef,
-              submitLabel: "Comment",
-            })}
-          </div>
-          {!composing && (
-            <button
-              className="qf-comment-prompt q-focus"
-              onClick={startComposing}
-              type="button"
-            >
-              <span>
-                {draftEmpty
-                  ? "Comment on this pull request…"
-                  : "Continue your draft…"}
-              </span>
-              <span aria-hidden className="qf-comment-prompt-key">
-                <Kbd combo="shift+c" />
-              </span>
-            </button>
-          )}
-        </div>
+        {head}
+        {content}
       </aside>
     </>
   );
@@ -609,9 +637,12 @@ function ConversationItem({
           {!editing && commentId !== undefined && (
             <CommentTools
               body={body}
-              commentId={commentId}
-              onDelete={own && onDelete ? handleDelete : undefined}
-              onStartEdit={own ? onStartEdit : undefined}
+              onDelete={
+                own && onDelete ? () => handleDelete(commentId) : undefined
+              }
+              onStartEdit={
+                own && onStartEdit ? () => onStartEdit(commentId) : undefined
+              }
             />
           )}
         </div>

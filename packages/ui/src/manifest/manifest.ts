@@ -127,6 +127,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
   },
   "canned-suggestions": {
     fixtures: [
+      "described-items",
       "empty",
       "full",
       "markup-as-text",
@@ -134,6 +135,31 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "overflow",
       "query-nearly-whole-line",
       "second-selected",
+      "typical",
+      "unicode",
+    ],
+  },
+  "chat-composer": {
+    fixtures: ["overflow", "reply", "typical", "unicode"],
+  },
+  "chat-panel": {
+    fixtures: [
+      "inline-parts",
+      "empty",
+      "error",
+      "fence-mid-stream",
+      "markup-as-text",
+      "overflow",
+      "model-picker",
+      "partial-10k",
+      "pasted-and-note",
+      "staged",
+      "skill-chip",
+      "slash-suggestions",
+      "thinking",
+      "threads",
+      "trail-open",
+      "tool-activity",
       "typical",
       "unicode",
     ],
@@ -458,6 +484,17 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "unicode",
     ],
   },
+  "model-picker": {
+    fixtures: [
+      "crowd",
+      "empty",
+      "loading",
+      "overflow",
+      "typical",
+      "unicode",
+      "with-effort",
+    ],
+  },
   "notification-center": {
     dialog: true,
     fixtures: [
@@ -633,6 +670,9 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "overflow",
       "unicode",
     ],
+  },
+  "right-dock": {
+    fixtures: ["chat-active", "overflow", "single-tab", "two-tabs", "unicode"],
   },
   "search-pane": {
     dialog: true,

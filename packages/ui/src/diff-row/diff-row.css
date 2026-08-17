@@ -26,10 +26,15 @@
 
    The selected wash is the multi-line comment range: the cursor's iris
    treatment stretched over the run, in either input mode — a selection is a
-   commitment, not a hover. The flash is where a search jump landed, a brief
-   iris pulse that settles back. Intraline marks tint with the row's own side,
-   which is why they live here and the unscoped mark family lives with the
-   code cell that hosts it. */
+   commitment, not a hover. The run's left rail is the SOFTER accent, because
+   the cursor rides inside the range (it is the end `c` anchors to and the row
+   plain `j` collapses back onto) and needs to stay findable there; the cursor
+   row keeps the full-strength rail from quiet.css, which outweighs this rule.
+   Two intensities of one rail, rather than a second colour channel over rows
+   that already carry add/del washes, find marks and the comment iris. The
+   flash is where a search jump landed, a brief iris pulse that settles back.
+   Intraline marks tint with the row's own side, which is why they live here
+   and the unscoped mark family lives with the code cell that hosts it. */
 
 .qf-row {
   position: relative;
@@ -97,7 +102,7 @@
 
 .qf-row-selected {
   background: var(--accent-soft);
-  border-left-color: var(--accent);
+  border-left-color: var(--accent-line);
 }
 
 .qf-row-selected .qf-gutter {

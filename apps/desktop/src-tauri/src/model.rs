@@ -194,7 +194,15 @@ pub const MAX_BLOB_BYTES: usize = 20 * 1024 * 1024;
 
 pub const MAX_ARCHIVE_BYTES: usize = 256 * 1024 * 1024;
 
-pub const MAX_REPO_SIZE_KB: u64 = 100 * 1024;
+/// The forges report a repository's size including its whole history, while
+/// what a snapshot downloads is one commit's working tree — usually a
+/// fraction of it. A repo that commits binary artefacts (screenshot
+/// baselines, fixtures) blows past a history-shaped cap while its tarball
+/// stays small, and the cost of guessing wrong is the AI chat silently
+/// losing every repo-wide tool. The cap stays, because an unbounded download
+/// is worse, but it is set against the archive ceiling rather than against
+/// what a tidy repo's history weighs.
+pub const MAX_REPO_SIZE_KB: u64 = 250 * 1024;
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]

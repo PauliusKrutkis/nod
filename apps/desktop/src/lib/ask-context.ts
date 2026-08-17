@@ -6,7 +6,12 @@
  * and only for the user-initiated question. Line labels use the target
  * side's numbers, matching the composer's "Lines a–b" chip.
  */
-import type { AiAskContext, ChangedFile, PullRequest } from "../types.ts";
+import type {
+  AiAskContext,
+  ChangedFile,
+  ChatRegion,
+  PullRequest,
+} from "../types.ts";
 import type { CursorPos } from "./review-cursor.ts";
 import { fileAnchorKey, type ReviewListModel } from "./review-items.ts";
 
@@ -21,6 +26,7 @@ interface CodeContext {
   code: string;
   filePath: string;
   lineRange: string;
+  side: string;
 }
 
 function lineLabel(lines: number[]): string {
@@ -52,6 +58,7 @@ function selectionContext(
     code: contents.join("\n"),
     filePath,
     lineRange: lineLabel(lines),
+    side: selection.side,
   };
 }
 
@@ -72,6 +79,7 @@ function cursorContext(
     code: item.row.content,
     filePath,
     lineRange: String(item.target.line),
+    side: item.target.side,
   };
 }
 
@@ -103,6 +111,29 @@ export function askTargetLabel(args: {
     : "Whole pull request";
 }
 
+/** The focused code as a chat region chip — selection first, else the
+ *  cursor row, else null (nothing under focus adds nothing to the chat). */
+export function regionFromSnapshot(args: {
+  cursor: CursorPos | null;
+  files: readonly ChangedFile[];
+  model: ReviewListModel;
+  selection: SelectionRange | null;
+}): ChatRegion | null {
+  const focused = focusedContext(args);
+  return focused
+    ? {
+        code: focused.code,
+        filePath: focused.filePath,
+        lineRange: focused.lineRange,
+        side: focused.side,
+      }
+    : null;
+}
+
+/** `pr.repo` is the "owner/name" path and `pr.name` is the bare repo, which
+ *  is what every forge call wants. Reaching for the wrong one asks for
+ *  /repos/owner/owner/name and gets a 404 that reads as "no snapshot"
+ *  rather than as a bug. */
 export function buildAskContext(args: {
   cursor: CursorPos | null;
   files: readonly ChangedFile[];
@@ -119,11 +150,16 @@ export function buildAskContext(args: {
     owner: args.pr.owner,
     prBody: args.pr.body,
     prTitle: args.pr.title,
-    repo: args.pr.repo,
+    repo: args.pr.name,
   };
   const focused = focusedContext(args);
   if (focused) {
-    return { ...base, ...focused };
+    return {
+      ...base,
+      code: focused.code,
+      filePath: focused.filePath,
+      lineRange: focused.lineRange,
+    };
   }
   const diffSummary = args.files
     .map((f) => `${f.filename} (+${f.additions} -${f.deletions})`)

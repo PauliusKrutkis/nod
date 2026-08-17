@@ -5,7 +5,10 @@
 > the first one: BYOK "ask a question about the code you're reviewing", grounded
 > in the repo snapshot. Supersedes the two Post-MVP backlog sketches in
 > [BACKLOG.md](./BACKLOG.md#post-mvp-backlog); decision to build made 2026-08-03
-> (owner), position written down 2026-08-05.
+> (owner), position written down 2026-08-05. The
+> [second surface](#second-surface--chat-panel--suggested-comments-decided-2026-08-16)
+> — chat panel + suggested comments — was decided 2026-08-16 and is recorded
+> below under the same position.
 
 ## Position (2026-08-05)
 
@@ -173,7 +176,12 @@ screen from it.
   virtualized list — scrolling the note out of frame must not lose an answer.
 - **"Start comment from this"** prefills the normal composer at the ask's
   anchor with the answer as plain editable text — ask is a drafting step
-  inside review, not a chat. Posting dismisses the note.
+  inside review, not a chat. Posting dismisses the note. *Revised 2026-08-16
+  (owner): "not a chat" now describes the note, not the product. A deliberate
+  chat surface exists — the
+  [panel](#second-surface--chat-panel--suggested-comments-decided-2026-08-16) —
+  and the note keeps its narrower role: quick, anchored, one thread, no
+  ceremony.*
 - `Esc` closes the note ahead of the info drawer in the ladder; `a` and `i`
   are independent surfaces now (the drawer-mode dance is gone).
 
@@ -209,13 +217,14 @@ e2e + UI evidence for UI changes), pr-validity after each.
 | **5** | Tool loop inside `ai_ask` + degradation ladder | **#176** |
 | **6** | SSE streaming + polish | **#177** |
 
-> **One item did not land as specced.** PR 4 was meant to register `grep_repo`
-> and `list_files` as plain commands so user-facing whole-repo search "falls out
-> for free" (§9 Layer 2). They exist and work, but **only inside the `ai_ask`
-> tool loop** — neither is in `invoke_handler`, so there is still no repo search
-> in the app. Tracked in
+> **One item landed late.** PR 4 was meant to register `grep_repo` and
+> `list_files` as plain commands so user-facing whole-repo search "falls out
+> for free" (§9 Layer 2). The registration has since happened —
+> `list_repo_files` and `search_repo_content` are in `invoke_handler`
+> (`lib.rs`) — but no UI calls them yet, so there is still no repo search *in
+> the app*. Tracked in
 > [BACKLOG §9 Layer 2](./BACKLOG.md#9-repo-snapshot--sync-layers-decided-2026-07-12);
-> what remains is registration plus UI, not the search engine.
+> what remains is UI only, not registration and not the search engine.
 
 **Probe (before PR 5/6, owner's live Nexos key):** `scripts/probe-nexos.mjs`
 hits `/v1/chat/completions` with `tools` and with `stream: true`.
@@ -237,6 +246,190 @@ hits `/v1/chat/completions` with `tools` and with `stream: true`.
   (`…@20250929 (aoxy-analytics europe-west1)`) — treat ids as opaque.
 - Models also advertise `timeout_ms` / `stream_timeout_ms` — available if
   the fixed 120 s ask timeout ever needs to be per-model.
+
+## Second surface — chat panel + suggested comments (decided 2026-08-16)
+
+**Owner decision 2026-08-16: build it.** The workflow it closes: reviewers
+already run an agent in a terminal beside the review and hand-copy its findings
+into comments. Nod should own that loop — a conversation about the PR with the
+code one glance away, and findings that arrive as comment objects instead of
+text to transcribe. This is the
+[review-by-prompt sketch](./BACKLOG.md#ai-surfaces-beyond-ask--parked-not-planned-2026-08-05)
+promoted from parked, plus the chat surface it needs.
+
+Everything here is pull (rule 2): the chat never sends on its own, a skill runs
+only when a user send carries it, and the system prompt permits `propose_comment`
+only when the user asked for review feedback. Off stays complete: no key, no
+panel affordance beyond the same setup dialog `a` opens.
+
+### Surface — the right drawer becomes a docked panel
+
+The `i` drawer grows into a right-side **panel with tabs (Info | Chat)** —
+docked as a column on wide viewports so the diff stays clickable while the
+conversation is open, overlay with a scrim at narrow widths. Not a new pattern:
+it is the file sidebar's docked/overlay dual mode mirrored to the right edge.
+The closed dock stays mounted (drafts and transcripts must survive a toggle).
+
+- `mod+l` toggles the Chat tab — modified and registered global, because the
+  toggle must also close and a plain key never fires while the chat's own
+  composer holds focus. Not `mod+m`: ⌘M is macOS's window-minimise chord and
+  the menu swallows it before the webview sees it, which a Chromium e2e can
+  never catch. It pairs with plain `l`, which feeds the chat a region; `i`
+  keeps Info semantics (chat open → switch tab,
+  info open → close). Both derive palette and `?` sheet entries as usual.
+- `l` adds the cursor line or fat-cursor selection to the chat as a **context
+  chip** on the next message — the Cursor `⌘L` motion. Multiple chips per
+  message; captured through the same frozen-cursor mechanic as `a`, never the
+  DOM.
+- The chat composer is a plain textarea; `/` opens a skill picker through the
+  canned-list mechanism (one mechanism, two sources — the 2026-08-09 decision
+  holds).
+
+### Protocol — `ai_chat`, stateless per call
+
+`ai_chat` reuses the ask machinery (streaming, tool loop, degradation ladder,
+8-round guard) and adds what a conversation needs: the frontend sends the
+settled turns back each call (tool traffic is not replayed), Rust trims oldest
+turns past an input budget, and three events come back keyed
+`{chatId, turnId}`: `ai-chat-delta` (content), `ai-chat-tool` (activity, so
+"searching the repo" is visible), `ai-chat-proposal` (below). `ai_chat_cancel`
+aborts an in-flight turn — a stop button, not an error. History persists per PR
+(`nod:chatHistory:v1`), same keying as pending comments.
+
+### Suggested comments are pending comments (revised 2026-08-16, owner)
+
+The model may stage findings via a `propose_comment` tool. Rust validates each
+proposal against the diff's commentable ranges (computed by the frontend from
+the patch — the same `rowTarget` rules that gate the composer, so the model can
+never anchor where the forges would reject) and returns an actionable error
+listing valid ranges when it misses, letting it self-correct within the turn.
+
+A valid proposal **is a pending comment** — the same object, the same card, the
+same submission path. It shipped first as a separate `suggestedComments` slice
+with an Accept step, on the theory that nothing machine-written should be one
+click from your review. Dogfooding killed that: accepting every good suggestion
+cost a click that never once changed the answer, and two materials for one idea
+made the diff harder to read, not safer. The rule that survives is the one that
+matters — **nothing posts without you pressing submit** — and a suggestion you
+do not want costs exactly one Discard.
+
+So the material rule is back to three, not four: posted thread = solid card on
+surface; **pending comment = dashed hairline with an accent rail, no fill**
+(the old accent wash read as a highlight over half the file once the chat
+started staging comments, and it fought the diff's own tints); AI note = dotted
+hairline, no fill. A pending comment the chat wrote carries a sparkle and says
+*Suggested* rather than *Pending* — provenance without a second material.
+
+Pending comments earn the affordances that implies: **edit in place**, discard,
+**comment now** (post that one immediately, outside the batched review), and
+the hover-armed hotkeys posted threads already had. They wear the SAME card as
+a posted comment (owner decision 2026-08-17, revising the dashed-draft
+material twice over): one component, a PENDING tag, an accent rail for
+"leaves with the review" — and no AI-made differentiation, because a staged
+comment is yours the moment you keep it. A turn that stages comments lists
+them inside that turn in the transcript, so a long conversation scrolls past
+its findings instead of pinning them over the composer.
+
+### Skills — the agent-skills standard, read from the repo
+
+Skills are `SKILL.md` files with YAML frontmatter, from two sources: the
+reviewed repo's own — `.claude/skills/**`, `.agents/`, `.cursor/`, `.codex/`
+or a bare `skills/**`, whichever it uses, with `.claude` winning a clash and
+the folder holding the manifest naming the skill — via the snapshot — a repo carries its
+review conventions with it — and your own, read from every user-level folder the
+agents on this machine keep — `~/.claude/skills` first, then `~/.agents`,
+`~/.cursor`, `~/.codex`, then Nod's own config directory. They hold genuinely
+different sets (a review pass under one, a Jira helper under another), and a
+reviewer who has already written the skill they need should not be sent
+shopping for a copy of it. New skills are written to `~/.claude/skills`,
+where every one of those tools can see them. The repo wins a name clash.
+
+Invoking one injects its body into the
+outgoing turn as instructions — several can ride one message, numbered in the
+order they were invoked, because "run the validity pass and the security
+pass" is one request. The model can also list and read them itself through
+tools.
+
+One skill ships with the app: **`/find-skill`**, which is how the other ones
+get written — and, since it is always there, the reason `/` is never an empty
+menu. It looks for an existing skill that already covers what you are
+about to do, and when none does, it drafts one with you and saves it through a
+`write_skill` tool — so the answer to "how do I add a skill?" is a message in
+the chat, not a folder to go and populate. It refuses to overwrite a skill you
+already have, and shows you the draft before it writes anything: a skill is
+instructions the model will follow over your code, so one never appears
+unread. A repo skill named `find-skill` outranks the built-in, same as any
+other clash.
+
+It also replaced the skills dialog that shipped a day earlier: a button that
+opened a folder, next to a field that scaffolded a file, is a worse answer to
+"how do I add a skill?" than asking for one in the chat. The dialog and its
+two commands are gone; `write_skill` names the folder it saved to, for anyone
+who wants to edit the file by hand.
+
+**The search reaches past this machine.** `search_skills` queries the public
+catalog at skills.sh — the index `npx skills find` reads — and `fetch_skill`
+pulls one skill's `SKILL.md` from its repository as text. Nothing is
+installed and nothing runs: the instructions land in the transcript, where
+you read them, and only `write_skill` puts a file on disk. That keeps the
+position this doc has always taken — fetching prompt files from a registry
+and running them over your code is a supply-chain decision, so it stays
+yours, made against the actual text rather than a name and an install count.
+Both requests go out unauthenticated, so no account credential reaches a
+third-party host.
+
+### Budgets
+
+An ask-note is a sentence and a chat answer is a review pass, so they share
+neither budget. The chat asks for 8000 completion tokens and allows
+thirty-two tool rounds: a review skill reads a file per round and hit the
+ask-note's eight before it had seen the diff, at which point the tools were
+taken away mid-plan and the turn ended with nothing.
+
+The number matters less than what happens at it. Agent loops either run
+unbounded until the model stops asking (Cursor, Claude Code, with a
+"continue?" prompt around 25 calls) or cap and fail (the OpenAI Agents SDK's
+10, LangChain's 15). Failing at the cap is the worst of the three — a minute
+of waiting for four words of error — so reaching it here is a deadline, not a
+wall: the tools come off, the model is told it is out of budget, and it
+answers with what it has and says what it did not reach. A round that
+produces neither text nor a tool call buys the same one extra pass. The real
+ceiling is the 120k-character input budget, which trims oldest-first, and the
+model's own context.
+
+**Thinking effort** is the reviewer's, in the model popover: Default (send
+nothing), low, medium, high. Default is honest — a gateway configured for
+deep reasoning applies it to every round, including the ones that only read
+two files, and that is where the minutes went; sending `reasoning_effort`
+only when asked leaves the choice where it already lives.
+
+Two more things keep a skill run from being a drip-feed of round-trips. A
+turn that invokes a skill carries the full (capped) diff with it — a review
+pass's first act is always "read the diff", one file per round, and the diff
+was sitting in the request all along. And rounds are separate paragraphs:
+their streamed prose used to be glued together mid-sentence in the
+transcript. Every round is logged to the dev terminal with its stream time,
+tool calls and in-flight payload size, because "why did that take nine
+minutes" should be answerable from data rather than vibes.
+
+Escape never stops a run — it is the leave key everywhere else in the app,
+and stopping on it would take "close the chat while it works" away. Stop is
+the stop, and a message sent mid-turn queues and goes out when the turn
+settles. Thinking models
+spend that budget before a word reaches the reviewer, and at the ask-note's
+2000 a long skill ran the tank dry mid-thought and returned nothing at all —
+which the panel could only report as "empty answer". The provider's
+`finish_reason` now separates the two, so running out of room says so.
+
+### Ship order
+
+Docs (this section) → docked panel → `ai_chat` → chat-panel component → wiring
++ persistence → region chips → `propose_comment` → suggestion cards in the
+diff → skills. Fast-follows: citation click-through, replaying tool traffic in
+history. Shipped since, across two dogfood rounds: the personal skills dir,
+per-chat model picker (a searchable popover), chat threads, the resizable
+dock, paste-to-chip, `read_diff`, reasoning-delta streaming with a per-turn
+working trail, and the reversal above — suggestions as pending comments.
 
 ## Guardrails
 
@@ -266,5 +459,6 @@ them is failing, the product is off-position, not merely buggy.
 
 - Citation click-through into the file (needs cross-file peek — the
   full-file-modal ghost from §"context expansion").
-- Persisting ask history across restarts.
+- Persisting ask history across restarts. *Half-answered 2026-08-16: chat
+  panel history persists per PR; the `a` note's exchanges still do not.*
 - A default model recommendation per provider preset.

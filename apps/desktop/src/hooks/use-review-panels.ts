@@ -1,9 +1,12 @@
 /**
- * Panel state for the review screen: the right info panel, the file sidebar
- * (inline column vs overlay drawer under the compact media query), and the
- * drawer's persisted wide preference. The compact flag comes straight from
- * matchMedia via useSyncExternalStore; crossing the breakpoint resets the
- * sidebar to its default for that mode during render.
+ * Panel state for the review screen: the right panel (Info | Chat tabs),
+ * the file sidebar (inline column vs overlay drawer under the compact media
+ * query), and the panel's persisted wide preference. The compact flag comes
+ * straight from matchMedia via useSyncExternalStore; crossing the breakpoint
+ * resets the sidebar to its default for that mode during render. Tab
+ * semantics: `i` opens Info (or switches to it from Chat; closes from Info),
+ * the chat toggle mirrors that for Chat, and opening Chat bumps chatFocusSeq
+ * so the composer takes focus.
  */
 
 import { useLatest } from "@nod/ui/use-latest";
@@ -28,28 +31,53 @@ function subscribeSidebarCompact(onStoreChange: () => void): () => void {
   return () => mq.removeEventListener("change", onStoreChange);
 }
 
-const DRAWER_WIDE_KEY = "nod:drawerWide";
+const DOCK_WIDTH_KEY = "nod:dockWidth";
+const SIDEBAR_WIDTH_KEY = "nod:sidebarWidth";
 
-// TODO: extract a useLocalStorage hook when a second persisted UI pref lands (separate PR).
-function readDrawerWide(): boolean {
+function readDockWidth(): number | null {
   try {
-    return localStorage.getItem(DRAWER_WIDE_KEY) === "1";
+    const width = Number(localStorage.getItem(DOCK_WIDTH_KEY));
+    return Number.isFinite(width) && width >= 320 ? width : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
-function persistDrawerWide(wide: boolean): void {
+function readSidebarWidth(): number | null {
   try {
-    localStorage.setItem(DRAWER_WIDE_KEY, wide ? "1" : "0");
+    const width = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY));
+    return Number.isFinite(width) && width >= 200 ? width : null;
   } catch {
-    // storage unavailable (private mode) — width just won't persist
+    return null;
+  }
+}
+
+function persistSidebarWidth(width: number): void {
+  try {
+    localStorage.setItem(SIDEBAR_WIDTH_KEY, String(width));
+  } catch {
+    /* storage unavailable (private mode) — width just won't persist */
+  }
+}
+
+function persistDockWidth(width: number | null): void {
+  try {
+    if (width === null) {
+      localStorage.removeItem(DOCK_WIDTH_KEY);
+    } else {
+      localStorage.setItem(DOCK_WIDTH_KEY, String(width));
+    }
+  } catch {
+    /* storage unavailable (private mode) — width just won't persist */
   }
 }
 
 export function useReviewPanels() {
   const [rightOpen, setRightOpen] = useState(false);
   const rightOpenRef = useLatest(rightOpen);
+  const [rightTab, setRightTab] = useState<"info" | "chat">("info");
+  const rightTabRef = useLatest(rightTab);
+  const [chatFocusSeq, setChatFocusSeq] = useState(0);
   const sidebarCompact = useSyncExternalStore(
     subscribeSidebarCompact,
     getSidebarCompactSnapshot,
@@ -65,10 +93,45 @@ export function useReviewPanels() {
   }
   const sidebarOverlayOpen = sidebarCompact && sidebarOpen;
   const sidebarOverlayOpenRef = useLatest(sidebarOverlayOpen);
-  const [drawerWide, setDrawerWide] = useState(readDrawerWide);
+  const [dockWidth, setDockWidth] = useState(readDockWidth);
+
+  const [sidebarWidth, setSidebarWidth] = useState(readSidebarWidth);
+
+  const onSidebarResize = (width: number) => {
+    setSidebarWidth(width);
+    persistSidebarWidth(width);
+  };
+
+  const onDockResize = (width: number) => {
+    setDockWidth(width);
+    persistDockWidth(width);
+  };
 
   const onToggleRightPanel = () => {
-    setRightOpen((open) => !open);
+    if (!rightOpenRef.current) {
+      setRightTab("info");
+      setRightOpen(true);
+      return;
+    }
+    if (rightTabRef.current === "chat") {
+      setRightTab("info");
+      return;
+    }
+    setRightOpen(false);
+  };
+
+  const openChatTab = () => {
+    setRightTab("chat");
+    setRightOpen(true);
+    setChatFocusSeq((s) => s + 1);
+  };
+
+  const onSelectRightTab = (id: string) => {
+    if (id === "chat") {
+      openChatTab();
+      return;
+    }
+    setRightTab("info");
   };
 
   const onCloseRightPanel = () => {
@@ -89,31 +152,28 @@ export function useReviewPanels() {
     }
   };
 
-  const onToggleDrawerWide = () => {
-    if (!rightOpenRef.current) {
-      setRightOpen(true);
-      return;
-    }
-    const next = !drawerWide;
-    setDrawerWide(next);
-    persistDrawerWide(next);
-  };
-
   return {
+    chatFocusSeq,
     closeSidebarOverlay,
-    drawerWide,
+    dockWidth,
     onCloseRightPanel,
+    onDockResize,
     onCloseSidebar,
-    onToggleDrawerWide,
+    onSelectRightTab,
+    onSidebarResize,
     onToggleRightPanel,
     onToggleSidebar,
+    openChatTab,
     rightOpen,
     rightOpenRef,
+    rightTab,
+    rightTabRef,
     setRightOpen,
     setSidebarOpen,
     sidebarCompact,
     sidebarOpen,
     sidebarOverlayOpen,
     sidebarOverlayOpenRef,
+    sidebarWidth,
   };
 }

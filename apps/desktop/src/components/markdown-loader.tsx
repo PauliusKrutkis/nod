@@ -26,6 +26,7 @@ import { Spinner } from "@nod/ui/spinner";
 import { useQuery } from "@tanstack/react-query";
 import type { CSSProperties } from "react";
 import { api } from "../lib/api.ts";
+import { highlightFence } from "../lib/highlight.ts";
 import { imageMimeFor, videoMimeFor } from "../lib/mime.ts";
 import { openExternal } from "../lib/open-external.ts";
 import {
@@ -114,6 +115,7 @@ function AuthenticatedUpload({
 }
 
 export function Markdown({
+  highlightLine,
   children,
   className,
   owner,
@@ -121,6 +123,7 @@ export function Markdown({
 }: {
   children: string;
   className?: string;
+  highlightLine?: (code: string) => string;
   owner?: string;
   repo?: string;
 }) {
@@ -143,6 +146,8 @@ export function Markdown({
   return (
     <MarkdownView
       className={className}
+      highlightFence={highlightFence}
+      highlightLine={highlightLine}
       openExternal={openExternal}
       renderImage={renderImage}
     >

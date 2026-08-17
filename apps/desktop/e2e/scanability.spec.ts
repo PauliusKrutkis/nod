@@ -329,6 +329,38 @@ test("file tree collapses to an overlay on small screens", async ({ page }) => {
   await expect(overlay).not.toHaveClass(SIDEBAR_OPEN);
 });
 
+// The tree is as wide as the paths in it, which is a per-repo thing — so its
+// right edge drags, the same grip the dock has on its left, and the width is
+// remembered.
+test("the file tree edge drags to a new width that survives a reload", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 800, width: 1400 });
+  const tree = page.locator(".qf-sidebar-inline");
+  await expect(tree).toBeVisible();
+  const before = await tree.boundingBox();
+  const grip = page.locator(".qf-sidebar-resize");
+  const box = await grip.boundingBox();
+  if (!(box && before)) {
+    throw new Error("file tree not measurable");
+  }
+
+  await page.mouse.move(box.x + box.width / 2, box.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 120, box.y + 200);
+  await page.mouse.up();
+
+  const after = await tree.boundingBox();
+  expect(Math.round(after?.width ?? 0)).toBeGreaterThan(
+    Math.round(before.width) + 80
+  );
+
+  await page.reload();
+  await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
+  const restored = await page.locator(".qf-sidebar-inline").boundingBox();
+  expect(Math.round(restored?.width ?? 0)).toBe(Math.round(after?.width ?? 0));
+});
+
 // `b` is pressed mid-read, so the tree must land at its final size in the same
 // frame — in both the inline (push column) and overlay modes, scrim included.
 test("toggling the file tree is instant, not animated", async ({ page }) => {

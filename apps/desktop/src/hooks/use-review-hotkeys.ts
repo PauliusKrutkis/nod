@@ -3,6 +3,14 @@
  * selection, comments, find, occurrences, files, panels and submit, registered
  * on the "review" scope. Callbacks and refs come in via config so the table
  * itself stays a contiguous, order-preserving literal.
+ *
+ * The two panel toggles are modified and `global`, unlike everything else
+ * here: a plain key never fires while an editable target has focus, and each
+ * panel's own composer is exactly where you are when you want the panel
+ * gone, so an unmodified key could open but never close. `mod+l` rather than
+ * `mod+m` because ⌘M is macOS's window-minimise chord — the menu swallows it
+ * before the webview sees it, which a Chromium e2e can never catch — and
+ * because it pairs with plain `l`, which feeds the chat a region.
  */
 import {
   ArrowDown,
@@ -25,8 +33,8 @@ import {
   Link,
   MessageSquare,
   MessageSquarePlus,
+  MessagesSquare,
   PanelLeft,
-  PanelRightOpen,
   Pencil,
   Search,
   Send,
@@ -42,6 +50,7 @@ import { buildCursorMover, type LineSelection } from "../lib/review-cursor.ts";
 import { buildOccNav } from "../lib/review-occurrences.ts";
 
 export function useReviewHotkeys(config: {
+  addToChat: () => void;
   askAi: () => void;
   askOpenRef: React.RefObject<boolean>;
   closeAsk: () => void;
@@ -79,7 +88,8 @@ export function useReviewHotkeys(config: {
   setSelection: (s: LineSelection | null) => void;
   sidebarOverlayOpenRef: React.RefObject<boolean>;
   toggleActiveThread: () => void;
-  toggleDrawerWide: () => void;
+  toggleChat: () => void;
+  toggleInfoPanel: () => void;
   toggleFullFile: () => void;
   toggleSidebar: () => void;
   toggleViewedFile: () => void;
@@ -305,17 +315,26 @@ export function useReviewHotkeys(config: {
     },
     {
       description: "Toggle info panel",
+      global: true,
       group: "General",
       icon: Info,
-      keys: "i",
-      run: () => config.setRightOpen((open) => !open),
+      keys: "mod+i",
+      run: config.toggleInfoPanel,
     },
     {
-      description: "Widen info panel",
+      description: "Chat about this PR (AI)",
+      global: true,
       group: "General",
-      icon: PanelRightOpen,
-      keys: "shift+i",
-      run: config.toggleDrawerWide,
+      icon: MessagesSquare,
+      keys: "mod+l",
+      run: config.toggleChat,
+    },
+    {
+      description: "Add code to chat (AI)",
+      group: "General",
+      icon: MessageSquarePlus,
+      keys: "l",
+      run: config.addToChat,
     },
     {
       description: "Find a file",

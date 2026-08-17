@@ -22,10 +22,10 @@ test("astro files get syntax highlighting through the xml grammar", async ({
   page,
 }) => {
   const detail = structuredClone(DETAIL) as typeof DETAIL;
-  const astroIndex = detail.files.findIndex(
-    (f) => f.filename === "src/lib/search.ts"
-  );
-  const astro = detail.files[astroIndex];
+  const astro = detail.files.find((f) => f.filename === "src/lib/search.ts");
+  if (!astro) {
+    throw new Error("fixture file missing");
+  }
   astro.filename = "src/pages/index.astro";
   astro.patch = ASTRO_PATCH;
   astro.additions = 8;
@@ -36,9 +36,13 @@ test("astro files get syntax highlighting through the xml grammar", async ({
   await page.keyboard.press("Enter");
   await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
 
-  await page
-    .locator(`.qf-fsec-head[data-file-index="${astroIndex}"]`)
-    .scrollIntoViewIfNeeded();
+  // Files render in tree order, so the index comes from the sidebar rather
+  // than from the fixture's position in the host payload.
+  const entry = page.locator(".qf-sidebar [data-file-index]", {
+    hasText: "index.astro",
+  });
+  const astroIndex = await entry.getAttribute("data-file-index");
+  await entry.click();
   const rows = page.locator(`.qf-row[data-file-index="${astroIndex}"]`);
   await expect(
     rows.locator(".hljs-name", { hasText: "section" }).first()

@@ -76,7 +76,9 @@ export const CONTAINERS: Record<string, string> = {
   "review-diff-pane":
     "wires the review screen's state onto find-bar, the review-list container and overview-ruler; it owns no view of its own beyond the empty state",
   "right-panel":
-    "detail-query payloads, the comment mutations, store reads for trackerBase and ownLogin, the app's Markdown pipeline, the Tauri opener and jump-to-thread routing; its view is pr-drawer, catalogued in @nod/ui",
+    "detail-query payloads, the comment mutations, store reads for trackerBase and ownLogin, the app's Markdown pipeline, the Tauri opener and jump-to-thread routing; its views are right-dock, pr-drawer and the chat-tab container, the first two catalogued in @nod/ui",
+  "chat-tab":
+    "the chat runtime hook (store slice, ai_chat mutation, streaming listeners) and the app's Markdown pipeline; its view is chat-panel, catalogued in @nod/ui",
 };
 
 export const PENDING: string[] = [];

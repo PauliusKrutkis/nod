@@ -27,16 +27,29 @@ const COPIED_FEEDBACK_MS = 1200;
 
 export function CommentTools({
   body,
-  commentId,
+  confirmDelete = true,
+  deleteKbd,
+  deleteLabel,
   editKbd,
+  onPostNow,
   onStartEdit,
   onDelete,
 }: {
   body: string;
-  commentId: number;
+  /** Posted comments arm before they delete, because the deletion is real and
+   *  reaches the host. An unsent draft has nothing to lose that retyping
+   *  cannot restore, so it goes on the first click. */
+  confirmDelete?: boolean;
+  deleteKbd?: string;
+  /** "Delete" for a posted comment, "Discard" for an unsent one — the same
+   *  tool, named for what it actually does to the thing in front of you. */
+  deleteLabel?: string;
   editKbd?: string;
-  onDelete?: (commentId: number) => void;
-  onStartEdit?: (commentId: number) => void;
+  onDelete?: () => void;
+  /** Post this one comment immediately, outside the batched review — only a
+   *  pending comment offers it. */
+  onPostNow?: () => void;
+  onStartEdit?: () => void;
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -66,16 +79,16 @@ export function CommentTools({
 
   const handleStartEdit = () => {
     setConfirmingDelete(false);
-    onStartEdit?.(commentId);
+    onStartEdit?.();
   };
 
   const handleDelete = () => {
-    if (confirmingDelete) {
+    if (confirmingDelete || !confirmDelete) {
       setConfirmingDelete(false);
-      onDelete?.(commentId);
-    } else {
-      setConfirmingDelete(true);
+      onDelete?.();
+      return;
     }
+    setConfirmingDelete(true);
   };
 
   const disarmDelete = () => {
@@ -92,6 +105,16 @@ export function CommentTools({
       >
         {copied ? "Copied" : "Copy"}
       </button>
+      {!!onPostNow && (
+        <button
+          aria-label="Post this comment now"
+          className="qf-comment-tool q-focus"
+          onClick={onPostNow}
+          type="button"
+        >
+          Comment now
+        </button>
+      )}
       {!!onStartEdit && (
         <button
           aria-label="Edit comment"
@@ -109,7 +132,7 @@ export function CommentTools({
       )}
       {!!onDelete && (
         <button
-          aria-label="Delete comment"
+          aria-label={`${deleteLabel ?? "Delete"} comment`}
           className={cn(
             "qf-comment-tool q-focus",
             confirmingDelete && "qf-comment-tool-danger"
@@ -119,7 +142,14 @@ export function CommentTools({
           onMouseLeave={disarmDelete}
           type="button"
         >
-          {confirmingDelete ? "Delete?" : "Delete"}
+          {confirmingDelete
+            ? `${deleteLabel ?? "Delete"}?`
+            : (deleteLabel ?? "Delete")}
+          {deleteKbd !== undefined && !confirmingDelete && (
+            <span aria-hidden className="qf-key-hint">
+              <Kbd combo={deleteKbd} />
+            </span>
+          )}
         </button>
       )}
     </span>

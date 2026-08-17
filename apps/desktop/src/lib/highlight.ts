@@ -155,6 +155,23 @@ function highlightOpenComment(code: string, filename: string): string {
  * highlighting has no way to know it's still inside a comment.
  * Safe to dangerouslySetInnerHTML — input is highlighted or HTML-escaped.
  */
+/** Highlight a whole fenced block by its fence language ("ts", "rust").
+ *  Chat answers carry fences with languages and no filenames, so the
+ *  per-file line highlighter cannot serve them. Escapes anything hljs does
+ *  not know. */
+export function highlightFence(code: string, lang: string): string {
+  const resolved = hljs.getLanguage(lang) ? lang : null;
+  if (!resolved) {
+    return escapeHtml(code);
+  }
+  try {
+    return hljs.highlight(code, { ignoreIllegals: true, language: resolved })
+      .value;
+  } catch {
+    return escapeHtml(code);
+  }
+}
+
 export function highlightLine(
   code: string,
   filename: string,

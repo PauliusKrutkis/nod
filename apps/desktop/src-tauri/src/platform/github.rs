@@ -341,6 +341,15 @@ impl GitHubPlatform {
     /// does strip `Authorization` across origins today, but a silent change in
     /// that behaviour would leak a credential, and this is not a behaviour to
     /// inherit implicitly.
+    ///
+    /// Both halves fail for their own reasons and the message says which:
+    /// a `404` from the API means the commit lives in a fork or the account
+    /// cannot see the repo, while the signed URL can expire or be refused
+    /// for a commit GitHub will happily redirect for. codeload also
+    /// throttles bursts — several PRs prefetching snapshots at once answer
+    /// 429/503 and then succeed moments later — so a retryable status gets
+    /// one second chance, not a loop: a host that is really down should say
+    /// so quickly.
     pub async fn archive(&self, owner: &str, repo: &str, sha: &str) -> Result<Vec<u8>, String> {
         let redirector = reqwest::Client::builder()
             .redirect(reqwest::redirect::Policy::none())
@@ -362,6 +371,11 @@ impl GitHubPlatform {
         if status.is_success() {
             return read_capped(resp, MAX_ARCHIVE_BYTES, "repo archive").await;
         }
+        if status == reqwest::StatusCode::NOT_FOUND {
+            return Err(format!(
+                "GitHub has no archive for {owner}/{repo} at {sha}. The commit may live in a fork, or this account may not have access."
+            ));
+        }
         if !status.is_redirection() {
             return Err(format!("repo archive failed ({})", status.as_u16()));
         }
@@ -375,12 +389,27 @@ impl GitHubPlatform {
         let signed = reqwest::Client::builder()
             .build()
             .map_err(|e| format!("could not build http client: {e}"))?;
-        let resp = signed
-            .get(location)
+        let mut resp = signed
+            .get(&location)
             .header(reqwest::header::USER_AGENT, "nod")
             .send()
             .await
             .map_err(net_err)?;
+        if matches!(resp.status().as_u16(), 429 | 500..=599) {
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            resp = signed
+                .get(&location)
+                .header(reqwest::header::USER_AGENT, "nod")
+                .send()
+                .await
+                .map_err(net_err)?;
+        }
+        if !resp.status().is_success() {
+            return Err(format!(
+                "the signed archive URL for {owner}/{repo} at {sha} failed ({})",
+                resp.status().as_u16()
+            ));
+        }
         read_capped(resp, MAX_ARCHIVE_BYTES, "repo archive").await
     }
 

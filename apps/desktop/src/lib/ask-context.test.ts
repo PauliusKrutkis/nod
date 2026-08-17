@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { ChangedFile, PullRequest } from "../types.ts";
-import { askTargetLabel, buildAskContext } from "./ask-context.ts";
+import {
+  askTargetLabel,
+  buildAskContext,
+  regionFromSnapshot,
+} from "./ask-context.ts";
 import { buildReviewItems, fileAnchorKey } from "./review-items.ts";
 
 const PATCH = `@@ -1,4 +1,4 @@
@@ -20,11 +24,15 @@ const FILE: ChangedFile = {
   status: "modified",
 };
 
+// `repo` is the full "owner/name" path and `name` is the bare repo — they
+// differ here on purpose, because the forge calls want `name` and reaching for
+// `repo` asks for /repos/acme/acme/widget-app.
 const PR = {
   body: "Renames the retry knob.",
   headSha: "abc123",
+  name: "widget-app",
   owner: "acme",
-  repo: "widget-app",
+  repo: "acme/widget-app",
   title: "Rename retryCount",
 } as PullRequest;
 
@@ -98,6 +106,7 @@ describe("buildAskContext", () => {
     expect(context.diffSummary).toBe("src/retry.ts (+1 -1)");
     expect(context.owner).toBe("acme");
     expect(context.repo).toBe("widget-app");
+    expect(context.repo).not.toContain("/");
     expect(context.headSha).toBe("abc123");
   });
 
@@ -127,5 +136,50 @@ describe("buildAskContext", () => {
 
     expect(context.code).toBeNull();
     expect(context.diffSummary).toBe("src/retry.ts (+1 -1)");
+  });
+});
+
+describe("regionFromSnapshot", () => {
+  it("builds a chip from the selection, carrying the side", () => {
+    const m = model();
+    const region = regionFromSnapshot({
+      cursor: null,
+      files: [FILE],
+      model: m,
+      selection: {
+        fileIndex: 0,
+        fromItem: itemIndexOf(m, "RIGHT:2"),
+        side: "RIGHT",
+        toItem: itemIndexOf(m, "RIGHT:3"),
+      },
+    });
+
+    expect(region).toEqual({
+      code: "  const retryLimit = 3;\n  let delay = 100;",
+      filePath: "src/retry.ts",
+      lineRange: "2–3",
+      side: "RIGHT",
+    });
+  });
+
+  it("falls back to the cursor row and yields null with no focus", () => {
+    const m = model();
+    const region = regionFromSnapshot({
+      cursor: { anchor: "RIGHT:2", fileIndex: 0, kind: "row" },
+      files: [FILE],
+      model: m,
+      selection: null,
+    });
+    expect(region?.lineRange).toBe("2");
+    expect(region?.side).toBe("RIGHT");
+
+    expect(
+      regionFromSnapshot({
+        cursor: null,
+        files: [FILE],
+        model: m,
+        selection: null,
+      })
+    ).toBeNull();
   });
 });

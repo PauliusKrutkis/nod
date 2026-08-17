@@ -109,7 +109,7 @@ export function useReviewFileNavigation(args: {
   cursorRef: React.RefObject<CursorPos | null>;
   fileCountRef: React.RefObject<number>;
   keyboardHoldRef: React.RefObject<boolean>;
-  listCallbacks: ReviewListCallbacks;
+  listCallbacks: Pick<ReviewListCallbacks, "onOpenBox" | "onCloseBox">;
   listRef: React.RefObject<ReviewListHandle | null>;
   liveSelectionRef: React.RefObject<ReturnType<typeof resolveLiveSelection>>;
   modelRef: React.RefObject<ReviewListModel>;

@@ -9,10 +9,12 @@ import { defineConfig } from "@playwright/test";
  *
  * Determinism: reducedMotion stops the stage animations (gallery.css and the
  * component stylesheets honor it), the spec awaits document.fonts.ready, and
- * snapshot files carry the platform suffix, so darwin baselines never claim
+ * snapshot files carry the platform suffix, so a darwin render never claims
  * to speak for the linux CI image. Compare only against baselines produced on
  * the same platform — cross-OS font antialiasing turns any other comparison
- * into noise.
+ * into noise. Only the linux baselines are committed, because only they are a
+ * gate: run shots:update locally and the darwin files appear, ignored by git,
+ * for whatever local check you wanted them for.
  *
  * timezoneId and locale are pinned for the same reason: anything that formats
  * a date renders the host's offset and month names otherwise, so a fixture

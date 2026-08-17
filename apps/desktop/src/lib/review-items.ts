@@ -700,10 +700,10 @@ export function buildCommentsByFile(
   return m;
 }
 
-export function buildPendingByFile(
-  pending: readonly PendingComment[]
-): Map<string, PendingComment[]> {
-  const m = new Map<string, PendingComment[]>();
+export function buildPendingByFile<T extends { path: string }>(
+  pending: readonly T[]
+): Map<string, T[]> {
+  const m = new Map<string, T[]>();
   for (const p of pending) {
     const arr = m.get(p.path) ?? [];
     arr.push(p);

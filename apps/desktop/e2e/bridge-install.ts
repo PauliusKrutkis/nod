@@ -8,6 +8,13 @@
  * network. `installBridge` must stay fully self-contained (no references to
  * module scope): Playwright serializes its SOURCE, so a closed-over import
  * would be undefined at page time.
+ *
+ * Tauri events work here too: transformCallback registers the real callback
+ * functions, the event plugin's listen/unlisten commands track which
+ * callback ids follow which event name, and `window.__emitEvent(event,
+ * payload)` fires an event into the app exactly the way Rust's `app.emit`
+ * would — which is what lets a mocked command (ai_chat's scripted replay) or
+ * a spec drive streaming UI.
  */
 
 import type { BucketFixture, InboxFixture } from "./fixtures.ts";
@@ -18,6 +25,15 @@ import {
   FULL_FILES,
   INBOX,
 } from "./fixtures.ts";
+
+/** One tick of a scripted chat turn: whatever the mocked backend emits
+ *  before the next 10ms beat. */
+export interface AiChatStep {
+  delta?: string;
+  proposal?: Record<string, unknown>;
+  reasoning?: string;
+  tool?: { detail: string; tool: string };
+}
 
 export interface AppOptions {
   detail?: unknown;
@@ -30,8 +46,12 @@ export interface AppOptions {
     model: string | null;
   };
   aiAnswer?: string | "error";
+  aiChatAnswer?: string | "error" | "hang";
+  aiChatScript?: AiChatStep[];
   aiModels?: { id: string; contextLength: number | null }[];
   aiModelsError?: string;
+  chatSkills?: { name: string; description: string; source: string }[];
+  snapshotState?: "ready" | "downloading" | "failed" | "skipped";
   detailByCall?: unknown[];
   detailByLoad?: unknown[];
   detailByNumber?: Record<number, unknown>;
@@ -80,7 +100,12 @@ function aiDefaults(opts: AppOptions) {
   return {
     aiAnswer:
       opts.aiAnswer ?? "It renames the retry knob — see `src/retry.ts:2`.",
+    aiChatAnswer:
+      opts.aiChatAnswer ?? "The retry knob is safe — see `src/retry.ts:2`.",
+    aiChatScript: opts.aiChatScript ?? [],
     aiCompletion: opts.aiCompletion ?? "",
+    chatSkills: opts.chatSkills ?? [],
+    snapshotState: opts.snapshotState ?? "ready",
     aiInfo: opts.aiInfo ?? { baseUrl: null, configured: false, model: null },
     aiModelsError: opts.aiModelsError ?? null,
     aiModels: opts.aiModels ?? [
@@ -153,10 +178,96 @@ export function installBridge(cfg: BridgeConfig) {
     arr ? arr[Math.min(n, arr.length - 1)] : fallback;
 
   let aiInfo = cfg.aiInfo;
+  let snapshotState = cfg.snapshotState;
+  (
+    window as unknown as { __setSnapshotState: (s: string) => void }
+  ).__setSnapshotState = (next: string) => {
+    snapshotState = next as typeof snapshotState;
+  };
   let ledgerReviews = 0;
   let ledgerApprovals = 0;
 
+  let callbackId = 0;
+  const eventCallbacks = new Map<number, (event: unknown) => void>();
+  const eventListeners = new Map<string, Set<number>>();
+  const emitEvent = (event: string, payload: unknown) => {
+    for (const id of eventListeners.get(event) ?? []) {
+      eventCallbacks.get(id)?.({ event, id, payload });
+    }
+  };
+  (
+    window as unknown as {
+      __emitEvent: (event: string, payload: unknown) => void;
+    }
+  ).__emitEvent = emitEvent;
+
+  // Hung mocked chat calls, settled when ai_chat_cancel arrives — the shape
+  // the real backend has (a cancel is noticed between chunks and returns the
+  // benign "cancelled").
+  const hangingChats: (() => void)[] = [];
   const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
+    "plugin:event|listen": (args) => {
+      const event = args.event as string;
+      const set = eventListeners.get(event) ?? new Set<number>();
+      set.add(args.handler as number);
+      eventListeners.set(event, set);
+      return args.handler;
+    },
+    "plugin:event|unlisten": (args) => {
+      eventListeners.get(args.event as string)?.delete(args.eventId as number);
+      return null;
+    },
+    ai_chat: (args) => {
+      countCall("ai_chat");
+      localStorage.setItem("e2e:aiChat", JSON.stringify(args));
+      if (cfg.aiChatAnswer === "error") {
+        throw new Error("AI provider error (402): out of credits");
+      }
+      const ids = { chatId: args.chatId, turnId: args.turnId };
+      const playStep = (entry: AiChatStep) => {
+        if (entry.delta) {
+          emitEvent("ai-chat-delta", { ...ids, text: entry.delta });
+        }
+        if (entry.reasoning) {
+          emitEvent("ai-chat-reasoning", { ...ids, text: entry.reasoning });
+        }
+        if (entry.tool) {
+          emitEvent("ai-chat-tool", { ...ids, ...entry.tool });
+        }
+        if (entry.proposal) {
+          emitEvent("ai-chat-proposal", { ...ids, proposal: entry.proposal });
+        }
+      };
+      return new Promise((resolve, reject) => {
+        let step = 0;
+        const play = () => {
+          const entry = cfg.aiChatScript[step];
+          if (!entry) {
+            if (cfg.aiChatAnswer !== "hang") {
+              resolve(cfg.aiChatAnswer);
+            }
+            return;
+          }
+          step += 1;
+          playStep(entry);
+          setTimeout(play, 10);
+        };
+        setTimeout(play, 0);
+        hangingChats.push(() => reject(new Error("cancelled")));
+      });
+    },
+    ai_chat_cancel: (args) => {
+      countCall("ai_chat_cancel");
+      localStorage.setItem("e2e:aiChatCancel", JSON.stringify(args));
+      for (const settle of hangingChats.splice(0)) {
+        settle();
+      }
+      return null;
+    },
+    list_chat_skills: () => {
+      countCall("list_chat_skills");
+      return cfg.chatSkills;
+    },
     ai_ask: (args) => {
       countCall("ai_ask");
       localStorage.setItem("e2e:aiAsk", JSON.stringify(args));
@@ -255,6 +366,7 @@ export function installBridge(cfg: BridgeConfig) {
       localStorage.setItem("e2e:lastCommentDelete", JSON.stringify(args));
       return null;
     },
+    snapshot_status: () => ({ detail: "", state: snapshotState }),
     ensure_repo_snapshot: (args) => {
       const seen = JSON.parse(
         localStorage.getItem("e2e:snapshotEnsures") ?? "[]"
@@ -431,8 +543,9 @@ export function installBridge(cfg: BridgeConfig) {
   Object.defineProperty(window, "__TAURI_EVENT_PLUGIN_INTERNALS__", {
     configurable: true,
     value: {
-      unregisterListener: () => {
-        return;
+      unregisterListener: (event: string, eventId: number) => {
+        eventListeners.get(event)?.delete(eventId);
+        eventCallbacks.delete(eventId);
       },
     },
   });
@@ -452,13 +565,13 @@ export function installBridge(cfg: BridgeConfig) {
         currentWebview: { label: "main" },
         currentWindow: { label: "main" },
       },
-      transformCallback: (() => {
-        let id = 0;
-        return () => {
-          id += 1;
-          return id;
-        };
-      })(),
+      transformCallback: (callback?: (event: unknown) => void) => {
+        callbackId += 1;
+        if (callback) {
+          eventCallbacks.set(callbackId, callback);
+        }
+        return callbackId;
+      },
     },
   });
 }

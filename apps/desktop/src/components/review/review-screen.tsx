@@ -5,8 +5,13 @@
  * `pendingBoxNudgeRef`, and a layout effect nudges it into view once the
  * model that contains it has rebuilt — same instant, no-animation easing
  * keyboard row navigation already uses via `nudgeItemIntoView`.
+ *
+ * Files are read in the order the tree shows them, so `Tab`/`e` and the diff
+ * pane walk the order the eye does (docs/BACKLOG.md § Inbox).
  */
 
+import { treeOrder } from "@nod/ui/file-tree";
+import { useEdgeResize } from "@nod/ui/use-edge-resize";
 import { useLatest } from "@nod/ui/use-latest";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -16,6 +21,7 @@ import {
   useAskNote,
   useAskNoteWiring,
 } from "../../hooks/use-ask-note.ts";
+import { useCodeDragRange } from "../../hooks/use-code-drag-range.ts";
 import { useCommentMutations } from "../../hooks/use-comments.ts";
 import {
   useExpansionScrollRestore,
@@ -44,6 +50,8 @@ import {
 import { useReviewThreadActions } from "../../hooks/use-review-thread-actions.ts";
 import { useReviewUnmountCleanup } from "../../hooks/use-review-unmount-cleanup.ts";
 import { useViewedFileReconcile } from "../../hooks/use-viewed-file-reconcile.ts";
+import { api } from "../../lib/api.ts";
+import { regionFromSnapshot } from "../../lib/ask-context.ts";
 import { cn } from "../../lib/cn.ts";
 import {
   type CapturedSelection,
@@ -52,6 +60,7 @@ import {
 } from "../../lib/code-dom.ts";
 import { warmHighlightCache } from "../../lib/highlight.ts";
 import { isImageFile } from "../../lib/image-file.ts";
+import { locatePastedCode } from "../../lib/locate-code.ts";
 import {
   type OccurrenceMatch,
   occurrenceMatches,
@@ -59,6 +68,7 @@ import {
 import { usePerfStore } from "../../lib/perf.ts";
 import { isGitlabPrUrl } from "../../lib/provider.ts";
 import {
+  buildCursorMover,
   type CursorPos,
   type LineSelection,
   resolveLiveSelection,
@@ -85,6 +95,7 @@ import {
 import { useAppStore } from "../../store/app-store.ts";
 import type {
   ChangedFile,
+  ChatRegion,
   PendingComment,
   PullRequest,
   ReviewComment,
@@ -188,6 +199,65 @@ function openPrFilesInBrowser(pr: PullRequest | undefined): void {
   openUrl(pr.url + urlFilesPath);
 }
 
+/** "12–18", "12—18" or "12-18" — chips are written with whichever dash the
+ *  producing surface used. */
+const LINE_RANGE_DASH = /[–—-]/;
+
+const SIDEBAR_MIN_WIDTH = 200;
+const SIDEBAR_MAX_FRACTION = 0.4;
+
+/** The file tree's column: the sidebar's two seatings plus the grip that
+ *  sizes it. Only the inline seating resizes — an overlay is already as wide
+ *  as it gets, and a grip on it would drag against the scrim. */
+function FileTreeColumn(props: {
+  changed: ReadonlySet<string>;
+  comments: ReviewComment[];
+  compact: boolean;
+  files: ChangedFile[];
+  onResize: (width: number) => void;
+  onSelect: (index: number) => void;
+  open: boolean;
+  pending: PendingComment[];
+  prKeyValue: string;
+  selectedIndex: number;
+  width: number | null;
+}) {
+  const ref = useRef<HTMLElement>(null);
+  const startResize = useEdgeResize({
+    edge: "right",
+    maxFraction: SIDEBAR_MAX_FRACTION,
+    min: SIDEBAR_MIN_WIDTH,
+    onResize: props.onResize,
+    panelRef: ref,
+  });
+  const sized = !props.compact && props.open && props.width !== null;
+
+  return (
+    <aside
+      className={sidebarColumnClass(props.compact, props.open)}
+      ref={ref}
+      style={sized ? { width: props.width ?? undefined } : undefined}
+    >
+      {!props.compact && props.open && (
+        <div
+          aria-hidden
+          className="qf-sidebar-resize"
+          onPointerDown={startResize}
+        />
+      )}
+      <FileSidebarLoader
+        changed={props.changed}
+        comments={props.comments}
+        files={props.files}
+        onSelect={props.onSelect}
+        pending={props.pending}
+        prKeyValue={props.prKeyValue}
+        selectedIndex={props.selectedIndex}
+      />
+    </aside>
+  );
+}
+
 // react-doctor-disable-next-line no-giant-component -- what remains after the 8-stage split (PRs #126-#151) is the screen's state wiring; BACKLOG § Tech debt records why the rest deliberately stays (selectLine init cycle, per-render model build, the useState block)
 function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const { name: repo, number, owner } = parsePrKey(routeKey);
@@ -214,22 +284,34 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
 
   const [activeIndex, setActiveIndex] = useState(initialMem?.fileIndex ?? 0);
   const {
+    chatFocusSeq,
     closeSidebarOverlay,
-    drawerWide,
+    dockWidth,
     onCloseRightPanel,
+    onDockResize,
     onCloseSidebar,
-    onToggleDrawerWide,
+    onSidebarResize,
+    onSelectRightTab,
     onToggleRightPanel,
     onToggleSidebar,
+    openChatTab,
     rightOpen,
     rightOpenRef,
+    rightTab,
+    rightTabRef,
     setRightOpen,
     sidebarCompact,
     sidebarOpen,
+    sidebarWidth,
     sidebarOverlayOpen,
     sidebarOverlayOpenRef,
   } = useReviewPanels();
   const rightPanelRef = useRef<RightPanelHandle>(null);
+  const armedPendingRef = useRef<string | null>(null);
+  const [editingPending, setEditingPending] = useState<string | null>(null);
+  const setArmedPendingId = (id: string | null) => {
+    armedPendingRef.current = id;
+  };
   const askNote = useAskNote();
   const askOpenRef = useLatest(askNote.open);
   const [submitOpen, setSubmitOpen] = useState(false);
@@ -308,7 +390,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const viewedFiles = viewed[keyValue];
   const viewedSet = new Set(Object.keys(viewedFiles ?? {}));
 
-  const files = detail?.files ?? [];
+  const files = treeOrder(detail?.files ?? []);
   const fileCount = files.length;
   const clampedIndex = Math.min(activeIndex, Math.max(fileCount - 1, 0));
   const activeFile = files[clampedIndex];
@@ -812,8 +894,104 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   };
 
   const onCommentOnPr = () => {
+    onSelectRightTab("info");
     setRightOpen(true);
     rightPanelRef.current?.openComposer();
+  };
+
+  const openChatChecked = () => {
+    api
+      .getAiConfig()
+      .then((aiInfo) => {
+        if (aiInfo.configured) {
+          openChatTab();
+        } else {
+          useAppStore.getState().openAiSetup();
+        }
+      })
+      .catch(() => useAppStore.getState().openAiSetup());
+  };
+
+  const onToggleChat = () => {
+    if (rightOpenRef.current && rightTabRef.current === "chat") {
+      onCloseRightPanel();
+      return;
+    }
+    openChatChecked();
+  };
+
+  const onAddToChat = () => {
+    const moved = buildCursorMover(cursorMoverRefs).flushNow();
+    const region = regionFromSnapshot({
+      cursor: moved
+        ? { anchor: moved.anchor, fileIndex: moved.fileIndex, kind: moved.kind }
+        : cursorRef.current,
+      files: filesRef.current,
+      model: modelRef.current,
+      selection: liveSelectionRef.current,
+    });
+    if (region) {
+      useAppStore.getState().addChatChip(region);
+    }
+    openChatChecked();
+  };
+
+  useCodeDragRange({
+    activeIndexRef,
+    modelRef,
+    setActiveIndex,
+    setCursor,
+    setSelection,
+  });
+
+  /** Jumps to a chat chip's lines. A pasted chip knows its text but not
+   *  where it came from, so it is located in the diff first; code that is
+   *  not in this pull request has nowhere to jump to. */
+  const onRevealChatRegion = (chip: ChatRegion) => {
+    const model = modelRef.current;
+    const region = chip.filePath
+      ? chip
+      : { ...chip, ...(locatePastedCode(filesRef.current, chip.code) ?? {}) };
+    if (!region.filePath) {
+      return;
+    }
+    const fileIndex = filesRef.current.findIndex(
+      (f) => f.filename === region.filePath
+    );
+    if (fileIndex < 0) {
+      return;
+    }
+    if (sidebarCompact) {
+      onCloseRightPanel();
+    }
+    setActiveIndex(fileIndex);
+    activeIndexRef.current = fileIndex;
+    const [first, last] = region.lineRange.split(LINE_RANGE_DASH);
+    const startAnchor = `${region.side}:${Number(first)}`;
+    const endAnchor = `${region.side}:${Number(last ?? first)}`;
+    const endIndex = model.anchorItem.get(fileAnchorKey(fileIndex, endAnchor));
+    const startIndex = model.anchorItem.get(
+      fileAnchorKey(fileIndex, startAnchor)
+    );
+    if (endIndex === undefined || startIndex === undefined) {
+      listRef.current?.scrollToFileStart(fileIndex);
+      return;
+    }
+    const endItem = model.items[endIndex];
+    setInputMode("keyboard");
+    setCursor({ anchor: endAnchor, fileIndex, kind: "row" });
+    setSelection(
+      startAnchor === endAnchor || endItem.kind !== "row"
+        ? null
+        : {
+            fileIndex,
+            from: startAnchor,
+            hunkIndex: endItem.hunkIndex,
+            side: region.side,
+            to: endAnchor,
+          }
+    );
+    listRef.current?.centerItem(endIndex);
   };
 
   const onEditIssueComment = async (a: { commentId: number; body: string }) => {
@@ -845,6 +1023,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   });
 
   useReviewHotkeys({
+    addToChat: onAddToChat,
     askAi: onAskAi,
     askOpenRef,
     closeAsk: askNote.closeAsk,
@@ -855,8 +1034,23 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     copyLink,
     cursorMoverRefs,
     cycleFile,
-    discardPendingAtCursor,
-    editActiveThreadComment,
+    discardPendingAtCursor: () => {
+      const armed = armedPendingRef.current;
+      if (armed) {
+        removePendingStore(keyValue, armed);
+        armedPendingRef.current = null;
+        return;
+      }
+      discardPendingAtCursor();
+    },
+    editActiveThreadComment: () => {
+      const armed = armedPendingRef.current;
+      if (armed) {
+        setEditingPending(armed);
+        return;
+      }
+      editActiveThreadComment();
+    },
     extendSelection,
     findOpen,
     findOpenRef,
@@ -881,7 +1075,8 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     setSelection,
     sidebarOverlayOpenRef,
     toggleActiveThread,
-    toggleDrawerWide: onToggleDrawerWide,
+    toggleChat: onToggleChat,
+    toggleInfoPanel: onToggleRightPanel,
     toggleFullFile: () => toggleExpandHeld(activeIndexRef.current),
     toggleSidebar: onToggleSidebar,
     closeSidebar: onCloseSidebar,
@@ -905,17 +1100,19 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const reviews = detail.reviews ?? [];
   return (
     <div className="dir-quiet relative flex h-full min-h-0 overflow-hidden">
-      <aside className={sidebarColumnClass(sidebarCompact, sidebarOpen)}>
-        <FileSidebarLoader
-          changed={changedSinceViewed}
-          comments={detail.comments}
-          files={files}
-          onSelect={onSelectFile}
-          pending={pending}
-          prKeyValue={keyValue}
-          selectedIndex={clampedIndex}
-        />
-      </aside>
+      <FileTreeColumn
+        changed={changedSinceViewed}
+        comments={detail.comments}
+        compact={sidebarCompact}
+        files={files}
+        onResize={onSidebarResize}
+        onSelect={onSelectFile}
+        open={sidebarOpen}
+        pending={pending}
+        prKeyValue={keyValue}
+        selectedIndex={clampedIndex}
+        width={sidebarWidth}
+      />
       <button
         aria-hidden={!sidebarOverlayOpen}
         aria-label="Close file tree"
@@ -953,6 +1150,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
           closeFind={closeFind}
           copiedPathIndex={copiedPathIndex}
           dragging={dragging}
+          editingPending={editingPending}
           editReq={editReq}
           expandedNames={expandedNames}
           expandingNames={expandingNames}
@@ -969,7 +1167,14 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
           headSha={pr.headSha}
           initialMem={initialMem}
           inputMode={inputMode}
-          listCallbacks={{ ...listCallbacks, onCloseBox: onCloseBoxWithDraft }}
+          listCallbacks={{
+            ...listCallbacks,
+            onCloseBox: onCloseBoxWithDraft,
+            onEditPending: setEditingPending,
+            onPendingHover: setArmedPendingId,
+            onUpdatePending: (id, body) =>
+              useAppStore.getState().updatePendingComment(keyValue, id, body),
+          }}
           listRef={listRef}
           liveCursor={liveCursor}
           liveSelection={liveSelection}
@@ -990,22 +1195,28 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
 
       <RightPanel
         addIssueCommentPending={addIssueComment.isPending}
+        chatFocusSeq={chatFocusSeq}
         ci={detail.ciStatus}
         conversation={detail.issueComments ?? []}
+        dockWidth={dockWidth}
         fileCount={fileCount}
+        files={files}
         inlineComments={detail.comments}
         onAddIssueComment={onAddIssueComment}
         onClose={onCloseRightPanel}
         onDeleteIssueComment={onDeleteIssueComment}
+        onDockResize={onDockResize}
         onEditIssueComment={onEditIssueComment}
         onJumpToThread={jumpToThread}
         onOpenPr={onOpenPrUrl}
-        onToggleWide={onToggleDrawerWide}
+        onRevealRegion={onRevealChatRegion}
+        onSelectTab={onSelectRightTab}
         open={rightOpen}
+        overlay={sidebarCompact}
         pr={pr}
         ref={rightPanelRef}
         reviews={reviews}
-        wide={drawerWide}
+        tab={rightTab}
       />
 
       <SubmitReview

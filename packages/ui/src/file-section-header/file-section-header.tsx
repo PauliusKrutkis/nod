@@ -135,7 +135,9 @@ export function FileSectionHeader({
             ) : (
               <UnfoldVertical aria-hidden size={12} />
             )}
-            {expanded ? "Diff only" : "Full file"}
+            <span className="qf-fsec-btn-label">
+              {expanded ? "Diff only" : "Full file"}
+            </span>
           </button>
         </Tooltip>
       )}
@@ -151,7 +153,7 @@ export function FileSectionHeader({
             type="button"
           >
             <Check aria-hidden size={12} />
-            Viewed
+            <span className="qf-fsec-btn-label">Viewed</span>
           </button>
         </Tooltip>
       )}

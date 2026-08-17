@@ -247,6 +247,13 @@
   color: var(--faint);
 }
 
+.qf-drawer-frameless {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .qf-drawer.qf-drawer-embedded {
   position: static;
   width: 100%;

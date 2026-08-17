@@ -11,7 +11,6 @@ const REVIEW_REQUESTS = /Review requests/;
 const QF_ROW_FLASH = /qf-row-flash/;
 const QF_SWAP_MASK = /qf-swap-mask/;
 const QF_FILE_ACTIVE = /qf-file-active/;
-const QF_DRAWER_WIDE = /qf-drawer-wide/;
 
 test.beforeEach(async ({ page }) => {
   await setupApp(page);
@@ -351,7 +350,7 @@ test("find bar: reopening keeps the query selected; typing replaces it", async (
 test("info drawer: i opens with the conversation, esc closes drawer first", async ({
   page,
 }) => {
-  await page.keyboard.press("i");
+  await page.keyboard.press("ControlOrMeta+i");
   await expect(page.locator(".qf-drawer")).toHaveAttribute(
     "aria-hidden",
     "false"
@@ -365,46 +364,6 @@ test("info drawer: i opens with the conversation, esc closes drawer first", asyn
   await expect(
     page.getByRole("heading", { name: "Add fuzzy matching to search" })
   ).toBeVisible();
-});
-
-test("shift+i widens the drawer; the head button and Esc still work", async ({
-  page,
-}) => {
-  const drawer = page.locator(".qf-drawer");
-  await page.keyboard.press("i");
-  await expect(drawer).toHaveAttribute("aria-hidden", "false");
-  await expect(drawer).not.toHaveClass(QF_DRAWER_WIDE);
-
-  await page.keyboard.press("Shift+i");
-  await expect(drawer).toHaveClass(QF_DRAWER_WIDE);
-
-  await page.getByRole("button", { name: "Narrow panel" }).click();
-  await expect(drawer).not.toHaveClass(QF_DRAWER_WIDE);
-
-  await page.keyboard.press("Shift+i");
-  await expect(drawer).toHaveClass(QF_DRAWER_WIDE);
-  await page.keyboard.press("Escape");
-  await expect(drawer).toHaveAttribute("aria-hidden", "true");
-});
-
-test("shift+i from closed opens without toggling width", async ({ page }) => {
-  const drawer = page.locator(".qf-drawer");
-  await page.keyboard.press("Shift+i");
-  await expect(drawer).toHaveAttribute("aria-hidden", "false");
-  await expect(drawer).not.toHaveClass(QF_DRAWER_WIDE);
-
-  await page.keyboard.press("Escape");
-  await page.keyboard.press("Shift+i");
-  await expect(drawer).toHaveAttribute("aria-hidden", "false");
-  await expect(drawer).not.toHaveClass(QF_DRAWER_WIDE);
-
-  await page.keyboard.press("Shift+i");
-  await expect(drawer).toHaveClass(QF_DRAWER_WIDE);
-
-  await page.keyboard.press("Escape");
-  await page.keyboard.press("Shift+i");
-  await expect(drawer).toHaveAttribute("aria-hidden", "false");
-  await expect(drawer).toHaveClass(QF_DRAWER_WIDE);
 });
 
 test("y and mod+shift+c copy with toast confirmations", async ({ page }) => {
@@ -437,7 +396,7 @@ test("esc returns to the inbox", async ({ page }) => {
 test("info timeline: review verdicts interleave with comments, oldest first", async ({
   page,
 }) => {
-  await page.keyboard.press("i");
+  await page.keyboard.press("ControlOrMeta+i");
   const drawer = page.locator(".qf-drawer");
   await expect(drawer.getByText("LGTM, ship it.")).toBeVisible();
   await expect(drawer.locator(".q-pill-approved")).toHaveText("Approved");
@@ -450,7 +409,7 @@ test("info timeline: review verdicts interleave with comments, oldest first", as
 test("info code discussion lists inline threads; a row jumps to the diff", async ({
   page,
 }) => {
-  await page.keyboard.press("i");
+  await page.keyboard.press("ControlOrMeta+i");
   const row = page.locator(".qf-thread-row");
   await expect(row).toContainText("src/lib/fuzzy.ts");
   await expect(row).toContainText(":2");
@@ -474,7 +433,7 @@ test("the i button advertises how much conversation the drawer holds", async ({
 test("the drawer composer expands from the prompt on click, focused", async ({
   page,
 }) => {
-  await page.keyboard.press("i");
+  await page.keyboard.press("ControlOrMeta+i");
   const box = page.getByRole("textbox", {
     name: "Comment on this pull request…",
   });
@@ -488,7 +447,7 @@ test("the drawer composer expands from the prompt on click, focused", async ({
 test("esc in the drawer composer collapses it; a second esc closes the drawer", async ({
   page,
 }) => {
-  await page.keyboard.press("i");
+  await page.keyboard.press("ControlOrMeta+i");
   await page
     .getByRole("button", { name: "Comment on this pull request…" })
     .click();
@@ -510,7 +469,7 @@ test("esc in the drawer composer collapses it; a second esc closes the drawer", 
   ).toBeVisible();
   await page.keyboard.press("j");
   await expect(page.locator(".qf-row-active")).toHaveCount(1);
-  await page.keyboard.press("i");
+  await page.keyboard.press("ControlOrMeta+i");
   await expect(page.locator(".qf-drawer")).toHaveAttribute(
     "aria-hidden",
     "false"
@@ -520,7 +479,7 @@ test("esc in the drawer composer collapses it; a second esc closes the drawer", 
 test("a half-typed drawer comment survives esc — collapsed, not lost", async ({
   page,
 }) => {
-  await page.keyboard.press("i");
+  await page.keyboard.press("ControlOrMeta+i");
   await page
     .getByRole("button", { name: "Comment on this pull request…" })
     .click();
@@ -557,7 +516,7 @@ test("comment posting is optimistic even when the network hangs", async ({
 }) => {
   await setupApp(page, { hangIssueComment: true });
   await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
-  await page.keyboard.press("i");
+  await page.keyboard.press("ControlOrMeta+i");
   await page
     .getByRole("button", { name: "Comment on this pull request…" })
     .click();
@@ -758,7 +717,7 @@ test("the header shows an approvals verdict with the reviewer's face", async ({
 test("the header shows a failing CI pill with the failed count", async ({
   page,
 }) => {
-  await page.keyboard.press("i");
+  await page.keyboard.press("ControlOrMeta+i");
   const pill = page.locator(".qf-ci-failure");
   await expect(pill).toBeVisible();
   await pill.hover();
