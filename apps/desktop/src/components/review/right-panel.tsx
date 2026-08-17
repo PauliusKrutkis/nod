@@ -57,14 +57,12 @@ interface RightPanelProps {
   onOpenPr: () => void;
   onRevealRegion: (region: ChatRegion) => void;
   onSelectTab: (id: string) => void;
-  onToggleWide: () => void;
   open: boolean;
   overlay: boolean;
   pr: PullRequest;
   ref?: Ref<PrDrawerHandle>;
   reviews: ReviewSummary[];
   tab: "info" | "chat";
-  wide: boolean;
 }
 
 export function RightPanel({
@@ -83,10 +81,8 @@ export function RightPanel({
   open,
   overlay,
   tab,
-  wide,
   onClose,
   onSelectTab,
-  onToggleWide,
   addIssueCommentPending,
   onAddIssueComment,
   onDeleteIssueComment,
@@ -120,11 +116,9 @@ export function RightPanel({
       onFocusExit={focusScrollHost}
       onResize={onDockResize}
       onSelectTab={onSelectTab}
-      onToggleWide={onToggleWide}
       open={open}
       overlay={overlay}
       tabs={DOCK_TABS}
-      wide={wide}
       width={dockWidth}
     >
       <div className="qf-dock-tabpane" hidden={tab !== "info"}>
@@ -139,7 +133,6 @@ export function RightPanel({
             onOpenCiUrl: openExternal,
             onOpenPr,
             onOpenTicket: openExternal,
-            onToggleWide,
           }}
           ci={ci}
           conversation={conversation}
@@ -154,7 +147,6 @@ export function RightPanel({
           renderMarkdown={renderMarkdown}
           reviews={reviews}
           trackerBase={trackerBase}
-          wide={wide}
         />
       </div>
       <div className="qf-dock-tabpane" hidden={tab !== "chat"}>

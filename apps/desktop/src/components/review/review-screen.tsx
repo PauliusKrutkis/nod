@@ -11,13 +11,7 @@ import { treeOrder } from "@nod/ui/file-tree";
 import { useEdgeResize } from "@nod/ui/use-edge-resize";
 import { useLatest } from "@nod/ui/use-latest";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import {
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   askModelInput,
   nudgeAskIntoView,
@@ -291,13 +285,11 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     chatFocusSeq,
     closeSidebarOverlay,
     dockWidth,
-    drawerWide,
     onCloseRightPanel,
     onDockResize,
     onCloseSidebar,
     onSidebarResize,
     onSelectRightTab,
-    onToggleDrawerWide,
     onToggleRightPanel,
     onToggleSidebar,
     openChatTab,
@@ -1083,7 +1075,6 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     sidebarOverlayOpenRef,
     toggleActiveThread,
     toggleChat: onToggleChat,
-    toggleDrawerWide: onToggleDrawerWide,
     toggleInfoPanel: onToggleRightPanel,
     toggleFullFile: () => toggleExpandHeld(activeIndexRef.current),
     toggleSidebar: onToggleSidebar,
@@ -1219,14 +1210,12 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
         onOpenPr={onOpenPrUrl}
         onRevealRegion={onRevealChatRegion}
         onSelectTab={onSelectRightTab}
-        onToggleWide={onToggleDrawerWide}
         open={rightOpen}
         overlay={sidebarCompact}
         pr={pr}
         ref={rightPanelRef}
         reviews={reviews}
         tab={rightTab}
-        wide={drawerWide}
       />
 
       <SubmitReview

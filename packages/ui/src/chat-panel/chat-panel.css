@@ -165,6 +165,39 @@
   opacity: 1;
 }
 
+/* The parked message: one quiet line above the composer, in the same voice
+   as the context note — it is status, not a turn. */
+.qch-queued {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 0 2px 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.qch-queued-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qch-queued-x {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  padding: 1px;
+  color: var(--faint);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-md);
+}
+
+.qch-queued-x:hover {
+  color: var(--del);
+}
+
 /* Copy stays visible. It is the one action on an answer, and an action you
    have to hover to discover is one you forget the panel has — the timestamp
    below it still fades, because a time you did not ask for is noise. */

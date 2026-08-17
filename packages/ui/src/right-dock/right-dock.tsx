@@ -24,7 +24,6 @@
  * (the gallery).
  */
 
-import { PanelRightClose, PanelRightOpen } from "lucide-react";
 import { type ReactNode, useEffect, useRef } from "react";
 import { cn } from "../cn/cn.ts";
 import { Tooltip } from "../tooltip/tooltip.tsx";
@@ -50,11 +49,9 @@ export interface RightDockProps {
   onFocusExit?: () => void;
   onResize?: (width: number) => void;
   onSelectTab: (id: string) => void;
-  onToggleWide: () => void;
   open: boolean;
   overlay: boolean;
   tabs: RightDockTab[];
-  wide: boolean;
   width?: number | null;
 }
 
@@ -69,11 +66,9 @@ export function RightDock({
   onFocusExit,
   onResize,
   onSelectTab,
-  onToggleWide,
   open,
   overlay,
   tabs,
-  wide,
   width = null,
 }: RightDockProps) {
   const panelRef = useRef<HTMLElement>(null);
@@ -115,7 +110,6 @@ export function RightDock({
         className={cn(
           "qf-drawer",
           open && "qf-drawer-open",
-          wide && "qf-drawer-wide",
           !(overlay || embedded) && "qf-dock-col",
           embedded && "qf-drawer-embedded"
         )}
@@ -135,7 +129,12 @@ export function RightDock({
             onPointerDown={startResize}
           />
         )}
-        <div className="qf-drawer-head">
+        <div
+          className={cn(
+            "qf-drawer-head",
+            tabs.length > 1 && "qf-dock-head-tabs"
+          )}
+        >
           {tabs.length > 1 ? (
             <div className="qf-dock-tabs">
               {tabs.map((tab) => (
@@ -159,24 +158,6 @@ export function RightDock({
             <span className="qf-drawer-title">{tabs[0]?.label}</span>
           )}
           <div className="qf-drawer-head-actions">
-            <Tooltip
-              combo="shift+i"
-              label={`${wide ? "Narrow" : "Widen"} panel`}
-            >
-              <button
-                aria-label={wide ? "Narrow panel" : "Widen panel"}
-                aria-pressed={wide}
-                className="qf-drawer-wide-btn q-focus"
-                onClick={onToggleWide}
-                type="button"
-              >
-                {wide ? (
-                  <PanelRightClose aria-hidden size={15} />
-                ) : (
-                  <PanelRightOpen aria-hidden size={15} />
-                )}
-              </button>
-            </Tooltip>
             <Tooltip combo="esc" label="Close">
               <button
                 aria-label="Close"

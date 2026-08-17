@@ -82,7 +82,8 @@ function threadTitle(thread: ChatThread): string {
     return "New chat";
   }
   const line = (first.text.split("\n")[0] ?? "").trim();
-  const skills = first.skills ?? (first.skill === undefined ? [] : [first.skill]);
+  const skills =
+    first.skills ?? (first.skill === undefined ? [] : [first.skill]);
   const attached = (first.parts ?? []).find((p) => p.kind === "code");
   const label =
     line ||
@@ -91,6 +92,18 @@ function threadTitle(thread: ChatThread): string {
     first.regions.map((r) => regionTitle(r)).join(" ") ||
     "New chat";
   return label.length > 40 ? `${label.slice(0, 40)}…` : label;
+}
+
+/** The parked message, compressed to one recognisable line. */
+function queuedLabel(queued: { parts: ChatPart[]; skills: string[] }): string {
+  const text = queued.parts
+    .filter((p) => p.kind === "text")
+    .map((p) => (p.kind === "text" ? p.text : ""))
+    .join("")
+    .trim();
+  const skills = queued.skills.map((name) => `/${name}`).join(" ");
+  const label = [skills, text].filter(Boolean).join(" ");
+  return label.length > 60 ? `${label.slice(0, 60)}…` : label;
 }
 
 function regionTitle(region: ChatRegion): string {
@@ -556,10 +569,19 @@ export function useReviewChat(args: {
     [keyValue, chatPendingRef]
   );
 
-  const send = (parts: ChatPart[]): boolean => {
+  // One parked message. Enter while a turn is in flight should not be a
+  // dead key: the message waits, visibly, and goes out the moment the turn
+  // settles. One slot, last write wins — a queue of queues is a chat client.
+  const [queued, setQueued] = useState<{
+    parts: ChatPart[];
+    skills: string[];
+  } | null>(null);
+
+  const send = (parts: ChatPart[], invokedOverride?: string[]): boolean => {
     // The chips in the field are the truth about which skills this message
-    // runs; the state is only their mirror.
-    const invoked = args.composerRef.current?.skills() ?? [];
+    // runs; a flushed queue carries the skills it was parked with, because
+    // the field was cleared the moment it was queued.
+    const invoked = invokedOverride ?? args.composerRef.current?.skills() ?? [];
     const text = parts
       .filter((p) => p.kind === "text")
       .map((p) => (p.kind === "text" ? p.text : ""))
@@ -567,8 +589,12 @@ export function useReviewChat(args: {
       .trim();
     // A skill on its own is a whole request — "run this pass" — so an empty
     // message sends when a skill chip is in the field.
-    if ((parts.length === 0 && invoked.length === 0) || chat.isPending) {
+    if (parts.length === 0 && invoked.length === 0) {
       return false;
+    }
+    if (chat.isPending) {
+      setQueued({ parts, skills: invoked });
+      return true;
     }
     const turnId = crypto.randomUUID();
     const threadId = activeThreadId ?? crypto.randomUUID();
@@ -643,6 +669,17 @@ export function useReviewChat(args: {
     }
   };
 
+  // The parked message goes out the moment the mutation settles — not when
+  // `live` clears (stop empties that early, while the cancel is still
+  // unwinding; two in-flight turns on one chat id would interleave events).
+  useEffect(() => {
+    if (chat.isPending || queued === null) {
+      return;
+    }
+    setQueued(null);
+    send(queued.parts, queued.skills);
+  });
+
   const panelTurns: ChatPanelTurn[] = [
     ...turns.map((turn): ChatPanelTurn => {
       if (turn.kind === "user") {
@@ -689,6 +726,9 @@ export function useReviewChat(args: {
   const newChat = () => {
     setActiveThreadId(null);
     setInvokedSkills([]);
+    // A new chat exists to be typed into.
+    args.composerRef.current?.clear();
+    args.composerRef.current?.focus();
   };
 
   const removeThread = (threadId: string) => {
@@ -728,6 +768,13 @@ export function useReviewChat(args: {
     // The stop button clears `live` at once, so the composer stops offering
     // to stop something that is, as far as the reviewer is concerned, over.
     pending: chat.isPending && live !== null,
+    queued:
+      queued === null
+        ? null
+        : {
+            label: queuedLabel(queued),
+            onDiscard: () => setQueued(null),
+          },
     send,
     onSkillChange: setInvokedSkills,
     onSlashQuery: setSlash,

@@ -71,6 +71,7 @@ export function ChatTab({ files, focusSeq, onRevealRegion, pr }: ChatTabProps) {
       onSlashQuery={chat.onSlashQuery}
       onStop={chat.stop}
       pending={chat.pending}
+      queued={chat.queued}
       renderMarkdown={renderMarkdown}
       staged={{
         items: chat.staged,

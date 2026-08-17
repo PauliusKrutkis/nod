@@ -11,7 +11,6 @@ const REVIEW_REQUESTS = /Review requests/;
 const QF_ROW_FLASH = /qf-row-flash/;
 const QF_SWAP_MASK = /qf-swap-mask/;
 const QF_FILE_ACTIVE = /qf-file-active/;
-const QF_DRAWER_WIDE = /qf-drawer-wide/;
 
 test.beforeEach(async ({ page }) => {
   await setupApp(page);
@@ -365,46 +364,6 @@ test("info drawer: i opens with the conversation, esc closes drawer first", asyn
   await expect(
     page.getByRole("heading", { name: "Add fuzzy matching to search" })
   ).toBeVisible();
-});
-
-test("shift+i widens the drawer; the head button and Esc still work", async ({
-  page,
-}) => {
-  const drawer = page.locator(".qf-drawer");
-  await page.keyboard.press("i");
-  await expect(drawer).toHaveAttribute("aria-hidden", "false");
-  await expect(drawer).not.toHaveClass(QF_DRAWER_WIDE);
-
-  await page.keyboard.press("Shift+i");
-  await expect(drawer).toHaveClass(QF_DRAWER_WIDE);
-
-  await page.getByRole("button", { name: "Narrow panel" }).click();
-  await expect(drawer).not.toHaveClass(QF_DRAWER_WIDE);
-
-  await page.keyboard.press("Shift+i");
-  await expect(drawer).toHaveClass(QF_DRAWER_WIDE);
-  await page.keyboard.press("Escape");
-  await expect(drawer).toHaveAttribute("aria-hidden", "true");
-});
-
-test("shift+i from closed opens without toggling width", async ({ page }) => {
-  const drawer = page.locator(".qf-drawer");
-  await page.keyboard.press("Shift+i");
-  await expect(drawer).toHaveAttribute("aria-hidden", "false");
-  await expect(drawer).not.toHaveClass(QF_DRAWER_WIDE);
-
-  await page.keyboard.press("Escape");
-  await page.keyboard.press("Shift+i");
-  await expect(drawer).toHaveAttribute("aria-hidden", "false");
-  await expect(drawer).not.toHaveClass(QF_DRAWER_WIDE);
-
-  await page.keyboard.press("Shift+i");
-  await expect(drawer).toHaveClass(QF_DRAWER_WIDE);
-
-  await page.keyboard.press("Escape");
-  await page.keyboard.press("Shift+i");
-  await expect(drawer).toHaveAttribute("aria-hidden", "false");
-  await expect(drawer).toHaveClass(QF_DRAWER_WIDE);
 });
 
 test("y and mod+shift+c copy with toast confirmations", async ({ page }) => {

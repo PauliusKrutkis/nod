@@ -42,29 +42,38 @@
   display: none;
 }
 
+/* The tab strip borrows the inbox's design (qi-tab): quiet labels on the
+   head's own bottom rule, the active one underlined in accent. Two surfaces
+   that both say "these are the views" should say it the same way. */
+.qf-dock-head-tabs {
+  align-items: stretch;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
 .qf-dock-tabs {
   display: flex;
-  gap: 6px;
+  gap: 2px;
+  align-items: stretch;
 }
 
 .qf-dock-tab {
   display: inline-flex;
-  gap: 5px;
-  align-items: baseline;
-  padding: 3px 10px;
-  font-size: 12px;
-  font-weight: 600;
+  gap: 7px;
+  align-items: center;
+  padding: 11px 10px;
+  margin-bottom: -1px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 500;
   color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   cursor: pointer;
   background: none;
-  border: 1px solid transparent;
-  border-radius: var(--r-md);
+  border: none;
+  border-bottom: 2px solid transparent;
   transition:
     color 120ms ease,
-    border-color 120ms ease,
-    background-color 120ms ease;
+    border-color 120ms ease;
 }
 
 /* The key, not a key cap: a bordered cap beside a tab reads as a second
@@ -83,9 +92,13 @@
 }
 
 .qf-dock-tab[aria-pressed="true"] {
+  color: var(--fg);
+  border-bottom-color: var(--accent);
+}
+
+.qf-dock-tab[aria-pressed="true"] .qf-dock-tab-kbd {
   color: var(--accent);
-  background: var(--accent-soft);
-  border-color: var(--accent-line);
+  opacity: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -150,6 +150,9 @@ export interface ChatPanelProps {
   /** How many skills are reachable right now — the button says "Add skills"
    *  when there are none, which is the honest empty state. */
   pending: boolean;
+  /** A message parked while a turn runs — shown so Enter mid-turn never
+   *  feels like a dead key, discardable because parked plans change. */
+  queued?: { label: string; onDiscard: () => void } | null;
   staged?: ChatStagedState | null;
   renderMarkdown?: (text: string) => ReactNode;
   suggestions?: ChatSuggestionsState | null;
@@ -395,6 +398,7 @@ export function ChatPanel({
   onSlashQuery,
   onStop,
   pending,
+  queued = null,
   staged = null,
   renderMarkdown = plainText,
   suggestions = null,
@@ -475,10 +479,9 @@ export function ChatPanel({
     }
   }, [turns.length, streamLength]);
 
+  // No pending guard: the host queues a message sent mid-turn, so Enter is
+  // never a dead key while an answer streams.
   const send = () => {
-    if (pending) {
-      return;
-    }
     onSend();
   };
 
@@ -640,17 +643,24 @@ export function ChatPanel({
             )
           ))}
         {contextNote !== null && <p className="qch-note">{contextNote}</p>}
+        {queued !== null && (
+          <p className="qch-queued">
+            <span className="qch-queued-label">Next: {queued.label}</span>
+            <button
+              aria-label="Discard the queued message"
+              className="qch-queued-x q-focus"
+              onClick={queued.onDiscard}
+              type="button"
+            >
+              <X aria-hidden size={11} />
+            </button>
+          </p>
+        )}
         <div className="qch-composer">
           <div className="qch-field">
             <ChatComposer
               onChange={onComposerChange}
-              onEscape={() => {
-                if (pending) {
-                  onStop();
-                  return;
-                }
-                onEscape?.();
-              }}
+              onEscape={onEscape}
               onKeyDown={onComposerKeyDown}
               onRevealRegion={onRevealRegion}
               onSend={send}

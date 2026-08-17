@@ -29,11 +29,9 @@ const base = (over: Partial<RightDockProps>): RightDockProps => ({
   onClose: noop,
   onFocusExit: noop,
   onSelectTab: noop,
-  onToggleWide: noop,
   open: true,
   overlay: false,
   tabs: [{ id: "info", label: "Pull request" }],
-  wide: false,
   ...over,
 });
 
@@ -71,8 +69,5 @@ export const rightDockEntry = defineEntry(RightDock, {
         { id: "chat", label: "محادثة" },
       ],
     }),
-  },
-  wide: {
-    props: base({ tabs: TWO_TABS, wide: true }),
   },
 });

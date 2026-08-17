@@ -27,7 +27,6 @@ import {
   MessageSquarePlus,
   MessagesSquare,
   PanelLeft,
-  PanelRightOpen,
   Pencil,
   Search,
   Send,
@@ -82,7 +81,6 @@ export function useReviewHotkeys(config: {
   sidebarOverlayOpenRef: React.RefObject<boolean>;
   toggleActiveThread: () => void;
   toggleChat: () => void;
-  toggleDrawerWide: () => void;
   toggleInfoPanel: () => void;
   toggleFullFile: () => void;
   toggleSidebar: () => void;
@@ -331,13 +329,6 @@ export function useReviewHotkeys(config: {
       icon: MessageSquarePlus,
       keys: "l",
       run: config.addToChat,
-    },
-    {
-      description: "Widen info panel",
-      group: "General",
-      icon: PanelRightOpen,
-      keys: "shift+i",
-      run: config.toggleDrawerWide,
     },
     {
       description: "Find a file",

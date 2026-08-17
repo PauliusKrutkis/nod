@@ -1276,16 +1276,26 @@ pub async fn ai_chat(
     let system = chat_system_prompt(snapshot.is_some(), skills_available, proposals, has_diffs);
     let mut messages = vec![serde_json::json!({ "role": "system", "content": system })];
     messages.extend(history_messages(&history, CHAT_INPUT_CHAR_BUDGET));
+    let mut turn_content = build_chat_turn(
+        &message,
+        &parts,
+        &regions,
+        &context,
+        history.is_empty(),
+        &skill_bodies,
+    );
+    // A review skill's first act is always "read the diff", one round-trip
+    // per file. The diff is sitting right here — hand it over with the turn
+    // and those rounds never happen.
+    if !(skill_bodies.is_empty() || diffs.is_empty()) {
+        turn_content.push_str(&format!(
+            "\n\nThe pull request's full diff, so you do not need read_diff:\n\n{}",
+            execute_read_diff(&diffs, "{}")
+        ));
+    }
     messages.push(serde_json::json!({
         "role": "user",
-        "content": build_chat_turn(
-            &message,
-            &parts,
-            &regions,
-            &context,
-            history.is_empty(),
-            &skill_bodies,
-        ),
+        "content": turn_content,
     }));
     let client = ai::ask_client()?;
     let url = format!("{}/v1/chat/completions", config.base_url);
@@ -1293,6 +1303,11 @@ pub async fn ai_chat(
     let mut rounds = 0;
     // Set once, after a round that produced neither text nor a tool call.
     let mut forced_text = false;
+    // Whether any earlier round streamed prose, and whether this one has:
+    // rounds are separate paragraphs to the model, and gluing their pieces
+    // together printed "…defers to.Let me read…" in the transcript.
+    let streamed_before = std::sync::atomic::AtomicBool::new(false);
+    let round_streamed = std::sync::atomic::AtomicBool::new(false);
     // Set once, when the tool budget runs out.
     let mut out_of_budget = false;
     loop {
@@ -1305,7 +1320,7 @@ pub async fn ai_chat(
             messages.push(serde_json::json!({
                 "role": "user",
                 "content": "You have used the tool budget for this turn. Answer now \
-from what you have already read, and say plainly what you did not get to."
+            from what you have already read, and say plainly what you did not get to."
             }));
         }
         let mut body = serde_json::json!({
@@ -1324,8 +1339,21 @@ from what you have already read, and say plainly what you did not get to."
                 body["tool_choice"] = serde_json::json!("none");
             }
         }
+        round_streamed.store(false, std::sync::atomic::Ordering::Relaxed);
+        let round_started = std::time::Instant::now();
         let emit_delta = |piece: &ai::StreamPiece| {
+            use std::sync::atomic::Ordering::Relaxed;
             if let Some(text) = &piece.content {
+                if !round_streamed.swap(true, Relaxed) && streamed_before.load(Relaxed) {
+                    let _ = app.emit(
+                        "ai-chat-delta",
+                        ChatDelta {
+                            chat_id: chat_id.clone(),
+                            turn_id: turn_id.clone(),
+                            text: "\n\n".to_string(),
+                        },
+                    );
+                }
                 let _ = app.emit(
                     "ai-chat-delta",
                     ChatDelta {
@@ -1375,6 +1403,21 @@ from what you have already read, and say plainly what you did not get to."
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
+        // The terminal is where "why did that take nine minutes" gets
+        // answered: one line per round with where the time went and how big
+        // the resent conversation has grown.
+        crate::http::log(&format!(
+            "chat round {rounds}: {:.1}s stream, {} tool call(s) [{}], {} msgs / ~{}k chars in flight",
+            round_started.elapsed().as_secs_f32(),
+            calls.len(),
+            calls
+                .iter()
+                .filter_map(|c| c.pointer("/function/name").and_then(Value::as_str))
+                .collect::<Vec<_>>()
+                .join(", "),
+            messages.len(),
+            messages.iter().map(|m| m.to_string().len()).sum::<usize>() / 1000,
+        ));
         if calls.is_empty() || !tools_enabled {
             if let Some(answer) = ai::message_answer(&message_value) {
                 return Ok(answer);
@@ -1417,6 +1460,7 @@ from what you have already read, and say plainly what you did not get to."
             );
         }
         messages.push(message_value);
+        let tools_started = std::time::Instant::now();
         for call in calls {
             // A stop between tool calls stops here too: the reviewer pressed
             // it before the model asked for this, so nothing more is run and
@@ -1486,6 +1530,13 @@ from what you have already read, and say plainly what you did not get to."
                 "content": content,
             }));
         }
+        if round_streamed.load(std::sync::atomic::Ordering::Relaxed) {
+            streamed_before.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+        crate::http::log(&format!(
+            "chat round {rounds}: tools ran in {:.2}s",
+            tools_started.elapsed().as_secs_f32()
+        ));
         rounds += 1;
     }
 }

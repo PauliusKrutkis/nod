@@ -386,7 +386,21 @@ wall: the tools come off, the model is told it is out of budget, and it
 answers with what it has and says what it did not reach. A round that
 produces neither text nor a tool call buys the same one extra pass. The real
 ceiling is the 120k-character input budget, which trims oldest-first, and the
-model's own context. Thinking models
+model's own context.
+
+Two more things keep a skill run from being a drip-feed of round-trips. A
+turn that invokes a skill carries the full (capped) diff with it — a review
+pass's first act is always "read the diff", one file per round, and the diff
+was sitting in the request all along. And rounds are separate paragraphs:
+their streamed prose used to be glued together mid-sentence in the
+transcript. Every round is logged to the dev terminal with its stream time,
+tool calls and in-flight payload size, because "why did that take nine
+minutes" should be answerable from data rather than vibes.
+
+Escape never stops a run — it is the leave key everywhere else in the app,
+and stopping on it would take "close the chat while it works" away. Stop is
+the stop, and a message sent mid-turn queues and goes out when the turn
+settles. Thinking models
 spend that budget before a word reaches the reviewer, and at the ask-note's
 2000 a long skill ran the tank dry mid-thought and returned nothing at all —
 which the panel could only report as "empty answer". The provider's

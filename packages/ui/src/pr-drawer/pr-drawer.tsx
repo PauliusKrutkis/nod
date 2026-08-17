@@ -124,7 +124,8 @@ export interface PrDrawerCallbacks {
   onOpenCiUrl: (url: string) => void;
   onOpenPr: () => void;
   onOpenTicket: (url: string) => void;
-  onToggleWide: () => void;
+  /** Only the drawer's own (non-frameless) head shows the widen button. */
+  onToggleWide?: () => void;
 }
 
 export interface DrawerComposerHandle {
@@ -162,7 +163,8 @@ export interface PrDrawerProps {
   renderMarkdown?: (body: string) => ReactNode;
   reviews: DrawerReview[];
   trackerBase?: string;
-  wide: boolean;
+  /** Only the drawer's own (non-frameless) seating reads this. */
+  wide?: boolean;
 }
 
 type TimelineEntry =
@@ -206,7 +208,7 @@ export function PrDrawer({
   renderMarkdown,
   reviews,
   trackerBase,
-  wide,
+  wide = false,
 }: PrDrawerProps) {
   const body = pr.body.trim();
   const callbacksRef = useLatest(callbacks);

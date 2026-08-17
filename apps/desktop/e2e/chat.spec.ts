@@ -587,6 +587,65 @@ test("a multi-line paste becomes a chip; single lines paste as text", async ({
   ]);
 });
 
+test("a message sent mid-turn queues and goes out when the turn settles", async ({
+  page,
+}) => {
+  await setupApp(page, {
+    ...CONFIGURED,
+    aiChatScript: [{ delta: "Thinking it over. " }],
+    aiChatAnswer: "First answer.",
+  });
+  await openReview(page);
+  await page.keyboard.press("ControlOrMeta+m");
+  await composer(page).pressSequentially("first question");
+  await page.keyboard.press("Enter");
+
+  // Enter mid-turn parks the message, visibly, instead of dying.
+  await composer(page).pressSequentially("and a follow-up");
+  await page.keyboard.press("Enter");
+  await expect(
+    chatPanel(page).getByText("Next: and a follow-up")
+  ).toBeVisible();
+
+  // When the first turn settles, the parked one goes out as its own turn.
+  await expect(
+    chatPanel(page).getByText("First answer.").first()
+  ).toBeVisible();
+  await expect
+    .poll(async () => {
+      const raw = await page.evaluate(() => localStorage.getItem("e2e:aiChat"));
+      return (JSON.parse(raw ?? "{}") as { message?: string }).message;
+    })
+    .toBe("and a follow-up");
+  await expect(chatPanel(page).getByText("Next: and a follow-up")).toHaveCount(
+    0
+  );
+});
+
+test("a queued message can be discarded before it sends", async ({ page }) => {
+  await setupApp(page, {
+    ...CONFIGURED,
+    aiChatAnswer: "hang",
+    aiChatScript: [{ delta: "Working. " }],
+  });
+  await openReview(page);
+  await page.keyboard.press("ControlOrMeta+m");
+  await composer(page).pressSequentially("first");
+  await page.keyboard.press("Enter");
+  await composer(page).pressSequentially("changed my mind");
+  await page.keyboard.press("Enter");
+  await expect(
+    chatPanel(page).getByText("Next: changed my mind")
+  ).toBeVisible();
+
+  await page
+    .getByRole("button", { name: "Discard the queued message" })
+    .click();
+  await expect(chatPanel(page).getByText("Next: changed my mind")).toHaveCount(
+    0
+  );
+});
+
 test("new chat starts a second thread; the picker switches and deletes", async ({
   page,
 }) => {
@@ -604,6 +663,8 @@ test("new chat starts a second thread; the picker switches and deletes", async (
   await expect(
     chatPanel(page).locator(".qch-scroll").getByText("First question")
   ).toHaveCount(0);
+  // A new chat exists to be typed into.
+  await expect(composer(page)).toBeFocused();
 
   await composer(page).fill("Second topic");
   await page.keyboard.press("Enter");
@@ -961,7 +1022,7 @@ test("two skills ride one message, in the order they were invoked", async ({
   expect(args.message).toBe("both passes please");
 });
 
-test("escape stops a turn in flight instead of leaving the composer", async ({
+test("escape leaves the composer while a turn runs; Stop still stops", async ({
   page,
 }) => {
   await setupApp(page, {
@@ -975,15 +1036,23 @@ test("escape stops a turn in flight instead of leaving the composer", async ({
   await page.keyboard.press("Enter");
   await expect(chatPanel(page).getByText("Reading the diff")).toBeVisible();
 
+  // Esc is the leave key everywhere else; making it stop a run would take
+  // "close the chat while it works" away. Stop is the stop.
   await page.keyboard.press("Escape");
-  await expect(chatPanel(page).getByRole("button", { name: "Send" })).toBeVisible();
-  await expect(composer(page)).toBeFocused();
+  await expect(composer(page)).not.toBeFocused();
+  await expect(
+    chatPanel(page).getByRole("button", { name: "Stop" })
+  ).toBeVisible();
+
+  await chatPanel(page).getByRole("button", { name: "Stop" }).click();
+  await expect(
+    chatPanel(page).getByRole("button", { name: "Send" })
+  ).toBeVisible();
   const cancelled = await page.evaluate(() =>
     localStorage.getItem("e2e:aiChatCancel")
   );
   expect(cancelled).not.toBeNull();
 });
-
 test("the skill chip removes; a repo with no skills offers nothing on /", async ({
   page,
 }) => {
@@ -1029,8 +1098,6 @@ async function stageProposal(page: Page) {
   await composer(page).pressSequentially("Review this PR");
   await page.keyboard.press("Enter");
   await expect(chatPanel(page).locator(".qch-staged-go")).toHaveCount(1);
-  // Let the turn settle before anyone presses Escape: while it is in flight,
-  // Escape means "stop", not "leave the composer".
   await expect(
     chatPanel(page).getByRole("button", { name: "Send" })
   ).toBeVisible();

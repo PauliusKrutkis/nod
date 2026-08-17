@@ -28,6 +28,7 @@
   gap: 10px;
   align-items: center;
   padding: 10px 16px;
+  container: qf-fsec / inline-size;
   font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1.75;
@@ -113,18 +114,35 @@ button.qf-fsec-copy {
 
 .qf-filebar-stat {
   display: flex;
+  flex: none;
   gap: 6px;
   font-family: var(--font-mono);
   font-size: 11px;
 }
 
+/* A squeezed column keeps the header one line tall: the buttons drop their
+   words and stand on their icons (the tooltips still name them), because a
+   header that wraps to three lines steals the diff's room and reads as
+   damage. The path keeps whatever is left and ellipsizes. */
+@container qf-fsec (width < 460px) {
+  .qf-fsec-btn-label {
+    display: none;
+  }
+
+  .qf-updated-chip {
+    display: none;
+  }
+}
+
 .qf-viewed-btn,
 .qf-expand-btn {
   display: inline-flex;
+  flex: none;
   gap: 6px;
   align-items: center;
   padding: 4px 8px;
   font-size: 12px;
+  white-space: nowrap;
   color: var(--muted);
   cursor: pointer;
   background: transparent;

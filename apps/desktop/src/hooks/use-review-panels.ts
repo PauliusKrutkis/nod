@@ -31,7 +31,6 @@ function subscribeSidebarCompact(onStoreChange: () => void): () => void {
   return () => mq.removeEventListener("change", onStoreChange);
 }
 
-const DRAWER_WIDE_KEY = "nod:drawerWide";
 const DOCK_WIDTH_KEY = "nod:dockWidth";
 const SIDEBAR_WIDTH_KEY = "nod:sidebarWidth";
 
@@ -73,23 +72,6 @@ function persistDockWidth(width: number | null): void {
   }
 }
 
-// TODO: extract a useLocalStorage hook when a second persisted UI pref lands (separate PR).
-function readDrawerWide(): boolean {
-  try {
-    return localStorage.getItem(DRAWER_WIDE_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function persistDrawerWide(wide: boolean): void {
-  try {
-    localStorage.setItem(DRAWER_WIDE_KEY, wide ? "1" : "0");
-  } catch {
-    // storage unavailable (private mode) — width just won't persist
-  }
-}
-
 export function useReviewPanels() {
   const [rightOpen, setRightOpen] = useState(false);
   const rightOpenRef = useLatest(rightOpen);
@@ -111,7 +93,6 @@ export function useReviewPanels() {
   }
   const sidebarOverlayOpen = sidebarCompact && sidebarOpen;
   const sidebarOverlayOpenRef = useLatest(sidebarOverlayOpen);
-  const [drawerWide, setDrawerWide] = useState(readDrawerWide);
   const [dockWidth, setDockWidth] = useState(readDockWidth);
 
   const [sidebarWidth, setSidebarWidth] = useState(readSidebarWidth);
@@ -171,29 +152,15 @@ export function useReviewPanels() {
     }
   };
 
-  const onToggleDrawerWide = () => {
-    if (!rightOpenRef.current) {
-      setRightOpen(true);
-      return;
-    }
-    setDockWidth(null);
-    persistDockWidth(null);
-    const next = !drawerWide;
-    setDrawerWide(next);
-    persistDrawerWide(next);
-  };
-
   return {
     chatFocusSeq,
     closeSidebarOverlay,
     dockWidth,
-    drawerWide,
     onCloseRightPanel,
     onDockResize,
     onCloseSidebar,
     onSelectRightTab,
     onSidebarResize,
-    onToggleDrawerWide,
     onToggleRightPanel,
     onToggleSidebar,
     openChatTab,
