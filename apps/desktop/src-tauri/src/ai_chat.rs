@@ -157,11 +157,21 @@ fn chat_system_prompt(snapshot_ready: bool, skills: bool, proposals: bool, diffs
 
 const CHAT_INPUT_CHAR_BUDGET: usize = 120_000;
 
-/// How many tool rounds a chat turn may take. The ask-note's eight is right
-/// for one question about one line; a review pass reads a file per round and
-/// hits eight before it has seen the diff, then answers with nothing because
-/// the tools were taken away mid-plan.
-const CHAT_TOOL_ROUNDS: usize = 16;
+/// How many tool rounds a chat turn may take before it has to write.
+///
+/// The number matters less than what happens at it. Agent loops in the wild
+/// either run unbounded until the model stops asking (Cursor, Claude Code —
+/// with a "continue?" around 25 calls) or cap and fail (the OpenAI Agents
+/// SDK's 10, LangChain's 15). Failing at the cap is the worst of the three:
+/// the reviewer waited a minute for four words of error. So this is set
+/// generously — a review pass reads a file per round and a real pull request
+/// has more than sixteen — and reaching it is not an error but a deadline:
+/// the tools come off, the model is told it is out of budget, and it answers
+/// with what it has and says what it did not reach.
+///
+/// The real ceiling is the input budget above, which trims oldest-first, and
+/// the model's own context.
+const CHAT_TOOL_ROUNDS: usize = 32;
 
 /// Prior turns as wire messages, newest kept first when the budget bites.
 /// Only user/assistant roles pass through — the webview can never smuggle a
@@ -1271,10 +1281,20 @@ pub async fn ai_chat(
     let mut rounds = 0;
     // Set once, after a round that produced neither text nor a tool call.
     let mut forced_text = false;
+    // Set once, when the tool budget runs out.
+    let mut out_of_budget = false;
     loop {
         if state.requested(&chat_id) {
             state.clear(&chat_id);
             return Err(ai::CANCELLED.to_string());
+        }
+        if rounds == CHAT_TOOL_ROUNDS && !out_of_budget {
+            out_of_budget = true;
+            messages.push(serde_json::json!({
+                "role": "user",
+                "content": "You have used the tool budget for this turn. Answer now \
+from what you have already read, and say plainly what you did not get to."
+            }));
         }
         let mut body = serde_json::json!({
             "model": model,

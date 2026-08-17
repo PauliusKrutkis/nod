@@ -370,12 +370,21 @@ third-party host.
 ### Budgets
 
 An ask-note is a sentence and a chat answer is a review pass, so they share
-neither budget. The chat asks for 8000 completion tokens and allows sixteen
-tool rounds: a review skill reads a file per round and hit the ask-note's
-eight before it had seen the diff, at which point the tools were taken away
-mid-plan and the turn ended with nothing. A round that produces neither text
-nor a tool call now gets one more pass with the tools removed and an explicit
-"answer now" before the turn is called empty. Thinking models
+neither budget. The chat asks for 8000 completion tokens and allows
+thirty-two tool rounds: a review skill reads a file per round and hit the
+ask-note's eight before it had seen the diff, at which point the tools were
+taken away mid-plan and the turn ended with nothing.
+
+The number matters less than what happens at it. Agent loops either run
+unbounded until the model stops asking (Cursor, Claude Code, with a
+"continue?" prompt around 25 calls) or cap and fail (the OpenAI Agents SDK's
+10, LangChain's 15). Failing at the cap is the worst of the three — a minute
+of waiting for four words of error — so reaching it here is a deadline, not a
+wall: the tools come off, the model is told it is out of budget, and it
+answers with what it has and says what it did not reach. A round that
+produces neither text nor a tool call buys the same one extra pass. The real
+ceiling is the 120k-character input budget, which trims oldest-first, and the
+model's own context. Thinking models
 spend that budget before a word reaches the reviewer, and at the ask-note's
 2000 a long skill ran the tank dry mid-thought and returned nothing at all —
 which the panel could only report as "empty answer". The provider's
