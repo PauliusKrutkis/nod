@@ -929,3 +929,28 @@ fn personal_skills_come_from_every_agent_folder_and_group() {
 
     let _ = std::fs::remove_dir_all(&root);
 }
+
+#[test]
+fn the_replayed_assistant_message_never_carries_finish_reason() {
+    // finish_reason is our bookkeeping for empty_answer; the OpenAI message
+    // shape has no such field on an assistant message and a strict gateway
+    // 400s on it. The strip lives in the round loop — this pins the shape it
+    // must produce.
+    let mut replayed = serde_json::json!({
+        "role": "assistant",
+        "content": "half an answer",
+        "finish_reason": "tool_calls",
+        "tool_calls": [{ "id": "x" }]
+    });
+    if let Some(map) = replayed.as_object_mut() {
+        map.remove("finish_reason");
+    }
+    assert_eq!(
+        replayed,
+        serde_json::json!({
+            "role": "assistant",
+            "content": "half an answer",
+            "tool_calls": [{ "id": "x" }]
+        })
+    );
+}

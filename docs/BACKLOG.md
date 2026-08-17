@@ -1897,6 +1897,17 @@ Four items raised by the owner. Checked against the code before writing, and
 where the check changed the diagnosis that is recorded here rather than
 quietly fixed.
 
+- [ ] 🟡 ❓ **Multiple cursors in the PR view** — raised 2026-08-17 while
+      dogfooding the chat. The ask as stated: "no multiple cursor support in
+      the pr view". Open design question before building: what should a
+      second cursor DO here? The plausible readings are (a) several
+      non-contiguous line ranges selected at once, so `l` feeds the chat all
+      of them and `c` opens one comment per range; (b) editor-style
+      mod+click ghost cursors, which have no obvious meaning over a
+      read-only diff. Reading (a) is the useful one and touches the
+      selection model (`LineSelection` is a single contiguous range today),
+      the drag hook, `l`'s capture, and the comment composer's one-range
+      assumption. Sized medium; confirm reading (a) with the owner first.
 - [x] 🟡 **Keyboard file order does not match the tree** — shipped
       2026-08-17. Took the second option: `treeOrder` (beside `buildFileTree`,
       so one implementation defines the order) sorts the files once as they

@@ -298,7 +298,7 @@ function ActivityTrail({
           ) : (
             <ChevronRight aria-hidden size={11} />
           ))}
-        {label}
+        <span className="qch-trail-label">{label}</span>
         {running && turn.activity.length > 0 && (
           <span className="qch-trail-now">{turn.activity.at(-1)}</span>
         )}

@@ -225,17 +225,27 @@
   margin-bottom: 5px;
 }
 
+/* One line, always: the elapsed label holds its shape ("Working… 1m 37s"
+   was wrapping between the minutes and the seconds at panel widths), and
+   whatever the model is doing right now gives way with an ellipsis. */
 .qch-trail-head {
-  display: inline-flex;
+  display: flex;
   gap: 5px;
   align-items: center;
+  width: 100%;
   max-width: 100%;
   padding: 0;
   font-size: 11.5px;
   color: var(--faint);
+  text-align: left;
   cursor: pointer;
   background: transparent;
   border: none;
+}
+
+.qch-trail-label {
+  flex: none;
+  white-space: nowrap;
 }
 
 .qch-trail-head:disabled {

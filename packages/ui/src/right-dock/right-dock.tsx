@@ -34,9 +34,9 @@ import "./right-dock.css";
 
 export interface RightDockTab {
   id: string;
-  /** The key that reaches this tab. Printed beside the label because the
-   *  app is driven from the keyboard — a shortcut nobody can see is a
-   *  shortcut nobody uses. */
+  /** The key that reaches this tab, shown in the tab's tooltip — present
+   *  but not printed, the same discoverability contract every other
+   *  keyboard-first control in the app keeps. */
   kbd?: string;
   label: string;
 }
@@ -138,20 +138,16 @@ export function RightDock({
           {tabs.length > 1 ? (
             <div className="qf-dock-tabs">
               {tabs.map((tab) => (
-                <button
-                  aria-pressed={tab.id === activeTab}
-                  className="qf-dock-tab q-focus"
-                  key={tab.id}
-                  onClick={() => onSelectTab(tab.id)}
-                  type="button"
-                >
-                  {tab.label}
-                  {tab.kbd !== undefined && (
-                    <span aria-hidden className="qf-dock-tab-kbd">
-                      {tab.kbd}
-                    </span>
-                  )}
-                </button>
+                <Tooltip combo={tab.kbd} key={tab.id} label={tab.label}>
+                  <button
+                    aria-pressed={tab.id === activeTab}
+                    className="qf-dock-tab q-focus"
+                    onClick={() => onSelectTab(tab.id)}
+                    type="button"
+                  >
+                    {tab.label}
+                  </button>
+                </Tooltip>
               ))}
             </div>
           ) : (

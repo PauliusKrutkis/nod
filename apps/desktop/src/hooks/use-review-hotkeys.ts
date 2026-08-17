@@ -316,11 +316,14 @@ export function useReviewHotkeys(config: {
       description: "Chat about this PR (AI)",
       // Global because the toggle must also CLOSE: plain keys never fire in
       // an editable target, and the chat's own composer is where you are
-      // when you want the panel gone.
+      // when you want the panel gone. mod+l, not mod+m — ⌘M is macOS's
+      // window-minimise chord and the menu swallows it before the webview
+      // ever sees it (the Chromium e2e can't catch that). It also pairs
+      // with plain `l`, which feeds the chat a region.
       global: true,
       group: "General",
       icon: MessagesSquare,
-      keys: "mod+m",
+      keys: "mod+l",
       run: config.toggleChat,
     },
     {

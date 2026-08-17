@@ -142,10 +142,13 @@ whole files at the head commit.";
 const CHAT_SYSTEM_PROPOSALS: &str =
     "You can stage suggested review comments with propose_comment. Only do so \
 when the reviewer asked for review feedback (a review pass, a critique, 'leave \
-comments'); never for an ordinary question. Suggestions appear in the diff for \
-the reviewer to accept or discard — they are never posted directly. side is \
-LEFT for deleted lines and RIGHT for added or unchanged lines, and the line \
-numbers must fall inside the diff.";
+comments'); never for an ordinary question. When a review skill or pass \
+produces findings, STAGE each one with propose_comment rather than asking \
+which to stage: staging is not posting — every suggestion appears in the diff \
+as a pending comment the reviewer accepts or discards, and that IS the \
+confirmation step, even when the skill's own instructions say to confirm \
+before acting. side is LEFT for deleted lines and RIGHT for added or \
+unchanged lines, and the line numbers must fall inside the diff.";
 
 fn chat_system_prompt(snapshot_ready: bool, skills: bool, proposals: bool, diffs: bool) -> String {
     let mut parts = vec![CHAT_SYSTEM_BASE];
@@ -659,8 +662,12 @@ fn safe_source(source: &str) -> bool {
     })
 }
 
+/// Same 120s ceiling as ask_client: these run inside the tool loop, where
+/// the cancel flag is only checked BETWEEN calls — an unbounded request on a
+/// hung host would wedge the turn with a Stop that cannot land.
 fn catalog_client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(120))
         .build()
         .map_err(|e| format!("could not build http client: {e}"))
 }
@@ -1459,7 +1466,15 @@ pub async fn ai_chat(
                 },
             );
         }
-        messages.push(message_value);
+        // `finish_reason` rode the message out of the stream so empty_answer
+        // could read it; it is OUR bookkeeping, not part of the OpenAI
+        // message shape, and a gateway that validates assistant messages
+        // would 400 on it — strip it before the message is replayed.
+        let mut replayed = message_value.clone();
+        if let Some(map) = replayed.as_object_mut() {
+            map.remove("finish_reason");
+        }
+        messages.push(replayed);
         let tools_started = std::time::Instant::now();
         for call in calls {
             // A stop between tool calls stops here too: the reviewer pressed

@@ -37,7 +37,7 @@ const base = (over: Partial<RightDockProps>): RightDockProps => ({
 
 const TWO_TABS = [
   { id: "info", kbd: "i", label: "Info" },
-  { id: "chat", kbd: "⌘M", label: "Chat" },
+  { id: "chat", kbd: "mod+l", label: "Chat" },
 ];
 
 export const rightDockEntry = defineEntry(RightDock, {

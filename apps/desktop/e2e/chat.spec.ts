@@ -37,7 +37,7 @@ test("m with no key configured opens AI setup instead of the chat", async ({
 }) => {
   await setupApp(page);
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await expect(
     page.getByRole("dialog", { name: "Ask about code" })
   ).toBeVisible();
@@ -53,7 +53,7 @@ test("m opens the chat tab focused; a message round-trips with PR context", asyn
   await setupApp(page, CONFIGURED);
   await openReview(page);
 
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await expect(page.locator(".qf-drawer")).toHaveAttribute(
     "aria-hidden",
     "false"
@@ -89,7 +89,7 @@ test("scripted deltas stream into the transcript before the answer settles", asy
     aiChatScript: [{ delta: "First half " }, { delta: "and the rest." }],
   });
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await composer(page).fill("Stream it");
   await page.keyboard.press("Enter");
 
@@ -111,7 +111,7 @@ test("tool activity shows while the model is working the repo", async ({
     ],
   });
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await composer(page).fill("Dig into the repo");
   await page.keyboard.press("Enter");
 
@@ -133,7 +133,7 @@ test("the trail opens to what the model actually did", async ({ page }) => {
     ],
   });
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await composer(page).fill("Review it");
   await page.keyboard.press("Enter");
 
@@ -160,7 +160,7 @@ test("reasoning streams while the answer is still forming", async ({
     aiChatScript: [{ reasoning: "Weighing the two call sites." }],
   });
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await composer(page).fill("Think about it");
   await page.keyboard.press("Enter");
 
@@ -178,7 +178,7 @@ test("an answer carries a copy button and the newest turn shows its time", async
 }) => {
   await setupApp(page, CONFIGURED);
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await composer(page).fill("When was this?");
   await page.keyboard.press("Enter");
   await expect(
@@ -209,7 +209,7 @@ test("an answer carries a copy button and the newest turn shows its time", async
 test("a follow-up carries the settled history", async ({ page }) => {
   await setupApp(page, CONFIGURED);
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
 
   await composer(page).fill("First question");
   await page.keyboard.press("Enter");
@@ -239,7 +239,7 @@ test("stop cancels the turn and keeps what streamed", async ({ page }) => {
     aiChatScript: [{ delta: "Partial thought" }],
   });
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await composer(page).fill("Never finishes");
   await page.keyboard.press("Enter");
 
@@ -254,7 +254,7 @@ test("stop cancels the turn and keeps what streamed", async ({ page }) => {
 test("the conversation survives a reload", async ({ page }) => {
   await setupApp(page, CONFIGURED);
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await composer(page).fill("Remember me");
   await page.keyboard.press("Enter");
   await expect(
@@ -263,7 +263,7 @@ test("the conversation survives a reload", async ({ page }) => {
 
   await page.reload();
   await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await expect(
     chatPanel(page).locator(".qch-scroll").getByText("Remember me")
   ).toBeVisible();
@@ -275,7 +275,7 @@ test("the conversation survives a reload", async ({ page }) => {
 test("an error settles as an error card, not a lost turn", async ({ page }) => {
   await setupApp(page, { ...CONFIGURED, aiChatAnswer: "error" });
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await composer(page).fill("Break please");
   await page.keyboard.press("Enter");
   await expect(chatPanel(page).getByRole("alert")).toContainText(
@@ -296,7 +296,7 @@ test("i and m share the panel: tabs switch, second press of the owner closes", a
     page.getByRole("heading", { name: "Description" })
   ).toBeVisible();
 
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await expect(composer(page)).toBeFocused();
 
   await page.keyboard.press("Escape");
@@ -313,12 +313,12 @@ test("i and m share the panel: tabs switch, second press of the owner closes", a
 test("mod+m closes the chat from inside the composer", async ({ page }) => {
   await setupApp(page, CONFIGURED);
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await expect(composer(page)).toBeFocused();
 
   // The point of the mod: a plain key can never fire while the composer has
   // focus, so a plain `m` could open the panel but not close it.
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await expect(page.locator(".qf-drawer")).toHaveAttribute(
     "aria-hidden",
     "true"
@@ -330,7 +330,7 @@ test("esc in the chat composer returns to the diff; esc again closes the panel",
 }) => {
   await setupApp(page, CONFIGURED);
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await expect(composer(page)).toBeFocused();
 
   await page.keyboard.press("Escape");
@@ -448,7 +448,7 @@ test("clicking a region chip selects those lines back in the diff", async ({
 test("a pasted chip finds its code in the diff", async ({ page }) => {
   await setupApp(page, CONFIGURED);
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   const paste = (text: string) =>
     page.evaluate((clip) => {
       const el = document.querySelector<HTMLElement>(".qcc-field");
@@ -484,7 +484,7 @@ test("a paste from outside the pull request has nowhere to jump", async ({
   await setupApp(page, CONFIGURED);
   await openReview(page);
   await cursorToTuned(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await composer(page).focus();
   await page.evaluate(() => {
     const el = document.querySelector<HTMLElement>(".qcc-field");
@@ -523,7 +523,7 @@ test("l inside the composer types the letter instead of chipping", async ({
 }) => {
   await setupApp(page, CONFIGURED);
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await composer(page).pressSequentially("l");
   await expect(composer(page)).toHaveText("l");
   await expect(chatPanel(page).locator(".qcc-chip")).toHaveCount(0);
@@ -534,11 +534,11 @@ test("a chat draft survives closing and reopening the panel", async ({
 }) => {
   await setupApp(page, CONFIGURED);
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await composer(page).pressSequentially("half a thought");
   await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await expect(composer(page)).toHaveText("half a thought");
 });
 
@@ -547,7 +547,7 @@ test("a multi-line paste becomes a chip; single lines paste as text", async ({
 }) => {
   await setupApp(page, CONFIGURED);
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
 
   const paste = (text: string) =>
     page.evaluate((clip) => {
@@ -596,7 +596,7 @@ test("a message sent mid-turn queues and goes out when the turn settles", async 
     aiChatScript: [{ delta: "Thinking it over. " }],
   });
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await composer(page).pressSequentially("first question");
   await page.keyboard.press("Enter");
   await expect(chatPanel(page).getByText("Thinking it over.")).toBeVisible();
@@ -604,7 +604,9 @@ test("a message sent mid-turn queues and goes out when the turn settles", async 
   // Enter mid-turn parks the message, visibly, instead of dying.
   await composer(page).pressSequentially("and a follow-up");
   await page.keyboard.press("Enter");
-  await expect(chatPanel(page).getByText("Next: and a follow-up")).toBeVisible();
+  await expect(
+    chatPanel(page).getByText("Next: and a follow-up")
+  ).toBeVisible();
 
   // Stop settles the first turn; the parked one goes out as its own turn.
   await chatPanel(page).getByRole("button", { name: "Stop" }).click();
@@ -626,7 +628,7 @@ test("a queued message can be discarded before it sends", async ({ page }) => {
     aiChatScript: [{ delta: "Working. " }],
   });
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await composer(page).pressSequentially("first");
   await page.keyboard.press("Enter");
   await composer(page).pressSequentially("changed my mind");
@@ -648,7 +650,7 @@ test("new chat starts a second thread; the picker switches and deletes", async (
 }) => {
   await setupApp(page, CONFIGURED);
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
 
   await composer(page).fill("First question");
   await page.keyboard.press("Enter");
@@ -687,7 +689,7 @@ test("threads survive a reload and v1 history migrates into one thread", async (
 }) => {
   await setupApp(page, CONFIGURED);
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await composer(page).fill("Keep this thread");
   await page.keyboard.press("Enter");
   await expect(
@@ -705,7 +707,7 @@ test("threads survive a reload and v1 history migrates into one thread", async (
   });
   await page.reload();
   await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await expect(
     chatPanel(page).locator(".qch-scroll").getByText("Keep this thread")
   ).toBeVisible();
@@ -750,7 +752,7 @@ test("the model button swaps the chat's model and the pick rides the send", asyn
 }) => {
   await setupApp(page, CONFIGURED);
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
 
   const modelButton = page.locator(".qch-model");
   await expect(modelButton).toContainText("gpt-4o");
@@ -769,7 +771,7 @@ test("the model button swaps the chat's model and the pick rides the send", asyn
 
   await page.reload();
   await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await expect(page.locator(".qch-model")).toContainText("claude-sonnet");
 });
 
@@ -778,7 +780,7 @@ test("the diff rides the request so read_diff has hunks to serve", async ({
 }) => {
   await setupApp(page, CONFIGURED);
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await composer(page).fill("Review the diff");
   await page.keyboard.press("Enter");
   const args = await readChatArgs(page);
@@ -794,7 +796,7 @@ test("a snapshot still downloading is said out loud in the composer", async ({
 }) => {
   await setupApp(page, { ...CONFIGURED, snapshotState: "downloading" });
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await expect(
     chatPanel(page).getByText("Fetching the repository", { exact: false })
   ).toBeVisible();
@@ -814,7 +816,7 @@ test("/ offers find-skill even when the repo has none of its own", async ({
     ],
   });
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await composer(page).pressSequentially("/");
   await expect(chatPanel(page).getByText("find-skill")).toBeVisible();
 });
@@ -830,7 +832,7 @@ test("skills found only after the snapshot lands still reach the picker", async 
     snapshotState: "downloading",
   });
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await page.evaluate(() => {
     (
       window as unknown as { __setSnapshotState: (s: string) => void }
@@ -866,7 +868,7 @@ test("/ lists the repo's skills; arrows and Enter pick one as a chip", async ({
 }) => {
   await setupApp(page, SKILLS_SETUP);
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
 
   await composer(page).pressSequentially("/");
   const panel = page.locator(".qcs-panel");
@@ -885,7 +887,7 @@ test("a typed prefix narrows the skills and the pick rides the send", async ({
 }) => {
   await setupApp(page, SKILLS_SETUP);
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
 
   await composer(page).pressSequentially("/pr");
   const panel = page.locator(".qcs-panel");
@@ -909,7 +911,7 @@ test("the picker says what each skill does, and Tab takes the pick", async ({
 }) => {
   await setupApp(page, SKILLS_SETUP);
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
 
   await composer(page).pressSequentially("/");
   await expect(page.locator(".qcs-hint").first()).toHaveText(
@@ -947,7 +949,7 @@ test("a skill runs on its own, with nothing typed after it", async ({
 }) => {
   await setupApp(page, SKILLS_SETUP);
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
 
   await composer(page).pressSequentially("/pr");
   await page.keyboard.press("Tab");
@@ -962,7 +964,7 @@ test("a skill runs on its own, with nothing typed after it", async ({
 test("a shy timestamp goes away with the pointer", async ({ page }) => {
   await setupApp(page, { ...CONFIGURED, aiChatAnswer: "First answer." });
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await composer(page).pressSequentially("one");
   await page.keyboard.press("Enter");
   await expect(chatPanel(page).getByText("First answer.")).toBeVisible();
@@ -982,7 +984,7 @@ test("a shy timestamp goes away with the pointer", async ({ page }) => {
 test("a skill-only thread is named by the skill it ran", async ({ page }) => {
   await setupApp(page, SKILLS_SETUP);
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
 
   // Nothing was typed, so there is no first line to name the thread with —
   // the skill is what this conversation is.
@@ -999,7 +1001,7 @@ test("two skills ride one message, in the order they were invoked", async ({
 }) => {
   await setupApp(page, SKILLS_SETUP);
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
 
   await composer(page).pressSequentially("/security");
   await page.keyboard.press("Tab");
@@ -1028,7 +1030,7 @@ test("escape leaves the composer while a turn runs; Stop still stops", async ({
     aiChatScript: [{ delta: "Reading the diff" }],
   });
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await composer(page).pressSequentially("what changed?");
   await page.keyboard.press("Enter");
   await expect(chatPanel(page).getByText("Reading the diff")).toBeVisible();
@@ -1055,7 +1057,7 @@ test("the skill chip removes; a repo with no skills offers nothing on /", async 
 }) => {
   await setupApp(page, SKILLS_SETUP);
   await openReview(page);
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
 
   await composer(page).pressSequentially("/pr");
   await page.keyboard.press("Enter");
@@ -1091,7 +1093,7 @@ const PROPOSAL_SETUP = {
 };
 
 async function stageProposal(page: Page) {
-  await page.keyboard.press("ControlOrMeta+m");
+  await page.keyboard.press("ControlOrMeta+l");
   await composer(page).pressSequentially("Review this PR");
   await page.keyboard.press("Enter");
   await expect(chatPanel(page).locator(".qch-staged-go")).toHaveCount(1);

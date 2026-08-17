@@ -384,12 +384,26 @@ impl GitHubPlatform {
         let signed = reqwest::Client::builder()
             .build()
             .map_err(|e| format!("could not build http client: {e}"))?;
-        let resp = signed
-            .get(location)
+        // codeload throttles bursts — several PRs prefetching snapshots at
+        // once answer 429/503 and then succeed moments later — so a
+        // retryable status gets one second chance before it becomes an
+        // error. One, not a loop: a host that is really down should say so
+        // quickly.
+        let mut resp = signed
+            .get(&location)
             .header(reqwest::header::USER_AGENT, "nod")
             .send()
             .await
             .map_err(net_err)?;
+        if matches!(resp.status().as_u16(), 429 | 500..=599) {
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            resp = signed
+                .get(&location)
+                .header(reqwest::header::USER_AGENT, "nod")
+                .send()
+                .await
+                .map_err(net_err)?;
+        }
         // The signed URL is the second half of the same fetch, and it fails
         // for its own reasons (an expired signature, a commit GitHub will
         // redirect for but not serve). Naming the half that failed is the
