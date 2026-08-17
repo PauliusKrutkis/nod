@@ -430,15 +430,51 @@ test("clicking a region chip selects those lines back in the diff", async ({
   ).toBeVisible();
 });
 
-test("a pasted chip has nothing to reveal, only a remove", async ({ page }) => {
+test("a pasted chip finds its code in the diff", async ({ page }) => {
   await setupApp(page, CONFIGURED);
   await openReview(page);
+  await page.keyboard.press("m");
+  const paste = (text: string) =>
+    page.evaluate((clip) => {
+      const el = document.querySelector<HTMLElement>(".qcc-field");
+      const data = new DataTransfer();
+      data.setData("text/plain", clip);
+      el?.dispatchEvent(
+        new ClipboardEvent("paste", {
+          bubbles: true,
+          cancelable: true,
+          clipboardData: data,
+        })
+      );
+    }, text);
+
+  // Code the reviewer pasted from somewhere else still belongs to a line in
+  // this diff — clicking the chip is how they ask where.
+  await composer(page).focus();
+  await paste("  // tuned\n  return 2;");
+  await expect(chatPanel(page).locator(".qcc-chip")).toHaveCount(1);
+  await chatPanel(page).locator(".qcc-chip").click();
+  await expect(page.locator(".qf-row-selected")).toHaveCount(2);
+  await expect(
+    page.locator('.qf-row-active[data-anchor="RIGHT:3"]')
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Remove pasted code" }).click();
+  await expect(chatPanel(page).locator(".qcc-chip")).toHaveCount(0);
+});
+
+test("a paste from outside the pull request has nowhere to jump", async ({
+  page,
+}) => {
+  await setupApp(page, CONFIGURED);
+  await openReview(page);
+  await cursorToTuned(page);
   await page.keyboard.press("m");
   await composer(page).focus();
   await page.evaluate(() => {
     const el = document.querySelector<HTMLElement>(".qcc-field");
     const data = new DataTransfer();
-    data.setData("text/plain", "const a = 1;\nconst b = 2;");
+    data.setData("text/plain", "const nothing = true;\nconst here = false;");
     el?.dispatchEvent(
       new ClipboardEvent("paste", {
         bubbles: true,
@@ -448,13 +484,13 @@ test("a pasted chip has nothing to reveal, only a remove", async ({ page }) => {
     );
   });
   await expect(chatPanel(page).locator(".qcc-chip")).toHaveCount(1);
-  await expect(chatPanel(page).getByText("pasted code (2 lines)")).toBeVisible();
 
-  // Nothing to reveal, so a click is not a jump — only the × removes it.
+  // The cursor stays where the reviewer left it — a near-match jump would be
+  // a guess, and a wrong one moves them off what they were reading.
   await chatPanel(page).locator(".qcc-chip").click();
-  await expect(chatPanel(page).locator(".qcc-chip")).toHaveCount(1);
-  await page.getByRole("button", { name: "Remove pasted code" }).click();
-  await expect(chatPanel(page).locator(".qcc-chip")).toHaveCount(0);
+  await expect(
+    page.locator('.qf-row-active[data-anchor="RIGHT:2"]')
+  ).toBeVisible();
 });
 
 test("l with no cursor opens the chat focused without a chip", async ({
@@ -765,10 +801,10 @@ test("/ lists the repo's skills; arrows and Enter pick one as a chip", async ({
 
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("Enter");
-  await expect(chatPanel(page).locator(".qch-skill-chip")).toContainText(
+  // The skill lands in the field as a chip, where the code chips are.
+  await expect(chatPanel(page).locator(".qcc-chip-skill")).toContainText(
     "/security-pass"
   );
-  await expect(composer(page)).toHaveText("");
 });
 
 test("a typed prefix narrows the skills and the pick rides the send", async ({
@@ -782,18 +818,16 @@ test("a typed prefix narrows the skills and the pick rides the send", async ({
   const panel = page.locator(".qcs-panel");
   await expect(panel.getByRole("button")).toHaveCount(1);
   await page.keyboard.press("Enter");
-  await expect(chatPanel(page).locator(".qch-skill-chip")).toContainText(
+  await expect(chatPanel(page).locator(".qcc-chip-skill")).toContainText(
     "/pr-validity"
   );
 
-  await composer(page).fill("Run it on this PR");
+  await composer(page).pressSequentially("Run it on this PR");
   await page.keyboard.press("Enter");
   const args = await readChatArgs(page);
   expect(args.skill).toBe("pr-validity");
   expect(args.message).toBe("Run it on this PR");
-  await expect(
-    chatPanel(page).locator(".qch-composer .qch-skill-chip")
-  ).toHaveCount(0);
+  await expect(chatPanel(page).locator(".qcc-chip-skill")).toHaveCount(0);
   await expect(chatPanel(page).getByText("/pr-validity")).toBeVisible();
 });
 
@@ -807,7 +841,15 @@ test("the skill chip removes; a repo with no skills offers nothing on /", async 
   await composer(page).pressSequentially("/pr");
   await page.keyboard.press("Enter");
   await page.getByRole("button", { name: "Remove skill pr-validity" }).click();
-  await expect(chatPanel(page).locator(".qch-skill-chip")).toHaveCount(0);
+  await expect(chatPanel(page).locator(".qcc-chip-skill")).toHaveCount(0);
+
+  // Backspace reaches it too, like any other chip.
+  await composer(page).pressSequentially("/pr");
+  await expect(page.locator(".qcs-panel")).toHaveCount(1);
+  await page.keyboard.press("Enter");
+  await expect(chatPanel(page).locator(".qcc-chip-skill")).toHaveCount(1);
+  await page.keyboard.press("Backspace");
+  await expect(chatPanel(page).locator(".qcc-chip-skill")).toHaveCount(0);
 
   await composer(page).pressSequentially("/nothing-matches");
   await expect(page.locator(".qcs-panel")).toHaveCount(0);

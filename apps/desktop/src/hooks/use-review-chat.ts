@@ -66,7 +66,6 @@ function settledTrail(live: LiveTurn | null) {
 
 const EMPTY_TURNS: ChatTurnRecord[] = [];
 const EMPTY_PENDING: PendingComment[] = [];
-const SLASH_QUERY = /^\/\S*$/;
 const EMPTY_SKILLS: SkillInfo[] = [];
 const EMPTY_THREADS: ChatThread[] = [];
 
@@ -216,21 +215,19 @@ function emptyHint(loading: boolean): string {
  *  else is prose. Dismissing it is per-query, so Escape closes the list
  *  without also cancelling the slash you just typed. */
 function useSlashSuggestions(args: {
-  draft: string;
   loading: boolean;
   onPick: (name: string) => void;
   skill: string | null;
   skillNames: string[];
+  /** What the caret is typing after a `/`, straight from the field. */
+  slash: string | null;
 }): ChatSuggestionsState | null {
   const [index, setIndex] = useState(0);
-  // Dismissal remembers the exact draft it applied to, so Escape closes the
+  // Dismissal remembers the exact query it applied to, so Escape closes the
   // list and the next keystroke opens it again — no effect to keep in sync.
   const [dismissedFor, setDismissedFor] = useState<string | null>(null);
-  const open =
-    args.skill === null &&
-    SLASH_QUERY.test(args.draft) &&
-    args.draft !== dismissedFor;
-  const query = open ? args.draft.slice(1) : null;
+  const query =
+    args.skill === null && args.slash !== dismissedFor ? args.slash : null;
   const items = query === null ? [] : matchCanned(query, args.skillNames, 0);
   const selected = Math.min(index, Math.max(items.length - 1, 0));
 
@@ -240,7 +237,7 @@ function useSlashSuggestions(args: {
   return {
     emptyHint: items.length > 0 ? null : emptyHint(args.loading),
     items,
-    onDismiss: () => setDismissedFor(args.draft),
+    onDismiss: () => setDismissedFor(query),
     onMove: (delta) =>
       setIndex(Math.min(Math.max(selected + delta, 0), items.length - 1)),
     onPick: args.onPick,
@@ -379,8 +376,8 @@ export function useReviewChat(args: {
   const stagedByAi = useAppStore(
     (s) => s.pendingComments[keyValue] ?? EMPTY_PENDING
   ).filter((c) => c.fromAi);
-  const [draft, setDraftState] = useState("");
   const [skill, setSkill] = useState<string | null>(null);
+  const [slash, setSlash] = useState<string | null>(null);
   const [live, setLive] = useState<LiveTurn | null>(null);
   const liveRef = useLatest(live);
   // Turns the stop button already wrote out; their mutation still resolves.
@@ -420,18 +417,21 @@ export function useReviewChat(args: {
     persistChatModel(next);
   };
 
+  // Picking a skill swaps the `/query` the reviewer typed for a chip in the
+  // field — the same token a code region gets, removable the same ways, and
+  // whatever else they had typed stays put. The state here mirrors the chip
+  // only so the request can carry the skill beside the message.
   const pickSkill = (name: string) => {
-    setSkill(name);
-    setDraftState("");
-    args.composerRef.current?.clear();
-    args.composerRef.current?.focus();
+    // `/` plus what has been typed after it — the characters the chip stands
+    // in for.
+    args.composerRef.current?.insertSkill(name, (slash?.length ?? 0) + 1);
   };
   const suggestions = useSlashSuggestions({
-    draft,
     loading: skills.isPending && args.active,
     onPick: pickSkill,
     skill,
     skillNames,
+    slash,
   });
 
   useChatStream(setLive);
@@ -528,6 +528,9 @@ export function useReviewChat(args: {
   );
 
   const send = (parts: ChatPart[]): boolean => {
+    // The chip in the field is the truth about which skill this message runs;
+    // the state is only its mirror, kept for the `/` picker's gating.
+    const skill = args.composerRef.current?.skill() ?? null;
     const text = parts
       .filter((p) => p.kind === "text")
       .map((p) => (p.kind === "text" ? p.text : ""))
@@ -653,7 +656,6 @@ export function useReviewChat(args: {
 
   const newChat = () => {
     setActiveThreadId(null);
-    setDraftState("");
     setSkill(null);
   };
 
@@ -695,9 +697,9 @@ export function useReviewChat(args: {
     // to stop something that is, as far as the reviewer is concerned, over.
     pending: chat.isPending && live !== null,
     skills: skills.data ?? EMPTY_SKILLS,
-    removeSkill: () => setSkill(null),
     send,
-    onComposerChange: setDraftState,
+    onSkillChange: setSkill,
+    onSlashQuery: setSlash,
     skill,
     stop,
     staged: stagedByAi.map((c) => ({

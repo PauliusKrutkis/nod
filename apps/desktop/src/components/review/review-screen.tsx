@@ -56,6 +56,7 @@ import {
 } from "../../lib/code-dom.ts";
 import { warmHighlightCache } from "../../lib/highlight.ts";
 import { isImageFile } from "../../lib/image-file.ts";
+import { locatePastedCode } from "../../lib/locate-code.ts";
 import {
   type OccurrenceMatch,
   occurrenceMatches,
@@ -942,8 +943,16 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     setSelection,
   });
 
-  const onRevealChatRegion = (region: ChatRegion) => {
+  const onRevealChatRegion = (chip: ChatRegion) => {
     const model = modelRef.current;
+    // A pasted chip knows its text but not where it came from. Find it in the
+    // diff first; if it isn't in this pull request, there is nowhere to go.
+    const region = chip.filePath
+      ? chip
+      : { ...chip, ...(locatePastedCode(filesRef.current, chip.code) ?? {}) };
+    if (!region.filePath) {
+      return;
+    }
     const fileIndex = filesRef.current.findIndex(
       (f) => f.filename === region.filePath
     );

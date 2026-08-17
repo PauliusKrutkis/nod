@@ -47,6 +47,13 @@
   border-radius: var(--r-pill);
 }
 
+/* A skill is an instruction, not a snippet: same token, accent-drawn, so a
+   glance at the field says what this message will run. */
+.qcc-chip-skill {
+  color: var(--accent);
+  border-color: var(--accent-line);
+}
+
 .qcc-chip:hover {
   color: var(--accent);
   border-color: var(--accent-line);

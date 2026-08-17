@@ -140,14 +140,14 @@ export interface ChatPanelProps {
    *  point at, so the composer only calls this for a region chip. */
   onRevealRegion?: (region: ChatRegionChip) => void;
   onSend: () => void;
+  onSkillChange?: (name: string | null) => void;
+  onSlashQuery?: (query: string | null) => void;
   onStop: () => void;
-  onRemoveSkill?: () => void;
   /** How many skills are reachable right now — the button says "Add skills"
    *  when there are none, which is the honest empty state. */
   pending: boolean;
   staged?: ChatStagedState | null;
   renderMarkdown?: (text: string) => ReactNode;
-  skill?: string | null;
   suggestions?: ChatSuggestionsState | null;
   threads?: ChatThreadsState | null;
   turns: readonly ChatPanelTurn[];
@@ -366,14 +366,14 @@ export function ChatPanel({
   focusSeq,
   model = null,
   onEscape,
-  onRemoveSkill,
   onRevealRegion,
   onSend,
+  onSkillChange,
+  onSlashQuery,
   onStop,
   pending,
   staged = null,
   renderMarkdown = plainText,
-  skill = null,
   suggestions = null,
   threads = null,
   turns,
@@ -615,21 +615,6 @@ export function ChatPanel({
           ))}
         {contextNote !== null && <p className="qch-note">{contextNote}</p>}
         <div className="qch-composer">
-          {skill !== null && (
-            <div className="qch-chips">
-              <span className="qch-chip qch-skill-chip">
-                <span className="qch-chip-label">/{skill}</span>
-                <button
-                  aria-label={`Remove skill ${skill}`}
-                  className="qch-chip-x"
-                  onClick={onRemoveSkill}
-                  type="button"
-                >
-                  <X size={11} />
-                </button>
-              </span>
-            </div>
-          )}
           <div className="qch-field">
             <ChatComposer
               onChange={onComposerChange}
@@ -637,6 +622,8 @@ export function ChatPanel({
               onKeyDown={onComposerKeyDown}
               onRevealRegion={onRevealRegion}
               onSend={send}
+              onSkillChange={onSkillChange}
+              onSlashQuery={onSlashQuery}
               placeholder={
                 turns.length > 0 ? "Reply…" : "Ask about this pull request…"
               }

@@ -35,6 +35,10 @@ import "./right-dock.css";
 
 export interface RightDockTab {
   id: string;
+  /** The key that reaches this tab. Printed beside the label because the
+   *  app is driven from the keyboard — a shortcut nobody can see is a
+   *  shortcut nobody uses. */
+  kbd?: string;
   label: string;
 }
 
@@ -143,6 +147,11 @@ export function RightDock({
                   type="button"
                 >
                   {tab.label}
+                  {tab.kbd !== undefined && (
+                    <span aria-hidden className="qf-dock-tab-kbd">
+                      {tab.kbd}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>

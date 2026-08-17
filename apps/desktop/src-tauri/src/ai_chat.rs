@@ -258,7 +258,7 @@ const SKILLS_PREFIX: &str = ".claude/skills/";
 const BUILTIN_SKILLS: &[(&str, &str, &str)] = &[(
     "find-skill",
     "Find a skill for what you are about to do, or write one",
-    "The reviewer wants a skill for a task. Work in this order.\n\n1. Call list_skills. If one already covers the task, say which, quote its description, and tell them to invoke it with a leading slash — then stop.\n2. If none fits, ask what the skill should check, unless the reviewer already said. Keep it to one question.\n3. Draft the skill: a short kebab-case name, a one-line description, and instructions written as directions to a reviewer — what to look for, what to flag, what to leave alone. Ground them in this repository's conventions where you can read them.\n4. Show the draft, then call write_skill to save it. Say that it lives in the personal skills folder and is available from the next message.\n\nNever invent a skill that already exists under another name, and never write one without showing it first.",
+    "The reviewer wants a skill for a task. Work in this order.\n\n1. Call list_skills. If one already covers the task, say which, quote its description, and tell them to invoke it with a leading slash — then stop.\n2. If none fits, and you do not know what they want a skill for, ask. One question, then wait.\n3. Call search_skills with what they told you. It searches the public catalog, which is far wider than what is installed here. Show the best few hits as a short list: name, where it comes from, how many installs.\n4. When they pick one, call fetch_skill and show the instructions — the whole thing if it is short, the substance of it if it is long. A skill is instructions you will follow over their code, so they read it before it lands, never after.\n5. Save it with write_skill only once they have said yes, keeping the author's text.\n\nIf the catalog has nothing that fits, offer to write one instead: draft a short kebab-case name, a one-line description, and instructions grounded in this repository's conventions, show the draft, and save it the same way. Never write a skill without showing it first, and never invent one that already exists under another name."
 )];
 
 fn builtin_skills() -> Vec<SkillInfo> {
@@ -478,6 +478,150 @@ fn discover_skills(root: &std::path::Path, key: &SnapshotKey) -> Vec<SkillInfo> 
     out
 }
 
+/// The public skills catalog (skills.sh), the same index `npx skills find`
+/// searches. Nod reads it and nothing else: no install step, no code fetched
+/// and run. A found skill is fetched as text, shown in the chat, and only
+/// written to disk when the reviewer says so — the supply-chain decision
+/// stays theirs, made against the actual instructions rather than a name.
+const SKILLS_CATALOG: &str = "https://skills.sh/api/search";
+const MAX_CATALOG_HITS: usize = 8;
+
+fn url_query(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() * 3);
+    for b in s.as_bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                out.push(*b as char)
+            }
+            b' ' => out.push('+'),
+            _ => out.push_str(&format!("%{:02X}", b)),
+        }
+    }
+    out
+}
+
+/// "owner/repo", and nothing that could steer a URL somewhere else.
+fn safe_source(source: &str) -> bool {
+    let mut parts = source.split('/');
+    let (Some(owner), Some(repo), None) = (parts.next(), parts.next(), parts.next()) else {
+        return false;
+    };
+    [owner, repo].iter().all(|part| {
+        !part.is_empty()
+            && part
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
+            && *part != "."
+            && *part != ".."
+    })
+}
+
+fn catalog_client() -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .build()
+        .map_err(|e| format!("could not build http client: {e}"))
+}
+
+async fn search_public_skills(query: &str) -> String {
+    if query.trim().is_empty() {
+        return "error: search_skills needs something to search for".to_string();
+    }
+    let Ok(client) = catalog_client() else {
+        return "error: could not reach the catalog".to_string();
+    };
+    let url = format!("{SKILLS_CATALOG}?q={}", url_query(query.trim()));
+    let response = match client
+        .get(url)
+        .header(reqwest::header::USER_AGENT, "nod")
+        .send()
+        .await
+    {
+        Ok(r) if r.status().is_success() => r,
+        Ok(r) => return format!("error: the catalog answered {}", r.status().as_u16()),
+        Err(e) => return format!("error: could not reach the catalog ({e})"),
+    };
+    let Ok(body) = response.json::<Value>().await else {
+        return "error: the catalog answered with something unreadable".to_string();
+    };
+    let mut lines = Vec::new();
+    let mut seen = HashSet::new();
+    for hit in body
+        .get("skills")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        let name = hit.get("name").and_then(Value::as_str).unwrap_or_default();
+        let source = hit
+            .get("source")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if name.is_empty()
+            || !safe_source(source)
+            || !seen.insert((name.to_string(), source.to_string()))
+        {
+            continue;
+        }
+        let installs = hit.get("installs").and_then(Value::as_u64).unwrap_or(0);
+        lines.push(format!("{name} — {source} ({installs} installs)"));
+        if lines.len() == MAX_CATALOG_HITS {
+            break;
+        }
+    }
+    if lines.is_empty() {
+        return "(the catalog had nothing for that)".to_string();
+    }
+    lines.join("\n")
+}
+
+/// One catalog skill's instructions, verbatim. The repository's file tree
+/// names the path — skills sit at any depth — and the raw file is read
+/// unauthenticated, so no account credential reaches a third-party host.
+async fn fetch_public_skill(source: &str, name: &str) -> String {
+    if !safe_source(source) || !safe_skill_name(name) {
+        return "error: that source and name pair is not one I can fetch".to_string();
+    }
+    let Ok(client) = catalog_client() else {
+        return "error: could not reach GitHub".to_string();
+    };
+    let tree_url = format!("https://api.github.com/repos/{source}/git/trees/HEAD?recursive=1");
+    let tree = match client
+        .get(tree_url)
+        .header(reqwest::header::USER_AGENT, "nod")
+        .send()
+        .await
+    {
+        Ok(r) if r.status().is_success() => r.json::<Value>().await.unwrap_or(Value::Null),
+        Ok(r) => return format!("error: {source} answered {}", r.status().as_u16()),
+        Err(e) => return format!("error: could not read {source} ({e})"),
+    };
+    let wanted = format!("{name}/SKILL.md");
+    let Some(path) = tree
+        .get("tree")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|entry| entry.get("path").and_then(Value::as_str))
+        .find(|path| *path == wanted || path.ends_with(&format!("/{wanted}")))
+    else {
+        return format!("error: {source} has no skill called {name}");
+    };
+    let raw = format!("https://raw.githubusercontent.com/{source}/HEAD/{path}");
+    match client
+        .get(raw)
+        .header(reqwest::header::USER_AGENT, "nod")
+        .send()
+        .await
+    {
+        Ok(r) if r.status().is_success() => match r.text().await {
+            Ok(body) => body.chars().take(MAX_SKILL_BODY_CHARS).collect(),
+            Err(e) => format!("error: could not read the skill ({e})"),
+        },
+        Ok(r) => format!("error: the skill file answered {}", r.status().as_u16()),
+        Err(e) => format!("error: could not fetch the skill ({e})"),
+    }
+}
+
 fn execute_skill_tool(
     snapshot: Option<&(std::path::PathBuf, SnapshotKey)>,
     personal: Option<&std::path::Path>,
@@ -560,6 +704,35 @@ fn skills_tools() -> Vec<Value> {
                     "type": "object",
                     "properties": { "name": { "type": "string" } },
                     "required": ["name"]
+                }
+            }
+        }),
+        serde_json::json!({
+            "type": "function",
+            "function": {
+                "name": "search_skills",
+                "description": "Search the public skills catalog (skills.sh) for skills other people have published. Returns 'name — owner/repo (installs)' lines.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": { "type": "string", "description": "what the reviewer wants a skill for, in a few words" }
+                    },
+                    "required": ["query"]
+                }
+            }
+        }),
+        serde_json::json!({
+            "type": "function",
+            "function": {
+                "name": "fetch_skill",
+                "description": "Read a catalogued skill's instructions. Show them to the reviewer before saving anything.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "source": { "type": "string", "description": "the owner/repo from search_skills" },
+                        "name": { "type": "string", "description": "the skill name from search_skills" }
+                    },
+                    "required": ["source", "name"]
                 }
             }
         }),
@@ -815,6 +988,14 @@ fn tool_note(name: &str, arguments: &str) -> String {
             None => "Reading the diff".to_string(),
         },
         "list_skills" => "Listing skills".to_string(),
+        "search_skills" => match args.get("query").and_then(Value::as_str) {
+            Some(query) => format!("Searching skills for \"{query}\""),
+            None => "Searching the skills catalog".to_string(),
+        },
+        "fetch_skill" => match args.get("name").and_then(Value::as_str) {
+            Some(name) => format!("Reading the {name} skill"),
+            None => "Reading a catalogued skill".to_string(),
+        },
         "write_skill" => match args.get("name").and_then(Value::as_str) {
             Some(name) => format!("Writing the {name} skill"),
             None => "Writing a skill".to_string(),
@@ -1080,7 +1261,17 @@ pub async fn ai_chat(
                 }
             } else if name == "read_diff" {
                 execute_read_diff(&diffs, &arguments)
-            } else if name == "list_skills" || name == "read_skill" {
+            } else if name == "search_skills" {
+                let args: Value = serde_json::from_str(&arguments).unwrap_or(Value::Null);
+                search_public_skills(args.get("query").and_then(Value::as_str).unwrap_or("")).await
+            } else if name == "fetch_skill" {
+                let args: Value = serde_json::from_str(&arguments).unwrap_or(Value::Null);
+                fetch_public_skill(
+                    args.get("source").and_then(Value::as_str).unwrap_or(""),
+                    args.get("name").and_then(Value::as_str).unwrap_or(""),
+                )
+                .await
+            } else if name == "list_skills" || name == "read_skill" || name == "write_skill" {
                 let snapshot_for_skills = snapshot.clone();
                 let personal_for_skills = personal_skills.clone();
                 tauri::async_runtime::spawn_blocking(move || {

@@ -59,9 +59,7 @@ export function ChatTab({ files, focusSeq, onRevealRegion, pr }: ChatTabProps) {
       contextNote={chat.contextNote}
       focusSeq={focusSeq}
       model={chat.model}
-      onComposerChange={chat.onComposerChange}
       onEscape={focusScrollHost}
-      onRemoveSkill={chat.removeSkill}
       onRevealRegion={onRevealRegion}
       onSend={() => {
         const sent = chat.send(composerRef.current?.parts() ?? []);
@@ -69,10 +67,11 @@ export function ChatTab({ files, focusSeq, onRevealRegion, pr }: ChatTabProps) {
           composerRef.current?.clear();
         }
       }}
+      onSkillChange={chat.onSkillChange}
+      onSlashQuery={chat.onSlashQuery}
       onStop={chat.stop}
       pending={chat.pending}
       renderMarkdown={renderMarkdown}
-      skill={chat.skill}
       staged={{
         items: chat.staged,
         onDiscard: chat.stagedDiscard,

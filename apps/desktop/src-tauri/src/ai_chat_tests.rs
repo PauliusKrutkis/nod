@@ -1,5 +1,5 @@
 use super::{
-    build_chat_turn, builtin_skills, chat_system_prompt, chat_tools, discover_personal_skills,
+    build_chat_turn, builtin_skill_body, builtin_skills, safe_source, chat_system_prompt, chat_tools, discover_personal_skills,
     discover_skills, execute_read_diff, execute_skill_tool, format_ranges, frontmatter_description,
     history_messages, merge_skills, parse_proposal, resolve_skill_body, skill_instructions,
     skill_name_from_path, tool_note, validate_proposal, ChatCancels, ChatDelta, ChatDiffFile,
@@ -306,6 +306,8 @@ fn chat_tools_compose_by_capability() {
             "grep_repo",
             "list_skills",
             "read_skill",
+            "search_skills",
+            "fetch_skill",
             "write_skill",
             "read_diff",
             "propose_comment"
@@ -731,4 +733,39 @@ fn write_skill_saves_one_and_refuses_to_clobber_or_escape() {
     assert!(!dir.parent().expect("parent").join("evil").exists());
 
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_catalog_source_must_look_like_a_repo() {
+    for good in ["mattpocock/skills", "anthropics/skills", "a-b/c_d.e"] {
+        assert!(safe_source(good), "{good} should pass");
+    }
+    // Anything that could steer the URL somewhere else is refused before it
+    // reaches a request — these strings are model output, not ours.
+    for bad in [
+        "",
+        "skills",
+        "owner/repo/extra",
+        "../etc",
+        "owner/..",
+        "owner/re po",
+        "https://evil.test/x",
+        "owner/repo?x=1",
+    ] {
+        assert!(!safe_source(bad), "{bad} should be refused");
+    }
+}
+
+#[test]
+fn find_skill_tells_the_model_to_search_wide_and_show_before_saving() {
+    let body = builtin_skill_body("find-skill").expect("built-in");
+    for step in [
+        "list_skills",
+        "search_skills",
+        "fetch_skill",
+        "write_skill",
+        "before it",
+    ] {
+        assert!(body.contains(step), "find-skill should mention {step}");
+    }
 }

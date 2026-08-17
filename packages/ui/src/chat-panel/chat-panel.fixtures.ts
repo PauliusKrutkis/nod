@@ -226,7 +226,6 @@ export const chatPanelEntry = defineEntry(ChatPanel, {
   },
   "skill-chip": {
     props: base({
-      skill: "pr-validity",
       turns: [
         {
           id: "u0",

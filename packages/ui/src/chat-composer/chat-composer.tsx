@@ -26,6 +26,7 @@ import {
   useRef,
 } from "react";
 import type { ChatRegionChip } from "../chat-panel/chat-panel.tsx";
+import { useLatest } from "../use-latest/use-latest.ts";
 import "./chat-composer.css";
 
 export type ChatPart =
@@ -36,8 +37,14 @@ export interface ChatComposerHandle {
   clear: () => void;
   focus: () => void;
   insertRegion: (region: ChatRegionChip) => void;
+  /** Puts the invoked skill in the field as a chip, replacing the `/query`
+   *  that summoned it (`typed` characters back from the caret). One at a
+   *  time — a second invocation replaces the first, because a message runs
+   *  one skill. */
+  insertSkill: (name: string, typed?: number) => void;
   isEmpty: () => boolean;
   parts: () => ChatPart[];
+  skill: () => string | null;
 }
 
 export interface ChatComposerProps {
@@ -46,11 +53,24 @@ export interface ChatComposerProps {
   onKeyDown?: (e: KeyboardEvent<HTMLDivElement>) => boolean;
   onRevealRegion?: (region: ChatRegionChip) => void;
   onSend: () => void;
+  /** The `/query` the caret is sitting in, or null when it isn't in one.
+   *  The field knows where the caret is; the host does not, and inferring it
+   *  from the text alone gets it wrong the moment a chip or a trailing space
+   *  is involved. */
+  onSlashQuery?: (query: string | null) => void;
+  /** The skill chip appeared or was deleted. The host mirrors it because the
+   *  skill rides the request beside the message, not inside it. */
+  onSkillChange?: (name: string | null) => void;
   placeholder: string;
   ref?: Ref<ChatComposerHandle>;
 }
 
+/** A slash command being typed, ending at the caret. */
+const SLASH_AT_CARET = /(?:^|\s)\/(\S*)$/;
+
 const CHIP_ATTR = "data-region";
+const SKILL_ATTR = "data-skill";
+const ANY_CHIP = `[${CHIP_ATTR}],[${SKILL_ATTR}]`;
 const TRAILING_NEWLINES = /\n+$/;
 
 export function regionLabel(region: ChatRegionChip): string {
@@ -93,6 +113,33 @@ function chipElement(region: ChatRegionChip): HTMLElement {
   remove.textContent = "×";
   chip.append(label, remove);
   return chip;
+}
+
+/** A skill reads as a chip too — same token, marked as the instruction it is
+ *  rather than the code the others carry. */
+function skillElement(name: string): HTMLElement {
+  const chip = document.createElement("span");
+  chip.className = "qcc-chip qcc-chip-skill";
+  chip.contentEditable = "false";
+  chip.setAttribute(SKILL_ATTR, name);
+  const label = document.createElement("span");
+  label.className = "qcc-chip-label";
+  label.textContent = `/${name}`;
+  const remove = document.createElement("span");
+  remove.className = "qcc-chip-x";
+  remove.setAttribute("data-chip-remove", "");
+  remove.setAttribute("role", "button");
+  remove.setAttribute("aria-label", `Remove skill ${name}`);
+  remove.textContent = "×";
+  chip.append(label, remove);
+  return chip;
+}
+
+function isChip(node: Node | null): node is HTMLElement {
+  return (
+    node instanceof HTMLElement &&
+    (node.hasAttribute(CHIP_ATTR) || node.hasAttribute(SKILL_ATTR))
+  );
 }
 
 function regionKey(region: ChatRegionChip): string {
@@ -142,6 +189,9 @@ function serialize(root: HTMLElement): ChatPart[] {
     ) {
       return false;
     }
+    if (child.hasAttribute(SKILL_ATTR)) {
+      return false;
+    }
     if (child.hasAttribute(CHIP_ATTR)) {
       const region = readRegion(child);
       if (region) {
@@ -182,9 +232,7 @@ interface ChipHit {
 }
 
 function asChip(node: Node | null): HTMLElement | null {
-  return node instanceof HTMLElement && node.hasAttribute(CHIP_ATTR)
-    ? node
-    : null;
+  return isChip(node) ? node : null;
 }
 
 /** The caret sits inside a text node, `offset` characters in. */
@@ -221,6 +269,29 @@ function removeSpacer(spacer: Node | null) {
   spacer.textContent = text.slice(1);
 }
 
+/** Rubs out the `n` characters the caret is sitting behind — the `/query`
+ *  the reviewer typed, now that the chip says the same thing. */
+function deleteBeforeCaret(n: number) {
+  if (n <= 0) {
+    return;
+  }
+  const selection = document.getSelection();
+  if (!selection?.isCollapsed || selection.rangeCount === 0) {
+    return;
+  }
+  const range = selection.getRangeAt(0);
+  const node = range.startContainer;
+  if (node.nodeType !== Node.TEXT_NODE) {
+    return;
+  }
+  const cut = Math.min(n, range.startOffset);
+  range.setStart(node, range.startOffset - cut);
+  range.deleteContents();
+  range.collapse(true);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
 function insertAtCaret(root: HTMLElement, node: Node) {
   const selection = document.getSelection();
   const inField =
@@ -246,18 +317,49 @@ export function ChatComposer({
   onKeyDown,
   onRevealRegion,
   onSend,
+  onSkillChange,
+  onSlashQuery,
   placeholder,
   ref,
 }: ChatComposerProps) {
   const fieldRef = useRef<HTMLDivElement>(null);
+  const onSkillChangeRef = useLatest(onSkillChange);
+  const onSlashQueryRef = useLatest(onSlashQuery);
+
+  /** What the caret is typing, if it is typing a slash command. */
+  const slashAtCaret = (): string | null => {
+    const selection = document.getSelection();
+    const field = fieldRef.current;
+    if (!(field && selection?.isCollapsed) || selection.rangeCount === 0) {
+      return null;
+    }
+    const range = selection.getRangeAt(0);
+    const node = range.startContainer;
+    if (node.nodeType !== Node.TEXT_NODE || !field.contains(node)) {
+      return null;
+    }
+    const before = (node.textContent ?? "").slice(0, range.startOffset);
+    return SLASH_AT_CARET.exec(before)?.[1] ?? null;
+  };
+
+  /** Every edit reports both the text and where the caret stands in it. */
+  const report = (el: HTMLElement | null) => {
+    onChange?.(el?.textContent ?? "");
+    onSlashQueryRef.current?.(slashAtCaret());
+  };
 
   useImperativeHandle(ref, () => ({
     clear: () => {
       const el = fieldRef.current;
+      const hadSkill = el?.querySelector(`[${SKILL_ATTR}]`) !== null;
       if (el) {
         el.textContent = "";
       }
+      if (hadSkill) {
+        onSkillChangeRef.current?.(null);
+      }
       onChange?.("");
+      onSlashQueryRef.current?.(null);
     },
     focus: () => fieldRef.current?.focus(),
     insertRegion: (region) => {
@@ -275,10 +377,29 @@ export function ChatComposer({
       }
       insertAtCaret(el, chipElement(region));
       insertAtCaret(el, document.createTextNode(" "));
-      onChange?.(el.textContent ?? "");
+      report(el);
+    },
+    insertSkill: (name, typed = 0) => {
+      const el = fieldRef.current;
+      if (!el) {
+        return;
+      }
+      for (const existing of el.querySelectorAll(`[${SKILL_ATTR}]`)) {
+        existing.remove();
+      }
+      el.focus();
+      deleteBeforeCaret(typed);
+      insertAtCaret(el, skillElement(name));
+      insertAtCaret(el, document.createTextNode(" "));
+      onSkillChangeRef.current?.(name);
+      report(el);
     },
     isEmpty: () => (fieldRef.current?.textContent ?? "").trim() === "",
     parts: () => (fieldRef.current ? serialize(fieldRef.current) : []),
+    skill: () =>
+      fieldRef.current
+        ?.querySelector(`[${SKILL_ATTR}]`)
+        ?.getAttribute(SKILL_ATTR) ?? null,
   }));
 
   /** The chip a collapsed caret is sitting immediately after, if any. A
@@ -306,8 +427,8 @@ export function ChatComposer({
       if (found) {
         e.preventDefault();
         removeSpacer(found.spacer);
-        found.chip.remove();
-        onChange?.(fieldRef.current?.textContent ?? "");
+        removeChip(found.chip);
+        report(fieldRef.current);
         return;
       }
     }
@@ -344,27 +465,35 @@ export function ChatComposer({
     } else {
       insertAtCaret(el, document.createTextNode(text));
     }
-    onChange?.(el.textContent ?? "");
+    report(el);
   };
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
-    const chip = target.closest(`[${CHIP_ATTR}]`);
+    const chip = target.closest(ANY_CHIP);
     if (!(chip instanceof HTMLElement)) {
       return;
     }
     if (target.closest("[data-chip-remove]")) {
       e.preventDefault();
-      chip.remove();
-      onChange?.(fieldRef.current?.textContent ?? "");
+      removeChip(chip);
       fieldRef.current?.focus();
+      report(fieldRef.current);
       return;
     }
     const region = readRegion(chip);
-    if (region?.filePath) {
+    if (region) {
       onRevealRegion?.(region);
     }
   };
+
+  function removeChip(chip: HTMLElement) {
+    const wasSkill = chip.hasAttribute(SKILL_ATTR);
+    chip.remove();
+    if (wasSkill) {
+      onSkillChangeRef.current?.(null);
+    }
+  }
 
   return (
     // biome-ignore lint/a11y/useSemanticElements: a textarea cannot hold the inline chips this field is for — contenteditable is the mechanism, role/aria-multiline give it the same semantics
@@ -377,8 +506,9 @@ export function ChatComposer({
       contentEditable
       data-placeholder={placeholder}
       onClick={handleClick}
-      onInput={(e) => onChange?.(e.currentTarget.textContent ?? "")}
+      onInput={(e) => report(e.currentTarget)}
       onKeyDown={handleKeyDown}
+      onKeyUp={() => onSlashQueryRef.current?.(slashAtCaret())}
       onPaste={handlePaste}
       ref={fieldRef}
       role="textbox"

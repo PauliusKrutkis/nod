@@ -346,6 +346,17 @@ opened a folder, next to a field that scaffolded a file, is a worse answer to
 two commands are gone; `write_skill` names the folder it saved to, for anyone
 who wants to edit the file by hand.
 
+**The search reaches past this machine.** `search_skills` queries the public
+catalog at skills.sh — the index `npx skills find` reads — and `fetch_skill`
+pulls one skill's `SKILL.md` from its repository as text. Nothing is
+installed and nothing runs: the instructions land in the transcript, where
+you read them, and only `write_skill` puts a file on disk. That keeps the
+position this doc has always taken — fetching prompt files from a registry
+and running them over your code is a supply-chain decision, so it stays
+yours, made against the actual text rather than a name and an install count.
+Both requests go out unauthenticated, so no account credential reaches a
+third-party host.
+
 ### Ship order
 
 Docs (this section) → docked panel → `ai_chat` → chat-panel component → wiring

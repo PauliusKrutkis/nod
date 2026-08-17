@@ -368,7 +368,7 @@ impl GitHubPlatform {
         // beats echoing the status.
         if status == reqwest::StatusCode::NOT_FOUND {
             return Err(format!(
-                "no archive for {owner}/{repo} at this commit — it may live in a fork, or this account may not have access"
+                "no archive for {owner}/{repo}@{sha} — the commit may live in a fork, or this account may not have access"
             ));
         }
         if !status.is_redirection() {
@@ -390,6 +390,16 @@ impl GitHubPlatform {
             .send()
             .await
             .map_err(net_err)?;
+        // The signed URL is the second half of the same fetch, and it fails
+        // for its own reasons (an expired signature, a commit GitHub will
+        // redirect for but not serve). Naming the half that failed is the
+        // difference between a bug report and a guess.
+        if !resp.status().is_success() {
+            return Err(format!(
+                "the signed archive URL for {owner}/{repo}@{sha} failed ({})",
+                resp.status().as_u16()
+            ));
+        }
         read_capped(resp, MAX_ARCHIVE_BYTES, "repo archive").await
     }
 
