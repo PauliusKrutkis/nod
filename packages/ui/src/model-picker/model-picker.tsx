@@ -23,12 +23,25 @@ import type { AiSetupModel } from "../ai-model-combobox/ai-model-combobox.tsx";
 import { cn } from "../cn/cn.ts";
 import "./model-picker.css";
 
+/** How hard the model should think. `null` sends nothing and lets the
+ *  provider's own default stand — which is the honest default, because a
+ *  gateway configured for deep reasoning applies it to every round, even the
+ *  ones that only read two files. */
+export interface ChatEffortState {
+  current: string | null;
+  onPick: (effort: string | null) => void;
+}
+
+export const EFFORT_LEVELS = ["low", "medium", "high"] as const;
+
 export interface ModelPickerProps {
   /** Selector for the control that opens this popover. Focus moving there is
    *  a toggle, not a dismissal — closing on that blur would let the click
    *  reopen what it meant to close. */
   anchorSelector?: string;
   current: string;
+  /** Reasoning effort, when the surface offers it. */
+  effort?: ChatEffortState | null;
   models: readonly AiSetupModel[] | null;
   onClose: () => void;
   onPick: (id: string) => void;
@@ -78,6 +91,7 @@ function preventFocusLoss(e: { preventDefault: () => void }) {
 export function ModelPicker({
   anchorSelector,
   current,
+  effort = null,
   models,
   onClose,
   onPick,
@@ -112,6 +126,34 @@ export function ModelPicker({
 
   return (
     <div className="qmp">
+      {effort && (
+        <div className="qmp-effort">
+          <span className="qmp-effort-label">Thinking</span>
+          <div className="qmp-effort-opts">
+            <button
+              aria-pressed={effort.current === null}
+              className="qmp-effort-opt q-focus"
+              onClick={() => effort.onPick(null)}
+              onMouseDown={preventFocusLoss}
+              type="button"
+            >
+              Default
+            </button>
+            {EFFORT_LEVELS.map((level) => (
+              <button
+                aria-pressed={effort.current === level}
+                className="qmp-effort-opt q-focus"
+                key={level}
+                onClick={() => effort.onPick(level)}
+                onMouseDown={preventFocusLoss}
+                type="button"
+              >
+                {level}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="qmp-field">
         <Search aria-hidden className="qmp-search" size={12} />
         <input

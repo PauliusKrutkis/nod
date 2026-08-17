@@ -3,6 +3,7 @@ import { expect, test } from "./test.ts";
 import type { Page } from "./types.ts";
 
 const SONNET_OPTION = /claude-sonnet/;
+const MODEL_BUTTON = /Model:/;
 const DISCARD_FUZZY = /Discard the comment on src\/lib\/fuzzy/;
 
 const CONFIGURED = {
@@ -773,6 +774,28 @@ test("the model button swaps the chat's model and the pick rides the send", asyn
   await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
   await page.keyboard.press("ControlOrMeta+l");
   await expect(page.locator(".qch-model")).toContainText("claude-sonnet");
+});
+
+test("thinking effort rides the request and survives a reload", async ({
+  page,
+}) => {
+  await setupApp(page, CONFIGURED);
+  await openReview(page);
+  await page.keyboard.press("ControlOrMeta+l");
+  await chatPanel(page).getByLabel(MODEL_BUTTON).click();
+  await page.getByRole("button", { name: "low", exact: true }).click();
+
+  await composer(page).pressSequentially("quick question");
+  await page.keyboard.press("Enter");
+  expect((await readChatArgs(page)).effort).toBe("low");
+
+  // The choice is the reviewer's, so it outlives the window.
+  await page.reload();
+  await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
+  await page.keyboard.press("ControlOrMeta+l");
+  await composer(page).pressSequentially("another");
+  await page.keyboard.press("Enter");
+  expect((await readChatArgs(page)).effort).toBe("low");
 });
 
 test("the diff rides the request so read_diff has hunks to serve", async ({

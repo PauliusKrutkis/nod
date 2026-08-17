@@ -397,6 +397,12 @@ produces neither text nor a tool call buys the same one extra pass. The real
 ceiling is the 120k-character input budget, which trims oldest-first, and the
 model's own context.
 
+**Thinking effort** is the reviewer's, in the model popover: Default (send
+nothing), low, medium, high. Default is honest — a gateway configured for
+deep reasoning applies it to every round, including the ones that only read
+two files, and that is where the minutes went; sending `reasoning_effort`
+only when asked leaves the choice where it already lives.
+
 Two more things keep a skill run from being a drip-feed of round-trips. A
 turn that invokes a skill carries the full (capped) diff with it — a review
 pass's first act is always "read the diff", one file per round, and the diff

@@ -19,6 +19,53 @@
   box-shadow: 0 16px 40px -20px rgba(0, 0, 0, 0.65);
 }
 
+/* Thinking effort sits above the search, because it is a property of the
+   run rather than of the model you are hunting for — and it is four fixed
+   choices, so it reads as a segmented row rather than a list. */
+.qmp-effort {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 9px;
+  border-bottom: 1px solid var(--line);
+}
+
+.qmp-effort-label {
+  font-size: 11px;
+  color: var(--faint);
+}
+
+.qmp-effort-opts {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.qmp-effort-opt {
+  padding: 2px 7px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: capitalize;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  transition:
+    color 120ms ease,
+    border-color 120ms ease;
+}
+
+.qmp-effort-opt:hover {
+  color: var(--fg);
+}
+
+.qmp-effort-opt[aria-pressed="true"] {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+
 .qmp-field {
   display: flex;
   gap: 6px;

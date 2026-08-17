@@ -116,6 +116,30 @@ function regionTitle(region: ChatRegion): string {
 }
 
 const CHAT_MODEL_KEY = "nod:chatModel:v1";
+const CHAT_EFFORT_KEY = "nod:chatEffort:v1";
+
+function readChatEffort(): string | null {
+  try {
+    const stored = localStorage.getItem(CHAT_EFFORT_KEY);
+    return stored === "low" || stored === "medium" || stored === "high"
+      ? stored
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistChatEffort(effort: string | null): void {
+  try {
+    if (effort === null) {
+      localStorage.removeItem(CHAT_EFFORT_KEY);
+    } else {
+      localStorage.setItem(CHAT_EFFORT_KEY, effort);
+    }
+  } catch {
+    /* storage unavailable (private mode) — the choice just won't persist */
+  }
+}
 
 function readChatModel(): string | null {
   try {
@@ -439,6 +463,11 @@ export function useReviewChat(args: {
   const [modelOverride, setModelOverride] = useState<string | null>(
     readChatModel
   );
+  const [effort, setEffortState] = useState<string | null>(readChatEffort);
+  const pickEffort = (next: string | null) => {
+    setEffortState(next);
+    persistChatEffort(next);
+  };
   const aiConfig = useQuery({
     enabled: args.active,
     queryFn: api.getAiConfig,
@@ -633,6 +662,7 @@ export function useReviewChat(args: {
       diffs: buildChatDiffs(args.files),
       history,
       message: text,
+      effort,
       model: modelOverride,
       parts,
       regions,
@@ -770,6 +800,7 @@ export function useReviewChat(args: {
       ? null
       : {
           current: currentModel,
+          effort: { current: effort, onPick: pickEffort },
           models: models.data ?? null,
           onPick: pickModel,
         };

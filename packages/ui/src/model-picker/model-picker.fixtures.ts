@@ -28,6 +28,12 @@ const base = (over: Partial<ModelPickerProps>): ModelPickerProps => ({
 });
 
 export const modelPickerEntry = defineEntry(ModelPicker, {
+  /** The chat's seating: the run's thinking effort above the model hunt. */
+  "with-effort": {
+    props: base({
+      effort: { current: "medium", onPick: noop },
+    }),
+  },
   crowd: {
     props: base({
       models: Array.from({ length: 40 }, (_, i) => ({

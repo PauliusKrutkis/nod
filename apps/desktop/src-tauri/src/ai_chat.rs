@@ -1259,6 +1259,7 @@ pub async fn ai_chat(
     diffs: Vec<ChatDiffFile>,
     skills: Vec<String>,
     model: Option<String>,
+    effort: Option<String>,
 ) -> Result<String, String> {
     let config = ai::load(&app)?.ok_or_else(|| "AI is not configured".to_string())?;
     let model = model
@@ -1340,6 +1341,13 @@ pub async fn ai_chat(
             "max_completion_tokens": 8000,
             "stream": true,
         });
+        // Only when the reviewer asked for one: a gateway configured for deep
+        // reasoning applies it to every round, including the ones that just
+        // read two files, and sending nothing leaves that choice where it
+        // already lives.
+        if let Some(level) = effort.as_deref().filter(|e| !e.trim().is_empty()) {
+            body["reasoning_effort"] = serde_json::json!(level);
+        }
         if tools_enabled {
             body["tools"] = chat_tools(snapshot.is_some(), skills_available, proposals, has_diffs);
             if forced_text || rounds >= CHAT_TOOL_ROUNDS {

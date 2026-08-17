@@ -50,7 +50,10 @@ import {
   type ChatPart,
 } from "../chat-composer/chat-composer.tsx";
 import { cn } from "../cn/cn.ts";
-import { ModelPicker } from "../model-picker/model-picker.tsx";
+import {
+  type ChatEffortState,
+  ModelPicker,
+} from "../model-picker/model-picker.tsx";
 import { formatAbsolute, formatRelativeTime } from "../time/time.ts";
 import "./chat-panel.css";
 
@@ -118,6 +121,8 @@ export interface ChatThreadsState {
 }
 
 export interface ChatModelState {
+  /** Reasoning effort for this chat, when the host persists one. */
+  effort?: ChatEffortState | null;
   current: string;
   models: readonly AiSetupModel[] | null;
   onPick: (id: string) => void;
@@ -701,6 +706,7 @@ export function ChatPanel({
           <ModelPicker
             anchorSelector=".qch-model"
             current={model.current}
+            effort={model.effort}
             models={model.models}
             onClose={closeModelPicker}
             onPick={pickModel}

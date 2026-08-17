@@ -54,6 +54,7 @@ export const api = {
     diffs: ChatDiff[];
     skills: string[];
     model: string | null;
+    effort: string | null;
   }) => invoke<string>("ai_chat", args),
   aiChatCancel: (chatId: string) => invoke<void>("ai_chat_cancel", { chatId }),
   aiComplete: (args: {

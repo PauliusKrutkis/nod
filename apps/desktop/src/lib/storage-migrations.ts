@@ -31,6 +31,8 @@ const VERSIONED_BASES = [
   "nod:issueTrackers",
   "nod:reviewMemory",
   "nod:chatHistory",
+  "nod:chatModel",
+  "nod:chatEffort",
 ];
 
 function migrateNamespace(): void {

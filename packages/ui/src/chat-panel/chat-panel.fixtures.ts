@@ -205,6 +205,7 @@ export const chatPanelEntry = defineEntry(ChatPanel, {
     props: base({
       model: {
         current: "anthropic.claude-sonnet-4-5 (eu-west1)",
+        effort: { current: "medium", onPick: noop },
         models: [
           {
             contextLength: 200_000,

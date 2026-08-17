@@ -485,7 +485,15 @@ export const catalogManifest: Record<string, ManifestEntry> = {
     ],
   },
   "model-picker": {
-    fixtures: ["crowd", "empty", "loading", "overflow", "typical", "unicode"],
+    fixtures: [
+      "crowd",
+      "empty",
+      "loading",
+      "overflow",
+      "typical",
+      "unicode",
+      "with-effort",
+    ],
   },
   "notification-center": {
     dialog: true,
