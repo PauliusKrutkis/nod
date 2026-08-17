@@ -29,11 +29,7 @@ import { matchCanned } from "@nod/ui/canned-suggestions";
 import type { ChatComposerHandle } from "@nod/ui/chat-composer";
 import type { ChatPanelTurn, ChatSuggestionsState } from "@nod/ui/chat-panel";
 import { useLatest } from "@nod/ui/use-latest";
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { listen } from "@tauri-apps/api/event";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";

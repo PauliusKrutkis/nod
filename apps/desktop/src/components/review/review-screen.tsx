@@ -239,7 +239,6 @@ function FileTreeColumn(props: {
       style={sized ? { width: props.width ?? undefined } : undefined}
     >
       {!props.compact && props.open && (
-        // biome-ignore lint/a11y/noStaticElementInteractions: a drag grip, not a control — the sidebar has no width the keyboard needs to set
         <div
           aria-hidden
           className="qf-sidebar-resize"
