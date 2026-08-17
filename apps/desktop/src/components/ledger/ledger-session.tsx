@@ -328,6 +328,7 @@ export function LedgerSession({
   const callbacks: ReviewListCallbacks = {
     onAddComment: asyncNoop,
     onAddPending: noop,
+    onPostPendingNow: asyncNoop,
     onCloseBox: noop,
     onEditPending: noop,
     onPendingHover: noop,

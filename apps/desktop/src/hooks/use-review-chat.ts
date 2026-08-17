@@ -498,6 +498,7 @@ export function useReviewChat(args: {
         path: p.path,
         side: p.side,
         startLine: p.startLine ?? undefined,
+        turnId: event.payload.turnId,
       });
     });
     return () => {
@@ -696,6 +697,13 @@ export function useReviewChat(args: {
       }
       return {
         activity: turn.activity ?? [],
+        staged: stagedByAi
+          .filter((c) => c.turnId === turn.id)
+          .map((c) => ({
+            body: c.body,
+            id: c.id,
+            label: `${c.path}:${c.line}`,
+          })),
         at: turn.at,
         error: turn.error,
         id: turn.id,
@@ -716,6 +724,13 @@ export function useReviewChat(args: {
             kind: "assistant" as const,
             partial: live.partial,
             reasoning: live.reasoning,
+            staged: stagedByAi
+              .filter((c) => c.turnId === live.turnId)
+              .map((c) => ({
+                body: c.body,
+                id: c.id,
+                label: `${c.path}:${c.line}`,
+              })),
             startedAt: live.startedAt,
             text: null,
           },

@@ -12,7 +12,7 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole("option").first()).toBeVisible();
   await page.keyboard.press("Enter");
   await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
-  await page.keyboard.press("i");
+  await page.keyboard.press("ControlOrMeta+i");
   await expect(page.getByText("Deploying to staging first.")).toBeVisible();
 });
 

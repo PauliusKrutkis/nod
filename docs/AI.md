@@ -321,8 +321,14 @@ hairline, no fill. A pending comment the chat wrote carries a sparkle and says
 *Suggested* rather than *Pending* — provenance without a second material.
 
 Pending comments earn the affordances that implies: **edit in place**, discard,
-and the hover-armed hotkeys posted threads already had. The chat lists what it
-staged, each row a way back to its line.
+**comment now** (post that one immediately, outside the batched review), and
+the hover-armed hotkeys posted threads already had. They wear the SAME card as
+a posted comment (owner decision 2026-08-17, revising the dashed-draft
+material twice over): one component, a PENDING tag, an accent rail for
+"leaves with the review" — and no AI-made differentiation, because a staged
+comment is yours the moment you keep it. A turn that stages comments lists
+them inside that turn in the transcript, so a long conversation scrolls past
+its findings instead of pinning them over the composer.
 
 ### Skills — the agent-skills standard, read from the repo
 

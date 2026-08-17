@@ -158,6 +158,9 @@ export interface PendingComment {
   path: string;
   side: string;
   startLine?: number;
+  /** The chat turn that staged it, so the transcript can list a turn's
+   *  comments inside that turn. */
+  turnId?: string;
 }
 
 export type ViewedFileMap = Record<string, string>;

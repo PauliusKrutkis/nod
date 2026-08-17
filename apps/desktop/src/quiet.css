@@ -622,23 +622,17 @@ textarea.q-input {
 }
 
 /* pending */
-/* A pending comment is a draft, not a placard: no wash behind it, a dashed
-   hairline and an accent rail down the side. The wash it used to carry read
-   as a highlight over half the file once the chat started staging comments,
-   and it fought the diff's own add/del tints. The rail is what says "this is
-   yours and unsent"; the tag says which kind. */
+/* A pending comment wears the SAME card as a posted one (owner decision,
+   2026-08-17, reversing the dashed-draft material): one component, one look,
+   and the PENDING tag plus an accent rail carry the "not sent yet". The rail
+   alone survives from the draft material because it answers, at a glance,
+   which comments will leave with the review. */
 .dir-quiet .qf-pending {
-  background: transparent;
-  border-color: var(--line-2);
-  border-style: dashed;
   border-left: 2px solid var(--accent-line);
 }
 .dir-quiet .qf-pending:hover,
 .dir-quiet .qf-pending:focus-within {
   border-left-color: var(--accent);
-}
-.dir-quiet .qf-pending-spark {
-  color: var(--accent);
 }
 .dir-quiet .qf-pending-tools {
   display: flex;

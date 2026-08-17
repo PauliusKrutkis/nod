@@ -24,7 +24,6 @@
  * revealing (a thread, a drawer row) lives there.
  */
 
-import { Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 import { Avatar } from "../avatar/avatar.tsx";
 import { cn } from "../cn/cn.ts";
@@ -65,8 +64,8 @@ export interface CommentItemProps {
   deleteLabel?: string;
   editKbd?: string;
   /** Marks the draft as written by the chat rather than typed. */
-  fromAi?: boolean;
   onDelete?: () => void;
+  onPostNow?: () => void;
   onStartEdit?: () => void;
   /** "Pending" or "Suggested" — shown in place of the timestamp. */
   pendingLabel?: string;
@@ -85,8 +84,8 @@ export function CommentItem({
   deleteKbd,
   deleteLabel,
   editKbd,
-  fromAi = false,
   onDelete,
+  onPostNow,
   onStartEdit,
   pendingLabel,
   renderMarkdown,
@@ -98,11 +97,7 @@ export function CommentItem({
   return (
     <div className={cn("qf-comment", reply && "qf-comment-reply")}>
       <div className="qf-comment-head">
-        {fromAi ? (
-          <Sparkles aria-hidden className="qf-comment-spark" size={16} />
-        ) : (
-          <Avatar name={user} size={20} url={userAvatarUrl} />
-        )}
+        <Avatar name={user} size={20} url={userAvatarUrl} />
         <span className="qf-comment-author">{user}</span>
         {pendingLabel === undefined ? (
           <span
@@ -122,6 +117,7 @@ export function CommentItem({
             deleteLabel={deleteLabel}
             editKbd={editKbd}
             onDelete={onDelete}
+            onPostNow={onPostNow}
             onStartEdit={onStartEdit}
           />
         )}

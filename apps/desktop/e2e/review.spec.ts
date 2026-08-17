@@ -350,7 +350,7 @@ test("find bar: reopening keeps the query selected; typing replaces it", async (
 test("info drawer: i opens with the conversation, esc closes drawer first", async ({
   page,
 }) => {
-  await page.keyboard.press("i");
+  await page.keyboard.press("ControlOrMeta+i");
   await expect(page.locator(".qf-drawer")).toHaveAttribute(
     "aria-hidden",
     "false"
@@ -396,7 +396,7 @@ test("esc returns to the inbox", async ({ page }) => {
 test("info timeline: review verdicts interleave with comments, oldest first", async ({
   page,
 }) => {
-  await page.keyboard.press("i");
+  await page.keyboard.press("ControlOrMeta+i");
   const drawer = page.locator(".qf-drawer");
   await expect(drawer.getByText("LGTM, ship it.")).toBeVisible();
   await expect(drawer.locator(".q-pill-approved")).toHaveText("Approved");
@@ -409,7 +409,7 @@ test("info timeline: review verdicts interleave with comments, oldest first", as
 test("info code discussion lists inline threads; a row jumps to the diff", async ({
   page,
 }) => {
-  await page.keyboard.press("i");
+  await page.keyboard.press("ControlOrMeta+i");
   const row = page.locator(".qf-thread-row");
   await expect(row).toContainText("src/lib/fuzzy.ts");
   await expect(row).toContainText(":2");
@@ -433,7 +433,7 @@ test("the i button advertises how much conversation the drawer holds", async ({
 test("the drawer composer expands from the prompt on click, focused", async ({
   page,
 }) => {
-  await page.keyboard.press("i");
+  await page.keyboard.press("ControlOrMeta+i");
   const box = page.getByRole("textbox", {
     name: "Comment on this pull request…",
   });
@@ -447,7 +447,7 @@ test("the drawer composer expands from the prompt on click, focused", async ({
 test("esc in the drawer composer collapses it; a second esc closes the drawer", async ({
   page,
 }) => {
-  await page.keyboard.press("i");
+  await page.keyboard.press("ControlOrMeta+i");
   await page
     .getByRole("button", { name: "Comment on this pull request…" })
     .click();
@@ -469,7 +469,7 @@ test("esc in the drawer composer collapses it; a second esc closes the drawer", 
   ).toBeVisible();
   await page.keyboard.press("j");
   await expect(page.locator(".qf-row-active")).toHaveCount(1);
-  await page.keyboard.press("i");
+  await page.keyboard.press("ControlOrMeta+i");
   await expect(page.locator(".qf-drawer")).toHaveAttribute(
     "aria-hidden",
     "false"
@@ -479,7 +479,7 @@ test("esc in the drawer composer collapses it; a second esc closes the drawer", 
 test("a half-typed drawer comment survives esc — collapsed, not lost", async ({
   page,
 }) => {
-  await page.keyboard.press("i");
+  await page.keyboard.press("ControlOrMeta+i");
   await page
     .getByRole("button", { name: "Comment on this pull request…" })
     .click();
@@ -516,7 +516,7 @@ test("comment posting is optimistic even when the network hangs", async ({
 }) => {
   await setupApp(page, { hangIssueComment: true });
   await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
-  await page.keyboard.press("i");
+  await page.keyboard.press("ControlOrMeta+i");
   await page
     .getByRole("button", { name: "Comment on this pull request…" })
     .click();
@@ -717,7 +717,7 @@ test("the header shows an approvals verdict with the reviewer's face", async ({
 test("the header shows a failing CI pill with the failed count", async ({
   page,
 }) => {
-  await page.keyboard.press("i");
+  await page.keyboard.press("ControlOrMeta+i");
   const pill = page.locator(".qf-ci-failure");
   await expect(pill).toBeVisible();
   await pill.hover();

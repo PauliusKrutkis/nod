@@ -36,7 +36,7 @@ const base = (over: Partial<RightDockProps>): RightDockProps => ({
 });
 
 const TWO_TABS = [
-  { id: "info", kbd: "i", label: "Info" },
+  { id: "info", kbd: "mod+i", label: "Info" },
   { id: "chat", kbd: "mod+l", label: "Chat" },
 ];
 

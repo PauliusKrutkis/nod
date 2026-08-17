@@ -35,7 +35,7 @@ import { ChatTab } from "./chat-tab.tsx";
 export type { PrDrawerHandle as RightPanelHandle } from "@nod/ui/pr-drawer";
 
 const DOCK_TABS = [
-  { id: "info", kbd: "i", label: "Info" },
+  { id: "info", kbd: "mod+i", label: "Info" },
   { id: "chat", kbd: "mod+l", label: "Chat" },
 ];
 

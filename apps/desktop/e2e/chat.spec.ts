@@ -290,7 +290,7 @@ test("i and m share the panel: tabs switch, second press of the owner closes", a
   await openReview(page);
   const drawer = page.locator(".qf-drawer");
 
-  await page.keyboard.press("i");
+  await page.keyboard.press("ControlOrMeta+i");
   await expect(drawer).toHaveAttribute("aria-hidden", "false");
   await expect(
     page.getByRole("heading", { name: "Description" })
@@ -301,12 +301,12 @@ test("i and m share the panel: tabs switch, second press of the owner closes", a
 
   await page.keyboard.press("Escape");
   await expect(composer(page)).not.toBeFocused();
-  await page.keyboard.press("i");
+  await page.keyboard.press("ControlOrMeta+i");
   await expect(
     page.getByRole("heading", { name: "Description" })
   ).toBeVisible();
 
-  await page.keyboard.press("i");
+  await page.keyboard.press("ControlOrMeta+i");
   await expect(drawer).toHaveAttribute("aria-hidden", "true");
 });
 
@@ -721,7 +721,7 @@ test("the dock edge drags to a new width that survives a reload", async ({
 }) => {
   await setupApp(page, CONFIGURED);
   await openReview(page);
-  await page.keyboard.press("i");
+  await page.keyboard.press("ControlOrMeta+i");
 
   const drawer = page.locator(".qf-drawer");
   const before = await drawer.boundingBox();
@@ -742,7 +742,7 @@ test("the dock edge drags to a new width that survives a reload", async ({
 
   await page.reload();
   await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
-  await page.keyboard.press("i");
+  await page.keyboard.press("ControlOrMeta+i");
   const restored = await page.locator(".qf-drawer").boundingBox();
   expect(Math.round(restored?.width ?? 0)).toBe(Math.round(after?.width ?? 0));
 });
@@ -1111,7 +1111,8 @@ test("a proposal lands as a pending comment, and survives a reload", async ({
 
   const card = page.locator(".qf-pending");
   await expect(card).toContainText("This constant looks off");
-  await expect(card).toContainText("Suggested");
+  // One card for every unsent comment — no AI-made differentiation.
+  await expect(card).toContainText("Pending");
 
   await page.reload();
   await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
@@ -1168,6 +1169,30 @@ test("discarding from the chat removes the comment from the diff", async ({
   await page.getByRole("button", { name: DISCARD_FUZZY }).click();
   await expect(page.locator(".qf-pending")).toHaveCount(0);
   await expect(chatPanel(page).locator(".qch-staged-go")).toHaveCount(0);
+});
+
+test("comment now posts one pending comment without the review", async ({
+  page,
+}) => {
+  await setupApp(page, PROPOSAL_SETUP);
+  await openReview(page);
+  await stageProposal(page);
+
+  await page.keyboard.press("Escape");
+  await page.locator(".qf-pending").hover();
+  await page.getByRole("button", { name: "Post this comment now" }).click();
+
+  // The one comment leaves as a standalone review comment; the card goes.
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as { __calls?: Record<string, number> }).__calls
+            ?.create_review_comment ?? 0
+      )
+    )
+    .toBe(1);
+  await expect(page.locator(".qf-pending")).toHaveCount(0);
 });
 
 test("a pending comment edits in place", async ({ page }) => {

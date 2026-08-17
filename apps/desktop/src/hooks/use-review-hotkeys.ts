@@ -307,9 +307,12 @@ export function useReviewHotkeys(config: {
     },
     {
       description: "Toggle info panel",
+      // Modified and global for the same reason as the chat toggle: the
+      // panel must also close from inside its own composer.
+      global: true,
       group: "General",
       icon: Info,
-      keys: "i",
+      keys: "mod+i",
       run: config.toggleInfoPanel,
     },
     {

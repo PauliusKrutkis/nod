@@ -139,6 +139,14 @@ export interface ReviewListCallbacks {
   onPlusDragStart: (fileIndex: number, anchor: string) => void;
   onEditPending: (id: string | null) => void;
   onPendingHover: (id: string | null) => void;
+  onPostPendingNow: (c: {
+    id: string;
+    path: string;
+    line: number;
+    side: string;
+    body: string;
+    startLine?: number;
+  }) => Promise<void>;
   onRemovePending: (id: string) => void;
   onUpdatePending: (id: string, body: string) => void;
   onReply: (a: { inReplyTo: number; body: string }) => Promise<void>;
@@ -515,10 +523,19 @@ function PendingCommentCard({
         deleteKbd={showKbd ? "shift+d" : undefined}
         deleteLabel="Discard"
         editKbd={showKbd ? "shift+e" : undefined}
-        fromAi={comment.fromAi}
         onDelete={() => callbacks.onRemovePending(comment.id)}
+        onPostNow={() => {
+          callbacks.onPostPendingNow({
+            body: comment.body,
+            id: comment.id,
+            line: comment.line,
+            path: comment.path,
+            side: comment.side,
+            startLine: comment.startLine,
+          });
+        }}
         onStartEdit={() => onEdit(comment.id)}
-        pendingLabel={comment.fromAi ? "Suggested" : "Pending"}
+        pendingLabel="Pending"
         renderMarkdown={(body: string) => (
           <Markdown highlightLine={(code) => highlightLine(code, filename)}>
             {body}

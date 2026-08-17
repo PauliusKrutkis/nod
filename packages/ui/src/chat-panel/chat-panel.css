@@ -347,9 +347,15 @@
    apart without leaving the panel. Clicking takes you to the line; the x
    discards the comment outright, since a suggestion you do not want should
    cost one click, not two. */
+/* A turn's staged comments, inside the turn that made them: the findings
+   travel with their answer, so a long conversation scrolls past them the
+   way it scrolls past everything else instead of them squatting over the
+   composer. */
 .qch-staged {
-  padding: 8px 18px 10px;
-  border-top: 1px dotted var(--line-2);
+  padding: 6px 8px;
+  margin-top: 8px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-lg);
 }
 
 .qch-staged-head {

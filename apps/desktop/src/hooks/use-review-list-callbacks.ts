@@ -315,6 +315,27 @@ export function useReviewListCallbacks(
         startLine: a.startLine,
       });
     },
+    /** Posts one pending comment immediately and takes it off the pile —
+     *  the same standalone-comment path the composer's "now" mode uses, so
+     *  a finding worth acting on today does not wait for the whole review. */
+    async onPostPendingNow(c: {
+      id: string;
+      path: string;
+      line: number;
+      side: string;
+      body: string;
+      startLine?: number;
+    }) {
+      await args.addReviewComment.mutateAsync({
+        body: c.body,
+        commitId: args.headShaRef.current,
+        line: c.line,
+        path: c.path,
+        side: c.side,
+        startLine: c.startLine,
+      });
+      args.removePendingStore(args.keyValue, c.id);
+    },
     onAddPending(c: {
       path: string;
       line: number;
@@ -428,6 +449,7 @@ export function useReviewListCallbacks(
     return {
       onAddComment: (...a) => r.current.onAddComment(...a),
       onAddPending: (...a) => r.current.onAddPending(...a),
+      onPostPendingNow: (...a) => r.current.onPostPendingNow(...a),
       onCloseBox: (...a) => r.current.onCloseBox(...a),
       onCopyPath: (...a) => r.current.onCopyPath(...a),
       onDeleteComment: (...a) => r.current.onDeleteComment(...a),

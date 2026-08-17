@@ -57,6 +57,10 @@ export interface MarkdownProps {
    *  highlighter (it knows the file's language); without it the block renders
    *  as plain text, which is what fixtures do. Must return escaped HTML. */
   highlightLine?: (code: string) => string;
+  /** Highlight a fenced block by its fence language (```ts …). Plain fences
+   *  in chat answers carry a language but no filename, so the line
+   *  highlighter above cannot serve them. */
+  highlightFence?: (code: string, lang: string) => string;
   openExternal?: (url: string) => void;
   renderImage?: (props: MarkdownImageProps) => ReactNode | null;
 }
@@ -164,23 +168,29 @@ function SuggestionCard({
         </button>
       </div>
       <div className="md-suggestion-body">
-        {lines.map((line, index) =>
-          highlightLine ? (
-            <div
-              className="md-suggestion-line"
-              // biome-ignore lint/security/noDangerouslySetInnerHtml: the host highlighter escapes what it does not tokenize (lib/highlight.ts)
-              dangerouslySetInnerHTML={{ __html: highlightLine(line) }}
-              // biome-ignore lint/suspicious/noArrayIndexKey: suggestion lines are positional and repeat verbatim
-              key={index}
-            />
-          ) : (
-            <div
-              className="md-suggestion-line"
-              // biome-ignore lint/suspicious/noArrayIndexKey: suggestion lines are positional and repeat verbatim
-              key={index}
-            >
-              {line}
-            </div>
+        {body.trim() === "" ? (
+          <div className="md-suggestion-line md-suggestion-removes">
+            Removes the selected lines
+          </div>
+        ) : (
+          lines.map((line, index) =>
+            highlightLine ? (
+              <div
+                className="md-suggestion-line"
+                // biome-ignore lint/security/noDangerouslySetInnerHtml: the host highlighter escapes what it does not tokenize (lib/highlight.ts)
+                dangerouslySetInnerHTML={{ __html: highlightLine(line) }}
+                // biome-ignore lint/suspicious/noArrayIndexKey: suggestion lines are positional and repeat verbatim
+                key={index}
+              />
+            ) : (
+              <div
+                className="md-suggestion-line"
+                // biome-ignore lint/suspicious/noArrayIndexKey: suggestion lines are positional and repeat verbatim
+                key={index}
+              >
+                {line}
+              </div>
+            )
           )
         )}
       </div>
@@ -203,13 +213,32 @@ function Pre({ node, children, ...rest }: PreProps) {
 
 type CodeProps = ComponentPropsWithoutRef<"code"> & { node?: unknown };
 
-function makeCode(highlightLine: MarkdownProps["highlightLine"]) {
+function makeCode(
+  highlightLine: MarkdownProps["highlightLine"],
+  highlightFence: MarkdownProps["highlightFence"]
+) {
   return function Code({ node, className, children, ...rest }: CodeProps) {
-    if (isSuggestionLang(fenceLang(node))) {
+    const lang = fenceLang(node);
+    if (isSuggestionLang(lang)) {
       return (
         <SuggestionCard
           highlightLine={highlightLine}
           text={codeText(children)}
+        />
+      );
+    }
+    // A fenced block that names its language gets real tokens; inline code
+    // and bare fences stay text. The host highlighter escapes everything it
+    // does not tokenize.
+    if (lang && highlightFence) {
+      return (
+        <code
+          className={className}
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: the host highlighter escapes what it does not tokenize (lib/highlight.ts)
+          dangerouslySetInnerHTML={{
+            __html: highlightFence(codeText(children), lang),
+          }}
+          {...rest}
         />
       );
     }
@@ -239,6 +268,7 @@ function makeImg(renderImage: MarkdownProps["renderImage"]) {
 export function Markdown({
   children,
   className,
+  highlightFence,
   highlightLine,
   openExternal,
   renderImage,
@@ -251,7 +281,7 @@ export function Markdown({
       <ReactMarkdown
         components={{
           a: makeAnchor(openExternal),
-          code: makeCode(highlightLine),
+          code: makeCode(highlightLine, highlightFence),
           img: makeImg(renderImage),
           pre: Pre,
         }}

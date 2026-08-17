@@ -87,6 +87,10 @@ export interface ChatAssistantTurn {
   reasoning: string;
   /** Epoch ms the turn began; null once it has settled. */
   startedAt?: number | null;
+  /** Comments this turn staged, rendered inside the turn — a review pass's
+   *  findings belong to its answer, not to a block pinned under the whole
+   *  transcript. */
+  staged?: readonly ChatStagedComment[];
   text: string | null;
   workedMs?: number;
 }
@@ -347,11 +351,13 @@ function AssistantTurn({
   elapsedMs,
   pinned,
   render,
+  staged,
   turn,
 }: {
   elapsedMs: number | null;
   pinned: boolean;
   render: (text: string) => ReactNode;
+  staged: ChatStagedState | null;
   turn: ChatAssistantTurn;
 }) {
   const inFlight = turn.text === null && turn.error === null;
@@ -374,6 +380,34 @@ function AssistantTurn({
         <p className="qch-err" role="alert">
           {turn.error}
         </p>
+      )}
+      {staged && turn.staged !== undefined && turn.staged.length > 0 && (
+        <div className="qch-staged">
+          <p className="qch-staged-head">
+            {turn.staged.length} comment
+            {turn.staged.length === 1 ? "" : "s"} staged in your review
+          </p>
+          {turn.staged.map((item) => (
+            <div className="qch-staged-row" key={item.id}>
+              <button
+                className="qch-staged-go"
+                onClick={() => staged.onReveal(item.id)}
+                type="button"
+              >
+                <span className="qch-staged-where">{item.label}</span>
+                <span className="qch-staged-body">{item.body}</span>
+              </button>
+              <button
+                aria-label={`Discard the comment on ${item.label}`}
+                className="qch-chip-x"
+                onClick={() => staged.onDiscard(item.id)}
+                type="button"
+              >
+                <X size={11} />
+              </button>
+            </div>
+          ))}
+        </div>
       )}
       {!inFlight && (
         <div className="qch-turn-foot">
@@ -592,40 +626,12 @@ export function ChatPanel({
               key={turn.id}
               pinned={i === turns.length - 1}
               render={renderMarkdown}
+              staged={staged}
               turn={turn}
             />
           )
         )}
       </div>
-
-      {staged && staged.items.length > 0 && (
-        <div className="qch-staged">
-          <p className="qch-staged-head">
-            {staged.items.length} comment
-            {staged.items.length === 1 ? "" : "s"} waiting in your review
-          </p>
-          {staged.items.map((item) => (
-            <div className="qch-staged-row" key={item.id}>
-              <button
-                className="qch-staged-go"
-                onClick={() => staged.onReveal(item.id)}
-                type="button"
-              >
-                <span className="qch-staged-where">{item.label}</span>
-                <span className="qch-staged-body">{item.body}</span>
-              </button>
-              <button
-                aria-label={`Discard the comment on ${item.label}`}
-                className="qch-chip-x"
-                onClick={() => staged.onDiscard(item.id)}
-                type="button"
-              >
-                <X size={11} />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
 
       <div className="qch-foot">
         {suggestions &&

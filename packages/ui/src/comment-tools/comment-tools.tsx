@@ -31,6 +31,7 @@ export function CommentTools({
   deleteKbd,
   deleteLabel,
   editKbd,
+  onPostNow,
   onStartEdit,
   onDelete,
 }: {
@@ -45,6 +46,9 @@ export function CommentTools({
   deleteLabel?: string;
   editKbd?: string;
   onDelete?: () => void;
+  /** Post this one comment immediately, outside the batched review — only a
+   *  pending comment offers it. */
+  onPostNow?: () => void;
   onStartEdit?: () => void;
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -101,6 +105,16 @@ export function CommentTools({
       >
         {copied ? "Copied" : "Copy"}
       </button>
+      {!!onPostNow && (
+        <button
+          aria-label="Post this comment now"
+          className="qf-comment-tool q-focus"
+          onClick={onPostNow}
+          type="button"
+        >
+          Comment now
+        </button>
+      )}
       {!!onStartEdit && (
         <button
           aria-label="Edit comment"

@@ -271,6 +271,7 @@ interface AppState {
       body: string;
       fromAi?: boolean;
       startLine?: number;
+      turnId?: string;
     }
   ) => void;
   addChatChip: (chip: ChatRegion) => void;
