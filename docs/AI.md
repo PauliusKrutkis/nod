@@ -322,12 +322,18 @@ staged, each row a way back to its line.
 ### Skills — the agent-skills standard, read from the repo
 
 Skills are `SKILL.md` files with YAML frontmatter, from two sources: the
-reviewed repo's own — `.claude/skills/**` or `skills/**`, whichever it uses,
-with `.claude` winning a clash and the folder holding the manifest naming the
-skill — via the snapshot — a repo carries its
-review conventions with it — and a personal directory beside the app config
-(`<config>/skills/<name>/SKILL.md`), so your own review passes work in every
-repo. The repo wins a name clash. Invoking one injects its body into the
+reviewed repo's own — `.claude/skills/**`, `.agents/`, `.cursor/`, `.codex/`
+or a bare `skills/**`, whichever it uses, with `.claude` winning a clash and
+the folder holding the manifest naming the skill — via the snapshot — a repo carries its
+review conventions with it — and your own, read from every user-level folder the
+agents on this machine keep — `~/.claude/skills` first, then `~/.agents`,
+`~/.cursor`, `~/.codex`, then Nod's own config directory. They hold genuinely
+different sets (a review pass under one, a Jira helper under another), and a
+reviewer who has already written the skill they need should not be sent
+shopping for a copy of it. New skills are written to `~/.claude/skills`,
+where every one of those tools can see them. The repo wins a name clash.
+
+Invoking one injects its body into the
 outgoing turn as instructions — several can ride one message, numbered in the
 order they were invoked, because "run the validity pass and the security
 pass" is one request. The model can also list and read them itself through

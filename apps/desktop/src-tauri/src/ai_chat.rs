@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashSet;
 use std::sync::Mutex;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::ai::{self, AskContext};
 use crate::snapshot::search as snapshot_search;
@@ -257,11 +257,18 @@ fn build_chat_turn(
 }
 
 /// Where a repository keeps its skills. `.claude/skills/` is the agent-skills
-/// default and wins a name clash; `skills/` is what the `npx skills` tooling
-/// installs into, and what repos that predate the convention (this one
-/// included) actually use. Looking in only one of them means a reviewer who
-/// can see the file in their own tree cannot invoke it.
-const SKILL_ROOTS: [&str; 2] = [".claude/skills/", "skills/"];
+/// default and wins a name clash; the rest are the directories the other
+/// agents and the `npx skills` installer use, and `skills/` is what repos
+/// that predate the convention (this one included) actually carry. Looking
+/// in only one of them means a reviewer who can see the file in their own
+/// tree cannot invoke it.
+const SKILL_ROOTS: [&str; 5] = [
+    ".claude/skills/",
+    ".agents/skills/",
+    ".cursor/skills/",
+    ".codex/skills/",
+    "skills/",
+];
 
 /// Skills Nod ships with. `find-skill` is the one that makes the others
 /// reachable: with no skills at all, `/` would otherwise be an empty menu
@@ -423,32 +430,96 @@ fn read_skill_body(root: &std::path::Path, key: &SnapshotKey, name: &str) -> Opt
     Some(skill_text(&bytes))
 }
 
-/// Personal skills live beside the app config — `<config>/skills/<name>/SKILL.md`
-/// — so a reviewer's own review passes work in every repo, not just ones that
-/// carry `.claude/skills`.
-fn personal_skills_dir(app: &AppHandle) -> Option<std::path::PathBuf> {
-    crate::storage::config_dir(app)
-        .ok()
-        .map(|d| d.join("skills"))
+/// Where a reviewer's own skills live, in the order they are searched.
+///
+/// `~/.claude/skills` first: that is the user-level location the agent-skills
+/// ecosystem shares — Claude Code writes there, `npx skills -g` installs
+/// there — and a reviewer who has already written a review pass expects Nod
+/// to know about it rather than to send them shopping for a copy. The other
+/// agents' folders follow, then Nod's own config directory, so skills
+/// written before this still resolve.
+fn personal_skills_dirs(app: &AppHandle) -> Vec<std::path::PathBuf> {
+    let mut dirs = Vec::new();
+    if let Ok(home) = app.path().home_dir() {
+        for agent in HOME_SKILL_DIRS {
+            dirs.push(home.join(agent).join("skills"));
+        }
+    }
+    if let Ok(config) = crate::storage::config_dir(app) {
+        dirs.push(config.join("skills"));
+    }
+    dirs
 }
 
-fn read_personal_skill(dir: &std::path::Path, name: &str) -> Option<String> {
+/// The user-level skill folders the agents on a machine keep, searched in
+/// this order. They are genuinely different sets — the same reviewer can
+/// have a review pass in one and a Jira helper in another — so Nod reads all
+/// of them rather than picking a favourite.
+const HOME_SKILL_DIRS: [&str; 4] = [".claude", ".agents", ".cursor", ".codex"];
+
+fn read_personal_skill(dirs: &[std::path::PathBuf], name: &str) -> Option<String> {
     if !safe_skill_name(name) {
         return None;
     }
-    let bytes = std::fs::read(dir.join(name).join("SKILL.md")).ok()?;
-    Some(skill_text(&bytes))
+    personal_skill_paths(dirs)
+        .into_iter()
+        .find(|(found, _)| found == name)
+        .and_then(|(_, path)| std::fs::read(path).ok())
+        .map(|bytes| skill_text(&bytes))
+}
+
+/// Every `SKILL.md` under the personal directories, as (name, path). One
+/// level of grouping is walked as well as the flat layout, because
+/// collections install as `skills/<group>/<name>/SKILL.md`.
+fn personal_skill_paths(dirs: &[std::path::PathBuf]) -> Vec<(String, std::path::PathBuf)> {
+    let mut out: Vec<(String, std::path::PathBuf)> = Vec::new();
+    let mut push = |name: String, path: std::path::PathBuf| {
+        if path.is_file() && !out.iter().any(|(seen, _)| *seen == name) {
+            out.push((name, path));
+        }
+    };
+    for dir in dirs {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let Ok(name) = entry.file_name().into_string() else {
+                continue;
+            };
+            if !safe_skill_name(&name) {
+                continue;
+            }
+            let folder = entry.path();
+            push(name, folder.join("SKILL.md"));
+            let Ok(nested) = std::fs::read_dir(&folder) else {
+                continue;
+            };
+            for child in nested.flatten() {
+                if let Ok(inner) = child.file_name().into_string() {
+                    if safe_skill_name(&inner) {
+                        push(inner, child.path().join("SKILL.md"));
+                    }
+                }
+            }
+        }
+    }
+    out
 }
 
 /// Writes a skill the model drafted. Refuses to overwrite: replacing a skill
 /// the reviewer wrote, without being asked to, is not a thing a tool call
 /// should be able to do.
 fn write_personal_skill(
-    dir: &std::path::Path,
+    dirs: &[std::path::PathBuf],
     name: &str,
     description: &str,
     instructions: &str,
-) -> Result<(), String> {
+) -> Result<std::path::PathBuf, String> {
+    // The first directory is the shared user-level one, so a skill written
+    // here is a skill every agent-skills tool on this machine can see.
+    let dir = dirs
+        .first()
+        .ok_or_else(|| "no personal skills folder is available".to_string())?;
     if !safe_skill_name(name) {
         return Err(format!("'{name}' is not a usable skill name"));
     }
@@ -463,27 +534,22 @@ fn write_personal_skill(
         instructions.trim()
     );
     std::fs::write(skill.join("SKILL.md"), body)
-        .map_err(|e| format!("could not write the skill: {e}"))
+        .map_err(|e| format!("could not write the skill: {e}"))?;
+    Ok(skill)
 }
 
-fn discover_personal_skills(dir: &std::path::Path) -> Vec<SkillInfo> {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return Vec::new();
-    };
-    let mut out: Vec<SkillInfo> = Vec::new();
-    for entry in entries.flatten() {
-        let Ok(name) = entry.file_name().into_string() else {
-            continue;
-        };
-        let Some(body) = read_personal_skill(dir, &name) else {
-            continue;
-        };
-        out.push(SkillInfo {
-            description: frontmatter_description(&body),
-            name,
-            source: "personal".to_string(),
-        });
-    }
+fn discover_personal_skills(dirs: &[std::path::PathBuf]) -> Vec<SkillInfo> {
+    let mut out: Vec<SkillInfo> = personal_skill_paths(dirs)
+        .into_iter()
+        .filter_map(|(name, path)| {
+            let bytes = std::fs::read(path).ok()?;
+            Some(SkillInfo {
+                description: frontmatter_description(&skill_text(&bytes)),
+                name,
+                source: "personal".to_string(),
+            })
+        })
+        .collect();
     out.sort_by(|a, b| a.name.cmp(&b.name));
     out
 }
@@ -503,12 +569,12 @@ fn merge_skills(repo: Vec<SkillInfo>, personal: Vec<SkillInfo>) -> Vec<SkillInfo
 
 fn resolve_skill_body(
     snapshot: Option<&(std::path::PathBuf, SnapshotKey)>,
-    personal: Option<&std::path::Path>,
+    personal: &[std::path::PathBuf],
     name: &str,
 ) -> Option<String> {
     snapshot
         .and_then(|(root, key)| read_skill_body(root, key, name))
-        .or_else(|| personal.and_then(|dir| read_personal_skill(dir, name)))
+        .or_else(|| read_personal_skill(personal, name))
         .or_else(|| builtin_skill_body(name))
 }
 
@@ -673,7 +739,7 @@ async fn fetch_public_skill(source: &str, name: &str) -> String {
 
 fn execute_skill_tool(
     snapshot: Option<&(std::path::PathBuf, SnapshotKey)>,
-    personal: Option<&std::path::Path>,
+    personal: &[std::path::PathBuf],
     name: &str,
     arguments: &str,
 ) -> String {
@@ -682,7 +748,7 @@ fn execute_skill_tool(
             let repo = snapshot
                 .map(|(root, key)| discover_skills(root, key))
                 .unwrap_or_default();
-            let personal_list = personal.map(discover_personal_skills).unwrap_or_default();
+            let personal_list = discover_personal_skills(personal);
             let skills = merge_skills(merge_skills(repo, personal_list), builtin_skills());
             if skills.is_empty() {
                 "(no skills available)".to_string()
@@ -702,9 +768,6 @@ fn execute_skill_tool(
         }
         "write_skill" => {
             let args: Value = serde_json::from_str(arguments).unwrap_or(Value::Null);
-            let Some(dir) = personal else {
-                return "error: the personal skills folder is unavailable".to_string();
-            };
             let (Some(name), Some(description), Some(instructions)) = (
                 args.get("name").and_then(Value::as_str),
                 args.get("description").and_then(Value::as_str),
@@ -712,10 +775,10 @@ fn execute_skill_tool(
             ) else {
                 return "error: write_skill needs name, description and instructions".to_string();
             };
-            match write_personal_skill(dir, name, description, instructions) {
-                Ok(()) => format!(
+            match write_personal_skill(personal, name, description, instructions) {
+                Ok(path) => format!(
                     "saved to {}: /{name} is available from the next message",
-                    dir.join(name).display()
+                    path.display()
                 ),
                 Err(e) => format!("error: {e}"),
             }
@@ -817,17 +880,14 @@ pub async fn list_chat_skills(
         repo: Some(repo),
         ..AskContext::default()
     };
-    let personal = personal_skills_dir(&app);
+    let personal = personal_skills_dirs(&app);
     let snapshot = ai::ready_snapshot(&app, &context).await;
     tauri::async_runtime::spawn_blocking(move || {
         let repo_skills = snapshot
             .as_ref()
             .map(|(root, key)| discover_skills(root, key))
             .unwrap_or_default();
-        let personal_skills = personal
-            .as_deref()
-            .map(discover_personal_skills)
-            .unwrap_or_default();
+        let personal_skills = discover_personal_skills(&personal);
         merge_skills(merge_skills(repo_skills, personal_skills), builtin_skills())
     })
     .await
@@ -1169,10 +1229,10 @@ pub async fn ai_chat(
         .ok_or_else(|| "Choose a model in AI settings first".to_string())?;
     state.clear(&chat_id);
     let snapshot = ai::ready_snapshot(&app, &context).await;
-    let personal_skills = personal_skills_dir(&app);
+    let personal_skills = personal_skills_dirs(&app);
     let mut skill_bodies: Vec<String> = Vec::new();
     for name in &skills {
-        match resolve_skill_body(snapshot.as_ref(), personal_skills.as_deref(), name) {
+        match resolve_skill_body(snapshot.as_ref(), &personal_skills, name) {
             Some(body) => skill_bodies.push(skill_instructions(&body).to_string()),
             None => return Err(format!("Skill '{name}' was not found.")),
         }
@@ -1345,7 +1405,7 @@ pub async fn ai_chat(
                 tauri::async_runtime::spawn_blocking(move || {
                     execute_skill_tool(
                         snapshot_for_skills.as_ref(),
-                        personal_for_skills.as_deref(),
+                        &personal_for_skills,
                         &name,
                         &arguments,
                     )

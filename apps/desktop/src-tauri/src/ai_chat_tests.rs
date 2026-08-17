@@ -2,9 +2,9 @@ use super::{
     build_chat_turn, builtin_skill_body, builtin_skills, chat_system_prompt, chat_tools,
     discover_personal_skills, discover_skills, empty_answer, execute_read_diff, execute_skill_tool,
     format_ranges, frontmatter_description, history_messages, merge_skills, parse_proposal,
-    read_skill_body, resolve_skill_body, safe_source, skill_instructions, skill_name_from_path,
-    tool_note, validate_proposal, ChatCancels, ChatDelta, ChatDiffFile, ChatPart, ChatProposal,
-    ChatRegion, ChatToolNote, ChatTurn, CommentableSide, SkillInfo,
+    read_personal_skill, read_skill_body, resolve_skill_body, safe_source, skill_instructions,
+    skill_name_from_path, tool_note, validate_proposal, ChatCancels, ChatDelta, ChatDiffFile,
+    ChatPart, ChatProposal, ChatRegion, ChatToolNote, ChatTurn, CommentableSide, SkillInfo,
 };
 use crate::ai::AskContext;
 use crate::snapshot::store::{partial_dir, promote, SnapshotKey};
@@ -477,12 +477,7 @@ fn discovery_lists_manifest_skills_sorted_with_descriptions() {
 fn skill_tools_list_and_read_and_answer_mistakes_readably() {
     let (root, key) = skills_snapshot("tools");
 
-    let listing = execute_skill_tool(
-        Some(&(root.clone(), key.clone())),
-        None,
-        "list_skills",
-        "{}",
-    );
+    let listing = execute_skill_tool(Some(&(root.clone(), key.clone())), &[], "list_skills", "{}");
     assert_eq!(
         listing,
         "code-review — Review like a senior\nfind-skill — Find a skill for what you are about to do, or write one\ngallery-notes — Write the gallery notes\npr-validity — Review against repo conventions\nsecurity-pass"
@@ -490,7 +485,7 @@ fn skill_tools_list_and_read_and_answer_mistakes_readably() {
 
     let body = execute_skill_tool(
         Some(&(root.clone(), key.clone())),
-        None,
+        &[],
         "read_skill",
         r#"{"name":"pr-validity"}"#,
     );
@@ -498,20 +493,20 @@ fn skill_tools_list_and_read_and_answer_mistakes_readably() {
 
     assert!(execute_skill_tool(
         Some(&(root.clone(), key.clone())),
-        None,
+        &[],
         "read_skill",
         r#"{"name":"nope"}"#
     )
     .starts_with("error:"));
     assert!(execute_skill_tool(
         Some(&(root.clone(), key.clone())),
-        None,
+        &[],
         "read_skill",
         r#"{"name":"../escape"}"#
     )
     .starts_with("error:"));
     assert!(
-        execute_skill_tool(Some(&(root.clone(), key.clone())), None, "read_skill", "{}")
+        execute_skill_tool(Some(&(root.clone(), key.clone())), &[], "read_skill", "{}")
             .starts_with("error:")
     );
 
@@ -615,6 +610,7 @@ fn pasted_regions_get_the_pathless_heading() {
 fn personal_skills_merge_behind_repo_ones_and_read_without_a_snapshot() {
     let dir = std::env::temp_dir().join(format!("nod-personal-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
+    let dirs = vec![dir.clone()];
     for (name, body) in [
         (
             "pr-validity",
@@ -627,7 +623,7 @@ fn personal_skills_merge_behind_repo_ones_and_read_without_a_snapshot() {
         std::fs::write(skill.join("SKILL.md"), body).expect("write");
     }
 
-    let personal = discover_personal_skills(&dir);
+    let personal = discover_personal_skills(&dirs);
     assert_eq!(
         personal.iter().map(|s| s.name.as_str()).collect::<Vec<_>>(),
         vec!["jira-notes", "pr-validity"]
@@ -647,12 +643,12 @@ fn personal_skills_merge_behind_repo_ones_and_read_without_a_snapshot() {
         vec![("jira-notes", ""), ("pr-validity", "Repo-tuned pass"),]
     );
 
-    let listing = execute_skill_tool(None, Some(&dir), "list_skills", "{}");
+    let listing = execute_skill_tool(None, &dirs, "list_skills", "{}");
     assert!(listing.contains("jira-notes"));
-    let body = execute_skill_tool(None, Some(&dir), "read_skill", r#"{"name":"jira-notes"}"#);
+    let body = execute_skill_tool(None, &dirs, "read_skill", r#"{"name":"jira-notes"}"#);
     assert_eq!(body, "Append QA notes.");
 
-    assert!(resolve_skill_body(None, Some(&dir), "pr-validity")
+    assert!(resolve_skill_body(None, &dirs, "pr-validity")
         .expect("personal fallback")
         .contains("Personal instructions."));
 
@@ -711,11 +707,12 @@ fn find_skill_ships_with_the_app_and_survives_a_repo_of_its_own() {
     let dir = std::env::temp_dir().join(format!("nod-builtin-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).expect("personal dir");
+    let dirs = vec![dir.clone()];
 
     // No snapshot, no personal skills: `/` still has something to offer.
-    let listing = execute_skill_tool(None, Some(&dir), "list_skills", "{}");
+    let listing = execute_skill_tool(None, &dirs, "list_skills", "{}");
     assert!(listing.contains("find-skill"), "listing was {listing}");
-    let body = execute_skill_tool(None, Some(&dir), "read_skill", r#"{"name":"find-skill"}"#);
+    let body = execute_skill_tool(None, &dirs, "read_skill", r#"{"name":"find-skill"}"#);
     assert!(body.contains("list_skills"), "body was {body}");
 
     // A repo skill of the same name outranks the built-in, as repo skills do.
@@ -740,24 +737,25 @@ fn write_skill_saves_one_and_refuses_to_clobber_or_escape() {
     let dir = std::env::temp_dir().join(format!("nod-write-skill-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).expect("personal dir");
+    let dirs = vec![dir.clone()];
 
     let args = r#"{"name":"flaky-tests","description":"Flag retries","instructions":"Look for retry loops."}"#;
-    let saved = execute_skill_tool(None, Some(&dir), "write_skill", args);
+    let saved = execute_skill_tool(None, &dirs, "write_skill", args);
     assert!(saved.starts_with("saved to "), "got {saved}");
     assert!(saved.contains("flaky-tests"), "got {saved}");
 
     // It reads back through the same path the picker and the model use.
-    let listed = execute_skill_tool(None, Some(&dir), "list_skills", "{}");
+    let listed = execute_skill_tool(None, &dirs, "list_skills", "{}");
     assert!(listed.contains("flaky-tests"), "listing was {listed}");
-    let body = execute_skill_tool(None, Some(&dir), "read_skill", r#"{"name":"flaky-tests"}"#);
+    let body = execute_skill_tool(None, &dirs, "read_skill", r#"{"name":"flaky-tests"}"#);
     assert_eq!(body, "Look for retry loops.");
 
     // Writing over an existing skill, or outside the folder, is refused.
-    let again = execute_skill_tool(None, Some(&dir), "write_skill", args);
+    let again = execute_skill_tool(None, &dirs, "write_skill", args);
     assert!(again.starts_with("error:"), "got {again}");
     let escape = execute_skill_tool(
         None,
-        Some(&dir),
+        &dirs,
         "write_skill",
         r#"{"name":"../evil","description":"d","instructions":"i"}"#,
     );
@@ -857,4 +855,68 @@ fn an_empty_answer_says_whether_the_budget_ran_out() {
     let just_empty = serde_json::json!({ "content": "", "finish_reason": "stop" });
     assert!(empty_answer(&just_empty).contains("empty answer"));
     assert!(empty_answer(&serde_json::json!({})).contains("empty answer"));
+}
+
+#[test]
+fn personal_skills_come_from_every_agent_folder_and_group() {
+    let root = std::env::temp_dir().join(format!("nod-agents-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    // One reviewer, three agents, three different sets of skills — plus a
+    // grouped collection, which is how the installers lay them out.
+    for (dir, name, body) in [
+        (
+            ".claude",
+            "code-validity",
+            "---\ndescription: Claude's\n---\nC.",
+        ),
+        (
+            ".cursor",
+            "add-qa-notes",
+            "---\ndescription: Cursor's\n---\nQ.",
+        ),
+        (".agents", "scrutinize", "---\ndescription: Shared\n---\nS."),
+        // A name in two folders resolves to the first one searched.
+        (
+            ".cursor",
+            "code-validity",
+            "---\ndescription: Cursor's copy\n---\nX.",
+        ),
+    ] {
+        let skill = root.join(dir).join("skills").join(name);
+        std::fs::create_dir_all(&skill).expect("skill dir");
+        std::fs::write(skill.join("SKILL.md"), body).expect("write");
+    }
+    let grouped = root.join(".claude/skills/engineering/domain-modeling");
+    std::fs::create_dir_all(&grouped).expect("group dir");
+    std::fs::write(
+        grouped.join("SKILL.md"),
+        "---\ndescription: Grouped\n---\nG.",
+    )
+    .expect("write");
+
+    let dirs: Vec<std::path::PathBuf> = [".claude", ".agents", ".cursor"]
+        .iter()
+        .map(|agent| root.join(agent).join("skills"))
+        .collect();
+    let found = discover_personal_skills(&dirs);
+    let named: Vec<(&str, &str)> = found
+        .iter()
+        .map(|s| (s.name.as_str(), s.description.as_str()))
+        .collect();
+    assert_eq!(
+        named,
+        vec![
+            ("add-qa-notes", "Cursor's"),
+            ("code-validity", "Claude's"),
+            ("domain-modeling", "Grouped"),
+            ("scrutinize", "Shared"),
+        ]
+    );
+
+    // The body is the file as written; skill_instructions is what strips the
+    // frontmatter before it reaches the model.
+    let body = read_personal_skill(&dirs, "add-qa-notes").expect("cursor skill");
+    assert_eq!(skill_instructions(&body), "Q.");
+
+    let _ = std::fs::remove_dir_all(&root);
 }
