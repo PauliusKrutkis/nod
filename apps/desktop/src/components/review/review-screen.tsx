@@ -199,7 +199,6 @@ function openPrFilesInBrowser(pr: PullRequest | undefined): void {
   openUrl(pr.url + urlFilesPath);
 }
 
-// react-doctor-disable-next-line no-giant-component -- what remains after the 8-stage split (PRs #126-#151) is the screen's state wiring; BACKLOG § Tech debt records why the rest deliberately stays (selectLine init cycle, per-render model build, the useState block)
 /** "12–18", "12—18" or "12-18" — chips are written with whichever dash the
  *  producing surface used. */
 const LINE_RANGE_DASH = /[–—-]/;
@@ -260,6 +259,7 @@ function FileTreeColumn(props: {
   );
 }
 
+// react-doctor-disable-next-line no-giant-component -- what remains after the 8-stage split (PRs #126-#151) is the screen's state wiring; BACKLOG § Tech debt records why the rest deliberately stays (selectLine init cycle, per-render model build, the useState block)
 function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const { name: repo, number, owner } = parsePrKey(routeKey);
   const keyValue = routeKey;
