@@ -322,7 +322,9 @@ staged, each row a way back to its line.
 ### Skills — the agent-skills standard, read from the repo
 
 Skills are `SKILL.md` files with YAML frontmatter, from two sources: the
-reviewed repo's own `.claude/skills/**` via the snapshot — a repo carries its
+reviewed repo's own — `.claude/skills/**` or `skills/**`, whichever it uses,
+with `.claude` winning a clash and the folder holding the manifest naming the
+skill — via the snapshot — a repo carries its
 review conventions with it — and a personal directory beside the app config
 (`<config>/skills/<name>/SKILL.md`), so your own review passes work in every
 repo. The repo wins a name clash. Invoking one injects its body into the

@@ -87,6 +87,35 @@ export function buildFileTree(files: readonly SidebarFile[]): FileTreeNode[] {
   return toNodes(root, "");
 }
 
+/**
+ * The changed files in the order the tree shows them: directories before
+ * files at each level, everything else in the order the host returned.
+ *
+ * The tree is a presentation layer over flat indices, which is fine until
+ * the keyboard walks the flat order while the eye reads the tree — then
+ * "next file" jumps upward or across directories (docs/BACKLOG.md § Inbox).
+ * Sorting the list once at load, through the same builder the sidebar uses,
+ * makes the flat order and the tree order the same order by construction
+ * rather than by two implementations agreeing.
+ */
+export function treeOrder<T extends SidebarFile>(files: readonly T[]): T[] {
+  const order: T[] = [];
+  const walk = (nodes: readonly FileTreeNode[]) => {
+    for (const node of nodes) {
+      if (node.kind === "file") {
+        const file = files[node.index];
+        if (file !== undefined) {
+          order.push(file);
+        }
+      } else {
+        walk(node.children);
+      }
+    }
+  };
+  walk(buildFileTree(files));
+  return order;
+}
+
 export function flattenTree(
   nodes: readonly FileTreeNode[],
   collapsed: ReadonlySet<string>,

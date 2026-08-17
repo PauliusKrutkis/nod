@@ -27,6 +27,7 @@
     "./diff-row": "./src/diff-row/diff-row.tsx",
     "./file-section-header": "./src/file-section-header/file-section-header.tsx",
     "./file-sidebar": "./src/file-sidebar/file-sidebar.tsx",
+    "./file-tree": "./src/file-sidebar/file-tree.ts",
     "./file-status-glyph": "./src/file-status-glyph/file-status-glyph.tsx",
     "./find-bar": "./src/find-bar/find-bar.tsx",
     "./fixtures": "./src/fixtures/fixtures.ts",

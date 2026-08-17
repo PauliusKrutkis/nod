@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { SidebarFile } from "./file-sidebar.tsx";
-import { buildFileTree, dirPathsForIndex, flattenTree } from "./file-tree.ts";
+import {
+  buildFileTree,
+  dirPathsForIndex,
+  flattenTree,
+  treeOrder,
+} from "./file-tree.ts";
 
 const file = (filename: string): SidebarFile =>
   ({ filename }) as unknown as SidebarFile;
@@ -72,5 +77,42 @@ describe("dirPathsForIndex", () => {
 
   it("returns null for an index that is not in the tree", () => {
     expect(dirPathsForIndex(buildFileTree([file("a.ts")]), 9)).toBeNull();
+  });
+});
+
+describe("treeOrder", () => {
+  it("returns the files in the order the tree renders them", () => {
+    // Host order interleaves a root file between two directories; the tree
+    // shows both directories first, so the walk must too.
+    const files = [
+      file("README.md"),
+      file("src/lib/fuzzy.ts"),
+      file("package.json"),
+      file("src/app.tsx"),
+      file("docs/AI.md"),
+    ];
+
+    expect(treeOrder(files).map((f) => f.filename)).toEqual([
+      "src/lib/fuzzy.ts",
+      "src/app.tsx",
+      "docs/AI.md",
+      "README.md",
+      "package.json",
+    ]);
+  });
+
+  it("keeps a flat list exactly as the host returned it", () => {
+    const files = [file("b.ts"), file("a.ts")];
+    expect(treeOrder(files).map((f) => f.filename)).toEqual(["b.ts", "a.ts"]);
+  });
+
+  it("is idempotent — sorting a sorted list changes nothing", () => {
+    const files = [
+      file("README.md"),
+      file("src/lib/fuzzy.ts"),
+      file("src/app.tsx"),
+    ];
+    const once = treeOrder(files);
+    expect(treeOrder(once)).toEqual(once);
   });
 });

@@ -250,7 +250,12 @@ fn build_chat_turn(
     sections.join("\n\n")
 }
 
-const SKILLS_PREFIX: &str = ".claude/skills/";
+/// Where a repository keeps its skills. `.claude/skills/` is the agent-skills
+/// default and wins a name clash; `skills/` is what the `npx skills` tooling
+/// installs into, and what repos that predate the convention (this one
+/// included) actually use. Looking in only one of them means a reviewer who
+/// can see the file in their own tree cannot invoke it.
+const SKILL_ROOTS: [&str; 2] = [".claude/skills/", "skills/"];
 
 /// Skills Nod ships with. `find-skill` is the one that makes the others
 /// reachable: with no skills at all, `/` would otherwise be an empty menu
@@ -258,7 +263,7 @@ const SKILLS_PREFIX: &str = ".claude/skills/";
 const BUILTIN_SKILLS: &[(&str, &str, &str)] = &[(
     "find-skill",
     "Find a skill for what you are about to do, or write one",
-    "The reviewer wants a skill for a task. Work in this order.\n\n1. Call list_skills. If one already covers the task, say which, quote its description, and tell them to invoke it with a leading slash — then stop.\n2. If none fits, and you do not know what they want a skill for, ask. One question, then wait.\n3. Call search_skills with what they told you. It searches the public catalog, which is far wider than what is installed here. Show the best few hits as a short list: name, where it comes from, how many installs.\n4. When they pick one, call fetch_skill and show the instructions — the whole thing if it is short, the substance of it if it is long. A skill is instructions you will follow over their code, so they read it before it lands, never after.\n5. Save it with write_skill only once they have said yes, keeping the author's text.\n\nIf the catalog has nothing that fits, offer to write one instead: draft a short kebab-case name, a one-line description, and instructions grounded in this repository's conventions, show the draft, and save it the same way. Never write a skill without showing it first, and never invent one that already exists under another name."
+    "The reviewer wants a skill for a task. Work in this order.\n\n1. Call list_skills. If one already covers the task, say which, quote its description, and tell them to invoke it with a leading slash — then stop.\n2. If none fits, and you do not know what they want a skill for, ask. One question, then wait.\n3. Call search_skills with what they told you. It searches the public catalog, which is far wider than what is installed here. Show the best few hits as a short list: name, where it comes from, how many installs.\n4. When they pick one, call fetch_skill and show the instructions — the whole thing if it is short, the substance of it if it is long. A skill is instructions you will follow over their code, so they read it before it lands, never after.\n5. Save it with write_skill only once they have said yes, keeping the author's text.\n\nA skill this repository carries works here already — say so and stop, unless they want it to follow them into other repositories, which is read_skill then write_skill with the author's text. If the catalog has nothing that fits, offer to write one instead: draft a short kebab-case name, a one-line description, and instructions grounded in this repository's conventions, show the draft, and save it the same way. Never write a skill without showing it first, and never invent one that already exists under another name."
 )];
 
 fn builtin_skills() -> Vec<SkillInfo> {
@@ -290,10 +295,40 @@ pub struct SkillInfo {
 
 /// `.claude/skills/<name>/SKILL.md` → the skill's name; anything else — a
 /// nested path, a stray file beside the manifest — is not a skill.
+/// A skill's name is the directory holding its `SKILL.md`, however deep it
+/// sits — collections group skills into folders (`skills/engineering/
+/// code-review/SKILL.md`) and the group is not part of the name.
 fn skill_name_from_path(path: &str) -> Option<&str> {
-    let rest = path.strip_prefix(SKILLS_PREFIX)?;
-    let (name, file) = rest.split_once('/')?;
-    (file == "SKILL.md" && !name.is_empty()).then_some(name)
+    let rest = SKILL_ROOTS
+        .iter()
+        .find_map(|prefix| path.strip_prefix(prefix))?;
+    let (dirs, file) = rest.rsplit_once('/')?;
+    if file != "SKILL.md" {
+        return None;
+    }
+    let name = dirs.rsplit('/').next().unwrap_or(dirs);
+    (!name.is_empty()).then_some(name)
+}
+
+/// Every `SKILL.md` in the snapshot, as (name, path). `.claude/skills` is
+/// walked first so its entry is the one that survives a name clash.
+fn skill_paths(root: &std::path::Path, key: &SnapshotKey) -> Vec<(String, String)> {
+    let mut out: Vec<(String, String)> = Vec::new();
+    for prefix in SKILL_ROOTS {
+        let Some(listing) = snapshot_search::list_files(root, key, Some(prefix)) else {
+            continue;
+        };
+        for path in listing.files {
+            let Some(name) = skill_name_from_path(&path) else {
+                continue;
+            };
+            if out.iter().any(|(seen, _)| seen == name) {
+                continue;
+            }
+            out.push((name.to_string(), path));
+        }
+    }
+    out
 }
 
 /// The `description:` scalar from a leading `---` frontmatter block, by hand
@@ -363,7 +398,22 @@ fn read_skill_body(root: &std::path::Path, key: &SnapshotKey, name: &str) -> Opt
     if !safe_skill_name(name) {
         return None;
     }
-    let bytes = snapshot_store::read_file(root, key, &format!("{SKILLS_PREFIX}{name}/SKILL.md"))?;
+    // The conventional paths first — one read each, and they cover every
+    // skill that isn't filed inside a group — then the listing for the rest.
+    let direct = SKILL_ROOTS
+        .iter()
+        .map(|prefix| format!("{prefix}{name}/SKILL.md"))
+        .find_map(|path| snapshot_store::read_file(root, key, &path));
+    let bytes = match direct {
+        Some(bytes) => bytes,
+        None => {
+            let path = skill_paths(root, key)
+                .into_iter()
+                .find(|(found, _)| found == name)
+                .map(|(_, path)| path)?;
+            snapshot_store::read_file(root, key, &path)?
+        }
+    };
     Some(skill_text(&bytes))
 }
 
@@ -457,23 +507,16 @@ fn resolve_skill_body(
 }
 
 fn discover_skills(root: &std::path::Path, key: &SnapshotKey) -> Vec<SkillInfo> {
-    let Some(listing) = snapshot_search::list_files(root, key, Some(SKILLS_PREFIX)) else {
-        return Vec::new();
-    };
-    let mut out: Vec<SkillInfo> = Vec::new();
-    for path in &listing.files {
-        let Some(name) = skill_name_from_path(path) else {
-            continue;
-        };
-        let description = read_skill_body(root, key, name)
-            .map(|body| frontmatter_description(&body))
-            .unwrap_or_default();
-        out.push(SkillInfo {
-            description,
-            name: name.to_string(),
+    let mut out: Vec<SkillInfo> = skill_paths(root, key)
+        .into_iter()
+        .map(|(name, _)| SkillInfo {
+            description: read_skill_body(root, key, &name)
+                .map(|body| frontmatter_description(&body))
+                .unwrap_or_default(),
+            name,
             source: "repo".to_string(),
-        });
-    }
+        })
+        .collect();
     out.sort_by(|a, b| a.name.cmp(&b.name));
     out
 }

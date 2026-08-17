@@ -205,17 +205,19 @@ function TurnTime({ at, pinned }: { at: string | undefined; pinned: boolean }) {
   );
 }
 
+/** A settled turn reads back the way it was written: the skill and the code
+ *  chips sit inline in the sentence, where the reviewer put them, rather
+ *  than in a row above it. */
 function UserTurn({ turn }: { turn: ChatUserTurn }) {
+  const skillChip = turn.skill !== undefined && (
+    <span className="qch-chip qch-skill-chip">/{turn.skill}</span>
+  );
   return (
     <div className="qch-turn qch-user">
       <div className="qch-bubble">
-        {turn.skill !== undefined && (
-          <div className="qch-turn-chips">
-            <span className="qch-chip qch-skill-chip">/{turn.skill}</span>
-          </div>
-        )}
         {turn.parts && turn.parts.length > 0 ? (
           <p className="qch-text">
+            {skillChip}
             {turn.parts.map((part, i) =>
               part.kind === "text" ? (
                 // biome-ignore lint/suspicious/noArrayIndexKey: parts are positional and may repeat verbatim
@@ -240,7 +242,10 @@ function UserTurn({ turn }: { turn: ChatUserTurn }) {
                 ))}
               </div>
             )}
-            <p className="qch-text">{turn.text}</p>
+            <p className="qch-text">
+              {skillChip}
+              {turn.text}
+            </p>
           </>
         )}
       </div>

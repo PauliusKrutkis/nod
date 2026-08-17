@@ -391,17 +391,20 @@
   padding: 7px 8px 0;
 }
 
+/* Chips sit in the sentence, so they sit on its baseline: inline-block, no
+   overflow (which would take the baseline from the box's bottom edge and
+   float the chip above the line), and the same 11px mono the composer's
+   chips use — a message should read back the way it was typed. */
 .qch-chip {
-  display: inline-flex;
-  gap: 3px;
-  align-items: center;
-  max-width: 100%;
-  padding: 2px 5px 2px 7px;
-  overflow: hidden;
+  display: inline-block;
+  padding: 0 5px 1px;
+  margin-right: 4px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
+  line-height: 1.4;
   color: var(--muted);
   white-space: nowrap;
+  vertical-align: baseline;
   background: var(--surface-hi);
   border: 1px solid var(--line-2);
   border-radius: var(--r-pill);

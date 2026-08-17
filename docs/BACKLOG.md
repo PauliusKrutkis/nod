@@ -1884,16 +1884,12 @@ Four items raised by the owner. Checked against the code before writing, and
 where the check changed the diagnosis that is recorded here rather than
 quietly fixed.
 
-- [ ] 🟡 **Keyboard file order does not match the tree** — the sidebar's tree
-      view groups directories first (`buildFileTree` in `lib/file-tree.ts`
-      emits child dirs before files), but `Tab`/`e` and the diff pane walk the
-      ORIGINAL flat `files` order the host returned — the tree is deliberately
-      a pure presentation layer over flat indices. So with the tree visible,
-      "next file" can jump upward or across directories. Either walk the
-      flattened tree order when tree mode is on, or sort `files` once at load
-      so the flat order, the tree order and the walk order agree. The second
-      is simpler and also fixes the flat list, which today mirrors the host's
-      arbitrary ordering.
+- [x] 🟡 **Keyboard file order does not match the tree** — shipped
+      2026-08-17. Took the second option: `treeOrder` (beside `buildFileTree`,
+      so one implementation defines the order) sorts the files once as they
+      enter the review screen, and every consumer — the sidebar, the diff
+      pane, `Tab`/`e`, the flat list — reads that array. The orders now agree
+      by construction rather than by two traversals happening to match.
 - [ ] 🟡 ❓ **Failed-to-fetch / offline status is invisible with stale data** —
       the inbox shows an error state only when there is no cached data
       (`inbox.tsx` `isError && !hasData`); once anything is cached, a dead

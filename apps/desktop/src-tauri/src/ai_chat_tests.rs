@@ -1,9 +1,10 @@
 use super::{
-    build_chat_turn, builtin_skill_body, builtin_skills, safe_source, chat_system_prompt, chat_tools, discover_personal_skills,
-    discover_skills, execute_read_diff, execute_skill_tool, format_ranges, frontmatter_description,
-    history_messages, merge_skills, parse_proposal, resolve_skill_body, skill_instructions,
-    skill_name_from_path, tool_note, validate_proposal, ChatCancels, ChatDelta, ChatDiffFile,
-    ChatPart, ChatProposal, ChatRegion, ChatToolNote, ChatTurn, CommentableSide, SkillInfo,
+    build_chat_turn, builtin_skill_body, builtin_skills, chat_system_prompt, chat_tools,
+    discover_personal_skills, discover_skills, execute_read_diff, execute_skill_tool,
+    format_ranges, frontmatter_description, history_messages, merge_skills, parse_proposal,
+    read_skill_body, resolve_skill_body, safe_source, skill_instructions, skill_name_from_path,
+    tool_note, validate_proposal, ChatCancels, ChatDelta, ChatDiffFile, ChatPart, ChatProposal,
+    ChatRegion, ChatToolNote, ChatTurn, CommentableSide, SkillInfo,
 };
 use crate::ai::AskContext;
 use crate::snapshot::store::{partial_dir, promote, SnapshotKey};
@@ -352,18 +353,30 @@ fn tool_note_names_the_proposal_target() {
 const SKILL_MD: &str = "---\nname: pr-validity\ndescription: Review against repo conventions\n---\n\nCheck comment placement and naming.";
 
 #[test]
-fn skill_names_come_only_from_manifest_paths() {
+fn skill_names_come_from_the_folder_holding_the_manifest() {
     assert_eq!(
         skill_name_from_path(".claude/skills/pr-validity/SKILL.md"),
         Some("pr-validity")
+    );
+    // `skills/` is where the npx tooling installs and where repos that
+    // predate .claude/skills keep theirs — a reviewer who can see the file
+    // should be able to invoke it.
+    assert_eq!(
+        skill_name_from_path("skills/pr-validity/SKILL.md"),
+        Some("pr-validity")
+    );
+    // Collections group skills into folders; the group is not the name.
+    assert_eq!(
+        skill_name_from_path("skills/engineering/code-review/SKILL.md"),
+        Some("code-review")
     );
     assert_eq!(
         skill_name_from_path(".claude/skills/pr-validity/notes.md"),
         None
     );
     assert_eq!(skill_name_from_path(".claude/skills/SKILL.md"), None);
+    assert_eq!(skill_name_from_path("skills/SKILL.md"), None);
     assert_eq!(skill_name_from_path("docs/SKILL.md"), None);
-    assert_eq!(skill_name_from_path(".claude/skills/a/b/SKILL.md"), None);
 }
 
 #[test]
@@ -410,6 +423,15 @@ fn skills_snapshot(label: &str) -> (PathBuf, SnapshotKey) {
             "No frontmatter, straight to auditing.",
         ),
         (".claude/skills/pr-validity/reference.md", "not a skill"),
+        // A repo that keeps skills outside .claude, grouped and not
+        (
+            "skills/gallery-notes/SKILL.md",
+            "---\ndescription: Write the gallery notes\n---\nBody.",
+        ),
+        (
+            "skills/engineering/code-review/SKILL.md",
+            "---\ndescription: Review like a senior\n---\nBody.",
+        ),
         ("src/lib.rs", "fn main() {}\n"),
     ] {
         let target = partial_dir(&root, &key).join(path);
@@ -426,6 +448,16 @@ fn discovery_lists_manifest_skills_sorted_with_descriptions() {
     assert_eq!(
         discover_skills(&root, &key),
         vec![
+            SkillInfo {
+                description: "Review like a senior".to_string(),
+                name: "code-review".to_string(),
+                source: "repo".to_string(),
+            },
+            SkillInfo {
+                description: "Write the gallery notes".to_string(),
+                name: "gallery-notes".to_string(),
+                source: "repo".to_string(),
+            },
             SkillInfo {
                 description: "Review against repo conventions".to_string(),
                 name: "pr-validity".to_string(),
@@ -453,7 +485,7 @@ fn skill_tools_list_and_read_and_answer_mistakes_readably() {
     );
     assert_eq!(
         listing,
-        "find-skill — Find a skill for what you are about to do, or write one\npr-validity — Review against repo conventions\nsecurity-pass"
+        "code-review — Review like a senior\nfind-skill — Find a skill for what you are about to do, or write one\ngallery-notes — Write the gallery notes\npr-validity — Review against repo conventions\nsecurity-pass"
     );
 
     let body = execute_skill_tool(
@@ -768,4 +800,28 @@ fn find_skill_tells_the_model_to_search_wide_and_show_before_saving() {
     ] {
         assert!(body.contains(step), "find-skill should mention {step}");
     }
+}
+
+#[test]
+fn skills_outside_dot_claude_are_reachable_too() {
+    let (root, key) = skills_snapshot("outside");
+    let found = discover_skills(&root, &key);
+    let names: Vec<&str> = found.iter().map(|s| s.name.as_str()).collect();
+    assert_eq!(
+        names,
+        vec![
+            "code-review",
+            "gallery-notes",
+            "pr-validity",
+            "security-pass"
+        ]
+    );
+
+    // And each one reads, wherever it is filed.
+    let outside = read_skill_body(&root, &key, "gallery-notes").expect("skills/ skill");
+    assert!(outside.contains("Body."));
+    let grouped = read_skill_body(&root, &key, "code-review").expect("grouped skill");
+    assert!(grouped.contains("Body."));
+
+    let _ = std::fs::remove_dir_all(&root);
 }
