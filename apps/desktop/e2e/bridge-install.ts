@@ -26,6 +26,15 @@ import {
   INBOX,
 } from "./fixtures.ts";
 
+/** One tick of a scripted chat turn: whatever the mocked backend emits
+ *  before the next 10ms beat. */
+export interface AiChatStep {
+  delta?: string;
+  proposal?: Record<string, unknown>;
+  reasoning?: string;
+  tool?: { detail: string; tool: string };
+}
+
 export interface AppOptions {
   detail?: unknown;
   activateLicense?: "hang" | "error" | "licensed";
@@ -38,12 +47,7 @@ export interface AppOptions {
   };
   aiAnswer?: string | "error";
   aiChatAnswer?: string | "error" | "hang";
-  aiChatScript?: {
-    delta?: string;
-    reasoning?: string;
-    tool?: { tool: string; detail: string };
-    proposal?: Record<string, unknown>;
-  }[];
+  aiChatScript?: AiChatStep[];
   aiModels?: { id: string; contextLength: number | null }[];
   aiModelsError?: string;
   chatSkills?: { name: string; description: string; source: string }[];
@@ -216,6 +220,20 @@ export function installBridge(cfg: BridgeConfig) {
         throw new Error("AI provider error (402): out of credits");
       }
       const ids = { chatId: args.chatId, turnId: args.turnId };
+      const playStep = (entry: AiChatStep) => {
+        if (entry.delta) {
+          emitEvent("ai-chat-delta", { ...ids, text: entry.delta });
+        }
+        if (entry.reasoning) {
+          emitEvent("ai-chat-reasoning", { ...ids, text: entry.reasoning });
+        }
+        if (entry.tool) {
+          emitEvent("ai-chat-tool", { ...ids, ...entry.tool });
+        }
+        if (entry.proposal) {
+          emitEvent("ai-chat-proposal", { ...ids, proposal: entry.proposal });
+        }
+      };
       return new Promise((resolve) => {
         let step = 0;
         const play = () => {
@@ -227,18 +245,7 @@ export function installBridge(cfg: BridgeConfig) {
             return;
           }
           step += 1;
-          if (entry.delta) {
-            emitEvent("ai-chat-delta", { ...ids, text: entry.delta });
-          }
-          if (entry.reasoning) {
-            emitEvent("ai-chat-reasoning", { ...ids, text: entry.reasoning });
-          }
-          if (entry.tool) {
-            emitEvent("ai-chat-tool", { ...ids, ...entry.tool });
-          }
-          if (entry.proposal) {
-            emitEvent("ai-chat-proposal", { ...ids, proposal: entry.proposal });
-          }
+          playStep(entry);
           setTimeout(play, 10);
         };
         setTimeout(play, 0);

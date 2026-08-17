@@ -234,7 +234,8 @@ function UserTurn({ turn }: { turn: ChatUserTurn }) {
             {turn.regions.length > 0 && (
               <div className="qch-turn-chips">
                 {turn.regions.map((region, i) => (
-                  <span className="qch-chip" key={`${chipLabel(region)}-${i}`}>
+                  // biome-ignore lint/suspicious/noArrayIndexKey: a settled turn's chips are positional and may repeat verbatim
+                  <span className="qch-chip" key={i}>
                     {chipLabel(region)}
                   </span>
                 ))}
@@ -292,6 +293,7 @@ function ActivityTrail({
       {open && hasTrail && (
         <div className="qch-trail-body">
           {turn.activity.map((line, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: the trail is append-only and two steps can read identically
             <p className="qch-trail-step" key={`${line}-${i}`}>
               {line}
             </p>
@@ -382,6 +384,20 @@ export function ChatPanel({
   turns,
 }: ChatPanelProps) {
   const [threadsOpen, setThreadsOpen] = useState(false);
+  const threadsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!threadsOpen) {
+      return;
+    }
+    const onDown = (e: PointerEvent) => {
+      if (!threadsRef.current?.contains(e.target as Node)) {
+        setThreadsOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, [threadsOpen]);
   const localComposer = useRef<ChatComposerHandle>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [modelOpen, setModelOpen] = useState(false);
@@ -394,6 +410,24 @@ export function ChatPanel({
 
   const closeModelPicker = () => {
     setModelOpen(false);
+  };
+
+  /* The popover's field blurs on mousedown, which would close it a beat before
+     the click toggled it back open. So the trigger decides on mousedown and
+     the click that follows is swallowed; a keyboard activation has no
+     mousedown and falls through to the click. */
+  const toggledByPointer = useRef(false);
+  const onModelPointerDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    toggledByPointer.current = true;
+    setModelOpen((open) => !open);
+  };
+  const onModelClick = () => {
+    if (toggledByPointer.current) {
+      toggledByPointer.current = false;
+      return;
+    }
+    setModelOpen((open) => !open);
   };
 
   useEffect(() => {
@@ -459,9 +493,9 @@ export function ChatPanel({
   };
 
   return (
-    <div aria-label="Review chat" className="qch-panel">
+    <section aria-label="Review chat" className="qch-panel">
       {threads && threads.items.length > 0 && (
-        <div className="qch-threads">
+        <div className="qch-threads" ref={threadsRef}>
           <button
             aria-expanded={threadsOpen}
             className="qch-thread-current q-focus"
@@ -659,7 +693,8 @@ export function ChatPanel({
               aria-expanded={modelOpen}
               aria-label={`Model: ${model.current}. Change model`}
               className="qch-model q-focus"
-              onClick={() => setModelOpen((open) => !open)}
+              onClick={onModelClick}
+              onMouseDown={onModelPointerDown}
               type="button"
             >
               <span className="qch-model-id">{model.current}</span>
@@ -668,6 +703,6 @@ export function ChatPanel({
           )}
         </div>
       </div>
-    </div>
+    </section>
   );
 }

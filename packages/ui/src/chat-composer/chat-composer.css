@@ -24,7 +24,7 @@
 
 .qcc-chip {
   display: inline-flex;
-  gap: 4px;
+  gap: 3px;
   align-items: center;
   max-width: 22ch;
   padding: 1px 6px;
@@ -46,4 +46,22 @@
 .qcc-chip:hover {
   color: var(--accent);
   border-color: var(--accent-line);
+}
+
+.qcc-chip-label {
+  max-width: 20ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qcc-chip-x {
+  padding: 0 1px;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--faint);
+}
+
+.qcc-chip-x:hover {
+  color: var(--del);
 }

@@ -488,6 +488,7 @@ function PendingCommentCard({
   };
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/noNoninteractiveElementInteractions: hover only reveals the key hints already reachable from the keyboard — the posted thread tracks hover the same way
     <div
       className="qf-thread qf-pending"
       data-pending-id={comment.id}

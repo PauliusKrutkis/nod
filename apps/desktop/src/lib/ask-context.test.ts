@@ -24,11 +24,15 @@ const FILE: ChangedFile = {
   status: "modified",
 };
 
+// `repo` is the full "owner/name" path and `name` is the bare repo — they
+// differ here on purpose, because the forge calls want `name` and reaching for
+// `repo` asks for /repos/acme/acme/widget-app.
 const PR = {
   body: "Renames the retry knob.",
   headSha: "abc123",
+  name: "widget-app",
   owner: "acme",
-  repo: "widget-app",
+  repo: "acme/widget-app",
   title: "Rename retryCount",
 } as PullRequest;
 
@@ -102,6 +106,7 @@ describe("buildAskContext", () => {
     expect(context.diffSummary).toBe("src/retry.ts (+1 -1)");
     expect(context.owner).toBe("acme");
     expect(context.repo).toBe("widget-app");
+    expect(context.repo).not.toContain("/");
     expect(context.headSha).toBe("abc123");
   });
 

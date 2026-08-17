@@ -146,7 +146,10 @@ export function buildAskContext(args: {
     owner: args.pr.owner,
     prBody: args.pr.body,
     prTitle: args.pr.title,
-    repo: args.pr.repo,
+    // `pr.repo` is the "owner/name" path; the API wants the bare name, which
+    // is `pr.name`. Getting this wrong asks for /repos/owner/owner/name and
+    // gets a 404, which reads as "no snapshot" rather than as a bug.
+    repo: args.pr.name,
   };
   const focused = focusedContext(args);
   if (focused) {

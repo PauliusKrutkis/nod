@@ -26,25 +26,34 @@ function mergeLines(lines: number[]): [number, number][] {
   return ranges;
 }
 
+/** The lines of one file that carry a comment target, split by side — the
+ *  same rule `rowTarget` applies to a rendered row: a deletion answers on the
+ *  left at its old number, an addition or context line on the right at its
+ *  new one. */
+function fileLines(file: ChangedFile): { left: number[]; right: number[] } {
+  const left: number[] = [];
+  const right: number[] = [];
+  for (const hunk of parsePatch(file.patch)) {
+    for (const row of hunk.rows) {
+      if (row.type === "del" && row.oldLine !== null) {
+        left.push(row.oldLine);
+      } else if (
+        (row.type === "add" || row.type === "context") &&
+        row.newLine !== null
+      ) {
+        right.push(row.newLine);
+      }
+    }
+  }
+  return { left, right };
+}
+
 export function buildCommentableRanges(
   files: readonly ChangedFile[]
 ): CommentableSide[] {
   const out: CommentableSide[] = [];
   for (const file of files) {
-    const left: number[] = [];
-    const right: number[] = [];
-    for (const hunk of parsePatch(file.patch)) {
-      for (const row of hunk.rows) {
-        if (row.type === "del" && row.oldLine !== null) {
-          left.push(row.oldLine);
-        } else if (
-          (row.type === "add" || row.type === "context") &&
-          row.newLine !== null
-        ) {
-          right.push(row.newLine);
-        }
-      }
-    }
+    const { left, right } = fileLines(file);
     if (left.length > 0) {
       out.push({ path: file.filename, ranges: mergeLines(left), side: "LEFT" });
     }

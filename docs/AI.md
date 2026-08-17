@@ -329,6 +329,16 @@ repo. The repo wins a name clash. Invoking one injects its body into the
 outgoing turn as instructions; the model can also list and read them itself
 through tools.
 
+One skill ships with the app: **`/find-skill`**, which is how the other ones
+get written. It looks for an existing skill that already covers what you are
+about to do, and when none does, it drafts one with you and saves it through a
+`write_skill` tool — so the answer to "how do I add a skill?" is a message in
+the chat, not a folder to go and populate. It refuses to overwrite a skill you
+already have, and shows you the draft before it writes anything: a skill is
+instructions the model will follow over your code, so one never appears
+unread. A repo skill named `find-skill` outranks the built-in, same as any
+other clash.
+
 ### Ship order
 
 Docs (this section) → docked panel → `ai_chat` → chat-panel component → wiring

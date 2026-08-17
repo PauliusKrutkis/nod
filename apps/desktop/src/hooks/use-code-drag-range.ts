@@ -1,10 +1,10 @@
 /**
- * Arms the drag-over-code range (lib/drag-range.ts) on pointer release. The
- * range is computed once, at the end of the gesture, rather than on every
- * `selectionchange` the drag emits: the browser is already painting the text
- * selection while the pointer moves, so the only moment the row range has to
- * be right is when the pointer lifts — and the anchor walk it needs is not
- * something to run at pointer-move rate.
+ * Arms the drag-over-code range (lib/drag-range.ts) while the pointer moves,
+ * and settles it on release. Computing it only at the end read as a lag: you
+ * sweep three rows, nothing happens, you let go and the range appears — so
+ * the gesture never felt like it was doing anything. The walk runs at most
+ * once per animation frame, which is the same budget the cursor's own moves
+ * are held to.
  *
  * Input mode is deliberately left alone. The row wash paints in both modes,
  * so the range is visible immediately; flipping to keyboard mode here would
@@ -35,12 +35,13 @@ export function useCodeDragRange(args: {
     args;
 
   useEffect(() => {
-    const onPointerUp = () => {
+    let dragging = false;
+    let frame = 0;
+
+    const apply = () => {
+      frame = 0;
       const selection = document.getSelection();
       if (!selection || selection.isCollapsed) {
-        // A plain click collapses the text selection; the row range it armed
-        // goes with it, so the two never disagree about what is selected.
-        setSelection((current) => (current === null ? current : null));
         return;
       }
       const range = rangeFromAnchors(
@@ -55,7 +56,43 @@ export function useCodeDragRange(args: {
       setCursor({ anchor: range.to, fileIndex: range.fileIndex, kind: "row" });
       setSelection(range);
     };
+
+    const onPointerDown = (e: PointerEvent) => {
+      dragging = (e.target as HTMLElement | null)?.closest(".qf-code") !== null;
+    };
+
+    const onPointerMove = () => {
+      if (dragging && !frame) {
+        frame = requestAnimationFrame(apply);
+      }
+    };
+
+    const onPointerUp = () => {
+      dragging = false;
+      if (frame) {
+        cancelAnimationFrame(frame);
+        frame = 0;
+      }
+      const selection = document.getSelection();
+      if (!selection || selection.isCollapsed) {
+        // A plain click collapses the text selection; the row range it armed
+        // goes with it, so the two never disagree about what is selected.
+        setSelection((current) => (current === null ? current : null));
+        return;
+      }
+      apply();
+    };
+
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("pointermove", onPointerMove);
     document.addEventListener("pointerup", onPointerUp);
-    return () => document.removeEventListener("pointerup", onPointerUp);
+    return () => {
+      if (frame) {
+        cancelAnimationFrame(frame);
+      }
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerUp);
+    };
   }, [activeIndexRef, modelRef, setActiveIndex, setCursor, setSelection]);
 }

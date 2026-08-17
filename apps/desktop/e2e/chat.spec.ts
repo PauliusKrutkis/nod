@@ -2,6 +2,9 @@ import { setupApp } from "./bridge.ts";
 import { expect, test } from "./test.ts";
 import type { Page } from "./types.ts";
 
+const SONNET_OPTION = /claude-sonnet/;
+const DISCARD_FUZZY = /Discard the comment on src\/lib\/fuzzy/;
+
 const CONFIGURED = {
   aiInfo: {
     baseUrl: "https://api.nexos.ai",
@@ -628,7 +631,7 @@ test("the model button swaps the chat's model and the pick rides the send", asyn
   const search = page.getByLabel("Search models");
   await expect(search).toBeFocused();
   await search.fill("claude");
-  await page.getByRole("option", { name: /claude-sonnet/ }).click();
+  await page.getByRole("option", { name: SONNET_OPTION }).click();
   await expect(modelButton).toContainText("claude-sonnet");
 
   await composer(page).fill("Which model are you?");
@@ -896,9 +899,7 @@ test("discarding from the chat removes the comment from the diff", async ({
   await openReview(page);
   await stageProposal(page);
 
-  await page
-    .getByRole("button", { name: /Discard the comment on src\/lib\/fuzzy/ })
-    .click();
+  await page.getByRole("button", { name: DISCARD_FUZZY }).click();
   await expect(page.locator(".qf-pending")).toHaveCount(0);
   await expect(chatPanel(page).locator(".qch-staged-go")).toHaveCount(0);
 });

@@ -239,7 +239,7 @@ export type ChatTurnRecord =
 export interface SkillInfo {
   name: string;
   description: string;
-  source: "repo" | "personal";
+  source: "repo" | "personal" | "built-in";
 }
 
 export interface ChatDiff {

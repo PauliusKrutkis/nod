@@ -120,9 +120,9 @@ export function ModelPicker({
           }
           aria-autocomplete="list"
           aria-controls={listId}
+          aria-expanded="true"
           aria-label="Search models"
           autoComplete="off"
-          // biome-ignore lint/a11y/noAutofocus: the popover exists to be typed into; it opens on a deliberate click and traps nothing
           autoFocus
           className="qmp-input"
           onBlur={(e) => {

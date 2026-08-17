@@ -1,6 +1,6 @@
 use super::{
-    build_chat_turn, chat_system_prompt, chat_tools, discover_personal_skills, discover_skills,
-    execute_read_diff, execute_skill_tool, format_ranges, frontmatter_description,
+    build_chat_turn, builtin_skills, chat_system_prompt, chat_tools, discover_personal_skills,
+    discover_skills, execute_read_diff, execute_skill_tool, format_ranges, frontmatter_description,
     history_messages, merge_skills, parse_proposal, resolve_skill_body, skill_instructions,
     skill_name_from_path, tool_note, validate_proposal, ChatCancels, ChatDelta, ChatDiffFile,
     ChatPart, ChatProposal, ChatRegion, ChatToolNote, ChatTurn, CommentableSide, SkillInfo,
@@ -306,6 +306,7 @@ fn chat_tools_compose_by_capability() {
             "grep_repo",
             "list_skills",
             "read_skill",
+            "write_skill",
             "read_diff",
             "propose_comment"
         ]
@@ -450,7 +451,7 @@ fn skill_tools_list_and_read_and_answer_mistakes_readably() {
     );
     assert_eq!(
         listing,
-        "pr-validity — Review against repo conventions\nsecurity-pass"
+        "find-skill — Find a skill for what you are about to do, or write one\npr-validity — Review against repo conventions\nsecurity-pass"
     );
 
     let body = execute_skill_tool(
@@ -669,4 +670,64 @@ fn a_turn_without_parts_keeps_the_old_shape() {
     let body = build_chat_turn("Explain.", &[], &regions, &context(), false, None);
     assert!(body.starts_with("Code from a.ts:"));
     assert!(body.ends_with("Explain."));
+}
+
+#[test]
+fn find_skill_ships_with_the_app_and_survives_a_repo_of_its_own() {
+    let dir = std::env::temp_dir().join(format!("nod-builtin-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("personal dir");
+
+    // No snapshot, no personal skills: `/` still has something to offer.
+    let listing = execute_skill_tool(None, Some(&dir), "list_skills", "{}");
+    assert!(listing.contains("find-skill"), "listing was {listing}");
+    let body = execute_skill_tool(None, Some(&dir), "read_skill", r#"{"name":"find-skill"}"#);
+    assert!(body.contains("list_skills"), "body was {body}");
+
+    // A repo skill of the same name outranks the built-in, as repo skills do.
+    let repo = vec![SkillInfo {
+        description: "Ours".to_string(),
+        name: "find-skill".to_string(),
+        source: "repo".to_string(),
+    }];
+    let merged = merge_skills(merge_skills(repo, vec![]), builtin_skills());
+    let named: Vec<_> = merged
+        .iter()
+        .filter(|s| s.name == "find-skill")
+        .map(|s| (s.description.as_str(), s.source.as_str()))
+        .collect();
+    assert_eq!(named, vec![("Ours", "repo")]);
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn write_skill_saves_one_and_refuses_to_clobber_or_escape() {
+    let dir = std::env::temp_dir().join(format!("nod-write-skill-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("personal dir");
+
+    let args = r#"{"name":"flaky-tests","description":"Flag retries","instructions":"Look for retry loops."}"#;
+    let saved = execute_skill_tool(None, Some(&dir), "write_skill", args);
+    assert!(saved.starts_with("saved:"), "got {saved}");
+
+    // It reads back through the same path the picker and the model use.
+    let listed = execute_skill_tool(None, Some(&dir), "list_skills", "{}");
+    assert!(listed.contains("flaky-tests"), "listing was {listed}");
+    let body = execute_skill_tool(None, Some(&dir), "read_skill", r#"{"name":"flaky-tests"}"#);
+    assert_eq!(body, "Look for retry loops.");
+
+    // Writing over an existing skill, or outside the folder, is refused.
+    let again = execute_skill_tool(None, Some(&dir), "write_skill", args);
+    assert!(again.starts_with("error:"), "got {again}");
+    let escape = execute_skill_tool(
+        None,
+        Some(&dir),
+        "write_skill",
+        r#"{"name":"../evil","description":"d","instructions":"i"}"#,
+    );
+    assert!(escape.starts_with("error:"), "got {escape}");
+    assert!(!dir.parent().expect("parent").join("evil").exists());
+
+    let _ = std::fs::remove_dir_all(&dir);
 }

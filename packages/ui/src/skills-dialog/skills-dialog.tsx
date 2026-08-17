@@ -27,7 +27,7 @@ import "./skills-dialog.css";
 export interface SkillRow {
   description: string;
   name: string;
-  source: "repo" | "personal";
+  source: "repo" | "personal" | "built-in";
 }
 
 export interface SkillsDialogProps {
@@ -108,6 +108,12 @@ function SkillsDialogContent({
         A skill is a <code>SKILL.md</code> file the model follows when you
         invoke it with <code>/</code>. Nod reads them from this repository's{" "}
         <code>.claude/skills</code> and from your own folder.
+      </p>
+
+      <p className="qsk-lede">
+        Not sure what you need? Send <code>/find-skill</code> in the chat — it
+        looks for one that already fits, and writes a new one with you if none
+        does.
       </p>
 
       {skills.length === 0 ? (

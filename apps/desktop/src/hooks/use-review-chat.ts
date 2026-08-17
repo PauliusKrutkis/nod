@@ -67,16 +67,17 @@ function settledTrail(live: LiveTurn | null) {
 
 const EMPTY_TURNS: ChatTurnRecord[] = [];
 const EMPTY_PENDING: PendingComment[] = [];
+const SLASH_QUERY = /^\/\S*$/;
 const EMPTY_SKILLS: SkillInfo[] = [];
 const EMPTY_THREADS: ChatThread[] = [];
 
 /** A thread's display name: its opening message, tightly trimmed. */
 function threadTitle(thread: ChatThread): string {
   const first = thread.turns.find((t) => t.kind === "user");
-  if (!first || first.kind !== "user") {
+  if (first?.kind !== "user") {
     return "New chat";
   }
-  const line = first.text.split("\n")[0].trim();
+  const line = (first.text.split("\n")[0] ?? "").trim();
   return line.length > 40 ? `${line.slice(0, 40)}…` : line;
 }
 
@@ -127,6 +128,8 @@ function historyMessages(
   return out;
 }
 
+/** `pr.repo` is the "owner/name" path and `pr.name` is the bare repo name —
+ *  the snapshot key and every forge call want the latter. */
 function chatContext(
   files: readonly ChangedFile[],
   pr: PullRequest
@@ -142,42 +145,22 @@ function chatContext(
     owner: pr.owner,
     prBody: pr.body,
     prTitle: pr.title,
-    repo: pr.repo,
+    repo: pr.name,
   };
 }
 
-export function useReviewChat(args: {
-  active: boolean;
-  composerRef: React.RefObject<ChatComposerHandle | null>;
-  files: readonly ChangedFile[];
-  pr: PullRequest;
-}) {
-  const keyValue = prKey(args.pr);
-  const threads = useAppStore((s) => s.chatHistory[keyValue]) ?? EMPTY_THREADS;
-  const appendChatTurn = useAppStore((s) => s.appendChatTurn);
-  const removeChatThread = useAppStore((s) => s.removeChatThread);
-  const [activeThreadId, setActiveThreadId] = useState<string | null>(
-    () => threads.at(-1)?.id ?? null
-  );
-  const turns =
-    threads.find((t) => t.id === activeThreadId)?.turns ?? EMPTY_TURNS;
-  const chips = useAppStore((s) => s.chatChips);
-  const clearChips = useAppStore((s) => s.clearChatChips);
-  const stagedByAi = useAppStore(
-    (s) => s.pendingComments[keyValue] ?? EMPTY_PENDING
-  ).filter((c) => c.fromAi);
-  const [draft, setDraftState] = useState("");
-  const [skill, setSkill] = useState<string | null>(null);
-  const [suggestionIndex, setSuggestionIndex] = useState(0);
-  const [suggestionsDismissed, setSuggestionsDismissed] = useState(false);
-  const [live, setLive] = useState<LiveTurn | null>(null);
-  const liveRef = useLatest(live);
-
+/** The repo snapshot behind the chat: its state, a kick to fetch it when it
+ *  is missing, and the sentence the panel shows about what the model can
+ *  currently read. Answering "why can't it see my repo?" is the whole job. */
+function useChatSnapshot(args: { active: boolean; pr: PullRequest }): {
+  note: string | null;
+  state: string | undefined;
+} {
   const snapshot = useQuery({
     enabled: args.active,
     queryFn: () =>
-      api.snapshotStatus(args.pr.owner, args.pr.repo, args.pr.headSha),
-    queryKey: ["snapshotStatus", keyValue, args.pr.headSha],
+      api.snapshotStatus(args.pr.owner, args.pr.name, args.pr.headSha),
+    queryKey: ["snapshotStatus", prKey(args.pr), args.pr.headSha],
     refetchInterval: (query) =>
       query.state.data?.state === "downloading" ? 2000 : false,
   });
@@ -186,7 +169,7 @@ export function useReviewChat(args: {
 
   const headShaRef = useLatest(args.pr.headSha);
   const ownerRef = useLatest(args.pr.owner);
-  const repoRef = useLatest(args.pr.repo);
+  const repoRef = useLatest(args.pr.name);
   useEffect(() => {
     if (
       args.active &&
@@ -210,38 +193,6 @@ export function useReviewChat(args: {
     refetchSnapshot,
   ]);
 
-  const skills = useQuery({
-    enabled: args.active,
-    queryFn: () =>
-      api.listChatSkills(args.pr.owner, args.pr.repo, args.pr.headSha),
-    queryKey: ["chatSkills", keyValue, args.pr.headSha, snapshotState ?? ""],
-    staleTime: Number.POSITIVE_INFINITY,
-  });
-  const skillNames = (skills.data ?? []).map((s) => s.name);
-
-  const [modelOverride, setModelOverride] = useState<string | null>(
-    readChatModel
-  );
-  const aiConfig = useQuery({
-    enabled: args.active,
-    queryFn: api.getAiConfig,
-    queryKey: ["aiConfig"],
-  });
-  const models = useQuery({
-    enabled: args.active,
-    queryFn: api.aiListModels,
-    queryKey: ["aiModels"],
-    staleTime: Number.POSITIVE_INFINITY,
-  });
-  const currentModel = modelOverride ?? aiConfig.data?.model ?? null;
-
-  const pickModel = (id: string) => {
-    const trimmed = id.trim();
-    const next = !trimmed || trimmed === aiConfig.data?.model ? null : trimmed;
-    setModelOverride(next);
-    persistChatModel(next);
-  };
-
   let contextNote: string | null = null;
   if (snapshotState === "downloading" || snapshotState === "idle") {
     contextNote =
@@ -253,50 +204,92 @@ export function useReviewChat(args: {
     }. Repo-wide search and file reads are off.`;
   }
 
-  const slashQuery =
-    skill === null && draft.startsWith("/") && !/[\s]/.test(draft)
-      ? draft.slice(1)
-      : null;
-  const suggestionItems =
-    slashQuery !== null && !suggestionsDismissed
-      ? matchCanned(slashQuery, skillNames, 0)
-      : [];
-  const selectedSuggestion = Math.min(
-    suggestionIndex,
-    Math.max(suggestionItems.length - 1, 0)
-  );
+  return { note: contextNote, state: snapshotState };
+}
 
-  const pickSkill = (name: string) => {
-    setSkill(name);
-    setDraftState("");
-    args.composerRef.current?.clear();
-    args.composerRef.current?.focus();
+function emptyHint(loading: boolean): string {
+  return loading
+    ? "Looking for skills…"
+    : "No skill by that name. Send /find-skill and Nod will help you write one.";
+}
+
+/** The `/` picker. A leading slash with no space is a skill query; anything
+ *  else is prose. Dismissing it is per-query, so Escape closes the list
+ *  without also cancelling the slash you just typed. */
+function useSlashSuggestions(args: {
+  draft: string;
+  loading: boolean;
+  onPick: (name: string) => void;
+  skill: string | null;
+  skillNames: string[];
+}): ChatSuggestionsState | null {
+  const [index, setIndex] = useState(0);
+  // Dismissal remembers the exact draft it applied to, so Escape closes the
+  // list and the next keystroke opens it again — no effect to keep in sync.
+  const [dismissedFor, setDismissedFor] = useState<string | null>(null);
+  const open =
+    args.skill === null &&
+    SLASH_QUERY.test(args.draft) &&
+    args.draft !== dismissedFor;
+  const query = open ? args.draft.slice(1) : null;
+  const items = query === null ? [] : matchCanned(query, args.skillNames, 0);
+  const selected = Math.min(index, Math.max(items.length - 1, 0));
+
+  if (query === null) {
+    return null;
+  }
+  return {
+    emptyHint: items.length > 0 ? null : emptyHint(args.loading),
+    items,
+    onDismiss: () => setDismissedFor(args.draft),
+    onMove: (delta) =>
+      setIndex(Math.min(Math.max(selected + delta, 0), items.length - 1)),
+    onPick: args.onPick,
+    query,
+    selected,
   };
+}
 
-  const skillsEmptyHint =
-    skills.isPending && args.active
-      ? "Looking for skills…"
-      : "No skills yet. Add a SKILL.md under .claude/skills in this repo, or in Nod's own skills folder.";
+/** One frame's worth of stream folded into the live turn. Returns the turn
+ *  unchanged when the frame carried nothing for it, so a flush aimed at an
+ *  older turn cannot repaint the current one. */
+function foldStream(
+  live: LiveTurn,
+  frame: {
+    note: string | null;
+    text: string | undefined;
+    think: string | undefined;
+  }
+): LiveTurn {
+  if (
+    frame.text === undefined &&
+    frame.think === undefined &&
+    frame.note === null
+  ) {
+    return live;
+  }
+  return {
+    ...live,
+    activity:
+      frame.note === null || live.activity.at(-1) === frame.note
+        ? live.activity
+        : [...live.activity, frame.note].slice(-MAX_ACTIVITY_LINES),
+    partial:
+      frame.text === undefined ? live.partial : live.partial + frame.text,
+    reasoning:
+      frame.think === undefined
+        ? live.reasoning
+        : (live.reasoning + frame.think).slice(-MAX_REASONING_CHARS),
+  };
+}
 
-  const suggestions: ChatSuggestionsState | null =
-    slashQuery !== null && !suggestionsDismissed
-      ? {
-          emptyHint: suggestionItems.length === 0 ? skillsEmptyHint : null,
-          items: suggestionItems,
-          onDismiss: () => setSuggestionsDismissed(true),
-          onMove: (delta) =>
-            setSuggestionIndex(
-              Math.min(
-                Math.max(selectedSuggestion + delta, 0),
-                suggestionItems.length - 1
-              )
-            ),
-          onPick: pickSkill,
-          query: slashQuery ?? "",
-          selected: selectedSuggestion,
-        }
-      : null;
-
+/** The live turn's incoming stream. Deltas, reasoning and tool notes arrive
+ *  far faster than a frame, so they land in buffers and one rAF flush folds
+ *  them into the turn — the transcript repaints once per frame, not once per
+ *  token. */
+function useChatStream(
+  setLive: React.Dispatch<React.SetStateAction<LiveTurn | null>>
+) {
   useEffect(() => {
     const pending = new Map<string, string>();
     const pendingReasoning = new Map<string, string>();
@@ -310,29 +303,15 @@ export function useReviewChat(args: {
       pendingReasoning.clear();
       const tool = toolPending;
       toolPending = null;
-      setLive((l) => {
-        if (!l) {
-          return l;
-        }
-        const text = batch.get(l.turnId);
-        const think = thinkBatch.get(l.turnId);
-        const note = tool && tool.turnId === l.turnId ? tool.detail : null;
-        if (text === undefined && think === undefined && note === null) {
-          return l;
-        }
-        return {
-          ...l,
-          activity:
-            note === null || l.activity.at(-1) === note
-              ? l.activity
-              : [...l.activity, note].slice(-MAX_ACTIVITY_LINES),
-          partial: text === undefined ? l.partial : l.partial + text,
-          reasoning:
-            think === undefined
-              ? l.reasoning
-              : (l.reasoning + think).slice(-MAX_REASONING_CHARS),
-        };
-      });
+      setLive((l) =>
+        l === null
+          ? l
+          : foldStream(l, {
+              note: tool && tool.turnId === l.turnId ? tool.detail : null,
+              text: batch.get(l.turnId),
+              think: thinkBatch.get(l.turnId),
+            })
+      );
     };
     const arm = () => {
       if (!flushFrame) {
@@ -378,7 +357,83 @@ export function useReviewChat(args: {
       unTool.then((stop) => stop());
       unThink.then((stop) => stop());
     };
-  }, []);
+  }, [setLive]);
+}
+
+export function useReviewChat(args: {
+  active: boolean;
+  composerRef: React.RefObject<ChatComposerHandle | null>;
+  files: readonly ChangedFile[];
+  pr: PullRequest;
+}) {
+  const keyValue = prKey(args.pr);
+  const threads = useAppStore((s) => s.chatHistory[keyValue]) ?? EMPTY_THREADS;
+  const appendChatTurn = useAppStore((s) => s.appendChatTurn);
+  const removeChatThread = useAppStore((s) => s.removeChatThread);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(
+    () => threads.at(-1)?.id ?? null
+  );
+  const turns =
+    threads.find((t) => t.id === activeThreadId)?.turns ?? EMPTY_TURNS;
+  const chips = useAppStore((s) => s.chatChips);
+  const clearChips = useAppStore((s) => s.clearChatChips);
+  const stagedByAi = useAppStore(
+    (s) => s.pendingComments[keyValue] ?? EMPTY_PENDING
+  ).filter((c) => c.fromAi);
+  const [draft, setDraftState] = useState("");
+  const [skill, setSkill] = useState<string | null>(null);
+  const [live, setLive] = useState<LiveTurn | null>(null);
+  const liveRef = useLatest(live);
+
+  const { note: contextNote, state: snapshotState } = useChatSnapshot(args);
+
+  const skills = useQuery({
+    enabled: args.active,
+    queryFn: () =>
+      api.listChatSkills(args.pr.owner, args.pr.name, args.pr.headSha),
+    queryKey: ["chatSkills", keyValue, args.pr.headSha, snapshotState ?? ""],
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  const skillNames = (skills.data ?? []).map((s) => s.name);
+
+  const [modelOverride, setModelOverride] = useState<string | null>(
+    readChatModel
+  );
+  const aiConfig = useQuery({
+    enabled: args.active,
+    queryFn: api.getAiConfig,
+    queryKey: ["aiConfig"],
+  });
+  const models = useQuery({
+    enabled: args.active,
+    queryFn: api.aiListModels,
+    queryKey: ["aiModels"],
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  const currentModel = modelOverride ?? aiConfig.data?.model ?? null;
+
+  const pickModel = (id: string) => {
+    const trimmed = id.trim();
+    const next = !trimmed || trimmed === aiConfig.data?.model ? null : trimmed;
+    setModelOverride(next);
+    persistChatModel(next);
+  };
+
+  const pickSkill = (name: string) => {
+    setSkill(name);
+    setDraftState("");
+    args.composerRef.current?.clear();
+    args.composerRef.current?.focus();
+  };
+  const suggestions = useSlashSuggestions({
+    draft,
+    loading: skills.isPending && args.active,
+    onPick: pickSkill,
+    skill,
+    skillNames,
+  });
+
+  useChatStream(setLive);
 
   useEffect(() => {
     const unProposal = listen<{
@@ -636,10 +691,7 @@ export function useReviewChat(args: {
     removeSkill: () => setSkill(null),
     skillCount: skillNames.length,
     send,
-    onComposerChange: (text: string) => {
-      setDraftState(text);
-      setSuggestionsDismissed(false);
-    },
+    onComposerChange: setDraftState,
     skill,
     stop,
     staged: stagedByAi.map((c) => ({

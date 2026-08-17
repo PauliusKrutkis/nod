@@ -251,6 +251,33 @@ fn build_chat_turn(
 }
 
 const SKILLS_PREFIX: &str = ".claude/skills/";
+
+/// Skills Nod ships with. `find-skill` is the one that makes the others
+/// reachable: with no skills at all, `/` would otherwise be an empty menu
+/// and nothing would tell you what a skill is or how to get one.
+const BUILTIN_SKILLS: &[(&str, &str, &str)] = &[(
+    "find-skill",
+    "Find a skill for what you are about to do, or write one",
+    "The reviewer wants a skill for a task. Work in this order.\n\n1. Call list_skills. If one already covers the task, say which, quote its description, and tell them to invoke it with a leading slash — then stop.\n2. If none fits, ask what the skill should check, unless the reviewer already said. Keep it to one question.\n3. Draft the skill: a short kebab-case name, a one-line description, and instructions written as directions to a reviewer — what to look for, what to flag, what to leave alone. Ground them in this repository's conventions where you can read them.\n4. Show the draft, then call write_skill to save it. Say that it lives in the personal skills folder and is available from the next message.\n\nNever invent a skill that already exists under another name, and never write one without showing it first.",
+)];
+
+fn builtin_skills() -> Vec<SkillInfo> {
+    BUILTIN_SKILLS
+        .iter()
+        .map(|(name, description, _)| SkillInfo {
+            description: (*description).to_string(),
+            name: (*name).to_string(),
+            source: "built-in".to_string(),
+        })
+        .collect()
+}
+
+fn builtin_skill_body(name: &str) -> Option<String> {
+    BUILTIN_SKILLS
+        .iter()
+        .find(|(skill, _, _)| *skill == name)
+        .map(|(_, _, body)| (*body).to_string())
+}
 const MAX_SKILL_BODY_CHARS: usize = 32_000;
 
 #[derive(Serialize, Clone, Debug, PartialEq)]
@@ -357,6 +384,32 @@ fn read_personal_skill(dir: &std::path::Path, name: &str) -> Option<String> {
     Some(skill_text(&bytes))
 }
 
+/// Writes a skill the model drafted. Refuses to overwrite: replacing a skill
+/// the reviewer wrote, without being asked to, is not a thing a tool call
+/// should be able to do.
+fn write_personal_skill(
+    dir: &std::path::Path,
+    name: &str,
+    description: &str,
+    instructions: &str,
+) -> Result<(), String> {
+    if !safe_skill_name(name) {
+        return Err(format!("'{name}' is not a usable skill name"));
+    }
+    let skill = dir.join(name);
+    if skill.join("SKILL.md").exists() {
+        return Err(format!("'{name}' already exists — pick another name"));
+    }
+    std::fs::create_dir_all(&skill).map_err(|e| format!("could not create the folder: {e}"))?;
+    let body = format!(
+        "---\nname: {name}\ndescription: {}\n---\n\n{}\n",
+        description.replace('\n', " "),
+        instructions.trim()
+    );
+    std::fs::write(skill.join("SKILL.md"), body)
+        .map_err(|e| format!("could not write the skill: {e}"))
+}
+
 fn discover_personal_skills(dir: &std::path::Path) -> Vec<SkillInfo> {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return Vec::new();
@@ -400,6 +453,7 @@ fn resolve_skill_body(
     snapshot
         .and_then(|(root, key)| read_skill_body(root, key, name))
         .or_else(|| personal.and_then(|dir| read_personal_skill(dir, name)))
+        .or_else(|| builtin_skill_body(name))
 }
 
 fn discover_skills(root: &std::path::Path, key: &SnapshotKey) -> Vec<SkillInfo> {
@@ -436,7 +490,7 @@ fn execute_skill_tool(
                 .map(|(root, key)| discover_skills(root, key))
                 .unwrap_or_default();
             let personal_list = personal.map(discover_personal_skills).unwrap_or_default();
-            let skills = merge_skills(repo, personal_list);
+            let skills = merge_skills(merge_skills(repo, personal_list), builtin_skills());
             if skills.is_empty() {
                 "(no skills available)".to_string()
             } else {
@@ -451,6 +505,23 @@ fn execute_skill_tool(
                     })
                     .collect::<Vec<_>>()
                     .join("\n")
+            }
+        }
+        "write_skill" => {
+            let args: Value = serde_json::from_str(arguments).unwrap_or(Value::Null);
+            let Some(dir) = personal else {
+                return "error: the personal skills folder is unavailable".to_string();
+            };
+            let (Some(name), Some(description), Some(instructions)) = (
+                args.get("name").and_then(Value::as_str),
+                args.get("description").and_then(Value::as_str),
+                args.get("instructions").and_then(Value::as_str),
+            ) else {
+                return "error: write_skill needs name, description and instructions".to_string();
+            };
+            match write_personal_skill(dir, name, description, instructions) {
+                Ok(()) => format!("saved: /{name} is available from the next message"),
+                Err(e) => format!("error: {e}"),
             }
         }
         _ => {
@@ -486,6 +557,22 @@ fn skills_tools() -> Vec<Value> {
                     "type": "object",
                     "properties": { "name": { "type": "string" } },
                     "required": ["name"]
+                }
+            }
+        }),
+        serde_json::json!({
+            "type": "function",
+            "function": {
+                "name": "write_skill",
+                "description": "Save a new personal skill. Show the reviewer the draft before calling this.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": { "type": "string", "description": "kebab-case, becomes the folder name" },
+                        "description": { "type": "string", "description": "one line, shown in the picker" },
+                        "instructions": { "type": "string", "description": "what the model should do when the skill is invoked" }
+                    },
+                    "required": ["name", "description", "instructions"]
                 }
             }
         }),
@@ -568,7 +655,7 @@ pub async fn list_chat_skills(
             .as_deref()
             .map(discover_personal_skills)
             .unwrap_or_default();
-        merge_skills(repo_skills, personal_skills)
+        merge_skills(merge_skills(repo_skills, personal_skills), builtin_skills())
     })
     .await
     .map_err(|e| format!("skill discovery failed: {e}"))
@@ -777,6 +864,10 @@ fn tool_note(name: &str, arguments: &str) -> String {
             None => "Reading the diff".to_string(),
         },
         "list_skills" => "Listing skills".to_string(),
+        "write_skill" => match args.get("name").and_then(Value::as_str) {
+            Some(name) => format!("Writing the {name} skill"),
+            None => "Writing a skill".to_string(),
+        },
         "read_skill" => match args.get("name").and_then(Value::as_str) {
             Some(skill) => format!("Reading skill {skill}"),
             None => "Reading a skill".to_string(),
@@ -889,8 +980,9 @@ pub async fn ai_chat(
         },
         None => None,
     };
-    let skills_available =
-        snapshot.is_some() || personal_skills.as_deref().is_some_and(|d| d.is_dir());
+    // Built-ins mean the skill tools are always worth offering: /find-skill
+    // exists before the reviewer has written anything.
+    let skills_available = true;
     let proposals = !commentable.is_empty();
     let has_diffs = !diffs.is_empty();
     let system = chat_system_prompt(snapshot.is_some(), skills_available, proposals, has_diffs);

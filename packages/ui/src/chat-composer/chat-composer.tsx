@@ -51,6 +51,7 @@ export interface ChatComposerProps {
 }
 
 const CHIP_ATTR = "data-region";
+const TRAILING_NEWLINES = /\n+$/;
 
 export function regionLabel(region: ChatRegionChip): string {
   if (!region.filePath) {
@@ -67,7 +68,16 @@ function chipElement(region: ChatRegionChip): HTMLElement {
   chip.className = "qcc-chip";
   chip.contentEditable = "false";
   chip.setAttribute(CHIP_ATTR, JSON.stringify(region));
-  chip.textContent = regionLabel(region);
+  const label = document.createElement("span");
+  label.className = "qcc-chip-label";
+  label.textContent = regionLabel(region);
+  const remove = document.createElement("span");
+  remove.className = "qcc-chip-x";
+  remove.setAttribute("data-chip-remove", "");
+  remove.setAttribute("role", "button");
+  remove.setAttribute("aria-label", `Remove ${regionLabel(region)}`);
+  remove.textContent = "×";
+  chip.append(label, remove);
   return chip;
 }
 
@@ -94,30 +104,39 @@ function serialize(root: HTMLElement): ChatPart[] {
       parts.push({ kind: "text", text });
     }
   };
+  /** Whether the node's own children still need visiting. */
+  const visit = (child: Node): boolean => {
+    if (child.nodeType === Node.TEXT_NODE) {
+      pushText(child.textContent ?? "");
+      return false;
+    }
+    if (
+      !(child instanceof HTMLElement) ||
+      child.hasAttribute("data-chip-remove")
+    ) {
+      return false;
+    }
+    if (child.hasAttribute(CHIP_ATTR)) {
+      const region = readRegion(child);
+      if (region) {
+        parts.push({ kind: "code", region });
+      }
+      return false;
+    }
+    if (child.tagName === "BR") {
+      pushText("\n");
+      return false;
+    }
+    if (child.tagName === "DIV" || child.tagName === "P") {
+      pushText("\n");
+    }
+    return true;
+  };
   const walk = (node: Node) => {
     for (const child of node.childNodes) {
-      if (child.nodeType === Node.TEXT_NODE) {
-        pushText(child.textContent ?? "");
-        continue;
+      if (visit(child)) {
+        walk(child);
       }
-      if (!(child instanceof HTMLElement)) {
-        continue;
-      }
-      if (child.hasAttribute(CHIP_ATTR)) {
-        const region = readRegion(child);
-        if (region) {
-          parts.push({ kind: "code", region });
-        }
-        continue;
-      }
-      if (child.tagName === "BR") {
-        pushText("\n");
-        continue;
-      }
-      if (child.tagName === "DIV" || child.tagName === "P") {
-        pushText("\n");
-      }
-      walk(child);
     }
   };
   walk(root);
@@ -181,9 +200,44 @@ export function ChatComposer({
     parts: () => (fieldRef.current ? serialize(fieldRef.current) : []),
   }));
 
+  /** The chip a collapsed caret is sitting immediately after, if any. A
+   *  contenteditable=false node is atomic to the browser, but only some
+   *  browsers delete it on the first Backspace — doing it here makes the key
+   *  behave the same everywhere. */
+  const chipBeforeCaret = (): HTMLElement | null => {
+    const selection = document.getSelection();
+    if (!selection?.isCollapsed || selection.rangeCount === 0) {
+      return null;
+    }
+    const range = selection.getRangeAt(0);
+    const node = range.startContainer;
+    if (node.nodeType === Node.TEXT_NODE) {
+      if (range.startOffset > 0) {
+        return null;
+      }
+      const prev = node.previousSibling;
+      return prev instanceof HTMLElement && prev.hasAttribute(CHIP_ATTR)
+        ? prev
+        : null;
+    }
+    const prev = node.childNodes[range.startOffset - 1];
+    return prev instanceof HTMLElement && prev.hasAttribute(CHIP_ATTR)
+      ? prev
+      : null;
+  };
+
   const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (onKeyDown?.(e)) {
       return;
+    }
+    if (e.key === "Backspace") {
+      const chip = chipBeforeCaret();
+      if (chip) {
+        e.preventDefault();
+        chip.remove();
+        onChange?.(fieldRef.current?.textContent ?? "");
+        return;
+      }
     }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -208,7 +262,7 @@ export function ChatComposer({
       insertAtCaret(
         el,
         chipElement({
-          code: text.replace(/\n+$/, ""),
+          code: text.replace(TRAILING_NEWLINES, ""),
           filePath: "",
           lineRange: "",
           side: "",
@@ -222,8 +276,16 @@ export function ChatComposer({
   };
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const chip = (e.target as HTMLElement).closest(`[${CHIP_ATTR}]`);
-    if (!chip) {
+    const target = e.target as HTMLElement;
+    const chip = target.closest(`[${CHIP_ATTR}]`);
+    if (!(chip instanceof HTMLElement)) {
+      return;
+    }
+    if (target.closest("[data-chip-remove]")) {
+      e.preventDefault();
+      chip.remove();
+      onChange?.(fieldRef.current?.textContent ?? "");
+      fieldRef.current?.focus();
       return;
     }
     const region = readRegion(chip);
@@ -233,9 +295,12 @@ export function ChatComposer({
   };
 
   return (
+    // biome-ignore lint/a11y/useSemanticElements: a textarea cannot hold the inline chips this field is for — contenteditable is the mechanism, role/aria-multiline give it the same semantics
     <div
       aria-label="Message"
       aria-multiline="true"
+      autoCapitalize="off"
+      autoCorrect="off"
       className="qcc-field"
       contentEditable
       data-placeholder={placeholder}
@@ -245,8 +310,9 @@ export function ChatComposer({
       onPaste={handlePaste}
       ref={fieldRef}
       role="textbox"
-      spellCheck
+      spellCheck={false}
       suppressContentEditableWarning
+      tabIndex={0}
     />
   );
 }
