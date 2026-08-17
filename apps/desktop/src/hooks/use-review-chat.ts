@@ -23,11 +23,10 @@ import { useLatest } from "@nod/ui/use-latest";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { listen } from "@tauri-apps/api/event";
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api.ts";
 import { buildChatDiffs } from "../lib/chat-diffs.ts";
 import { buildCommentableRanges } from "../lib/commentable-ranges.ts";
-import { revealFolder } from "../lib/open-external.ts";
 import { useAppStore } from "../store/app-store.ts";
 import {
   type AiAskContext,
@@ -384,6 +383,8 @@ export function useReviewChat(args: {
   const [skill, setSkill] = useState<string | null>(null);
   const [live, setLive] = useState<LiveTurn | null>(null);
   const liveRef = useLatest(live);
+  // Turns the stop button already wrote out; their mutation still resolves.
+  const settledByStop = useRef(new Set<string>());
 
   const { note: contextNote, state: snapshotState } = useChatSnapshot(args);
 
@@ -470,6 +471,9 @@ export function useReviewChat(args: {
     }: { threadId: string } & Parameters<typeof api.aiChat>[0]) =>
       api.aiChat(request),
     onError: (error, vars) => {
+      if (settledByStop.current.delete(vars.turnId)) {
+        return;
+      }
       const message = String(error);
       const live =
         liveRef.current?.turnId === vars.turnId ? liveRef.current : null;
@@ -496,6 +500,9 @@ export function useReviewChat(args: {
       });
     },
     onSuccess: (answer, vars) => {
+      if (settledByStop.current.delete(vars.turnId)) {
+        return;
+      }
       const live =
         liveRef.current?.turnId === vars.turnId ? liveRef.current : null;
       setLive(null);
@@ -574,32 +581,32 @@ export function useReviewChat(args: {
     return true;
   };
 
-  const createSkill = (name: string) => {
-    api
-      .createSkill(name)
-      .then((path) => {
-        revealFolder(path);
-        return skills.refetch();
-      })
-      .catch(() => undefined);
-  };
-
-  const openSkillsFolder = () => {
-    api
-      .openSkillsDir()
-      .then((path) => {
-        revealFolder(path);
-        return skills.refetch();
-      })
-      .catch(() => undefined);
-  };
-
   const discardStaged = (id: string) => {
     useAppStore.getState().removePendingComment(keyValue, id);
   };
 
+  /** Stop settles the turn here and now. The backend only notices a cancel
+   *  between chunks — during a tool call or a long think that is seconds
+   *  away — and a stop button that waits on the network reads as broken. The
+   *  partial answer is kept as the turn, the id is remembered, and the
+   *  mutation's late resolution is ignored so nothing lands twice. */
   const stop = () => {
+    const live = liveRef.current;
     api.aiChatCancel(keyValue).catch(() => undefined);
+    if (!live) {
+      return;
+    }
+    settledByStop.current.add(live.turnId);
+    setLive(null);
+    if (live.partial) {
+      appendChatTurn(keyValue, live.threadId, {
+        ...settledTrail(live),
+        error: null,
+        id: live.turnId,
+        kind: "assistant",
+        text: live.partial,
+      });
+    }
   };
 
   const panelTurns: ChatPanelTurn[] = [
@@ -684,12 +691,11 @@ export function useReviewChat(args: {
     contextNote,
     model: modelState,
     panelTurns,
-    pending: chat.isPending,
-    createSkill,
-    openSkillsFolder,
+    // The stop button clears `live` at once, so the composer stops offering
+    // to stop something that is, as far as the reviewer is concerned, over.
+    pending: chat.isPending && live !== null,
     skills: skills.data ?? EMPTY_SKILLS,
     removeSkill: () => setSkill(null),
-    skillCount: skillNames.length,
     send,
     onComposerChange: setDraftState,
     skill,

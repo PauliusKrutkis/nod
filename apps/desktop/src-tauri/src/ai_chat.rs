@@ -520,7 +520,10 @@ fn execute_skill_tool(
                 return "error: write_skill needs name, description and instructions".to_string();
             };
             match write_personal_skill(dir, name, description, instructions) {
-                Ok(()) => format!("saved: /{name} is available from the next message"),
+                Ok(()) => format!(
+                    "saved to {}: /{name} is available from the next message",
+                    dir.join(name).display()
+                ),
                 Err(e) => format!("error: {e}"),
             }
         }
@@ -577,58 +580,6 @@ fn skills_tools() -> Vec<Value> {
             }
         }),
     ]
-}
-
-const STARTER_SKILL: &str = "---\nname: my-review-pass\ndescription: What this skill reviews for\n---\n\nWrite the instructions the model should follow when this skill is invoked.\nFor example: check error paths have tests, flag any TODO left in the diff,\nand suggest comments only where the code would actually break.\n";
-
-/// The personal skills folder, created on demand with one starter file so
-/// the reviewer opens something with an example in it rather than an empty
-/// directory. Returns the path for the host to reveal.
-#[tauri::command]
-pub async fn open_skills_dir(app: AppHandle) -> Result<String, String> {
-    let dir = personal_skills_dir(&app)
-        .ok_or_else(|| "could not resolve the config directory".to_string())?;
-    tauri::async_runtime::spawn_blocking(move || {
-        std::fs::create_dir_all(&dir).map_err(|e| format!("could not create {dir:?}: {e}"))?;
-        let starter = dir.join("my-review-pass");
-        if !starter.exists() {
-            std::fs::create_dir_all(&starter)
-                .map_err(|e| format!("could not create {starter:?}: {e}"))?;
-            std::fs::write(starter.join("SKILL.md"), STARTER_SKILL)
-                .map_err(|e| format!("could not write the starter skill: {e}"))?;
-        }
-        Ok(dir.to_string_lossy().to_string())
-    })
-    .await
-    .map_err(|e| format!("skills folder failed: {e}"))?
-}
-
-/// Writes a scaffold for a new personal skill and hands back its folder, so
-/// the reviewer edits a file that already has the frontmatter right rather
-/// than learning the format from a doc. Refuses to overwrite: a name that
-/// exists is an edit, not a create.
-#[tauri::command]
-pub async fn create_skill(app: AppHandle, name: String) -> Result<String, String> {
-    let dir = personal_skills_dir(&app)
-        .ok_or_else(|| "could not resolve the config directory".to_string())?;
-    if !safe_skill_name(&name) {
-        return Err("a skill name cannot contain slashes or start with a dot".to_string());
-    }
-    tauri::async_runtime::spawn_blocking(move || {
-        let skill = dir.join(&name);
-        if skill.join("SKILL.md").exists() {
-            return Err(format!("'{name}' already exists"));
-        }
-        std::fs::create_dir_all(&skill).map_err(|e| format!("could not create {skill:?}: {e}"))?;
-        let body = format!(
-            "---\nname: {name}\ndescription: What this skill reviews for\n---\n\nWrite the instructions the model should follow when this skill is invoked.\n"
-        );
-        std::fs::write(skill.join("SKILL.md"), body)
-            .map_err(|e| format!("could not write the skill: {e}"))?;
-        Ok(skill.to_string_lossy().to_string())
-    })
-    .await
-    .map_err(|e| format!("skill creation failed: {e}"))?
 }
 
 #[tauri::command]
@@ -1099,6 +1050,13 @@ pub async fn ai_chat(
         }
         messages.push(message_value);
         for call in calls {
+            // A stop between tool calls stops here too: the reviewer pressed
+            // it before the model asked for this, so nothing more is run and
+            // no proposal from this round reaches the diff.
+            if state.requested(&chat_id) {
+                state.clear(&chat_id);
+                return Err(ai::CANCELLED.to_string());
+            }
             let id = call
                 .get("id")
                 .and_then(Value::as_str)

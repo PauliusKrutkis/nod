@@ -33,6 +33,7 @@ function subscribeSidebarCompact(onStoreChange: () => void): () => void {
 
 const DRAWER_WIDE_KEY = "nod:drawerWide";
 const DOCK_WIDTH_KEY = "nod:dockWidth";
+const SIDEBAR_WIDTH_KEY = "nod:sidebarWidth";
 
 function readDockWidth(): number | null {
   try {
@@ -40,6 +41,23 @@ function readDockWidth(): number | null {
     return Number.isFinite(width) && width >= 320 ? width : null;
   } catch {
     return null;
+  }
+}
+
+function readSidebarWidth(): number | null {
+  try {
+    const width = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY));
+    return Number.isFinite(width) && width >= 200 ? width : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistSidebarWidth(width: number): void {
+  try {
+    localStorage.setItem(SIDEBAR_WIDTH_KEY, String(width));
+  } catch {
+    /* storage unavailable (private mode) — width just won't persist */
   }
 }
 
@@ -95,6 +113,13 @@ export function useReviewPanels() {
   const sidebarOverlayOpenRef = useLatest(sidebarOverlayOpen);
   const [drawerWide, setDrawerWide] = useState(readDrawerWide);
   const [dockWidth, setDockWidth] = useState(readDockWidth);
+
+  const [sidebarWidth, setSidebarWidth] = useState(readSidebarWidth);
+
+  const onSidebarResize = (width: number) => {
+    setSidebarWidth(width);
+    persistSidebarWidth(width);
+  };
 
   const onDockResize = (width: number) => {
     setDockWidth(width);
@@ -167,6 +192,7 @@ export function useReviewPanels() {
     onDockResize,
     onCloseSidebar,
     onSelectRightTab,
+    onSidebarResize,
     onToggleDrawerWide,
     onToggleRightPanel,
     onToggleSidebar,
@@ -181,5 +207,6 @@ export function useReviewPanels() {
     sidebarOpen,
     sidebarOverlayOpen,
     sidebarOverlayOpenRef,
+    sidebarWidth,
   };
 }

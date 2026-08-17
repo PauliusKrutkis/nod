@@ -260,20 +260,6 @@ export function installBridge(cfg: BridgeConfig) {
       countCall("list_chat_skills");
       return cfg.chatSkills;
     },
-    create_skill: (args) => {
-      countCall("create_skill");
-      localStorage.setItem("e2e:createdSkill", String(args.name));
-      return "/tmp/nod/skills/new";
-    },
-    open_skills_dir: () => {
-      countCall("open_skills_dir");
-      localStorage.setItem("e2e:openedSkillsDir", "1");
-      return "/tmp/nod/skills";
-    },
-    "plugin:opener|open_path": (args) => {
-      localStorage.setItem("e2e:revealedPath", String(args.path));
-      return null;
-    },
     ai_ask: (args) => {
       countCall("ai_ask");
       localStorage.setItem("e2e:aiAsk", JSON.stringify(args));

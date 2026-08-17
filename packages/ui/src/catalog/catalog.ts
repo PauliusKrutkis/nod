@@ -47,7 +47,6 @@ import { reviewToastEntry } from "../review-toast/review-toast.fixtures.ts";
 import { reviewVerdictsEntry } from "../review-verdicts/review-verdicts.fixtures.ts";
 import { rightDockEntry } from "../right-dock/right-dock.fixtures.ts";
 import { searchPaneEntry } from "../search-pane/search-pane.fixtures.ts";
-import { skillsDialogEntry } from "../skills-dialog/skills-dialog.fixtures.ts";
 import { spinnerEntry } from "../spinner/spinner.fixtures.ts";
 import { submitReviewModalEntry } from "../submit-review-modal/submit-review-modal.fixtures.ts";
 import { threadIndexEntry } from "../thread-index/thread-index.fixtures.ts";
@@ -108,7 +107,6 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   "review-verdicts": reviewVerdictsEntry,
   "right-dock": rightDockEntry,
   "search-pane": searchPaneEntry,
-  "skills-dialog": skillsDialogEntry,
   spinner: spinnerEntry,
   "submit-review-modal": submitReviewModalEntry,
   "thread-index": threadIndexEntry,

@@ -709,7 +709,8 @@ fn write_skill_saves_one_and_refuses_to_clobber_or_escape() {
 
     let args = r#"{"name":"flaky-tests","description":"Flag retries","instructions":"Look for retry loops."}"#;
     let saved = execute_skill_tool(None, Some(&dir), "write_skill", args);
-    assert!(saved.starts_with("saved:"), "got {saved}");
+    assert!(saved.starts_with("saved to "), "got {saved}");
+    assert!(saved.contains("flaky-tests"), "got {saved}");
 
     // It reads back through the same path the picker and the model use.
     let listed = execute_skill_tool(None, Some(&dir), "list_skills", "{}");

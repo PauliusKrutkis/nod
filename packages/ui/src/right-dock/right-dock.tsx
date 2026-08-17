@@ -25,14 +25,10 @@
  */
 
 import { PanelRightClose, PanelRightOpen } from "lucide-react";
-import {
-  type ReactNode,
-  type PointerEvent as ReactPointerEvent,
-  useEffect,
-  useRef,
-} from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { cn } from "../cn/cn.ts";
 import { Tooltip } from "../tooltip/tooltip.tsx";
+import { useEdgeResize } from "../use-edge-resize/use-edge-resize.ts";
 import { useLatest } from "../use-latest/use-latest.ts";
 import "../pr-drawer/pr-drawer.css";
 import "./right-dock.css";
@@ -59,13 +55,7 @@ export interface RightDockProps {
 }
 
 const MIN_DOCK_WIDTH = 320;
-
-function clampDockWidth(width: number): number {
-  return Math.min(
-    Math.max(width, MIN_DOCK_WIDTH),
-    Math.floor(window.innerWidth * 0.72)
-  );
-}
+const MAX_DOCK_FRACTION = 0.72;
 
 export function RightDock({
   activeTab,
@@ -84,31 +74,14 @@ export function RightDock({
 }: RightDockProps) {
   const panelRef = useRef<HTMLElement>(null);
   const onFocusExitRef = useLatest(onFocusExit);
-  const onResizeRef = useLatest(onResize);
 
-  const startResize = (down: ReactPointerEvent<HTMLDivElement>) => {
-    const el = panelRef.current;
-    if (!el) {
-      return;
-    }
-    down.preventDefault();
-    const rightEdge = el.getBoundingClientRect().right;
-    const handle = down.currentTarget;
-    handle.setPointerCapture(down.pointerId);
-    let latest = el.getBoundingClientRect().width;
-    const move = (e: PointerEvent) => {
-      latest = clampDockWidth(rightEdge - e.clientX);
-      el.style.width = `${latest}px`;
-    };
-    const up = () => {
-      handle.removeEventListener("pointermove", move);
-      handle.removeEventListener("pointerup", up);
-      el.style.width = "";
-      onResizeRef.current?.(Math.round(latest));
-    };
-    handle.addEventListener("pointermove", move);
-    handle.addEventListener("pointerup", up);
-  };
+  const startResize = useEdgeResize({
+    edge: "left",
+    maxFraction: MAX_DOCK_FRACTION,
+    min: MIN_DOCK_WIDTH,
+    onResize,
+    panelRef,
+  });
 
   useEffect(() => {
     const el = panelRef.current;

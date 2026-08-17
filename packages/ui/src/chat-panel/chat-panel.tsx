@@ -31,7 +31,6 @@ import {
   Copy,
   CornerDownLeft,
   Plus,
-  Wrench,
   X,
 } from "lucide-react";
 import {
@@ -137,7 +136,6 @@ export interface ChatPanelProps {
   model?: ChatModelState | null;
   onComposerChange?: (text: string) => void;
   onEscape?: () => void;
-  onOpenSkills?: () => void;
   /** Reveal an inline chip's lines in the diff. Pasted code has no lines to
    *  point at, so the composer only calls this for a region chip. */
   onRevealRegion?: (region: ChatRegionChip) => void;
@@ -146,7 +144,6 @@ export interface ChatPanelProps {
   onRemoveSkill?: () => void;
   /** How many skills are reachable right now — the button says "Add skills"
    *  when there are none, which is the honest empty state. */
-  skillCount?: number;
   pending: boolean;
   staged?: ChatStagedState | null;
   renderMarkdown?: (text: string) => ReactNode;
@@ -369,7 +366,6 @@ export function ChatPanel({
   focusSeq,
   model = null,
   onEscape,
-  onOpenSkills,
   onRemoveSkill,
   onRevealRegion,
   onSend,
@@ -378,7 +374,6 @@ export function ChatPanel({
   staged = null,
   renderMarkdown = plainText,
   skill = null,
-  skillCount = 0,
   suggestions = null,
   threads = null,
   turns,
@@ -677,17 +672,6 @@ export function ChatPanel({
           />
         )}
         <div className="qch-footer-row">
-          {onOpenSkills && (
-            <button
-              className="qch-skills-btn q-focus"
-              onClick={onOpenSkills}
-              title="Skills are SKILL.md files. Opens your skills folder."
-              type="button"
-            >
-              <Wrench aria-hidden size={11} />
-              {skillCount === 0 ? "Add skills" : `Skills (${skillCount})`}
-            </button>
-          )}
           {model && (
             <button
               aria-expanded={modelOpen}

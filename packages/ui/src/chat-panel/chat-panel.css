@@ -166,6 +166,9 @@
   opacity: 1;
 }
 
+/* Copy stays visible. It is the one action on an answer, and an action you
+   have to hover to discover is one you forget the panel has — the timestamp
+   below it still fades, because a time you did not ask for is noise. */
 .qch-act {
   display: inline-flex;
   align-items: center;
@@ -175,15 +178,7 @@
   background: transparent;
   border: none;
   border-radius: var(--r-md);
-  opacity: 0;
-  transition:
-    color 120ms ease,
-    opacity 120ms ease;
-}
-
-.qch-turn:hover .qch-act,
-.qch-act:focus-visible {
-  opacity: 1;
+  transition: color 120ms ease;
 }
 
 .qch-act:hover {
@@ -508,30 +503,14 @@
   white-space: nowrap;
 }
 
+/* One control lives here now (the model), so the row ends where the send
+   button does rather than spreading a lone button across the width. */
 .qch-footer-row {
   display: flex;
   gap: 10px;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   margin-top: 3px;
-}
-
-.qch-skills-btn {
-  display: inline-flex;
-  flex: none;
-  gap: 4px;
-  align-items: center;
-  padding: 3px 2px 0;
-  font-size: 10.5px;
-  color: var(--faint);
-  cursor: pointer;
-  background: transparent;
-  border: none;
-  transition: color 120ms ease;
-}
-
-.qch-skills-btn:hover {
-  color: var(--accent);
 }
 
 .qch-send,
@@ -580,7 +559,6 @@
   .qch-proposals-act,
   .qch-composer,
   .qch-model,
-  .qch-skills-btn,
   .qch-time,
   .qch-act {
     transition: none;

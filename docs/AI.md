@@ -330,7 +330,8 @@ outgoing turn as instructions; the model can also list and read them itself
 through tools.
 
 One skill ships with the app: **`/find-skill`**, which is how the other ones
-get written. It looks for an existing skill that already covers what you are
+get written — and, since it is always there, the reason `/` is never an empty
+menu. It looks for an existing skill that already covers what you are
 about to do, and when none does, it drafts one with you and saves it through a
 `write_skill` tool — so the answer to "how do I add a skill?" is a message in
 the chat, not a folder to go and populate. It refuses to overwrite a skill you
@@ -338,6 +339,12 @@ already have, and shows you the draft before it writes anything: a skill is
 instructions the model will follow over your code, so one never appears
 unread. A repo skill named `find-skill` outranks the built-in, same as any
 other clash.
+
+It also replaced the skills dialog that shipped a day earlier: a button that
+opened a folder, next to a field that scaffolded a file, is a worse answer to
+"how do I add a skill?" than asking for one in the chat. The dialog and its
+two commands are gone; `write_skill` names the folder it saved to, for anyone
+who wants to edit the file by hand.
 
 ### Ship order
 

@@ -7,6 +7,7 @@
  * keyboard row navigation already uses via `nudgeItemIntoView`.
  */
 
+import { useEdgeResize } from "@nod/ui/use-edge-resize";
 import { useLatest } from "@nod/ui/use-latest";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -198,6 +199,62 @@ function openPrFilesInBrowser(pr: PullRequest | undefined): void {
  *  producing surface used. */
 const LINE_RANGE_DASH = /[–—-]/;
 
+const SIDEBAR_MIN_WIDTH = 200;
+const SIDEBAR_MAX_FRACTION = 0.4;
+
+/** The file tree's column: the sidebar's two seatings plus the grip that
+ *  sizes it. Only the inline seating resizes — an overlay is already as wide
+ *  as it gets, and a grip on it would drag against the scrim. */
+function FileTreeColumn(props: {
+  changed: ReadonlySet<string>;
+  comments: ReviewComment[];
+  compact: boolean;
+  files: ChangedFile[];
+  onResize: (width: number) => void;
+  onSelect: (index: number) => void;
+  open: boolean;
+  pending: PendingComment[];
+  prKeyValue: string;
+  selectedIndex: number;
+  width: number | null;
+}) {
+  const ref = useRef<HTMLElement>(null);
+  const startResize = useEdgeResize({
+    edge: "right",
+    maxFraction: SIDEBAR_MAX_FRACTION,
+    min: SIDEBAR_MIN_WIDTH,
+    onResize: props.onResize,
+    panelRef: ref,
+  });
+  const sized = !props.compact && props.open && props.width !== null;
+
+  return (
+    <aside
+      className={sidebarColumnClass(props.compact, props.open)}
+      ref={ref}
+      style={sized ? { width: props.width ?? undefined } : undefined}
+    >
+      {!props.compact && props.open && (
+        // biome-ignore lint/a11y/noStaticElementInteractions: a drag grip, not a control — the sidebar has no width the keyboard needs to set
+        <div
+          aria-hidden
+          className="qf-sidebar-resize"
+          onPointerDown={startResize}
+        />
+      )}
+      <FileSidebarLoader
+        changed={props.changed}
+        comments={props.comments}
+        files={props.files}
+        onSelect={props.onSelect}
+        pending={props.pending}
+        prKeyValue={props.prKeyValue}
+        selectedIndex={props.selectedIndex}
+      />
+    </aside>
+  );
+}
+
 function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const { name: repo, number, owner } = parsePrKey(routeKey);
   const keyValue = routeKey;
@@ -230,6 +287,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     onCloseRightPanel,
     onDockResize,
     onCloseSidebar,
+    onSidebarResize,
     onSelectRightTab,
     onToggleDrawerWide,
     onToggleRightPanel,
@@ -242,6 +300,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     setRightOpen,
     sidebarCompact,
     sidebarOpen,
+    sidebarWidth,
     sidebarOverlayOpen,
     sidebarOverlayOpenRef,
   } = useReviewPanels();
@@ -1031,17 +1090,19 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const reviews = detail.reviews ?? [];
   return (
     <div className="dir-quiet relative flex h-full min-h-0 overflow-hidden">
-      <aside className={sidebarColumnClass(sidebarCompact, sidebarOpen)}>
-        <FileSidebarLoader
-          changed={changedSinceViewed}
-          comments={detail.comments}
-          files={files}
-          onSelect={onSelectFile}
-          pending={pending}
-          prKeyValue={keyValue}
-          selectedIndex={clampedIndex}
-        />
-      </aside>
+      <FileTreeColumn
+        changed={changedSinceViewed}
+        comments={detail.comments}
+        compact={sidebarCompact}
+        files={files}
+        onResize={onSidebarResize}
+        onSelect={onSelectFile}
+        open={sidebarOpen}
+        pending={pending}
+        prKeyValue={keyValue}
+        selectedIndex={clampedIndex}
+        width={sidebarWidth}
+      />
       <button
         aria-hidden={!sidebarOverlayOpen}
         aria-label="Close file tree"

@@ -1,7 +1,16 @@
 /* One editable line of thought: prose and code chips share the field, so the
    order you attached things in is the order the model reads. The chip is a
    token — it never wraps mid-label and never grows the field sideways; a long
-   path ellipsizes instead. */
+   path loses its middle instead.
+
+   It also sits ON the prose baseline. Nothing here clips: an inline-block
+   with `overflow: hidden` takes its baseline from its bottom edge instead of
+   its text, which floated the chip a few pixels above the sentence and ate
+   the × with the ellipsis. The label is shortened in JS instead (middle
+   ellipsis, so the file name and line range survive), leaving plain inline
+   text whose baseline is the real one. Height — 11px text on a 1.4 line plus
+   a pixel of padding and a hairline — stays inside the 13px/1.55 line box
+   the prose already reserves, so a chip never grows its row. */
 
 .qcc-field {
   flex: 1 1 auto;
@@ -23,18 +32,13 @@
 }
 
 .qcc-chip {
-  display: inline-flex;
-  gap: 3px;
-  align-items: center;
-  max-width: 22ch;
-  padding: 1px 6px;
+  display: inline-block;
+  padding: 0 5px 1px;
   margin: 0 1px;
-  overflow: hidden;
   font-family: var(--font-mono);
-  font-size: 10px;
-  line-height: 1.5;
+  font-size: 11px;
+  line-height: 1.4;
   color: var(--muted);
-  text-overflow: ellipsis;
   white-space: nowrap;
   vertical-align: baseline;
   cursor: pointer;
@@ -49,16 +53,11 @@
 }
 
 .qcc-chip-label {
-  max-width: 20ch;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .qcc-chip-x {
-  padding: 0 1px;
-  font-size: 12px;
-  line-height: 1;
+  padding-left: 4px;
   color: var(--faint);
 }
 

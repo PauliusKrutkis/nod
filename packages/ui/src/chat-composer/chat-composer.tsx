@@ -63,6 +63,20 @@ export function regionLabel(region: ChatRegionChip): string {
     : region.filePath;
 }
 
+const MAX_CHIP_CHARS = 30;
+
+/** A chip label that fits without clipping. Paths lose their middle, never
+ *  their tail: `review-items.ts:88–140` is what identifies the region, and
+ *  an end-truncated path drops exactly that. */
+export function shortenChipLabel(label: string): string {
+  if (label.length <= MAX_CHIP_CHARS) {
+    return label;
+  }
+  const tail = label.slice(-(MAX_CHIP_CHARS - 5));
+  const head = label.slice(0, 4);
+  return `${head}…${tail}`;
+}
+
 function chipElement(region: ChatRegionChip): HTMLElement {
   const chip = document.createElement("span");
   chip.className = "qcc-chip";
@@ -70,7 +84,7 @@ function chipElement(region: ChatRegionChip): HTMLElement {
   chip.setAttribute(CHIP_ATTR, JSON.stringify(region));
   const label = document.createElement("span");
   label.className = "qcc-chip-label";
-  label.textContent = regionLabel(region);
+  label.textContent = shortenChipLabel(regionLabel(region));
   const remove = document.createElement("span");
   remove.className = "qcc-chip-x";
   remove.setAttribute("data-chip-remove", "");
@@ -79,6 +93,18 @@ function chipElement(region: ChatRegionChip): HTMLElement {
   remove.textContent = "×";
   chip.append(label, remove);
   return chip;
+}
+
+function regionKey(region: ChatRegionChip): string {
+  return `${region.filePath}:${region.lineRange}:${region.side}`;
+}
+
+function hasRegion(root: HTMLElement, region: ChatRegionChip): boolean {
+  const key = regionKey(region);
+  return [...root.querySelectorAll(`[${CHIP_ATTR}]`)].some((chip) => {
+    const existing = readRegion(chip);
+    return existing !== null && regionKey(existing) === key;
+  });
 }
 
 function readRegion(el: Element): ChatRegionChip | null {
@@ -147,6 +173,54 @@ function serialize(root: HTMLElement): ChatPart[] {
     );
 }
 
+/** What a Backspace at the caret would remove: the chip, and the space we
+ *  put after it when it was inserted. That space is ours, not something the
+ *  reviewer typed, so it goes with the chip instead of eating a press. */
+interface ChipHit {
+  chip: HTMLElement;
+  spacer: Node | null;
+}
+
+function asChip(node: Node | null): HTMLElement | null {
+  return node instanceof HTMLElement && node.hasAttribute(CHIP_ATTR)
+    ? node
+    : null;
+}
+
+/** The caret sits inside a text node, `offset` characters in. */
+function chipBeforeText(node: Node, offset: number): ChipHit | null {
+  const typed = (node.textContent ?? "").slice(0, offset);
+  if (typed !== "" && typed !== " ") {
+    return null;
+  }
+  const chip = asChip(node.previousSibling);
+  return chip ? { chip, spacer: typed === "" ? null : node } : null;
+}
+
+/** The caret sits between child nodes, just after `before`. */
+function chipBeforeChild(before: Node | null): ChipHit | null {
+  if (before?.nodeType === Node.TEXT_NODE && before.textContent === " ") {
+    const chip = asChip(before.previousSibling);
+    return chip ? { chip, spacer: before } : null;
+  }
+  const chip = asChip(before);
+  return chip ? { chip, spacer: null } : null;
+}
+
+/** Drops the single space Backspace is standing on — the character, not the
+ *  node, so anything typed after the chip survives. */
+function removeSpacer(spacer: Node | null) {
+  if (!spacer) {
+    return;
+  }
+  const text = spacer.textContent ?? "";
+  if (text.length <= 1) {
+    spacer.parentNode?.removeChild(spacer);
+    return;
+  }
+  spacer.textContent = text.slice(1);
+}
+
 function insertAtCaret(root: HTMLElement, node: Node) {
   const selection = document.getSelection();
   const inField =
@@ -192,6 +266,13 @@ export function ChatComposer({
         return;
       }
       el.focus();
+      // The field holds the chips, so it is also what answers "do I already
+      // have this?" — pressing `l` twice on one selection is a no-op, not a
+      // second copy of the same lines. Pasted code has no identity to
+      // compare, so it always inserts.
+      if (region.filePath && hasRegion(el, region)) {
+        return;
+      }
       insertAtCaret(el, chipElement(region));
       insertAtCaret(el, document.createTextNode(" "));
       onChange?.(el.textContent ?? "");
@@ -204,26 +285,16 @@ export function ChatComposer({
    *  contenteditable=false node is atomic to the browser, but only some
    *  browsers delete it on the first Backspace — doing it here makes the key
    *  behave the same everywhere. */
-  const chipBeforeCaret = (): HTMLElement | null => {
+  const chipBeforeCaret = (): ChipHit | null => {
     const selection = document.getSelection();
     if (!selection?.isCollapsed || selection.rangeCount === 0) {
       return null;
     }
     const range = selection.getRangeAt(0);
     const node = range.startContainer;
-    if (node.nodeType === Node.TEXT_NODE) {
-      if (range.startOffset > 0) {
-        return null;
-      }
-      const prev = node.previousSibling;
-      return prev instanceof HTMLElement && prev.hasAttribute(CHIP_ATTR)
-        ? prev
-        : null;
-    }
-    const prev = node.childNodes[range.startOffset - 1];
-    return prev instanceof HTMLElement && prev.hasAttribute(CHIP_ATTR)
-      ? prev
-      : null;
+    return node.nodeType === Node.TEXT_NODE
+      ? chipBeforeText(node, range.startOffset)
+      : chipBeforeChild(node.childNodes[range.startOffset - 1] ?? null);
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -231,10 +302,11 @@ export function ChatComposer({
       return;
     }
     if (e.key === "Backspace") {
-      const chip = chipBeforeCaret();
-      if (chip) {
+      const found = chipBeforeCaret();
+      if (found) {
         e.preventDefault();
-        chip.remove();
+        removeSpacer(found.spacer);
+        found.chip.remove();
         onChange?.(fieldRef.current?.textContent ?? "");
         return;
       }

@@ -29,8 +29,6 @@ const chip = (over: Partial<ChatRegionChip>): ChatRegionChip => ({
 });
 
 const base = (over: Partial<ChatPanelProps>): ChatPanelProps => ({
-  onOpenSkills: noop,
-  skillCount: 2,
   focusSeq: 0,
   onComposerChange: noop,
   onEscape: noop,

@@ -284,10 +284,27 @@ textarea.q-input {
    and animating the column made it feel slower than it was while forcing the
    virtualizer to re-measure through every intermediate width. */
 .dir-quiet .qf-sidebar-col {
+  position: relative;
   flex-shrink: 0;
   width: 300px;
   overflow: hidden;
   border-right: 1px solid var(--line);
+}
+/* The file tree's drag grip, the dock's mirrored. It sits just inside the
+   right edge rather than straddling it, because the column clips its
+   overflow — a grip hanging outside would be half unclickable. */
+.dir-quiet .qf-sidebar-resize {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.dir-quiet .qf-sidebar-resize:hover {
+  background: var(--accent-soft);
 }
 .dir-quiet .qf-sidebar-inline:not(.qf-sidebar-open) {
   width: 0;
