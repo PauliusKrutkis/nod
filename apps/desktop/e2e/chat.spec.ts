@@ -592,25 +592,22 @@ test("a message sent mid-turn queues and goes out when the turn settles", async 
 }) => {
   await setupApp(page, {
     ...CONFIGURED,
+    aiChatAnswer: "hang",
     aiChatScript: [{ delta: "Thinking it over. " }],
-    aiChatAnswer: "First answer.",
   });
   await openReview(page);
   await page.keyboard.press("ControlOrMeta+m");
   await composer(page).pressSequentially("first question");
   await page.keyboard.press("Enter");
+  await expect(chatPanel(page).getByText("Thinking it over.")).toBeVisible();
 
   // Enter mid-turn parks the message, visibly, instead of dying.
   await composer(page).pressSequentially("and a follow-up");
   await page.keyboard.press("Enter");
-  await expect(
-    chatPanel(page).getByText("Next: and a follow-up")
-  ).toBeVisible();
+  await expect(chatPanel(page).getByText("Next: and a follow-up")).toBeVisible();
 
-  // When the first turn settles, the parked one goes out as its own turn.
-  await expect(
-    chatPanel(page).getByText("First answer.").first()
-  ).toBeVisible();
+  // Stop settles the first turn; the parked one goes out as its own turn.
+  await chatPanel(page).getByRole("button", { name: "Stop" }).click();
   await expect
     .poll(async () => {
       const raw = await page.evaluate(() => localStorage.getItem("e2e:aiChat"));

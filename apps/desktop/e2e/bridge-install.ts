@@ -201,6 +201,10 @@ export function installBridge(cfg: BridgeConfig) {
     }
   ).__emitEvent = emitEvent;
 
+  // Hung mocked chat calls, settled when ai_chat_cancel arrives — the shape
+  // the real backend has (a cancel is noticed between chunks and returns the
+  // benign "cancelled").
+  const hangingChats: (() => void)[] = [];
   const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
     "plugin:event|listen": (args) => {
       const event = args.event as string;
@@ -234,7 +238,7 @@ export function installBridge(cfg: BridgeConfig) {
           emitEvent("ai-chat-proposal", { ...ids, proposal: entry.proposal });
         }
       };
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
         let step = 0;
         const play = () => {
           const entry = cfg.aiChatScript[step];
@@ -242,6 +246,8 @@ export function installBridge(cfg: BridgeConfig) {
             if (cfg.aiChatAnswer !== "hang") {
               resolve(cfg.aiChatAnswer);
             }
+            // A hung call still settles on cancel, the way the real backend
+            // returns its benign "cancelled" between chunks.
             return;
           }
           step += 1;
@@ -249,11 +255,15 @@ export function installBridge(cfg: BridgeConfig) {
           setTimeout(play, 10);
         };
         setTimeout(play, 0);
+        hangingChats.push(() => reject(new Error("cancelled")));
       });
     },
     ai_chat_cancel: (args) => {
       countCall("ai_chat_cancel");
       localStorage.setItem("e2e:aiChatCancel", JSON.stringify(args));
+      for (const settle of hangingChats.splice(0)) {
+        settle();
+      }
       return null;
     },
     list_chat_skills: () => {
