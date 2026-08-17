@@ -14,7 +14,7 @@ import { treeOrder } from "@nod/ui/file-tree";
 import { useEdgeResize } from "@nod/ui/use-edge-resize";
 import { useLatest } from "@nod/ui/use-latest";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   askModelInput,
   nudgeAskIntoView,
@@ -391,7 +391,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const viewedFiles = viewed[keyValue];
   const viewedSet = new Set(Object.keys(viewedFiles ?? {}));
 
-  const files = useMemo(() => treeOrder(detail?.files ?? []), [detail?.files]);
+  const files = treeOrder(detail?.files ?? []);
   const fileCount = files.length;
   const clampedIndex = Math.min(activeIndex, Math.max(fileCount - 1, 0));
   const activeFile = files[clampedIndex];

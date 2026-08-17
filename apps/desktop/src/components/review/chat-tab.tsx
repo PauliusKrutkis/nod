@@ -24,6 +24,14 @@ interface ChatTabProps {
   pr: PullRequest;
 }
 
+/** Escape in the composer lands focus back on the diff's scroll host, the
+ *  same landing the dock uses on close. */
+function focusScrollHost() {
+  document
+    .querySelector<HTMLElement>(".qf-scrollhost")
+    ?.focus({ preventScroll: true });
+}
+
 export function ChatTab({ files, focusSeq, onRevealRegion, pr }: ChatTabProps) {
   const composerRef = useRef<ChatComposerHandle>(null);
   const chat = useReviewChat({
@@ -48,12 +56,6 @@ export function ChatTab({ files, focusSeq, onRevealRegion, pr }: ChatTabProps) {
       {text}
     </Markdown>
   );
-
-  const focusScrollHost = () => {
-    document
-      .querySelector<HTMLElement>(".qf-scrollhost")
-      ?.focus({ preventScroll: true });
-  };
 
   return (
     <ChatPanel

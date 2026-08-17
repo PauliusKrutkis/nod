@@ -284,7 +284,19 @@ export const chatPanelEntry = defineEntry(ChatPanel, {
           id: "a1",
           kind: "assistant",
           partial: "",
-          text: "I put 2 comments in your review — they are waiting at their lines.",
+          staged: [
+            {
+              body: "This constant looks off — should it be 3?",
+              id: "p1",
+              label: "src/lib/fuzzy.ts:2",
+            },
+            {
+              body: "Worth a test for the empty case.",
+              id: "p2",
+              label: "src/lib/fuzzy.ts:9",
+            },
+          ],
+          text: "I put 2 comments in your review. They are waiting at their lines.",
           activity: [],
           reasoning: "",
         },
