@@ -70,13 +70,36 @@ const EMPTY_SKILLS: SkillInfo[] = [];
 const EMPTY_THREADS: ChatThread[] = [];
 
 /** A thread's display name: its opening message, tightly trimmed. */
+/** A thread's display name: whatever its opening message actually was.
+ *  Prose first; failing that the skills it invoked (a skill on its own is a
+ *  complete message, and "/pr-validity" names that thread better than any
+ *  summary would); failing that the code it attached. Nothing is generated —
+ *  a label is not worth a model call, and a thread named by its own first
+ *  line is one the reviewer can recognise. */
 function threadTitle(thread: ChatThread): string {
   const first = thread.turns.find((t) => t.kind === "user");
   if (first?.kind !== "user") {
     return "New chat";
   }
   const line = (first.text.split("\n")[0] ?? "").trim();
-  return line.length > 40 ? `${line.slice(0, 40)}…` : line;
+  const skills = first.skills ?? (first.skill === undefined ? [] : [first.skill]);
+  const attached = (first.parts ?? []).find((p) => p.kind === "code");
+  const label =
+    line ||
+    skills.map((name) => `/${name}`).join(" ") ||
+    (attached?.kind === "code" ? regionTitle(attached.region) : "") ||
+    first.regions.map((r) => regionTitle(r)).join(" ") ||
+    "New chat";
+  return label.length > 40 ? `${label.slice(0, 40)}…` : label;
+}
+
+function regionTitle(region: ChatRegion): string {
+  if (!region.filePath) {
+    return "pasted code";
+  }
+  return region.lineRange
+    ? `${region.filePath}:${region.lineRange}`
+    : region.filePath;
 }
 
 const CHAT_MODEL_KEY = "nod:chatModel:v1";

@@ -1100,6 +1100,23 @@ struct ChatProposalEvent {
     proposal: ChatProposal,
 }
 
+/// What to say when the model returns no text. "Empty answer" is true but
+/// useless; running out of room mid-thought is a different problem with a
+/// different fix, and the provider says which it was.
+fn empty_answer(message: &Value) -> String {
+    let reason = message
+        .get("finish_reason")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    if reason == "length" {
+        return "The model used its whole budget before it answered — long \
+             skills and thinking models do this. Ask again, more narrowly, or \
+             pick a model that thinks less."
+            .to_string();
+    }
+    "The provider returned an empty answer.".to_string()
+}
+
 /// Validates and, when valid, emits the proposal to the webview to stage.
 /// Either way the return is the tool result the model reads.
 fn run_propose_comment(
@@ -1191,7 +1208,11 @@ pub async fn ai_chat(
         let mut body = serde_json::json!({
             "model": model,
             "messages": messages,
-            "max_completion_tokens": 2000,
+            // A review pass is a long answer, and a thinking model spends
+            // this budget on reasoning before a word of it reaches the
+            // reviewer — 2000 (the ask-note budget) ran out mid-thought and
+            // returned nothing at all.
+            "max_completion_tokens": 8000,
             "stream": true,
         });
         if tools_enabled {
@@ -1252,8 +1273,7 @@ pub async fn ai_chat(
             .cloned()
             .unwrap_or_default();
         if calls.is_empty() || !tools_enabled {
-            return ai::message_answer(&message_value)
-                .ok_or_else(|| "The provider returned an empty answer.".to_string());
+            return ai::message_answer(&message_value).ok_or_else(|| empty_answer(&message_value));
         }
         if rounds > ai::MAX_TOOL_ROUNDS {
             return Err("The model kept requesting tools past the limit.".to_string());

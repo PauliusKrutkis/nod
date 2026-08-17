@@ -270,6 +270,10 @@ pub(crate) const CANCELLED: &str = "cancelled";
 #[derive(Default)]
 struct StreamedMessage {
     content: String,
+    /// Why the provider stopped. Kept because an empty answer means something
+    /// different when the budget ran out than when the model simply said
+    /// nothing, and only the caller can phrase that usefully.
+    finish_reason: String,
     tool_calls: Vec<Value>,
 }
 
@@ -279,6 +283,9 @@ impl StreamedMessage {
             "role": "assistant",
             "content": self.content,
         });
+        if !self.finish_reason.is_empty() {
+            message["finish_reason"] = Value::String(self.finish_reason);
+        }
         if !self.tool_calls.is_empty() {
             message["tool_calls"] = Value::Array(self.tool_calls);
         }
@@ -353,6 +360,12 @@ fn apply_stream_line(acc: &mut StreamedMessage, line: &str) -> Option<StreamPiec
         return None;
     }
     let chunk: Value = serde_json::from_str(payload).ok()?;
+    if let Some(reason) = chunk
+        .pointer("/choices/0/finish_reason")
+        .and_then(Value::as_str)
+    {
+        acc.finish_reason = reason.to_string();
+    }
     let delta = chunk.pointer("/choices/0/delta")?;
     if let Some(fragments) = delta.get("tool_calls").and_then(Value::as_array) {
         for fragment in fragments {

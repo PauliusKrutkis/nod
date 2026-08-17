@@ -1,6 +1,6 @@
 use super::{
     build_chat_turn, builtin_skill_body, builtin_skills, chat_system_prompt, chat_tools,
-    discover_personal_skills, discover_skills, execute_read_diff, execute_skill_tool,
+    discover_personal_skills, discover_skills, empty_answer, execute_read_diff, execute_skill_tool,
     format_ranges, frontmatter_description, history_messages, merge_skills, parse_proposal,
     read_skill_body, resolve_skill_body, safe_source, skill_instructions, skill_name_from_path,
     tool_note, validate_proposal, ChatCancels, ChatDelta, ChatDiffFile, ChatPart, ChatProposal,
@@ -846,4 +846,15 @@ fn several_skills_ride_one_turn_numbered_in_order() {
     assert!(first < second);
     assert!(prompt.find("Check comment placement.").expect("first body") < second);
     assert!(second < prompt.find("Both, please.").expect("message"));
+}
+
+#[test]
+fn an_empty_answer_says_whether_the_budget_ran_out() {
+    let ran_out = serde_json::json!({ "content": "", "finish_reason": "length" });
+    let message = empty_answer(&ran_out);
+    assert!(message.contains("whole budget"), "got {message}");
+
+    let just_empty = serde_json::json!({ "content": "", "finish_reason": "stop" });
+    assert!(empty_answer(&just_empty).contains("empty answer"));
+    assert!(empty_answer(&serde_json::json!({})).contains("empty answer"));
 }

@@ -361,6 +361,15 @@ yours, made against the actual text rather than a name and an install count.
 Both requests go out unauthenticated, so no account credential reaches a
 third-party host.
 
+### Budgets
+
+An ask-note is a sentence and a chat answer is a review pass, so they do not
+share a budget: the chat asks for 8000 completion tokens. Thinking models
+spend that budget before a word reaches the reviewer, and at the ask-note's
+2000 a long skill ran the tank dry mid-thought and returned nothing at all —
+which the panel could only report as "empty answer". The provider's
+`finish_reason` now separates the two, so running out of room says so.
+
 ### Ship order
 
 Docs (this section) → docked panel → `ai_chat` → chat-panel component → wiring

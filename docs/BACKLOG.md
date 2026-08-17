@@ -960,6 +960,19 @@ only format the in-app updater touches.
       users ask).
 - [ ] ⏸ **File/code autocomplete in comments** — `@file` / path completion in
       the composer; depends on §9 snapshot or live blob access.
+- [ ] 🟡 **WKWebView layout-contract suite** — a small native lane that mounts
+      the real system webview and asserts geometry for the layout primitives
+      the app depends on (scroll roots, flex children of auto-height panels,
+      fixed overlays, input focus), instead of duplicating e2e there. Every
+      engine divergence found in the wild gets promoted into the suite — the
+      fixture provenance rule, applied to engines. Contract #1: the
+      `flex-basis: 0%` collapse from 75a7f4a (Playwright's WebKit follows the
+      spec fallback, WKWebView does not, so the harness engines cannot catch
+      this class). On failure, save a screenshot plus computed bounding boxes.
+      Constraint: hosted CI offers only recent macOS images, so an
+      oldest-supported-macOS matrix means own hardware or the nightly capture
+      harness. Origin: r/Playwright thread on the flex-collapse blog post
+      (2026-08-17).
 
 ---
 

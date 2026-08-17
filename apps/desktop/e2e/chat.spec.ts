@@ -906,6 +906,21 @@ test("a shy timestamp goes away with the pointer", async ({ page }) => {
   await expect(older.locator(".qch-time")).toHaveCSS("opacity", "0");
 });
 
+test("a skill-only thread is named by the skill it ran", async ({ page }) => {
+  await setupApp(page, SKILLS_SETUP);
+  await openReview(page);
+  await page.keyboard.press("m");
+
+  // Nothing was typed, so there is no first line to name the thread with —
+  // the skill is what this conversation is.
+  await composer(page).pressSequentially("/pr");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Enter");
+  await expect(chatPanel(page).locator(".qch-thread-title")).toHaveText(
+    "/pr-validity"
+  );
+});
+
 test("two skills ride one message, in the order they were invoked", async ({
   page,
 }) => {
