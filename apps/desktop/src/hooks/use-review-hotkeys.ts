@@ -316,9 +316,13 @@ export function useReviewHotkeys(config: {
     },
     {
       description: "Chat about this PR (AI)",
+      // Global because the toggle must also CLOSE: plain keys never fire in
+      // an editable target, and the chat's own composer is where you are
+      // when you want the panel gone.
+      global: true,
       group: "General",
       icon: MessagesSquare,
-      keys: "m",
+      keys: "mod+m",
       run: config.toggleChat,
     },
     {

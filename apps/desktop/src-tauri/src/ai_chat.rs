@@ -107,6 +107,15 @@ impl ChatCancels {
     }
 }
 
+/// Every tool round is a full round-trip through the provider — resend the
+/// conversation, wait for thinking, stream the reply — so seven files read
+/// one round at a time is seven times slower than seven read in one. The
+/// loop already executes every call a round carries; this sentence is what
+/// makes the model use that.
+const CHAT_SYSTEM_BATCH: &str = "Tool calls in one reply run together, and \
+each reply is a slow round-trip: when you know you need several files or \
+searches, request them ALL in one reply rather than one at a time.";
+
 const CHAT_SYSTEM_BASE: &str =
     "You are the review chat inside Nod, a pull-request review app. The reviewer \
 is reading the pull request beside this conversation. Answer questions about the \
@@ -140,6 +149,9 @@ numbers must fall inside the diff.";
 
 fn chat_system_prompt(snapshot_ready: bool, skills: bool, proposals: bool, diffs: bool) -> String {
     let mut parts = vec![CHAT_SYSTEM_BASE];
+    if snapshot_ready || diffs {
+        parts.push(CHAT_SYSTEM_BATCH);
+    }
     if snapshot_ready {
         parts.push(CHAT_SYSTEM_SNAPSHOT);
     }

@@ -36,7 +36,7 @@ export type { PrDrawerHandle as RightPanelHandle } from "@nod/ui/pr-drawer";
 
 const DOCK_TABS = [
   { id: "info", kbd: "i", label: "Info" },
-  { id: "chat", kbd: "m", label: "Chat" },
+  { id: "chat", kbd: "⌘M", label: "Chat" },
 ];
 
 interface RightPanelProps {

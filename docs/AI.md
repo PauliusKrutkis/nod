@@ -270,7 +270,9 @@ conversation is open, overlay with a scrim at narrow widths. Not a new pattern:
 it is the file sidebar's docked/overlay dual mode mirrored to the right edge.
 The closed dock stays mounted (drafts and transcripts must survive a toggle).
 
-- `m` toggles the Chat tab; `i` keeps Info semantics (chat open → switch tab,
+- `mod+m` toggles the Chat tab — modified, and registered global, because the
+  toggle must also close and a plain key never fires while the chat's own
+  composer holds focus; `i` keeps Info semantics (chat open → switch tab,
   info open → close). Both derive palette and `?` sheet entries as usual.
 - `l` adds the cursor line or fat-cursor selection to the chat as a **context
   chip** on the next message — the Cursor `⌘L` motion. Multiple chips per
