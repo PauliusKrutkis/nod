@@ -9,8 +9,9 @@
 # baseline is missing, Playwright writes the actual and the retry emits
 # phantom "Screenshot comparison failed" lines, which used to misclassify
 # missing-only runs as changed. Baselines are platform-suffixed, so the
-# darwin files in the repo never stand in for this image — comparing across
-# font-rendering stacks is pure noise. A visual change therefore only merges
+# a local darwin render never stands in for this image — comparing across
+# font-rendering stacks is pure noise. Only linux baselines are committed;
+# darwin ones are gitignored and regenerate locally on demand. A visual change therefore only merges
 # via an explicit baseline update, never by drifting silently.
 #
 # The suite runs 900+ cells on a single worker (parallel vite requests add
@@ -71,8 +72,8 @@ jobs:
             apps/gallery/shots-report.json
       # Regenerate on ANY red verdict, changed included: a changed-only shard
       # used to regenerate nothing, leaving no path to refresh a linux
-      # baseline after an intended visual change (darwin has shots:update
-      # locally; linux only has this job). Publishing is not merging — the
+      # baseline after an intended visual change (darwin regenerates from
+      # shots:update locally; linux only has this job). Publishing is not merging — the
       # change still lands only when someone commits the artifact.
       # Stage ONLY what this shard regenerated: uploading the whole snapshot
       # dir made every shard's artifact carry stale copies of every OTHER
