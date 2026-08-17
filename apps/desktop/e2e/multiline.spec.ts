@@ -268,3 +268,37 @@ test("a drag inside one row leaves the range alone", async ({ page }) => {
   await dragSelectRows(page, "RIGHT:2", "RIGHT:2");
   await expect(page.locator(".qf-row-selected")).toHaveCount(0);
 });
+
+test("clicking clears the drag range, even inside the selection", async ({
+  page,
+}) => {
+  await dragSelectRows(page, "RIGHT:1", "RIGHT:3");
+  await expect(page.locator(".qf-row-selected")).toHaveCount(4);
+
+  // A click inside the highlighted run is the awkward one: the browser can
+  // hold the old selection until mouseup so the text can be dragged, so the
+  // range cannot be decided by reading the selection at that moment.
+  const target = page
+    .locator('.qf-row[data-anchor="RIGHT:2"] .qf-code')
+    .first();
+  const box = await target.boundingBox();
+  if (!box) {
+    throw new Error("row not measurable");
+  }
+  await page.mouse.move(box.x + 20, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.up();
+  await expect(page.locator(".qf-row-selected")).toHaveCount(0);
+});
+
+test("a selection cleared by anything else takes the range with it", async ({
+  page,
+}) => {
+  await dragSelectRows(page, "RIGHT:1", "RIGHT:3");
+  await expect(page.locator(".qf-row-selected")).toHaveCount(4);
+
+  // Not a click — the selection simply goes away (another surface takes it,
+  // the page collapses it). The rows follow it out.
+  await page.evaluate(() => document.getSelection()?.removeAllRanges());
+  await expect(page.locator(".qf-row-selected")).toHaveCount(0);
+});
