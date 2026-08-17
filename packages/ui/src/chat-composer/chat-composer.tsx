@@ -305,7 +305,16 @@ function insertAtCaret(root: HTMLElement, node: Node) {
   }
   range.deleteContents();
   range.insertNode(node);
-  range.setStartAfter(node);
+  // Land the caret INSIDE the trailing text node rather than after it. A
+  // caret parked between an atomic chip and the field's edge is a block
+  // boundary as far as the browser is concerned, and the first character
+  // typed there starts a new line under the chip instead of continuing the
+  // sentence beside it.
+  if (node.nodeType === Node.TEXT_NODE) {
+    range.setStart(node, node.textContent?.length ?? 0);
+  } else {
+    range.setStartAfter(node);
+  }
   range.collapse(true);
   selection?.removeAllRanges();
   selection?.addRange(range);

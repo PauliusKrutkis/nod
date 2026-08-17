@@ -27,6 +27,10 @@ import { HighlightIndices } from "../highlight-indices/highlight-indices.tsx";
 import "./canned-suggestions.css";
 
 export interface CannedSuggestionsProps {
+  /** One line about each item, keyed by the item itself. A skill's
+   *  description says what it does; a canned comment is its own description
+   *  and passes none. */
+  hints?: Record<string, string>;
   items: string[];
   onPick: (text: string) => void;
   query: string;
@@ -71,6 +75,7 @@ export function matchCanned(
 }
 
 export function CannedSuggestions({
+  hints,
   items,
   selected,
   query,
@@ -86,6 +91,7 @@ export function CannedSuggestions({
     <div className="qcs-panel">
       {items.map((text, i) => (
         <CannedSuggestionRow
+          hint={hints?.[text]}
           indices={indices}
           key={text}
           onPick={onPick}
@@ -98,11 +104,13 @@ export function CannedSuggestions({
 }
 
 function CannedSuggestionRow({
+  hint,
   text,
   indices,
   selected,
   onPick,
 }: {
+  hint?: string;
   indices: number[];
   onPick: (text: string) => void;
   selected: boolean;
@@ -130,6 +138,9 @@ function CannedSuggestionRow({
         <span className="qcs-text">
           <HighlightIndices indices={indices} text={text} />
         </span>
+        {hint !== undefined && hint !== "" && (
+          <span className="qcs-hint">{hint}</span>
+        )}
         {selected && (
           <CornerDownLeft aria-hidden className="qcs-enter" size={12} />
         )}

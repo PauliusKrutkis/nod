@@ -44,11 +44,37 @@
 }
 
 .qcs-text {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Beside a description, the item holds its width: it is the thing being
+   picked, and a name clipped to make room for its own footnote is the wrong
+   trade. It yields only past 60% of the row, where the name is the problem.
+   Without a description it keeps the whole row, which is what a saved
+   comment — a sentence, not a name — needs. */
+.qcs-pick:has(.qcs-hint) .qcs-text {
+  flex: 0 0 auto;
+  max-width: 60%;
+}
+
+/* What the item does, when the item's own name doesn't say. It gives up the
+   width first and never wraps: the row is a name with a footnote, not two
+   columns of prose. */
+.qcs-hint {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--faint);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qcs-row[data-selected="true"] .qcs-hint {
+  color: var(--muted);
 }
 
 /* The typed prefix: already on screen in the editor above, so it recedes

@@ -121,6 +121,8 @@ export interface ChatSuggestionsState {
   /** Shown in place of the list when nothing matches, so an opening `/`
    *  always answers with something. */
   emptyHint?: string | null;
+  /** One line about each item, keyed by the item — what a skill does. */
+  hints?: Record<string, string>;
   items: string[];
   onDismiss: () => void;
   onMove: (delta: 1 | -1) => void;
@@ -474,7 +476,9 @@ export function ChatPanel({
       suggestions.onMove(-1);
       return true;
     }
-    if (e.key === "Enter" && !e.shiftKey) {
+    // Enter and Tab both take the highlighted row: Enter is the app's habit,
+    // Tab is every completion menu's.
+    if ((e.key === "Enter" && !e.shiftKey) || e.key === "Tab") {
       e.preventDefault();
       suggestions.onPick(suggestions.items[suggestions.selected]);
       return true;
@@ -603,6 +607,7 @@ export function ChatPanel({
         {suggestions &&
           (suggestions.items.length > 0 ? (
             <CannedSuggestions
+              hints={suggestions.hints}
               items={suggestions.items}
               onPick={suggestions.onPick}
               query={suggestions.query}

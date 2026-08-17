@@ -215,6 +215,8 @@ function emptyHint(loading: boolean): string {
  *  else is prose. Dismissing it is per-query, so Escape closes the list
  *  without also cancelling the slash you just typed. */
 function useSlashSuggestions(args: {
+  /** name → one-line description, for the row's footnote. */
+  hints: Record<string, string>;
   loading: boolean;
   onPick: (name: string) => void;
   skill: string | null;
@@ -236,6 +238,7 @@ function useSlashSuggestions(args: {
   }
   return {
     emptyHint: items.length > 0 ? null : emptyHint(args.loading),
+    hints: args.hints,
     items,
     onDismiss: () => setDismissedFor(query),
     onMove: (delta) =>
@@ -393,6 +396,9 @@ export function useReviewChat(args: {
     staleTime: Number.POSITIVE_INFINITY,
   });
   const skillNames = (skills.data ?? []).map((s) => s.name);
+  const skillHints = Object.fromEntries(
+    (skills.data ?? []).map((s) => [s.name, s.description])
+  );
 
   const [modelOverride, setModelOverride] = useState<string | null>(
     readChatModel
@@ -427,6 +433,7 @@ export function useReviewChat(args: {
     args.composerRef.current?.insertSkill(name, (slash?.length ?? 0) + 1);
   };
   const suggestions = useSlashSuggestions({
+    hints: skillHints,
     loading: skills.isPending && args.active,
     onPick: pickSkill,
     skill,
@@ -536,7 +543,9 @@ export function useReviewChat(args: {
       .map((p) => (p.kind === "text" ? p.text : ""))
       .join("")
       .trim();
-    if (parts.length === 0 || chat.isPending) {
+    // A skill on its own is a whole request — "run this pass" — so an empty
+    // message sends when a skill chip is in the field.
+    if ((parts.length === 0 && skill === null) || chat.isPending) {
       return false;
     }
     const turnId = crypto.randomUUID();

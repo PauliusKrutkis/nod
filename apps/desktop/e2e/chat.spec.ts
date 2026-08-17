@@ -831,6 +831,61 @@ test("a typed prefix narrows the skills and the pick rides the send", async ({
   await expect(chatPanel(page).getByText("/pr-validity")).toBeVisible();
 });
 
+test("the picker says what each skill does, and Tab takes the pick", async ({
+  page,
+}) => {
+  await setupApp(page, SKILLS_SETUP);
+  await openReview(page);
+  await page.keyboard.press("m");
+
+  await composer(page).pressSequentially("/");
+  await expect(page.locator(".qcs-hint").first()).toHaveText(
+    "Review against repo conventions"
+  );
+
+  // Tab is what every completion menu answers to; Enter still works.
+  await page.keyboard.press("Tab");
+  await expect(chatPanel(page).locator(".qcc-chip-skill")).toContainText(
+    "/pr-validity"
+  );
+
+  // What gets typed next continues the line the chip is on.
+  await page.keyboard.type("on the auth files");
+  const inline = await page.evaluate(() => {
+    const chip = document
+      .querySelector(".qcc-chip-skill")
+      ?.getBoundingClientRect();
+    const field = document.querySelector(".qcc-field");
+    const text = [...(field?.childNodes ?? [])].find((n) =>
+      (n.textContent ?? "").includes("auth")
+    );
+    if (!(chip && text)) {
+      return null;
+    }
+    const range = document.createRange();
+    range.selectNode(text);
+    return Math.abs(range.getBoundingClientRect().top - chip.top) < 4;
+  });
+  expect(inline).toBe(true);
+});
+
+test("a skill runs on its own, with nothing typed after it", async ({
+  page,
+}) => {
+  await setupApp(page, SKILLS_SETUP);
+  await openReview(page);
+  await page.keyboard.press("m");
+
+  await composer(page).pressSequentially("/pr");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Enter");
+
+  const args = await readChatArgs(page);
+  expect(args.skill).toBe("pr-validity");
+  expect(args.message).toBe("");
+  await expect(chatPanel(page).locator(".qcc-chip-skill")).toHaveCount(0);
+});
+
 test("the skill chip removes; a repo with no skills offers nothing on /", async ({
   page,
 }) => {

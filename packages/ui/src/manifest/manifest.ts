@@ -127,6 +127,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
   },
   "canned-suggestions": {
     fixtures: [
+      "described-items",
       "empty",
       "full",
       "markup-as-text",
