@@ -341,6 +341,15 @@ impl GitHubPlatform {
     /// does strip `Authorization` across origins today, but a silent change in
     /// that behaviour would leak a credential, and this is not a behaviour to
     /// inherit implicitly.
+    ///
+    /// Both halves fail for their own reasons and the message says which:
+    /// a `404` from the API means the commit lives in a fork or the account
+    /// cannot see the repo, while the signed URL can expire or be refused
+    /// for a commit GitHub will happily redirect for. codeload also
+    /// throttles bursts — several PRs prefetching snapshots at once answer
+    /// 429/503 and then succeed moments later — so a retryable status gets
+    /// one second chance, not a loop: a host that is really down should say
+    /// so quickly.
     pub async fn archive(&self, owner: &str, repo: &str, sha: &str) -> Result<Vec<u8>, String> {
         let redirector = reqwest::Client::builder()
             .redirect(reqwest::redirect::Policy::none())
@@ -362,13 +371,9 @@ impl GitHubPlatform {
         if status.is_success() {
             return read_capped(resp, MAX_ARCHIVE_BYTES, "repo archive").await;
         }
-        // A 404 here is not "missing" in any useful sense: the two causes are
-        // a head commit that lives in a fork rather than in this repo, and a
-        // private repo the signed-in account cannot see. Saying which two
-        // beats echoing the status.
         if status == reqwest::StatusCode::NOT_FOUND {
             return Err(format!(
-                "no archive for {owner}/{repo}@{sha} — the commit may live in a fork, or this account may not have access"
+                "GitHub has no archive for {owner}/{repo} at {sha}. The commit may live in a fork, or this account may not have access."
             ));
         }
         if !status.is_redirection() {
@@ -384,11 +389,6 @@ impl GitHubPlatform {
         let signed = reqwest::Client::builder()
             .build()
             .map_err(|e| format!("could not build http client: {e}"))?;
-        // codeload throttles bursts — several PRs prefetching snapshots at
-        // once answer 429/503 and then succeed moments later — so a
-        // retryable status gets one second chance before it becomes an
-        // error. One, not a loop: a host that is really down should say so
-        // quickly.
         let mut resp = signed
             .get(&location)
             .header(reqwest::header::USER_AGENT, "nod")
@@ -404,13 +404,9 @@ impl GitHubPlatform {
                 .await
                 .map_err(net_err)?;
         }
-        // The signed URL is the second half of the same fetch, and it fails
-        // for its own reasons (an expired signature, a commit GitHub will
-        // redirect for but not serve). Naming the half that failed is the
-        // difference between a bug report and a guess.
         if !resp.status().is_success() {
             return Err(format!(
-                "the signed archive URL for {owner}/{repo}@{sha} failed ({})",
+                "the signed archive URL for {owner}/{repo} at {sha} failed ({})",
                 resp.status().as_u16()
             ));
         }

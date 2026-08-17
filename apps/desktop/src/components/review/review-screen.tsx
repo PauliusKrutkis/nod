@@ -5,6 +5,9 @@
  * `pendingBoxNudgeRef`, and a layout effect nudges it into view once the
  * model that contains it has rebuilt — same instant, no-animation easing
  * keyboard row navigation already uses via `nudgeItemIntoView`.
+ *
+ * Files are read in the order the tree shows them, so `Tab`/`e` and the diff
+ * pane walk the order the eye does (docs/BACKLOG.md § Inbox).
  */
 
 import { treeOrder } from "@nod/ui/file-tree";
@@ -388,8 +391,6 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const viewedFiles = viewed[keyValue];
   const viewedSet = new Set(Object.keys(viewedFiles ?? {}));
 
-  // Read in the order the tree shows, so `Tab`/`e` and the diff pane walk
-  // the order the eye does (docs/BACKLOG.md § Inbox).
   const files = useMemo(() => treeOrder(detail?.files ?? []), [detail?.files]);
   const fileCount = files.length;
   const clampedIndex = Math.min(activeIndex, Math.max(fileCount - 1, 0));
@@ -944,10 +945,11 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     setSelection,
   });
 
+  /** Jumps to a chat chip's lines. A pasted chip knows its text but not
+   *  where it came from, so it is located in the diff first; code that is
+   *  not in this pull request has nowhere to jump to. */
   const onRevealChatRegion = (chip: ChatRegion) => {
     const model = modelRef.current;
-    // A pasted chip knows its text but not where it came from. Find it in the
-    // diff first; if it isn't in this pull request, there is nowhere to go.
     const region = chip.filePath
       ? chip
       : { ...chip, ...(locatePastedCode(filesRef.current, chip.code) ?? {}) };

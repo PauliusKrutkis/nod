@@ -7,6 +7,15 @@
  * turnId and are batched per animation frame, the ask note's precedent, so
  * token-rate events never force token-rate re-renders.
  *
+ * The composer's field is the truth about what a message carries — its code
+ * chips and its skill chips — and the state here mirrors it only so the
+ * request can carry the skills beside the message and the `/` picker can
+ * gate on whether one is invoked. A message sent while a turn runs parks in
+ * a single slot (last write wins) and goes out when the MUTATION settles,
+ * not when the live turn clears: stop empties that early, while the cancel
+ * is still unwinding, and two in-flight turns on one chat id would
+ * interleave their events.
+ *
  * One turn in flight per chat. History replays the settled conversation:
  * user turns are rebuilt with their region blocks (the code a past question
  * was about must survive the round trip), errored assistant turns are
@@ -257,9 +266,9 @@ function useChatSnapshot(args: { active: boolean; pr: PullRequest }): {
       "Fetching the repository so the chat can read beyond the diff. The diff itself is already available.";
   } else if (snapshotState === "failed" || snapshotState === "skipped") {
     const why = snapshot.data?.detail;
-    contextNote = `Reading this pull request's diff only${
-      why ? ` — ${why}` : ""
-    }. Repo-wide search and file reads are off.`;
+    contextNote = `Reading this pull request's diff only. Repo-wide search and file reads are off.${
+      why ? ` The snapshot failed: ${why}` : ""
+    }`;
   }
 
   return { note: contextNote, state: snapshotState };
@@ -272,8 +281,9 @@ function emptyHint(loading: boolean): string {
 }
 
 /** The `/` picker. A leading slash with no space is a skill query; anything
- *  else is prose. Dismissing it is per-query, so Escape closes the list
- *  without also cancelling the slash you just typed. */
+ *  else is prose. Dismissal remembers the exact query it applied to, so
+ *  Escape closes the list and the next keystroke opens it again — which is a
+ *  derivation rather than an effect to keep in sync. */
 function useSlashSuggestions(args: {
   /** name → one-line description, for the row's footnote. */
   hints: Record<string, string>;
@@ -284,8 +294,6 @@ function useSlashSuggestions(args: {
   slash: string | null;
 }): ChatSuggestionsState | null {
   const [index, setIndex] = useState(0);
-  // Dismissal remembers the exact query it applied to, so Escape closes the
-  // list and the next keystroke opens it again — no effect to keep in sync.
   const [dismissedFor, setDismissedFor] = useState<string | null>(null);
   const query = args.slash === dismissedFor ? null : args.slash;
   const items = query === null ? [] : matchCanned(query, args.skillNames, 0);
@@ -437,13 +445,10 @@ export function useReviewChat(args: {
   const stagedByAi = useAppStore(
     (s) => s.pendingComments[keyValue] ?? EMPTY_PENDING
   ).filter((c) => c.fromAi);
-  // The chips in the field are the truth; this mirror only exists so the
-  // panel can gate on whether anything is invoked.
   const [, setInvokedSkills] = useState<string[]>([]);
   const [slash, setSlash] = useState<string | null>(null);
   const [live, setLive] = useState<LiveTurn | null>(null);
   const liveRef = useLatest(live);
-  // Turns the stop button already wrote out; their mutation still resolves.
   const settledByStop = useRef(new Set<string>());
 
   const { note: contextNote, state: snapshotState } = useChatSnapshot(args);
@@ -488,13 +493,11 @@ export function useReviewChat(args: {
     persistChatModel(next);
   };
 
-  // Picking a skill swaps the `/query` the reviewer typed for a chip in the
-  // field — the same token a code region gets, removable the same ways, and
-  // whatever else they had typed stays put. The state here mirrors the chip
-  // only so the request can carry the skill beside the message.
+  /** Swaps the `/query` the reviewer typed for a chip in the field — the
+   *  same token a code region gets, removable the same ways, and whatever
+   *  else they had typed stays put. The count is the slash plus what follows
+   *  it: the characters the chip stands in for. */
   const pickSkill = (name: string) => {
-    // `/` plus what has been typed after it — the characters the chip stands
-    // in for.
     args.composerRef.current?.insertSkill(name, (slash?.length ?? 0) + 1);
   };
   const suggestions = useSlashSuggestions({
@@ -536,6 +539,27 @@ export function useReviewChat(args: {
   }, []);
 
   // react-doctor-disable-next-line query-mutation-missing-invalidation -- a chat turn is a one-shot completion, not cached server state; there is no query to invalidate
+  const [queued, setQueued] = useState<{
+    parts: ChatPart[];
+    skills: string[];
+  } | null>(null);
+  const queuedRef = useLatest(queued);
+  const sendRef = useRef<(parts: ChatPart[], skills: string[]) => boolean>(
+    () => false
+  );
+
+  /** Sends the parked message, if there is one. Called when a turn settles
+   *  rather than from an effect watching `isPending`: the settle IS the
+   *  event, and an effect would fire on unrelated renders too. */
+  const flushQueued = () => {
+    const parked = queuedRef.current;
+    if (parked === null) {
+      return;
+    }
+    setQueued(null);
+    sendRef.current(parked.parts, parked.skills);
+  };
+
   const chat = useMutation({
     mutationFn: ({
       threadId: _threadId,
@@ -586,6 +610,7 @@ export function useReviewChat(args: {
         text: answer,
       });
     },
+    onSettled: flushQueued,
   });
 
   const chatPendingRef = useLatest(chat.isPending);
@@ -599,33 +624,16 @@ export function useReviewChat(args: {
     [keyValue, chatPendingRef]
   );
 
-  // One parked message. Enter while a turn is in flight should not be a
-  // dead key: the message waits, visibly, and goes out the moment the turn
-  // settles. One slot, last write wins — a queue of queues is a chat client.
-  const [queued, setQueued] = useState<{
-    parts: ChatPart[];
-    skills: string[];
-  } | null>(null);
-
-  const send = (parts: ChatPart[], invokedOverride?: string[]): boolean => {
-    // The chips in the field are the truth about which skills this message
-    // runs; a flushed queue carries the skills it was parked with, because
-    // the field was cleared the moment it was queued.
-    const invoked = invokedOverride ?? args.composerRef.current?.skills() ?? [];
+  /** Starts the turn. Callers decide whether a turn may start; by the time
+   *  this runs the decision is made, which is why the parked message can
+   *  come straight here from the mutation's settle — at that moment
+   *  `isPending` is still true and asking again would park it forever. */
+  const dispatch = (parts: ChatPart[], invoked: string[]): boolean => {
     const text = parts
       .filter((p) => p.kind === "text")
       .map((p) => (p.kind === "text" ? p.text : ""))
       .join("")
       .trim();
-    // A skill on its own is a whole request — "run this pass" — so an empty
-    // message sends when a skill chip is in the field.
-    if (parts.length === 0 && invoked.length === 0) {
-      return false;
-    }
-    if (chat.isPending) {
-      setQueued({ parts, skills: invoked });
-      return true;
-    }
     const turnId = crypto.randomUUID();
     const threadId = activeThreadId ?? crypto.randomUUID();
     if (activeThreadId === null) {
@@ -671,6 +679,22 @@ export function useReviewChat(args: {
     });
     return true;
   };
+  sendRef.current = dispatch;
+
+  /** Sends, or parks the message when a turn is already running. A skill on
+   *  its own is a whole request, so an empty message sends when a skill chip
+   *  is in the field. */
+  const send = (parts: ChatPart[]): boolean => {
+    const invoked = args.composerRef.current?.skills() ?? [];
+    if (parts.length === 0 && invoked.length === 0) {
+      return false;
+    }
+    if (chat.isPending) {
+      setQueued({ parts, skills: invoked });
+      return true;
+    }
+    return dispatch(parts, invoked);
+  };
 
   const discardStaged = (id: string) => {
     useAppStore.getState().removePendingComment(keyValue, id);
@@ -699,17 +723,6 @@ export function useReviewChat(args: {
       });
     }
   };
-
-  // The parked message goes out the moment the mutation settles — not when
-  // `live` clears (stop empties that early, while the cancel is still
-  // unwinding; two in-flight turns on one chat id would interleave events).
-  useEffect(() => {
-    if (chat.isPending || queued === null) {
-      return;
-    }
-    setQueued(null);
-    send(queued.parts, queued.skills);
-  });
 
   const panelTurns: ChatPanelTurn[] = [
     ...turns.map((turn): ChatPanelTurn => {
@@ -768,10 +781,10 @@ export function useReviewChat(args: {
       : []),
   ];
 
+  /** A new chat exists to be typed into, so it takes the caret with it. */
   const newChat = () => {
     setActiveThreadId(null);
     setInvokedSkills([]);
-    // A new chat exists to be typed into.
     args.composerRef.current?.clear();
     args.composerRef.current?.focus();
   };
@@ -811,8 +824,6 @@ export function useReviewChat(args: {
     contextNote,
     model: modelState,
     panelTurns,
-    // The stop button clears `live` at once, so the composer stops offering
-    // to stop something that is, as far as the reviewer is concerned, over.
     pending: chat.isPending && live !== null,
     queued:
       queued === null

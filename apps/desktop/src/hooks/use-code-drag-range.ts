@@ -20,7 +20,8 @@
  * `selectionchange` that collapses a range we armed clears it whenever the
  * browser gets round to it. Keyboard selections are never touched by the
  * second rule — the document selection is collapsed for their whole life, and
- * clearing on that would make `shift+j` impossible.
+ * clearing on that would make `shift+j` impossible. A release whose press
+ * began outside the window is not a click, whatever the coordinates say.
  */
 
 import type React from "react";
@@ -93,8 +94,6 @@ export function useCodeDragRange(args: {
         cancelAnimationFrame(frame);
         frame = 0;
       }
-      // A press we never saw the start of (it began outside the window) is
-      // not a click, whatever the coordinates say.
       const isClick =
         downAt !== null &&
         Math.abs(e.clientX - downAt.x) <= CLICK_SLOP_PX &&

@@ -1204,8 +1204,8 @@ fn empty_answer(message: &Value) -> String {
         .and_then(Value::as_str)
         .unwrap_or_default();
     if reason == "length" {
-        return "The model used its whole budget before it answered — long \
-             skills and thinking models do this. Ask again, more narrowly, or \
+        return "The model used its whole budget before it answered. Long \
+             skills and thinking models do this. Ask again more narrowly, or \
              pick a model that thinks less."
             .to_string();
     }

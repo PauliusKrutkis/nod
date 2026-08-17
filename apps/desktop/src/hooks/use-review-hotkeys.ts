@@ -3,6 +3,14 @@
  * selection, comments, find, occurrences, files, panels and submit, registered
  * on the "review" scope. Callbacks and refs come in via config so the table
  * itself stays a contiguous, order-preserving literal.
+ *
+ * The two panel toggles are modified and `global`, unlike everything else
+ * here: a plain key never fires while an editable target has focus, and each
+ * panel's own composer is exactly where you are when you want the panel
+ * gone, so an unmodified key could open but never close. `mod+l` rather than
+ * `mod+m` because ⌘M is macOS's window-minimise chord — the menu swallows it
+ * before the webview sees it, which a Chromium e2e can never catch — and
+ * because it pairs with plain `l`, which feeds the chat a region.
  */
 import {
   ArrowDown,
@@ -307,8 +315,6 @@ export function useReviewHotkeys(config: {
     },
     {
       description: "Toggle info panel",
-      // Modified and global for the same reason as the chat toggle: the
-      // panel must also close from inside its own composer.
       global: true,
       group: "General",
       icon: Info,
@@ -317,12 +323,6 @@ export function useReviewHotkeys(config: {
     },
     {
       description: "Chat about this PR (AI)",
-      // Global because the toggle must also CLOSE: plain keys never fire in
-      // an editable target, and the chat's own composer is where you are
-      // when you want the panel gone. mod+l, not mod+m — ⌘M is macOS's
-      // window-minimise chord and the menu swallows it before the webview
-      // ever sees it (the Chromium e2e can't catch that). It also pairs
-      // with plain `l`, which feeds the chat a region.
       global: true,
       group: "General",
       icon: MessagesSquare,

@@ -4,6 +4,10 @@
  * lent to the catalogued panel. Escape in the composer seats focus back on
  * the diff's scroll host, the same landing the dock uses on close, so the
  * Esc ladder keeps working from wherever the reviewer was typing.
+ *
+ * `l` in the diff stages a region in the store rather than in the composer,
+ * which may not be mounted yet; this drains that queue into the caret as
+ * soon as it arrives.
  */
 
 import type { ChatComposerHandle } from "@nod/ui/chat-composer";
@@ -29,8 +33,6 @@ export function ChatTab({ files, focusSeq, onRevealRegion, pr }: ChatTabProps) {
     pr,
   });
 
-  // `l` in the diff stages a region in the store; the composer is where it
-  // belongs, so drain the queue into the caret as soon as it arrives.
   useEffect(() => {
     if (chat.chips.length === 0) {
       return;

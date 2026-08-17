@@ -317,8 +317,8 @@ test("mod+m closes the chat from inside the composer", async ({ page }) => {
   await page.keyboard.press("ControlOrMeta+l");
   await expect(composer(page)).toBeFocused();
 
-  // The point of the mod: a plain key can never fire while the composer has
-  // focus, so a plain `m` could open the panel but not close it.
+  // A plain key cannot fire while the composer has focus, so an unmodified
+  // toggle could open the panel but never close it.
   await page.keyboard.press("ControlOrMeta+l");
   await expect(page.locator(".qf-drawer")).toHaveAttribute(
     "aria-hidden",
@@ -418,8 +418,8 @@ test("backspace removes a chip whole, on the first press", async ({ page }) => {
   await page.keyboard.press("l");
   await expect(chatPanel(page).locator(".qcc-chip")).toHaveCount(1);
 
-  // Inserting a chip leaves a space after it for typing. One Backspace takes
-  // both — a press that visibly does nothing reads as a broken key.
+  // Inserting a chip leaves a space after it for typing; one Backspace has
+  // to take both.
   await page.keyboard.press("Backspace");
   await expect(chatPanel(page).locator(".qcc-chip")).toHaveCount(0);
 });
@@ -464,8 +464,6 @@ test("a pasted chip finds its code in the diff", async ({ page }) => {
       );
     }, text);
 
-  // Code the reviewer pasted from somewhere else still belongs to a line in
-  // this diff — clicking the chip is how they ask where.
   await composer(page).focus();
   await paste("  // tuned\n  return 2;");
   await expect(chatPanel(page).locator(".qcc-chip")).toHaveCount(1);
@@ -602,14 +600,12 @@ test("a message sent mid-turn queues and goes out when the turn settles", async 
   await page.keyboard.press("Enter");
   await expect(chatPanel(page).getByText("Thinking it over.")).toBeVisible();
 
-  // Enter mid-turn parks the message, visibly, instead of dying.
   await composer(page).pressSequentially("and a follow-up");
   await page.keyboard.press("Enter");
   await expect(
     chatPanel(page).getByText("Next: and a follow-up")
   ).toBeVisible();
 
-  // Stop settles the first turn; the parked one goes out as its own turn.
   await chatPanel(page).getByRole("button", { name: "Stop" }).click();
   await expect
     .poll(async () => {
@@ -663,7 +659,6 @@ test("new chat starts a second thread; the picker switches and deletes", async (
   await expect(
     chatPanel(page).locator(".qch-scroll").getByText("First question")
   ).toHaveCount(0);
-  // A new chat exists to be typed into.
   await expect(composer(page)).toBeFocused();
 
   await composer(page).fill("Second topic");
@@ -789,7 +784,6 @@ test("thinking effort rides the request and survives a reload", async ({
   await page.keyboard.press("Enter");
   expect((await readChatArgs(page)).effort).toBe("low");
 
-  // The choice is the reviewer's, so it outlives the window.
   await page.reload();
   await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
   await page.keyboard.press("ControlOrMeta+l");
@@ -899,7 +893,6 @@ test("/ lists the repo's skills; arrows and Enter pick one as a chip", async ({
 
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("Enter");
-  // The skill lands in the field as a chip, where the code chips are.
   await expect(chatPanel(page).locator(".qcc-chip-skill")).toContainText(
     "/security-pass"
   );
@@ -941,13 +934,12 @@ test("the picker says what each skill does, and Tab takes the pick", async ({
     "Review against repo conventions"
   );
 
-  // Tab is what every completion menu answers to; Enter still works.
   await page.keyboard.press("Tab");
   await expect(chatPanel(page).locator(".qcc-chip-skill")).toContainText(
     "/pr-validity"
   );
 
-  // What gets typed next continues the line the chip is on.
+  // Typed text has to continue the chip's line, not start one under it.
   await page.keyboard.type("on the auth files");
   const inline = await page.evaluate(() => {
     const chip = document
@@ -994,8 +986,7 @@ test("a shy timestamp goes away with the pointer", async ({ page }) => {
   await composer(page).pressSequentially("two");
   await page.keyboard.press("Enter");
 
-  // The newest turn keeps its time; the older one shows it only while the
-  // pointer is on it, and stops showing it when the pointer leaves.
+  // Pointer state, not :hover, decides this — see the panel's own header.
   const older = chatPanel(page).locator(".qch-ai").first();
   await expect(older.locator(".qch-time")).toHaveCSS("opacity", "0");
   await older.hover();
@@ -1009,8 +1000,6 @@ test("a skill-only thread is named by the skill it ran", async ({ page }) => {
   await openReview(page);
   await page.keyboard.press("ControlOrMeta+l");
 
-  // Nothing was typed, so there is no first line to name the thread with —
-  // the skill is what this conversation is.
   await composer(page).pressSequentially("/pr");
   await page.keyboard.press("Tab");
   await page.keyboard.press("Enter");
@@ -1032,7 +1021,6 @@ test("two skills ride one message, in the order they were invoked", async ({
   await page.keyboard.press("Tab");
   await expect(chatPanel(page).locator(".qcc-chip-skill")).toHaveCount(2);
 
-  // The same skill twice is one chip — invoking it again is not a second run.
   await composer(page).pressSequentially("/pr");
   await page.keyboard.press("Tab");
   await expect(chatPanel(page).locator(".qcc-chip-skill")).toHaveCount(2);
@@ -1058,8 +1046,8 @@ test("escape leaves the composer while a turn runs; Stop still stops", async ({
   await page.keyboard.press("Enter");
   await expect(chatPanel(page).getByText("Reading the diff")).toBeVisible();
 
-  // Esc is the leave key everywhere else; making it stop a run would take
-  // "close the chat while it works" away. Stop is the stop.
+  // Esc leaves; only Stop stops. Closing the chat mid-run has to stay
+  // possible.
   await page.keyboard.press("Escape");
   await expect(composer(page)).not.toBeFocused();
   await expect(
@@ -1087,7 +1075,6 @@ test("the skill chip removes; a repo with no skills offers nothing on /", async 
   await page.getByRole("button", { name: "Remove skill pr-validity" }).click();
   await expect(chatPanel(page).locator(".qcc-chip-skill")).toHaveCount(0);
 
-  // Backspace reaches it too, like any other chip.
   await composer(page).pressSequentially("/pr");
   await expect(page.locator(".qcs-panel")).toHaveCount(1);
   await page.keyboard.press("Enter");
@@ -1134,7 +1121,6 @@ test("a proposal lands as a pending comment, and survives a reload", async ({
 
   const card = page.locator(".qf-pending");
   await expect(card).toContainText("This constant looks off");
-  // One card for every unsent comment — no AI-made differentiation.
   await expect(card).toContainText("Pending");
 
   await page.reload();
@@ -1205,7 +1191,6 @@ test("comment now posts one pending comment without the review", async ({
   await page.locator(".qf-pending").hover();
   await page.getByRole("button", { name: "Post this comment now" }).click();
 
-  // The one comment leaves as a standalone review comment; the card goes.
   await expect
     .poll(() =>
       page.evaluate(

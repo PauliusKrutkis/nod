@@ -130,6 +130,10 @@ export function regionFromSnapshot(args: {
     : null;
 }
 
+/** `pr.repo` is the "owner/name" path and `pr.name` is the bare repo, which
+ *  is what every forge call wants. Reaching for the wrong one asks for
+ *  /repos/owner/owner/name and gets a 404 that reads as "no snapshot"
+ *  rather than as a bug. */
 export function buildAskContext(args: {
   cursor: CursorPos | null;
   files: readonly ChangedFile[];
@@ -146,9 +150,6 @@ export function buildAskContext(args: {
     owner: args.pr.owner,
     prBody: args.pr.body,
     prTitle: args.pr.title,
-    // `pr.repo` is the "owner/name" path; the API wants the bare name, which
-    // is `pr.name`. Getting this wrong asks for /repos/owner/owner/name and
-    // gets a 404, which reads as "no snapshot" rather than as a bug.
     repo: args.pr.name,
   };
   const focused = focusedContext(args);

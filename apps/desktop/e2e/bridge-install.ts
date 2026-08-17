@@ -246,8 +246,6 @@ export function installBridge(cfg: BridgeConfig) {
             if (cfg.aiChatAnswer !== "hang") {
               resolve(cfg.aiChatAnswer);
             }
-            // A hung call still settles on cancel, the way the real backend
-            // returns its benign "cancelled" between chunks.
             return;
           }
           step += 1;

@@ -36,9 +36,8 @@ test("astro files get syntax highlighting through the xml grammar", async ({
   await page.keyboard.press("Enter");
   await expect(page.locator(".qf-fsec-head").first()).toBeVisible();
 
-  // The app reads files in tree order, so the index is whatever the sidebar
-  // says it is — never the fixture's position in the host payload. Selecting
-  // from the sidebar also scrolls the section into the virtualized window.
+  // Files render in tree order, so the index comes from the sidebar rather
+  // than from the fixture's position in the host payload.
   const entry = page.locator(".qf-sidebar [data-file-index]", {
     hasText: "index.astro",
   });
