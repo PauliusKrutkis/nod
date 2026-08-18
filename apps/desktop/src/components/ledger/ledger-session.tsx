@@ -14,8 +14,15 @@
 import { InboxZero } from "@nod/ui/inbox-zero";
 import { Kbd } from "@nod/ui/kbd";
 import { Spinner } from "@nod/ui/spinner";
+import { useLatest } from "@nod/ui/use-latest";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useInsertionEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useReviewFind } from "../../hooks/use-review-find.ts";
 import { isRealPointer } from "../../hooks/use-review-list-callbacks.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
@@ -37,11 +44,7 @@ import {
 } from "../../lib/review-items.ts";
 import { fingerprintFile } from "../../lib/viewed-fingerprint.ts";
 import { useAppStore } from "../../store/app-store.ts";
-import type {
-  ChangedFile,
-  PendingComment,
-  ReviewComment,
-} from "../../types.ts";
+import type { PendingComment, ReviewComment } from "../../types.ts";
 import { FileSidebarLoader } from "../review/file-sidebar-loader.tsx";
 import { ReviewDiffPane } from "../review/review-diff-pane.tsx";
 import type {
@@ -67,6 +70,7 @@ function shortSha(sha: string): string {
   return sha.slice(0, 7);
 }
 
+// react-doctor-disable-next-line no-giant-component -- what is left after the sub-views moved out is state wiring: 27 hooks feeding one ReviewDiffPane that takes 45 props, so an extraction would thread every one of them through a new interface and read worse, not better. Same call as review-screen.tsx; BACKLOG § Tech debt records it
 export function LedgerSession({
   group,
   initialTarget,
@@ -163,11 +167,11 @@ export function LedgerSession({
       }),
     [collapsed, files]
   );
-  const modelRef = useRef(model);
-  modelRef.current = model;
-  const filesRef = useRef<ChangedFile[]>(files);
-  filesRef.current = files;
-  cursorRef.current = cursor;
+  const modelRef = useLatest(model);
+  const filesRef = useLatest(files);
+  useInsertionEffect(() => {
+    cursorRef.current = cursor;
+  });
 
   const mover = buildCursorMover({
     activeIndexRef,

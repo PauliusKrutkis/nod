@@ -528,16 +528,25 @@ function GroupRow({
         {group.fileCount} file{group.fileCount === 1 ? "" : "s"} ·{" "}
         {group.newLines} lines
       </span>
-      {group.chips
-        .filter((chip) => chip !== group.label)
-        .map((chip) => (
-          <span className="shrink-0 text-accent text-xs" key={chip}>
-            {chip}
-          </span>
-        ))}
+      {otherChips(group).map((chip) => (
+        <span className="shrink-0 text-accent text-xs" key={chip}>
+          {chip}
+        </span>
+      ))}
       <span className="truncate text-muted text-xs">{group.subject}</span>
     </button>
   );
+}
+
+/** A group's chips minus the one already shown as its label. */
+function otherChips(group: { chips: string[]; label: string }): string[] {
+  const rest: string[] = [];
+  for (const chip of group.chips) {
+    if (chip !== group.label) {
+      rest.push(chip);
+    }
+  }
+  return rest;
 }
 
 function ClonePathForm({
@@ -566,6 +575,7 @@ function ClonePathForm({
         </p>
         <input
           aria-label="Repository path"
+          // react-doctor-disable-next-line no-autofocus -- the form opens on a deliberate click and holds one field; focusing it is the whole point, and nothing else on screen wants the caret
           autoFocus
           className="rounded border border-line bg-surface px-3 py-2 font-mono text-fg text-sm"
           name="path"

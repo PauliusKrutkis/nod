@@ -56,6 +56,7 @@ import type { Env } from "./lib/env";
 import { getCheckoutIndex, getLicense, putCheckoutIndex } from "./lib/kv";
 import { signLicenseToken } from "./lib/license-token";
 import { withErrorReporting } from "./lib/report";
+import { scriptJson } from "./lib/script-json";
 
 const ACTIVATION_WINDOW_SECONDS = 48 * 60 * 60;
 const POLL_INTERVAL_MS = 2000;
@@ -86,8 +87,8 @@ function preparingPage(checkoutId: string): string {
 </main>
 <script>
 (function () {
-  var pollUrl = ${JSON.stringify(pollUrl)};
-  var pageUrl = ${JSON.stringify(pageUrl)};
+  var pollUrl = ${scriptJson(pollUrl)};
+  var pageUrl = ${scriptJson(pageUrl)};
   var deadline = Date.now() + ${POLL_BUDGET_MS};
   var wait = ${POLL_INTERVAL_MS};
 

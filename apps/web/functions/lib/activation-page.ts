@@ -29,6 +29,7 @@
  */
 
 import { palette as p } from "@nod/tokens";
+import { scriptJson } from "./script-json";
 
 const DEEP_LINK_BASE = "nod://purchase";
 const PURCHASE_LISTENER_BASE = "http://127.0.0.1:8766/callback";
@@ -84,7 +85,7 @@ export function activationPage(token: string): string {
   Nod</a>, then press Open Nod. This link works for 48 hours.</p>
 </main>
 <script>
-  fetch(${JSON.stringify(listenerUrl)}, { mode: "no-cors" }).catch(() => {});
+  fetch(${scriptJson(listenerUrl)}, { mode: "no-cors" }).catch(() => {});
 </script>
 </body>
 </html>`;

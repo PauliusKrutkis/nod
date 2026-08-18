@@ -143,6 +143,7 @@ export function useOccurrenceTracking(refs: {
     setOccSpec,
   } = refs;
 
+  // react-doctor-disable-next-line effect-needs-cleanup -- the cleanup is at the end of this effect: it removes both document listeners and clears the debounce timer; the rule cannot see a timer assigned inside a nested function
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
     const occNav = buildOccNav({

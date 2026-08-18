@@ -489,11 +489,13 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
       return;
     }
     listRef.current?.nudgeItemIntoView(model.nav[navIdx].itemIndex);
+    // react-doctor-disable-next-line exhaustive-deps -- model changes identity every render, so listing it would fire this on every render; openBoxes is the gate, as the biome suppression above says
   }, [openBoxes]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: model is rebuilt fresh every render; focusSeq is the gate — each `a` press brings the note into frame exactly once
   useLayoutEffect(() => {
     nudgeAskIntoView({ askNote, list: listRef.current, model });
+    // react-doctor-disable-next-line exhaustive-deps -- focusSeq is the gate; listing model would fire this every render, as the biome suppression above says
   }, [askNote.focusSeq]);
 
   /**
