@@ -144,6 +144,18 @@ const base = (over: Partial<PrDrawerProps>): PrDrawerProps => ({
   addCommentPending: false,
   callbacks: CALLBACKS,
   ci: {
+    checks: [
+      {
+        name: "Lint",
+        state: "success",
+        url: "https://github.com/nod/pr-flow/actions/runs/98",
+      },
+      {
+        name: "Desktop",
+        state: "success",
+        url: "https://github.com/nod/pr-flow/actions/runs/98",
+      },
+    ],
     failed: 0,
     state: "success",
     total: 9,
@@ -179,6 +191,23 @@ export const prDrawerEntry = defineEntry(PrDrawer, {
   "ci-failing": {
     props: base({
       ci: {
+        checks: [
+          {
+            name: "E2E",
+            state: "failure",
+            url: "https://github.com/nod/pr-flow/actions/runs/99",
+          },
+          {
+            name: "Lint",
+            state: "success",
+            url: "https://github.com/nod/pr-flow/actions/runs/99",
+          },
+          {
+            name: "Gallery shots",
+            state: "pending",
+            url: "https://github.com/nod/pr-flow/actions/runs/99",
+          },
+        ],
         failed: 2,
         state: "failure",
         total: 9,

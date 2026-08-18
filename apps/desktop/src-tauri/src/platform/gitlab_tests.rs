@@ -46,6 +46,10 @@ fn ci_from_pipelines_maps_latest() {
     assert_eq!(failed.total, 1);
     assert_eq!(failed.failed, 1);
     assert_eq!(failed.url, "https://g/p/1");
+    assert_eq!(failed.checks.len(), 1);
+    assert_eq!(failed.checks[0].name, "Pipeline");
+    assert_eq!(failed.checks[0].state, "failure");
+    assert_eq!(failed.checks[0].url, "https://g/p/1");
 
     let running = ci_from_pipelines(&serde_json::json!([
         { "status": "running", "web_url": "r" }

@@ -60,6 +60,7 @@ import {
 } from "react";
 import { AddCommentBox } from "../add-comment-box/add-comment-box.tsx";
 import { Avatar } from "../avatar/avatar.tsx";
+import { CiChecks } from "../ci-checks/ci-checks.tsx";
 import type { CiStatus } from "../ci-pill/ci-pill.tsx";
 import { cn } from "../cn/cn.ts";
 import { CommentBody } from "../comment-item/comment-item.tsx";
@@ -382,6 +383,8 @@ export function PrDrawer({
           pr={pr}
           trackerBase={trackerBase}
         />
+
+        <CiChecks checks={ci?.checks} onOpen={callbacks.onOpenCiUrl} />
 
         <DrawerDescription body={body} renderMarkdown={renderMarkdown} />
 

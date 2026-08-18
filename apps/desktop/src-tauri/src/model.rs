@@ -132,10 +132,25 @@ pub struct ReviewSummary {
     pub submitted_at: String,
 }
 
+/// One row of the per-check breakdown behind `CiStatus`: a single GitHub
+/// check-run or commit status (GitLab: the newest pipeline, which the list
+/// endpoint reports as one unit). `state` uses the same vocabulary as the
+/// rollup and `url` points at that check's own log, falling back to the PR's
+/// checks page when the host offers nothing closer.
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CiCheck {
+    pub name: String,
+    pub state: String,
+    pub url: String,
+}
+
 /// Aggregated CI/pipeline state for the PR's head commit, mapped from GitHub
 /// check-runs + commit statuses or GitLab pipelines onto one host-agnostic
 /// shape. `state: "none"` means the repo has no CI configured (the header pill
-/// renders nothing so quiet repos stay quiet).
+/// renders nothing so quiet repos stay quiet). `checks` carries the per-check
+/// breakdown in host order; it defaults to empty so cached details from older
+/// versions still deserialize.
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CiStatus {
@@ -143,6 +158,8 @@ pub struct CiStatus {
     pub total: u64,
     pub failed: u64,
     pub url: String,
+    #[serde(default)]
+    pub checks: Vec<CiCheck>,
 }
 
 impl Default for CiStatus {
@@ -152,6 +169,7 @@ impl Default for CiStatus {
             total: 0,
             failed: 0,
             url: String::new(),
+            checks: Vec::new(),
         }
     }
 }

@@ -172,6 +172,16 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "unicode",
     ],
   },
+  "ci-checks": {
+    fixtures: [
+      "all-green",
+      "empty",
+      "missing",
+      "mixed",
+      "overflow",
+      "single-pipeline",
+    ],
+  },
   "ci-pill": {
     fixtures: [
       "failure",

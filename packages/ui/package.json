@@ -19,6 +19,7 @@
     "./catalog": "./src/catalog/catalog.ts",
     "./chat-composer": "./src/chat-composer/chat-composer.tsx",
     "./chat-panel": "./src/chat-panel/chat-panel.tsx",
+    "./ci-checks": "./src/ci-checks/ci-checks.tsx",
     "./ci-pill": "./src/ci-pill/ci-pill.tsx",
     "./code-cell": "./src/code-cell/code-cell.tsx",
     "./command-palette": "./src/command-palette/command-palette.tsx",
