@@ -43,7 +43,7 @@ import remarkGfm from "remark-gfm";
 import { cn } from "../cn/cn.ts";
 import "./markdown.css";
 
-export const sanitizeSchema = {
+const sanitizeSchema = {
   ...defaultSchema,
   tagNames: [...(defaultSchema.tagNames ?? []), "details", "summary"],
 };
@@ -180,13 +180,13 @@ function SuggestionCard({
                 // biome-ignore lint/security/noDangerouslySetInnerHtml: the host highlighter escapes what it does not tokenize (lib/highlight.ts)
                 dangerouslySetInnerHTML={{ __html: highlightLine(line) }}
                 // biome-ignore lint/suspicious/noArrayIndexKey: suggestion lines are positional and repeat verbatim
-                key={index}
+                key={index} // react-doctor-disable-line no-array-index-as-key -- rendered whole, never reordered; duplicate lines are common in a diff
               />
             ) : (
               <div
                 className="md-suggestion-line"
                 // biome-ignore lint/suspicious/noArrayIndexKey: suggestion lines are positional and repeat verbatim
-                key={index}
+                key={index} // react-doctor-disable-line no-array-index-as-key -- rendered whole, never reordered; duplicate lines are common in a diff
               >
                 {line}
               </div>

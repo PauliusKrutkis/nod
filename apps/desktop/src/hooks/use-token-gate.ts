@@ -1,9 +1,9 @@
-import {
-  type GitlabInstance,
-  shortHost,
-  type TokenGateBusy,
-  type TokenGateProvider,
-  type TokenGateView,
+import { shortHost } from "@nod/ui/short-host";
+import type {
+  GitlabInstance,
+  TokenGateBusy,
+  TokenGateProvider,
+  TokenGateView,
 } from "@nod/ui/token-gate";
 import { useQuery } from "@tanstack/react-query";
 import { openUrl } from "@tauri-apps/plugin-opener";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchCanned } from "./canned-suggestions.tsx";
+import { matchCanned } from "./match-canned.ts";
 
 const SAVED = [
   "nit: naming",

@@ -85,10 +85,18 @@ export function writeNotes(component: string, file: NotesFile): void {
  * is absent — which is most of them.
  */
 export function listNotes(): ComponentNotes[] {
-  return readdirSync(uiSourceRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort()
-    .map((component) => ({ component, file: readNotes(component) }))
-    .filter(({ file }) => !isEmptyNotes(file));
+  const components: string[] = [];
+  for (const entry of readdirSync(uiSourceRoot, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      components.push(entry.name);
+    }
+  }
+  const notes: ComponentNotes[] = [];
+  for (const component of components.sort()) {
+    const file = readNotes(component);
+    if (!isEmptyNotes(file)) {
+      notes.push({ component, file });
+    }
+  }
+  return notes;
 }

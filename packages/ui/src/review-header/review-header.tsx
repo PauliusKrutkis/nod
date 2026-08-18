@@ -44,9 +44,14 @@ export interface HeaderPullRequest {
   title: string;
 }
 
+/** One empty list for every "nobody yet" default: a fresh `[]` in a default
+ *  parameter is a new identity on every render, which defeats the memo the
+ *  header is wrapped in. */
+const NO_REVIEWERS: readonly Reviewer[] = [];
+
 export function ReviewHeader({
-  approved = [],
-  changesRequested = [],
+  approved = NO_REVIEWERS,
+  changesRequested = NO_REVIEWERS,
   ciState,
   convoCount = 0,
   onCopyBranch,

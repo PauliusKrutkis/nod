@@ -73,7 +73,7 @@ const SKILL_ATTR = "data-skill";
 const ANY_CHIP = `[${CHIP_ATTR}],[${SKILL_ATTR}]`;
 const TRAILING_NEWLINES = /\n+$/;
 
-export function regionLabel(region: ChatRegionChip): string {
+function regionLabel(region: ChatRegionChip): string {
   if (!region.filePath) {
     const lines = region.code.split("\n").length;
     return `pasted code (${lines} ${lines === 1 ? "line" : "lines"})`;
@@ -88,7 +88,7 @@ const MAX_CHIP_CHARS = 30;
 /** A chip label that fits without clipping. Paths lose their middle, never
  *  their tail: `review-items.ts:88–140` is what identifies the region, and
  *  an end-truncated path drops exactly that. */
-export function shortenChipLabel(label: string): string {
+function shortenChipLabel(label: string): string {
   if (label.length <= MAX_CHIP_CHARS) {
     return label;
   }
@@ -137,9 +137,14 @@ function skillElement(name: string): HTMLElement {
 
 /** The skills currently in the field, in the order they were invoked. */
 function chipSkills(root: HTMLElement | null): string[] {
-  return [...(root?.querySelectorAll(`[${SKILL_ATTR}]`) ?? [])]
-    .map((chip) => chip.getAttribute(SKILL_ATTR) ?? "")
-    .filter((name) => name !== "");
+  const names: string[] = [];
+  for (const chip of root?.querySelectorAll(`[${SKILL_ATTR}]`) ?? []) {
+    const name = chip.getAttribute(SKILL_ATTR) ?? "";
+    if (name !== "") {
+      names.push(name);
+    }
+  }
+  return names;
 }
 
 function isChip(node: Node | null): node is HTMLElement {
@@ -223,11 +228,13 @@ function serialize(root: HTMLElement): ChatPart[] {
     }
   };
   walk(root);
-  return parts
-    .map((p) => (p.kind === "text" ? { ...p, text: p.text } : p))
-    .filter(
-      (p) => p.kind !== "text" || p.text.trim() !== "" || parts.length > 1
-    );
+  const kept: ChatPart[] = [];
+  for (const part of parts) {
+    if (part.kind !== "text" || part.text.trim() !== "" || parts.length > 1) {
+      kept.push(part);
+    }
+  }
+  return kept;
 }
 
 /** What a Backspace at the caret would remove: the chip, and the space we
@@ -264,6 +271,22 @@ function chipBeforeChild(before: Node | null): ChipHit | null {
 
 /** Drops the single space Backspace is standing on — the character, not the
  *  node, so anything typed after the chip survives. */
+/** The chip a collapsed caret is sitting immediately after, if any. A
+ *  contenteditable=false node is atomic to the browser, but only some
+ *  browsers delete it on the first Backspace — doing it here makes the key
+ *  behave the same everywhere. */
+function chipBeforeCaret(): ChipHit | null {
+  const selection = document.getSelection();
+  if (!selection?.isCollapsed || selection.rangeCount === 0) {
+    return null;
+  }
+  const range = selection.getRangeAt(0);
+  const node = range.startContainer;
+  return node.nodeType === Node.TEXT_NODE
+    ? chipBeforeText(node, range.startOffset)
+    : chipBeforeChild(node.childNodes[range.startOffset - 1] ?? null);
+}
+
 function removeSpacer(spacer: Node | null) {
   if (!spacer) {
     return;
@@ -416,22 +439,6 @@ export function ChatComposer({
     parts: () => (fieldRef.current ? serialize(fieldRef.current) : []),
     skills: () => chipSkills(fieldRef.current),
   }));
-
-  /** The chip a collapsed caret is sitting immediately after, if any. A
-   *  contenteditable=false node is atomic to the browser, but only some
-   *  browsers delete it on the first Backspace — doing it here makes the key
-   *  behave the same everywhere. */
-  const chipBeforeCaret = (): ChipHit | null => {
-    const selection = document.getSelection();
-    if (!selection?.isCollapsed || selection.rangeCount === 0) {
-      return null;
-    }
-    const range = selection.getRangeAt(0);
-    const node = range.startContainer;
-    return node.nodeType === Node.TEXT_NODE
-      ? chipBeforeText(node, range.startOffset)
-      : chipBeforeChild(node.childNodes[range.startOffset - 1] ?? null);
-  };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (onKeyDown?.(e)) {

@@ -32,7 +32,7 @@ export interface ChatEffortState {
   onPick: (effort: string | null) => void;
 }
 
-export const EFFORT_LEVELS = ["low", "medium", "high"] as const;
+const EFFORT_LEVELS = ["low", "medium", "high"] as const;
 
 export interface ModelPickerProps {
   /** Selector for the control that opens this popover. Focus moving there is
@@ -62,13 +62,16 @@ function buildRows(
   query: string
 ): PickerRow[] {
   const needle = query.trim().toLowerCase();
-  const matches: PickerRow[] = models
-    .filter((m) => m.id.toLowerCase().includes(needle))
-    .map((m) => ({
-      contextLength: m.contextLength,
-      freeText: false,
-      id: m.id,
-    }));
+  const matches: PickerRow[] = [];
+  for (const model of models) {
+    if (model.id.toLowerCase().includes(needle)) {
+      matches.push({
+        contextLength: model.contextLength,
+        freeText: false,
+        id: model.id,
+      });
+    }
+  }
   const exact = models.some((m) => m.id.toLowerCase() === needle);
   if (needle && !exact) {
     matches.unshift({
@@ -165,6 +168,7 @@ export function ModelPicker({
           aria-expanded="true"
           aria-label="Search models"
           autoComplete="off"
+          // react-doctor-disable-next-line no-autofocus -- a summoned menu: it opens on a deliberate click, its input is the only control in it, and nothing else on screen wants the caret
           autoFocus
           className="qmp-input"
           onBlur={(e) => {

@@ -217,19 +217,26 @@ interface ApiRelease {
 }
 
 export function toReleases(apiReleases: ApiRelease[]): Release[] {
-  return apiReleases
-    .filter(
-      (release) =>
-        isVersionTag(release.tag_name) && !(release.draft || release.prerelease)
-    )
-    .map((release) => ({
+  const releases: Release[] = [];
+  for (const release of apiReleases) {
+    if (
+      !isVersionTag(release.tag_name) ||
+      release.draft ||
+      release.prerelease
+    ) {
+      continue;
+    }
+    releases.push({
       tag: release.tag_name,
       version: release.tag_name.slice(1),
       publishedAt: release.published_at,
       notes: parseNotes(release.body ?? ""),
       downloads: pickDownloads(release.assets),
-    }))
-    .sort((left, right) => right.publishedAt.localeCompare(left.publishedAt));
+    });
+  }
+  return releases.sort((left, right) =>
+    right.publishedAt.localeCompare(left.publishedAt)
+  );
 }
 
 export async function fetchReleases(): Promise<Release[]> {

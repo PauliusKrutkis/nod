@@ -59,10 +59,8 @@ import {
   useInsertionEffect,
   useState,
 } from "react";
-import {
-  CannedSuggestions,
-  matchCanned,
-} from "../canned-suggestions/canned-suggestions.tsx";
+import { CannedSuggestions } from "../canned-suggestions/canned-suggestions.tsx";
+import { matchCanned } from "../canned-suggestions/match-canned.ts";
 import { cn } from "../cn/cn.ts";
 import { setGhostSuppressed } from "../ghost-text/ghost-text.ts";
 import { Tooltip } from "../tooltip/tooltip.tsx";

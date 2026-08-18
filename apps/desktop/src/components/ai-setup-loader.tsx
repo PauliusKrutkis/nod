@@ -1,7 +1,5 @@
-import {
-  AI_DEFAULT_BASE_URL,
-  AiSetupDialog as AiSetupDialogView,
-} from "@nod/ui/ai-setup-dialog";
+import { AI_DEFAULT_BASE_URL } from "@nod/ui/ai-defaults";
+import { AiSetupDialog as AiSetupDialogView } from "@nod/ui/ai-setup-dialog";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useHotkeys } from "../keyboard/use-hotkeys.ts";

@@ -265,6 +265,7 @@ export function PrDrawer({
       ro.observe(section);
     }
     return () => ro.disconnect();
+    // react-doctor-disable-next-line exhaustive-deps -- the expression is the dependency: the observer only needs rebuilding when the comment list crosses empty/non-empty, not when a comment is edited
   }, [inlineComments.length > 0]);
 
   useEffect(() => {
@@ -283,7 +284,7 @@ export function PrDrawer({
       openComposer: startComposing,
     }),
     // biome-ignore lint/correctness/useExhaustiveDependencies: the React Compiler (where the host runs it) stabilizes startComposing; a manual useCallback would be dead weight
-    [startComposing]
+    [startComposing] // react-doctor-disable-line exhaustive-deps -- as above: the compiler stabilizes startComposing
   );
 
   const collapseComposer = () => {
