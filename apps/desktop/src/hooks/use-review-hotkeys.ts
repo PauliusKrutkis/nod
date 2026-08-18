@@ -28,6 +28,7 @@ import {
   ExternalLink,
   FileCode,
   FileSearch,
+  History,
   Inbox,
   Info,
   Link,
@@ -89,6 +90,7 @@ export function useReviewHotkeys(config: {
   sidebarOverlayOpenRef: React.RefObject<boolean>;
   toggleActiveThread: () => void;
   toggleChat: () => void;
+  toggleDelta: () => void;
   toggleInfoPanel: () => void;
   toggleFullFile: () => void;
   toggleSidebar: () => void;
@@ -284,6 +286,18 @@ export function useReviewHotkeys(config: {
       icon: Send,
       keys: "s",
       run: config.openSubmit,
+    },
+    {
+      description: "Changes since your review",
+      group: "Review",
+      icon: History,
+      keys: "d",
+      run: (e: KeyboardEvent) => {
+        if (e.repeat) {
+          return;
+        }
+        config.toggleDelta();
+      },
     },
     {
       description: "Ask about code (AI)",

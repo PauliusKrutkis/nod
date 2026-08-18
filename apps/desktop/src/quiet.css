@@ -469,6 +469,31 @@ textarea.q-input {
   text-align: center;
 }
 
+/* Changes-since-your-review mode: already-reviewed rows dim as a whole (text
+   and wash together), and a file that did not move folds to one band whose
+   only job is to undo itself. */
+.dir-quiet .qf-delta-dim {
+  opacity: 0.45;
+}
+.dir-quiet .qf-delta-fold {
+  display: block;
+  width: 100%;
+  padding: 14px 16px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--faint);
+  text-align: center;
+  cursor: pointer;
+  background: var(--bg);
+  border: none;
+}
+.dir-quiet .qf-delta-fold:hover,
+.dir-quiet .qf-delta-fold:focus-visible {
+  color: var(--fg);
+  background: var(--surface-hi);
+  outline: none;
+}
+
 /* skeleton shimmer — cold-cache placeholders (never spinners) */
 .qf-skel {
   background: linear-gradient(

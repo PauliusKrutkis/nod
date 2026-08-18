@@ -32,6 +32,21 @@ export const fileSectionHeaderEntry = defineEntry(FileSectionHeader, {
       status: "added",
     },
   },
+  "delta-mode": {
+    props: {
+      additions: 9,
+      deletions: 2,
+      deltaBadge: {
+        label: "since your review",
+        title:
+          "Showing what changed since the review you submitted on Aug 12. Rows you already reviewed are dimmed; files that did not move are folded. Press d to show everything.",
+      },
+      expandable: true,
+      fileIndex: 0,
+      filename: "apps/desktop/src/lib/review-items.ts",
+      status: "modified",
+    },
+  },
   copied: {
     props: {
       additions: 12,
