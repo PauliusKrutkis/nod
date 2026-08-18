@@ -1,7 +1,8 @@
 use super::{
     build_chat_turn, builtin_skill_body, builtin_skills, chat_system_prompt, chat_tools,
     discover_personal_skills, discover_skills, empty_answer, execute_read_diff, execute_skill_tool,
-    format_ranges, frontmatter_description, history_messages, merge_skills, parse_proposal,
+    format_ranges, frontmatter_description, history_messages, merge_skills, note_if_truncated,
+    parse_proposal,
     read_personal_skill, read_skill_body, resolve_skill_body, safe_source, skill_instructions,
     skill_name_from_path, tool_note, validate_proposal, ChatCancels, ChatDelta, ChatDiffFile,
     ChatPart, ChatProposal, ChatRegion, ChatToolNote, ChatTurn, CommentableSide, SkillInfo,
@@ -864,6 +865,48 @@ fn an_empty_answer_says_whether_the_budget_ran_out() {
         "got {}",
         empty_answer(&odd)
     );
+}
+
+#[test]
+fn an_answer_cut_off_by_the_budget_says_so() {
+    // The failure this covers: a review skill wrote 1889 characters, stopped
+    // mid-sentence at the budget, staged nothing, and the app showed it as a
+    // finished answer with no error. The text is still worth showing; the
+    // reader just has to know it stopped.
+    let cut = json!({ "content": "report", "finish_reason": "length" });
+    let noted = note_if_truncated(&cut, "## Findings\n1. ...".to_string());
+    assert!(noted.starts_with("## Findings"), "keeps the answer: {noted}");
+    assert!(noted.contains("output budget"), "got {noted}");
+    assert!(
+        noted.contains("had not staged"),
+        "says what else is missing: {noted}"
+    );
+
+    // A normal answer is passed through untouched — a note on every reply
+    // would train the reader to ignore it.
+    for reason in ["stop", ""] {
+        let done = json!({ "content": "report", "finish_reason": reason });
+        assert_eq!(note_if_truncated(&done, "done".to_string()), "done");
+    }
+    assert_eq!(note_if_truncated(&json!({}), "done".to_string()), "done");
+}
+
+#[test]
+fn the_proposal_rule_puts_staging_before_the_write_up() {
+    // A skill whose output format demands a long report will spend the reply
+    // budget on prose unless the order is explicit, which is how ten findings
+    // reached the reviewer as text and zero as comments.
+    let prompt = chat_system_prompt(true, true, true, true);
+    assert!(prompt.contains("BEFORE you write the report"), "got {prompt}");
+    assert!(prompt.contains("keep the writing short"), "got {prompt}");
+    assert!(
+        prompt.contains("the diff does not touch"),
+        "tells it what to do with an unstageable finding: {prompt}"
+    );
+
+    // And none of it is sent when there is nowhere to anchor a comment.
+    let no_proposals = chat_system_prompt(true, true, false, true);
+    assert!(!no_proposals.contains("propose_comment"), "got {no_proposals}");
 }
 
 #[test]

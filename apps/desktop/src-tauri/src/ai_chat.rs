@@ -147,8 +147,15 @@ produces findings, STAGE each one with propose_comment rather than asking \
 which to stage: staging is not posting — every suggestion appears in the diff \
 as a pending comment the reviewer accepts or discards, and that IS the \
 confirmation step, even when the skill's own instructions say to confirm \
-before acting. side is LEFT for deleted lines and RIGHT for added or \
-unchanged lines, and the line numbers must fall inside the diff.";
+before acting. Stage them BEFORE you write the report, not after: a written \
+report can use up the reply budget before a single comment is staged, and a \
+finding you described but never staged is one the reviewer has to copy across \
+by hand. When a skill's output format asks for a long write-up, stage every \
+finding first, then keep the writing short and let the staged comments carry \
+the detail. A finding about a file the diff does not touch cannot be staged, \
+so write those in the answer and say why. side is LEFT for deleted lines and \
+RIGHT for added or unchanged lines, and the line numbers must fall inside the \
+diff.";
 
 fn chat_system_prompt(snapshot_ready: bool, skills: bool, proposals: bool, diffs: bool) -> String {
     let mut parts = vec![CHAT_SYSTEM_BASE];
@@ -1215,6 +1222,27 @@ fn empty_answer(message: &Value) -> String {
     format!("The model stopped without answering (the provider said: {reason}).")
 }
 
+/// A reply cut off by the output budget still has text worth showing, so it
+/// is shown — with a line saying it was cut. Without one a review that
+/// stopped mid-sentence reads as a finished review, and the findings the
+/// model never got to look like findings it did not have.
+fn note_if_truncated(message: &Value, answer: String) -> String {
+    let truncated = message
+        .get("finish_reason")
+        .and_then(Value::as_str)
+        .is_some_and(|reason| reason == "length");
+    if !truncated {
+        return answer;
+    }
+    format!(
+        "{answer}\n\n---\n\n**This answer stopped at the model's output budget.** \
+Whatever it had not written yet is missing, including comments it had not \
+staged. Thinking models spend the same budget on thought, so a long skill can \
+run out before the first comment is staged. Ask for the rest, narrow the \
+request, or run the skill over fewer files."
+    )
+}
+
 /// Validates and, when valid, emits the proposal to the webview to stage.
 /// Either way the return is the tool result the model reads.
 fn run_propose_comment(
@@ -1435,7 +1463,7 @@ pub async fn ai_chat(
         ));
         if calls.is_empty() || !tools_enabled {
             if let Some(answer) = ai::message_answer(&message_value) {
-                return Ok(answer);
+                return Ok(note_if_truncated(&message_value, answer));
             }
             // A round that ends with neither text nor a tool call is a model
             // that has finished reading and not started writing — a thinking

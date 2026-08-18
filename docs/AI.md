@@ -403,6 +403,22 @@ deep reasoning applies it to every round, including the ones that only read
 two files, and that is where the minutes went; sending `reasoning_effort`
 only when asked leaves the choice where it already lives.
 
+**The completion budget is shared with thought, and that is what breaks
+staging** (found dogfooding v0.8.0, MR with ten findings). A thinking model
+spent the final round's 8000 tokens reasoning and writing, and the answer
+stopped mid-sentence at 1889 characters with nothing staged: eight minutes,
+fourteen reads, ten findings, zero comments. Two things were wrong. The
+reply was shown as a finished answer — `empty_answer` speaks only when there
+is no text at all, so a *truncated* one arrived silently, which is the worst
+version of this failure because a review that stops mid-sentence still reads
+like a review. It now carries a line saying it was cut and that comments it
+had not staged are missing. And the order was wrong: a skill whose output
+format demands a long write-up spends the budget on prose, so the system
+prompt now says to stage every finding *before* writing and keep the writing
+short. Findings arriving as comments rather than as prose to transcribe is
+the whole thesis of this surface; a report the reviewer has to copy across by
+hand is the failure it exists to remove.
+
 Two more things keep a skill run from being a drip-feed of round-trips. A
 turn that invokes a skill carries the full (capped) diff with it — a review
 pass's first act is always "read the diff", one file per round, and the diff
