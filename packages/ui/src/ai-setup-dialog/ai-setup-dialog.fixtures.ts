@@ -17,11 +17,8 @@
  * disclosure line makes to the user.
  */
 import { defineEntry } from "../fixtures/fixtures.ts";
-import {
-  AI_DEFAULT_BASE_URL,
-  AiSetupDialog,
-  type AiSetupModel,
-} from "./ai-setup-dialog.tsx";
+import { AI_DEFAULT_BASE_URL } from "./ai-defaults.ts";
+import { AiSetupDialog, type AiSetupModel } from "./ai-setup-dialog.tsx";
 
 const noop = () => {
   return;

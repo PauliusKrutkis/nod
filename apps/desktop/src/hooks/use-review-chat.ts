@@ -25,9 +25,9 @@
  * the provider.
  */
 
-import { matchCanned } from "@nod/ui/canned-suggestions";
 import type { ChatComposerHandle } from "@nod/ui/chat-composer";
 import type { ChatPanelTurn, ChatSuggestionsState } from "@nod/ui/chat-panel";
+import { matchCanned } from "@nod/ui/match-canned";
 import { useLatest } from "@nod/ui/use-latest";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { listen } from "@tauri-apps/api/event";

@@ -59,10 +59,8 @@ import {
   useInsertionEffect,
   useState,
 } from "react";
-import {
-  CannedSuggestions,
-  matchCanned,
-} from "../canned-suggestions/canned-suggestions.tsx";
+import { CannedSuggestions } from "../canned-suggestions/canned-suggestions.tsx";
+import { matchCanned } from "../canned-suggestions/match-canned.ts";
 import { cn } from "../cn/cn.ts";
 import { setGhostSuppressed } from "../ghost-text/ghost-text.ts";
 import { Tooltip } from "../tooltip/tooltip.tsx";
@@ -294,6 +292,98 @@ const ComposerKeys = Extension.create({
   },
   name: "composerKeys",
 });
+
+/** The composer's formatting row: the marks a reviewer reaches for while
+ *  writing a comment, plus the suggestion insert when the line supports one.
+ *  Pointer-down keeps the caret in the editor — a toolbar that steals focus
+ *  loses the selection it is about to format. */
+function FormatToolbar({
+  activeMarks,
+  onToggleBold,
+  onToggleCode,
+  onToggleItalic,
+  onToggleLink,
+  onInsertSuggestion,
+  suggestionText,
+}: {
+  activeMarks: { bold: boolean; code: boolean; italic: boolean; link: boolean };
+  onInsertSuggestion: () => void;
+  onToggleBold: () => void;
+  onToggleCode: () => void;
+  onToggleItalic: () => void;
+  onToggleLink: () => void;
+  suggestionText: string | undefined;
+}) {
+  return (
+    <>
+      {suggestionText !== undefined && (
+        <Tooltip
+          combo="mod+shift+g"
+          label="Insert a code suggestion for this line"
+        >
+          <button
+            aria-label="Insert suggestion"
+            className="qa-tool qa-tool-suggest q-focus"
+            onClick={onInsertSuggestion}
+            onMouseDown={keepEditorFocus}
+            type="button"
+          >
+            <Diff aria-hidden size={12} />
+            Suggestion
+          </button>
+        </Tooltip>
+      )}
+      <Tooltip combo="mod+b" label="Bold">
+        <button
+          aria-label="Bold"
+          aria-pressed={activeMarks.bold}
+          className={cn("qa-tool q-focus", activeMarks.bold && "qa-tool-on")}
+          onClick={onToggleBold}
+          onMouseDown={keepEditorFocus}
+          type="button"
+        >
+          <BoldIcon aria-hidden size={13} />
+        </button>
+      </Tooltip>
+      <Tooltip combo="mod+i" label="Italic">
+        <button
+          aria-label="Italic"
+          aria-pressed={activeMarks.italic}
+          className={cn("qa-tool q-focus", activeMarks.italic && "qa-tool-on")}
+          onClick={onToggleItalic}
+          onMouseDown={keepEditorFocus}
+          type="button"
+        >
+          <ItalicIcon aria-hidden size={13} />
+        </button>
+      </Tooltip>
+      <Tooltip combo="mod+e" label="Inline code">
+        <button
+          aria-label="Code"
+          aria-pressed={activeMarks.code}
+          className={cn("qa-tool q-focus", activeMarks.code && "qa-tool-on")}
+          onClick={onToggleCode}
+          onMouseDown={keepEditorFocus}
+          type="button"
+        >
+          <CodeIcon aria-hidden size={13} />
+        </button>
+      </Tooltip>
+      <Tooltip combo="mod+k" label="Link the selection">
+        <button
+          aria-label="Link"
+          aria-pressed={activeMarks.link}
+          className={cn("qa-tool q-focus", activeMarks.link && "qa-tool-on")}
+          onClick={onToggleLink}
+          onMouseDown={keepEditorFocus}
+          type="button"
+        >
+          <LinkIcon aria-hidden size={13} />
+        </button>
+      </Tooltip>
+    </>
+  );
+}
 
 export function ComposerEditor({
   ref,
@@ -535,85 +625,15 @@ export function ComposerEditor({
             value={linkHref}
           />
         ) : (
-          <>
-            {suggestionText !== undefined && (
-              <Tooltip
-                combo="mod+shift+g"
-                label="Insert a code suggestion for this line"
-              >
-                <button
-                  aria-label="Insert suggestion"
-                  className="qa-tool qa-tool-suggest q-focus"
-                  onClick={insertSuggestion}
-                  onMouseDown={keepEditorFocus}
-                  type="button"
-                >
-                  <Diff aria-hidden size={12} />
-                  Suggestion
-                </button>
-              </Tooltip>
-            )}
-            <Tooltip combo="mod+b" label="Bold">
-              <button
-                aria-label="Bold"
-                aria-pressed={activeMarks.bold}
-                className={cn(
-                  "qa-tool q-focus",
-                  activeMarks.bold && "qa-tool-on"
-                )}
-                onClick={handleToggleBold}
-                onMouseDown={keepEditorFocus}
-                type="button"
-              >
-                <BoldIcon aria-hidden size={13} />
-              </button>
-            </Tooltip>
-            <Tooltip combo="mod+i" label="Italic">
-              <button
-                aria-label="Italic"
-                aria-pressed={activeMarks.italic}
-                className={cn(
-                  "qa-tool q-focus",
-                  activeMarks.italic && "qa-tool-on"
-                )}
-                onClick={handleToggleItalic}
-                onMouseDown={keepEditorFocus}
-                type="button"
-              >
-                <ItalicIcon aria-hidden size={13} />
-              </button>
-            </Tooltip>
-            <Tooltip combo="mod+e" label="Inline code">
-              <button
-                aria-label="Code"
-                aria-pressed={activeMarks.code}
-                className={cn(
-                  "qa-tool q-focus",
-                  activeMarks.code && "qa-tool-on"
-                )}
-                onClick={handleToggleCode}
-                onMouseDown={keepEditorFocus}
-                type="button"
-              >
-                <CodeIcon aria-hidden size={13} />
-              </button>
-            </Tooltip>
-            <Tooltip combo="mod+k" label="Link the selection">
-              <button
-                aria-label="Link"
-                aria-pressed={activeMarks.link}
-                className={cn(
-                  "qa-tool q-focus",
-                  activeMarks.link && "qa-tool-on"
-                )}
-                onClick={handleToggleLink}
-                onMouseDown={keepEditorFocus}
-                type="button"
-              >
-                <LinkIcon aria-hidden size={13} />
-              </button>
-            </Tooltip>
-          </>
+          <FormatToolbar
+            activeMarks={activeMarks}
+            onInsertSuggestion={insertSuggestion}
+            onToggleBold={handleToggleBold}
+            onToggleCode={handleToggleCode}
+            onToggleItalic={handleToggleItalic}
+            onToggleLink={handleToggleLink}
+            suggestionText={suggestionText}
+          />
         )}
       </div>
     </div>

@@ -47,7 +47,16 @@ export interface ChatComposerHandle {
   skills: () => string[];
 }
 
+/** One piece of a seeded draft: prose, attached code, or an invoked skill,
+ *  in the order they sit in the field. */
+export type ChatComposerPiece = ChatPart | { kind: "skill"; name: string };
+
 export interface ChatComposerProps {
+  /** A draft to start from — the composer stays uncontrolled, this only
+   *  seeds the field once on mount, the way `initialMarkdown` seeds the
+   *  comment composer. It is what lets a fixture (or a restored draft) show
+   *  a field with chips in it. */
+  initialPieces?: readonly ChatComposerPiece[];
   onChange?: (text: string) => void;
   onEscape?: () => void;
   onKeyDown?: (e: KeyboardEvent<HTMLDivElement>) => boolean;
@@ -73,7 +82,7 @@ const SKILL_ATTR = "data-skill";
 const ANY_CHIP = `[${CHIP_ATTR}],[${SKILL_ATTR}]`;
 const TRAILING_NEWLINES = /\n+$/;
 
-export function regionLabel(region: ChatRegionChip): string {
+function regionLabel(region: ChatRegionChip): string {
   if (!region.filePath) {
     const lines = region.code.split("\n").length;
     return `pasted code (${lines} ${lines === 1 ? "line" : "lines"})`;
@@ -88,7 +97,7 @@ const MAX_CHIP_CHARS = 30;
 /** A chip label that fits without clipping. Paths lose their middle, never
  *  their tail: `review-items.ts:88–140` is what identifies the region, and
  *  an end-truncated path drops exactly that. */
-export function shortenChipLabel(label: string): string {
+function shortenChipLabel(label: string): string {
   if (label.length <= MAX_CHIP_CHARS) {
     return label;
   }
@@ -137,9 +146,14 @@ function skillElement(name: string): HTMLElement {
 
 /** The skills currently in the field, in the order they were invoked. */
 function chipSkills(root: HTMLElement | null): string[] {
-  return [...(root?.querySelectorAll(`[${SKILL_ATTR}]`) ?? [])]
-    .map((chip) => chip.getAttribute(SKILL_ATTR) ?? "")
-    .filter((name) => name !== "");
+  const names: string[] = [];
+  for (const chip of root?.querySelectorAll(`[${SKILL_ATTR}]`) ?? []) {
+    const name = chip.getAttribute(SKILL_ATTR) ?? "";
+    if (name !== "") {
+      names.push(name);
+    }
+  }
+  return names;
 }
 
 function isChip(node: Node | null): node is HTMLElement {
@@ -223,11 +237,13 @@ function serialize(root: HTMLElement): ChatPart[] {
     }
   };
   walk(root);
-  return parts
-    .map((p) => (p.kind === "text" ? { ...p, text: p.text } : p))
-    .filter(
-      (p) => p.kind !== "text" || p.text.trim() !== "" || parts.length > 1
-    );
+  const kept: ChatPart[] = [];
+  for (const part of parts) {
+    if (part.kind !== "text" || part.text.trim() !== "" || parts.length > 1) {
+      kept.push(part);
+    }
+  }
+  return kept;
 }
 
 /** What a Backspace at the caret would remove: the chip, and the space we
@@ -264,6 +280,22 @@ function chipBeforeChild(before: Node | null): ChipHit | null {
 
 /** Drops the single space Backspace is standing on — the character, not the
  *  node, so anything typed after the chip survives. */
+/** The chip a collapsed caret is sitting immediately after, if any. A
+ *  contenteditable=false node is atomic to the browser, but only some
+ *  browsers delete it on the first Backspace — doing it here makes the key
+ *  behave the same everywhere. */
+function chipBeforeCaret(): ChipHit | null {
+  const selection = document.getSelection();
+  if (!selection?.isCollapsed || selection.rangeCount === 0) {
+    return null;
+  }
+  const range = selection.getRangeAt(0);
+  const node = range.startContainer;
+  return node.nodeType === Node.TEXT_NODE
+    ? chipBeforeText(node, range.startOffset)
+    : chipBeforeChild(node.childNodes[range.startOffset - 1] ?? null);
+}
+
 function removeSpacer(spacer: Node | null) {
   if (!spacer) {
     return;
@@ -328,6 +360,7 @@ function insertAtCaret(root: HTMLElement, node: Node) {
 }
 
 export function ChatComposer({
+  initialPieces,
   onChange,
   onEscape,
   onKeyDown,
@@ -340,6 +373,7 @@ export function ChatComposer({
 }: ChatComposerProps) {
   const fieldRef = useRef<HTMLDivElement>(null);
   const onSkillChangeRef = useLatest(onSkillChange);
+  const seededRef = useRef(false);
   const onSlashQueryRef = useLatest(onSlashQuery);
 
   /** What the caret is typing, if it is typing a slash command. */
@@ -366,6 +400,26 @@ export function ChatComposer({
   const report = (el: HTMLElement | null) => {
     onChange?.(el?.textContent ?? "");
     onSlashQueryRef.current?.(slashAtCaret());
+  };
+
+  /** Builds the seeded draft once. A ref callback rather than an effect: the
+   *  field has to carry its content the first time it paints, or a
+   *  screenshot catches the empty frame. */
+  const attachField = (el: HTMLDivElement | null) => {
+    fieldRef.current = el;
+    if (!el || seededRef.current || !initialPieces?.length) {
+      return;
+    }
+    seededRef.current = true;
+    for (const piece of initialPieces) {
+      if (piece.kind === "text") {
+        el.append(document.createTextNode(piece.text));
+      } else if (piece.kind === "code") {
+        el.append(chipElement(piece.region), document.createTextNode(" "));
+      } else {
+        el.append(skillElement(piece.name), document.createTextNode(" "));
+      }
+    }
   };
 
   useImperativeHandle(ref, () => ({
@@ -416,22 +470,6 @@ export function ChatComposer({
     parts: () => (fieldRef.current ? serialize(fieldRef.current) : []),
     skills: () => chipSkills(fieldRef.current),
   }));
-
-  /** The chip a collapsed caret is sitting immediately after, if any. A
-   *  contenteditable=false node is atomic to the browser, but only some
-   *  browsers delete it on the first Backspace — doing it here makes the key
-   *  behave the same everywhere. */
-  const chipBeforeCaret = (): ChipHit | null => {
-    const selection = document.getSelection();
-    if (!selection?.isCollapsed || selection.rangeCount === 0) {
-      return null;
-    }
-    const range = selection.getRangeAt(0);
-    const node = range.startContainer;
-    return node.nodeType === Node.TEXT_NODE
-      ? chipBeforeText(node, range.startOffset)
-      : chipBeforeChild(node.childNodes[range.startOffset - 1] ?? null);
-  };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (onKeyDown?.(e)) {
@@ -525,7 +563,7 @@ export function ChatComposer({
       onKeyDown={handleKeyDown}
       onKeyUp={() => onSlashQueryRef.current?.(slashAtCaret())}
       onPaste={handlePaste}
-      ref={fieldRef}
+      ref={attachField}
       role="textbox"
       spellCheck={false}
       suppressContentEditableWarning

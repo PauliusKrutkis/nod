@@ -24,6 +24,7 @@ import { type ChangeEvent, type KeyboardEvent, useEffect, useRef } from "react";
 import { Button } from "../button/button.tsx";
 import { cn } from "../cn/cn.ts";
 import { Spinner } from "../spinner/spinner.tsx";
+import { shortHost } from "./short-host.ts";
 import "./token-gate.css";
 
 export type TokenGateBusy = "idle" | "oauth" | "probe" | "pat";
@@ -33,12 +34,6 @@ export type TokenGateView = "identity" | "selfhosted" | "token";
 export interface GitlabInstance {
   clientId?: string;
   host: string;
-}
-
-const HTTPS_PREFIX = /^https?:\/\//;
-
-export function shortHost(host: string): string {
-  return host.replace(HTTPS_PREFIX, "");
 }
 
 function GitHubMark() {

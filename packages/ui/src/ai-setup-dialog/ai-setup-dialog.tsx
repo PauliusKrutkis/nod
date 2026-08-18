@@ -51,16 +51,10 @@ import { cn } from "../cn/cn.ts";
 import { Kbd } from "../kbd/kbd.tsx";
 import { useArmedRing } from "../use-armed-ring/use-armed-ring.ts";
 import { useModalDialog } from "../use-modal-dialog/use-modal-dialog.ts";
+import { AI_PRESETS } from "./ai-defaults.ts";
 import "./ai-setup-dialog.css";
 
 export type { AiSetupModel } from "../ai-model-combobox/ai-model-combobox.tsx";
-
-export const AI_PRESETS = [
-  { id: "nexos", label: "Nexos AI", url: "https://api.nexos.ai" },
-  { id: "openrouter", label: "OpenRouter", url: "https://openrouter.ai/api" },
-] as const;
-
-export const AI_DEFAULT_BASE_URL = AI_PRESETS[0].url;
 
 type ArmedAction = "done" | "remove" | "replace" | null;
 

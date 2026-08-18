@@ -47,6 +47,7 @@ import { CannedSuggestions } from "../canned-suggestions/canned-suggestions.tsx"
 import {
   ChatComposer,
   type ChatComposerHandle,
+  type ChatComposerPiece,
   type ChatPart,
 } from "../chat-composer/chat-composer.tsx";
 import { cn } from "../cn/cn.ts";
@@ -152,6 +153,8 @@ export interface ChatPanelProps {
   /** Reveal an inline chip's lines in the diff. Pasted code has no lines to
    *  point at, so the composer only calls this for a region chip. */
   onRevealRegion?: (region: ChatRegionChip) => void;
+  /** A draft to seed the composer with, once, on mount. */
+  composerDraft?: readonly ChatComposerPiece[];
   onSend: () => void;
   onSkillChange?: (names: string[]) => void;
   onSlashQuery?: (query: string | null) => void;
@@ -222,9 +225,27 @@ function TurnTime({ at, pinned }: { at: string | undefined; pinned: boolean }) {
 /** A settled turn reads back the way it was written: the skill and the code
  *  chips sit inline in the sentence, where the reviewer put them, rather
  *  than in a row above it. */
+/** Keys for a settled turn's pieces. A turn never reorders, but two chips
+ *  can carry the same label and two text runs the same words, so the key is
+ *  the content plus how many times it has appeared. */
+function pieceKeys(pieces: readonly string[]): string[] {
+  const seen = new Map<string, number>();
+  return pieces.map((piece) => {
+    const nth = seen.get(piece) ?? 0;
+    seen.set(piece, nth + 1);
+    return `${piece}#${nth}`;
+  });
+}
+
 function UserTurn({ turn }: { turn: ChatUserTurn }) {
   // v2 history stored a single `skill`; a turn can carry several now.
   const skills = turn.skills ?? (turn.skill === undefined ? [] : [turn.skill]);
+  const partKeys = pieceKeys(
+    (turn.parts ?? []).map((part) =>
+      part.kind === "text" ? `t:${part.text}` : `c:${chipLabel(part.region)}`
+    )
+  );
+  const regionKeys = pieceKeys(turn.regions.map((r) => chipLabel(r)));
   const skillChips = skills.map((name) => (
     <span className="qch-chip qch-skill-chip" key={name}>
       /{name}
@@ -238,11 +259,9 @@ function UserTurn({ turn }: { turn: ChatUserTurn }) {
             {skillChips}
             {turn.parts.map((part, i) =>
               part.kind === "text" ? (
-                // biome-ignore lint/suspicious/noArrayIndexKey: parts are positional and may repeat verbatim
-                <span key={i}>{part.text}</span>
+                <span key={partKeys[i]}>{part.text}</span>
               ) : (
-                // biome-ignore lint/suspicious/noArrayIndexKey: parts are positional and may repeat verbatim
-                <span className="qch-chip" key={i}>
+                <span className="qch-chip" key={partKeys[i]}>
                   {chipLabel(part.region)}
                 </span>
               )
@@ -253,8 +272,7 @@ function UserTurn({ turn }: { turn: ChatUserTurn }) {
             {turn.regions.length > 0 && (
               <div className="qch-turn-chips">
                 {turn.regions.map((region, i) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: a settled turn's chips are positional and may repeat verbatim
-                  <span className="qch-chip" key={i}>
+                  <span className="qch-chip" key={regionKeys[i]}>
                     {chipLabel(region)}
                   </span>
                 ))}
@@ -424,7 +442,80 @@ function AssistantTurn({
   );
 }
 
+/** The thread picker above the transcript: which conversation you are in,
+ *  the list to switch or delete, and New chat. Its own component because it
+ *  is the one part of the panel with state of its own. */
+function ThreadBar({
+  onOpenChange,
+  open,
+  ref,
+  threads,
+}: {
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+  ref: React.RefObject<HTMLDivElement | null>;
+  threads: ChatThreadsState;
+}) {
+  return (
+    <div className="qch-threads" ref={ref}>
+      <button
+        aria-expanded={open}
+        className="qch-thread-current q-focus"
+        onClick={() => onOpenChange(!open)}
+        type="button"
+      >
+        <span className="qch-thread-title">
+          {threads.items.find((t) => t.id === threads.active)?.title ??
+            "New chat"}
+        </span>
+        <ChevronDown aria-hidden size={11} />
+      </button>
+      <button
+        className="qch-thread-new q-focus"
+        onClick={() => {
+          onOpenChange(false);
+          threads.onNew();
+        }}
+        type="button"
+      >
+        <Plus aria-hidden size={12} /> New chat
+      </button>
+      {open && (
+        <div className="qch-thread-list">
+          {threads.items.map((item) => (
+            <div
+              className="qch-thread-row"
+              data-active={item.id === threads.active}
+              key={item.id}
+            >
+              <button
+                className="qch-thread-pick"
+                onClick={() => {
+                  onOpenChange(false);
+                  threads.onPick(item.id);
+                }}
+                type="button"
+              >
+                {item.title}
+              </button>
+              <button
+                aria-label={`Delete chat ${item.title}`}
+                className="qch-chip-x"
+                onClick={() => threads.onRemove(item.id)}
+                type="button"
+              >
+                <X size={11} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ChatPanel({
+  composerDraft,
   composerRef,
   contextNote = null,
   onComposerChange,
@@ -557,60 +648,12 @@ export function ChatPanel({
   return (
     <section aria-label="Review chat" className="qch-panel">
       {threads && threads.items.length > 0 && (
-        <div className="qch-threads" ref={threadsRef}>
-          <button
-            aria-expanded={threadsOpen}
-            className="qch-thread-current q-focus"
-            onClick={() => setThreadsOpen((open) => !open)}
-            type="button"
-          >
-            <span className="qch-thread-title">
-              {threads.items.find((t) => t.id === threads.active)?.title ??
-                "New chat"}
-            </span>
-            <ChevronDown aria-hidden size={11} />
-          </button>
-          <button
-            className="qch-thread-new q-focus"
-            onClick={() => {
-              setThreadsOpen(false);
-              threads.onNew();
-            }}
-            type="button"
-          >
-            <Plus aria-hidden size={12} /> New chat
-          </button>
-          {threadsOpen && (
-            <div className="qch-thread-list">
-              {threads.items.map((item) => (
-                <div
-                  className="qch-thread-row"
-                  data-active={item.id === threads.active}
-                  key={item.id}
-                >
-                  <button
-                    className="qch-thread-pick"
-                    onClick={() => {
-                      setThreadsOpen(false);
-                      threads.onPick(item.id);
-                    }}
-                    type="button"
-                  >
-                    {item.title}
-                  </button>
-                  <button
-                    aria-label={`Delete chat ${item.title}`}
-                    className="qch-chip-x"
-                    onClick={() => threads.onRemove(item.id)}
-                    type="button"
-                  >
-                    <X size={11} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <ThreadBar
+          onOpenChange={setThreadsOpen}
+          open={threadsOpen}
+          ref={threadsRef}
+          threads={threads}
+        />
       )}
       <div className="qch-scroll" ref={scrollRef}>
         {turns.length === 0 && (
@@ -670,6 +713,7 @@ export function ChatPanel({
         <div className="qch-composer">
           <div className="qch-field">
             <ChatComposer
+              initialPieces={composerDraft}
               onChange={onComposerChange}
               onEscape={onEscape}
               onKeyDown={onComposerKeyDown}

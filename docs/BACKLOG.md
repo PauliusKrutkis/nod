@@ -969,10 +969,16 @@ only format the in-app updater touches.
       `flex-basis: 0%` collapse from 75a7f4a (Playwright's WebKit follows the
       spec fallback, WKWebView does not, so the harness engines cannot catch
       this class). On failure, save a screenshot plus computed bounding boxes.
-      Constraint: hosted CI offers only recent macOS images, so an
-      oldest-supported-macOS matrix means own hardware or the nightly capture
-      harness. Origin: r/Playwright thread on the flex-collapse blog post
-      (2026-08-17).
+      **Asymmetric matrix** (hosted CI offers only recent macOS images):
+      hosted webkit lane on every PR; one self-hosted machine on the oldest
+      supported macOS (a used Mac mini) runs the native suite nightly and as
+      a release gate, serialized, app + test data reset between jobs. Each
+      result records macOS version, WKWebView/WebKit build, Xcode version,
+      and app build — the invariant is "every supported system WebKit passes
+      before release", not equal cadence. **Fail closed:** if the old
+      machine is unavailable, the release gate fails; the recent hosted
+      runner never silently counts as coverage. Origin: r/Playwright thread
+      on the flex-collapse blog post (2026-08-17).
 
 ---
 

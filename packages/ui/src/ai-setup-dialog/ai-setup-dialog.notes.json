@@ -1,0 +1,12 @@
+{
+  "decided": [],
+  "open": [
+    {
+      "added": "2026-08-18",
+      "cell": "ai-setup-dialog/crowd-120/quiet/720",
+      "id": "n1",
+      "note": "model dropdown click to open doesn't work?",
+      "scope": "component"
+    }
+  ]
+}

@@ -7,6 +7,7 @@
   "exports": {
     "./add-comment-box": "./src/add-comment-box/add-comment-box.tsx",
     "./ai-model-combobox": "./src/ai-model-combobox/ai-model-combobox.tsx",
+    "./ai-defaults": "./src/ai-setup-dialog/ai-defaults.ts",
     "./ai-setup-dialog": "./src/ai-setup-dialog/ai-setup-dialog.tsx",
     "./ask-note": "./src/ask-note/ask-note.tsx",
     "./avatar": "./src/avatar/avatar.tsx",
@@ -14,6 +15,7 @@
     "./button": "./src/button/button.tsx",
     "./canned-comments-dialog": "./src/canned-comments-dialog/canned-comments-dialog.tsx",
     "./canned-suggestions": "./src/canned-suggestions/canned-suggestions.tsx",
+    "./match-canned": "./src/canned-suggestions/match-canned.ts",
     "./catalog": "./src/catalog/catalog.ts",
     "./chat-composer": "./src/chat-composer/chat-composer.tsx",
     "./chat-panel": "./src/chat-panel/chat-panel.tsx",
@@ -65,6 +67,7 @@
     "./thread-index": "./src/thread-index/thread-index.tsx",
     "./ticket-title": "./src/ticket-title/ticket-title.tsx",
     "./time": "./src/time/time.ts",
+    "./short-host": "./src/token-gate/short-host.ts",
     "./token-gate": "./src/token-gate/token-gate.tsx",
     "./tooltip": "./src/tooltip/tooltip.tsx",
     "./update-prompt": "./src/update-prompt/update-prompt.tsx",

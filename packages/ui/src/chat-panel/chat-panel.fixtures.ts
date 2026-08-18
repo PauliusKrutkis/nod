@@ -225,6 +225,37 @@ export const chatPanelEntry = defineEntry(ChatPanel, {
       turns: [CONVERSATION[0]],
     }),
   },
+  /** The panel mid-thought: a settled exchange above, and a draft in the
+   *  composer carrying a skill, prose and two code chips — the state a
+   *  reviewer is actually in when they hit send. */
+  "composer-draft": {
+    props: base({
+      composerDraft: [
+        { kind: "skill", name: "pr-validity" },
+        { kind: "text", text: "check " },
+        {
+          kind: "code",
+          region: {
+            code: "const backoff = 200;",
+            filePath: "src/lib/poll.ts",
+            lineRange: "41–48",
+            side: "RIGHT",
+          },
+        },
+        { kind: "text", text: " against " },
+        {
+          kind: "code",
+          region: {
+            code: "if (!ready) {\n  return null;\n}",
+            filePath: "",
+            lineRange: "",
+            side: "",
+          },
+        },
+      ],
+      turns: [CONVERSATION[0], CONVERSATION[1]],
+    }),
+  },
   "skill-chip": {
     props: base({
       turns: [
