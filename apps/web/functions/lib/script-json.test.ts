@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { scriptJson } from "./script-json.ts";
+import { scriptJson } from "./script-json";
 
 describe("scriptJson", () => {
   it("is JSON for anything a script block can hold safely", () => {
