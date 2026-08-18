@@ -1,12 +1,55 @@
 ---
 import Base from "../layouts/Base.astro";
 import HeroDemo from "../components/HeroDemo.astro";
-import FeatureShowcase from "../components/FeatureShowcase.astro";
+import FeatureBrowser from "../components/FeatureBrowser.astro";
+import type { Feature } from "../components/FeatureBrowser.astro";
 import LocalStrip from "../components/LocalStrip.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteNav from "../components/SiteNav.astro";
-import { Kbd } from "@nod/ui/kbd";
 import { CONTACT_EMAIL } from "../lib/site";
+
+const FEATURES: Feature[] = [
+  {
+    id: "loop",
+    keys: ["j", "k"],
+    title: "The whole loop, no mouse",
+    body: "Triage the queue with j and k, open with Enter, step through the diff, mark files viewed, submit your review. The mouse never comes into it.",
+    scene: "loop",
+    label:
+      "Real footage of Nod: triaging the inbox with j and k, opening a pull request, marking files viewed, and submitting the review.",
+    groups: [
+      { combos: ["j", "k"], text: "triage" },
+      { combos: ["e"], text: "viewed" },
+      { combos: ["s"], text: "submit" },
+    ],
+  },
+  {
+    id: "comments",
+    keys: ["c"],
+    title: "Comment without breaking stride",
+    body: "c opens a composer on the cursor line. Batch comments into a pending review, or send one on its own; both land instantly.",
+    scene: "comments",
+    label:
+      "Real footage of Nod: opening an inline composer on the cursor line, typing a comment, and adding it to a pending review.",
+    groups: [
+      { combos: ["c"], text: "comment" },
+      { combos: ["mod+enter"], text: "add to review" },
+    ],
+  },
+  {
+    id: "scan",
+    keys: ["⌘", "F"],
+    title: "Built for reading diffs",
+    body: "Double-click a token and every occurrence lights up. Find-in-diff ticks its matches on an overview ruler, and intraline emphasis shows exactly what a rename changed.",
+    scene: "scan",
+    label:
+      "Real footage of Nod: occurrence marks lighting up on a clicked token, then find-in-diff stepping through matches marked on the overview ruler.",
+    groups: [
+      { combos: [], text: "double-click marks" },
+      { combos: ["mod+f"], text: "find in the diff" },
+    ],
+  },
+];
 
 // The buy button appears only when a checkout exists (build-time env, set
 // once the merchant account is live); until then the pricing card states the
@@ -47,39 +90,8 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
       <HeroDemo />
     </section>
 
-    <section class="feats" aria-label="Features in action">
-      <div class="feats__rows">
-        <FeatureShowcase
-          keys={["j", "k"]}
-          title="The whole loop, no mouse"
-          body="Triage the queue with j and k, open with Enter, step through the diff, mark files viewed, submit your review. The mouse never comes into it."
-          scene="loop"
-          label="Real footage of Nod: triaging the inbox with j and k, opening a pull request, marking files viewed, and submitting the review."
-        >
-          <Kbd combo="j" />{" "}<Kbd combo="k" /> triage ·{" "}<Kbd
-            combo="e"
-          /> viewed ·{" "}<Kbd combo="s" /> submit
-        </FeatureShowcase>
-        <FeatureShowcase
-          keys={["c"]}
-          title="Comment without breaking stride"
-          body="c opens a composer on the cursor line. Batch comments into a pending review, or send one on its own; both land instantly."
-          scene="comments"
-          label="Real footage of Nod: opening an inline composer on the cursor line, typing a comment, and adding it to a pending review."
-        >
-          <Kbd combo="c" /> comment ·{" "}<Kbd combo="mod+enter" />{" "}add to
-          review
-        </FeatureShowcase>
-        <FeatureShowcase
-          keys={["⌘", "F"]}
-          title="Built for reading diffs"
-          body="Double-click a token and every occurrence lights up. Find-in-diff ticks its matches on an overview ruler, and intraline emphasis shows exactly what a rename changed."
-          scene="scan"
-          label="Real footage of Nod: occurrence marks lighting up on a clicked token, then find-in-diff stepping through matches marked on the overview ruler."
-        >
-          double-click marks ·{" "}<Kbd combo="mod+f" />{" "}find in the diff
-        </FeatureShowcase>
-      </div>
+    <section class="feats wide" aria-label="Features in action">
+      <FeatureBrowser features={FEATURES} />
     </section>
 
     <LocalStrip />

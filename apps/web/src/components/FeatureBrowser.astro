@@ -1,0 +1,478 @@
+---
+// The feature tour works like the app it is selling: a rail of features
+// styled and driven like Nod's inbox (click or tab in, then j/k or arrows;
+// the row you land on shows its footage in the stage), because a visitor who
+// touches the keyboard here has experienced the thesis before downloading
+// anything. Keys are focus-scoped like every surface on this page — the rail
+// owns j/k only while focus is inside it, and stops propagation so the
+// hero's page-wide `j` (which launches the live demo) never fires from in
+// here. Exactly one video plays at a time and never under
+// prefers-reduced-motion; everything else shows its composed poster frame.
+//
+// Without JS (or below 1100px) the rail disappears and the features render
+// as the stacked copy-plus-footage rows the page always had, so nothing is
+// hidden behind an interaction that cannot happen. Each article keeps its
+// own id, so #feature-<id> deep-links keep working in both layouts; the
+// active row writes its id into the hash with replaceState, never a scroll.
+import { Kbd } from "@nod/ui/kbd";
+
+interface KeyGroup {
+  combos: string[];
+  text: string;
+}
+
+export interface Feature {
+  id: string;
+  keys: string[];
+  title: string;
+  body: string;
+  scene: string;
+  label: string;
+  groups: KeyGroup[];
+}
+
+interface Props {
+  features: Feature[];
+}
+
+const { features } = Astro.props;
+---
+
+<div class="fb">
+  <div class="fb__rail">
+    <div aria-label="Features" class="fb__list" role="listbox">
+      {
+        features.map((feature, index) => (
+          <button
+            aria-selected={index === 0 ? "true" : "false"}
+            class="fb__row"
+            data-index={index}
+            id={`fb-row-${feature.id}`}
+            role="option"
+            tabindex={index === 0 ? 0 : -1}
+            type="button"
+          >
+            <span class="fb__rowkeys">
+              {feature.keys.map((key) => (
+                <kbd class="fb__rowkey mono">{key}</kbd>
+              ))}
+            </span>
+            <span class="fb__rowtitle">{feature.title}</span>
+          </button>
+        ))
+      }
+    </div>
+    <p class="fb__hint mono">
+      tab in, then <kbd class="fb__hintkey">j</kbd>
+      <kbd class="fb__hintkey">k</kbd> · works like the app
+    </p>
+  </div>
+
+  <div class="fb__stage">
+    {
+      features.map((feature, index) => (
+        <article
+          class="fb__feat"
+          data-active={index === 0 ? "" : undefined}
+          id={`feature-${feature.id}`}
+        >
+          <div class="fb__head">
+            <p class="fb__cap">
+              {feature.keys.map((key) => (
+                <kbd class="fb__bigkey mono">{key}</kbd>
+              ))}
+            </p>
+            <h2 class="fb__title">{feature.title}</h2>
+          </div>
+          <figure aria-label={feature.label} class="fb__fig">
+            <video
+              class="fb__video"
+              loop
+              muted
+              playsinline
+              poster={`/landing/${feature.scene}.webp`}
+              preload="metadata"
+              src={`/landing/${feature.scene}.webm`}
+            />
+          </figure>
+          <p class="fb__caption">
+            <span class="fb__body">{feature.body}</span>
+            <span class="fb__keys mono">
+              {feature.groups.map((group, groupIndex) => (
+                <Fragment>
+                  {groupIndex > 0 && " · "}
+                  {group.combos.map((combo) => (
+                    <Fragment>
+                      <Kbd combo={combo} />{" "}
+                    </Fragment>
+                  ))}
+                  {group.text}
+                </Fragment>
+              ))}
+            </span>
+          </p>
+        </article>
+      ))
+    }
+  </div>
+</div>
+
+<script>
+  const root = document.querySelector<HTMLElement>(".fb");
+  const rows = [...document.querySelectorAll<HTMLButtonElement>(".fb__row")];
+  const feats = [...document.querySelectorAll<HTMLElement>(".fb__feat")];
+  const videos = [...document.querySelectorAll<HTMLVideoElement>(".fb__video")];
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)");
+  const ratios = new Map<HTMLVideoElement, number>();
+
+  // The stage-collapse layout only exists once this script has run, so a
+  // no-JS visit keeps every feature on the page (see the CSS gate).
+  if (root) {
+    root.dataset.enhanced = "";
+  }
+
+  // Same playback discipline as the old showcase rows, one shared observer:
+  // the most visible playable video wins, ties keep the earlier one, and
+  // reduced motion means nobody wins. Videos inside a collapsed article
+  // report offsetParent null and drop out of the running, which is what
+  // makes one policy serve both the stage and the stacked fallback.
+  const MIN_PLAY_RATIO = 0.25;
+  const THRESHOLDS = [
+    MIN_PLAY_RATIO,
+    ...Array.from({ length: 11 }, (_, tenth) => tenth / 10),
+  ];
+
+  const sync = () => {
+    let winner: HTMLVideoElement | null = null;
+    if (!reduced.matches) {
+      let best = MIN_PLAY_RATIO;
+      for (const video of videos) {
+        if (video.offsetParent === null) {
+          continue;
+        }
+        const ratio = ratios.get(video) ?? 0;
+        if (ratio > best) {
+          best = ratio;
+          winner = video;
+        }
+      }
+    }
+    for (const video of videos) {
+      if (video === winner) {
+        video.play().catch(() => {});
+      } else {
+        video.pause();
+      }
+    }
+  };
+
+  const watcher = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        ratios.set(
+          entry.target as HTMLVideoElement,
+          entry.isIntersecting ? entry.intersectionRatio : 0
+        );
+      }
+      sync();
+    },
+    { threshold: THRESHOLDS }
+  );
+
+  for (const video of videos) {
+    watcher.observe(video);
+  }
+  reduced.addEventListener("change", sync);
+
+  let active = 0;
+
+  const select = (index: number, focus: boolean) => {
+    const next = Math.max(0, Math.min(rows.length - 1, index));
+    const replay = next === active;
+    active = next;
+    for (const [i, row] of rows.entries()) {
+      row.setAttribute("aria-selected", i === active ? "true" : "false");
+      row.tabIndex = i === active ? 0 : -1;
+    }
+    for (const [i, feat] of feats.entries()) {
+      if (i === active) {
+        feat.dataset.active = "";
+      } else {
+        delete feat.dataset.active;
+      }
+    }
+    const video = videos[active];
+    if (video && !replay) {
+      video.currentTime = 0;
+    }
+    if (focus) {
+      rows[active]?.focus();
+    }
+    history.replaceState(null, "", `#${feats[active]?.id ?? ""}`);
+    requestAnimationFrame(sync);
+  };
+
+  for (const [index, row] of rows.entries()) {
+    row.addEventListener("click", () => {
+      const video = videos[index];
+      if (index === active && video) {
+        video.currentTime = 0;
+        sync();
+        return;
+      }
+      select(index, false);
+    });
+  }
+
+  // Focus-scoped movement, matching the app's inbox: j/k and the arrows
+  // move the selection while focus is inside the rail, and stop propagating
+  // so the hero's page-wide `j` (which would scroll away and launch the
+  // demo) never sees the press.
+  document
+    .querySelector<HTMLElement>(".fb__rail")
+    ?.addEventListener("keydown", (event) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) {
+        return;
+      }
+      let next: number | null = null;
+      if (event.key === "j" || event.key === "ArrowDown") {
+        next = active + 1;
+      } else if (event.key === "k" || event.key === "ArrowUp") {
+        next = active - 1;
+      } else if (event.key === "Home") {
+        next = 0;
+      } else if (event.key === "End") {
+        next = rows.length - 1;
+      }
+      if (next === null) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      select(next, true);
+    });
+
+  const fromHash = feats.findIndex(
+    (feat) => `#${feat.id}` === window.location.hash
+  );
+  if (fromHash > 0) {
+    select(fromHash, false);
+  }
+  window.addEventListener("hashchange", () => {
+    const index = feats.findIndex(
+      (feat) => `#${feat.id}` === window.location.hash
+    );
+    if (index >= 0) {
+      select(index, false);
+    }
+  });
+</script>
+
+<style>
+  .fb {
+    display: grid;
+    gap: clamp(52px, 9vw, 88px);
+    padding-inline: 24px;
+  }
+
+  .fb__rail {
+    display: none;
+  }
+
+  /* The rail exists only where the interaction can: wide viewports with the
+     script running. Below that (or without JS) the stacked articles are the
+     whole story. */
+  @media (min-width: 1100px) {
+    .fb[data-enhanced] {
+      grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+      align-items: start;
+      column-gap: clamp(36px, 4vw, 64px);
+      padding-inline: 0;
+    }
+
+    .fb[data-enhanced] .fb__rail {
+      position: sticky;
+      top: var(--nav-clearance);
+      display: block;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--surface);
+      overflow: hidden;
+    }
+
+    .fb[data-enhanced] .fb__stage {
+      display: block;
+    }
+
+    .fb[data-enhanced] .fb__feat {
+      display: none;
+    }
+
+    .fb[data-enhanced] .fb__feat[data-active] {
+      display: block;
+    }
+
+    .fb[data-enhanced] .fb__head {
+      display: none;
+    }
+  }
+
+  .fb__row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    padding: 18px 20px;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition:
+      background 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .fb__row:hover {
+    background: var(--surface-2);
+    color: var(--fg);
+  }
+
+  /* The selected row wears the app's fat cursor: an accent edge, not a
+     wash. */
+  .fb__row[aria-selected="true"] {
+    background: var(--surface-hi);
+    color: var(--fg);
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+
+  .fb__row:focus-visible {
+    outline: none;
+    box-shadow:
+      inset 3px 0 0 var(--accent),
+      inset 0 0 0 2px var(--accent);
+  }
+
+  .fb__rowkeys {
+    display: inline-flex;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+
+  .fb__rowkey {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.8em;
+    height: 1.8em;
+    padding-inline: 0.4em;
+    font-size: 0.8125rem;
+    color: var(--fg);
+    background: var(--surface-hi);
+    border: 1px solid var(--line-2);
+    border-radius: 7px;
+    box-shadow:
+      0 2px 0 rgba(0, 0, 0, 0.5),
+      0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  }
+
+  .fb__rowtitle {
+    font-size: 0.9375rem;
+    font-weight: 550;
+    letter-spacing: -0.01em;
+  }
+
+  .fb__hint {
+    margin: 0;
+    padding: 12px 20px;
+    font-size: 0.71875rem;
+    color: var(--faint);
+  }
+
+  .fb__hintkey {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.7em;
+    padding-inline: 0.35em;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    background: var(--surface-hi);
+    border: 1px solid var(--line-2);
+    border-radius: 5px;
+  }
+
+  .fb__feat {
+    min-width: 0;
+  }
+
+  .fb__cap {
+    display: flex;
+    gap: 8px;
+    margin: 0 0 16px;
+  }
+
+  .fb__bigkey {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.9em;
+    height: 1.9em;
+    padding-inline: 0.5em;
+    font-family: var(--font-mono);
+    font-size: 1.25rem;
+    color: var(--fg);
+    background: var(--surface-hi);
+    border: 1px solid var(--line-2);
+    border-radius: 9px;
+    box-shadow:
+      0 3px 0 rgba(0, 0, 0, 0.5),
+      0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  }
+
+  .fb__title {
+    margin: 0 0 18px;
+    font-size: clamp(1.25rem, 2.6vw, 1.5rem);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  .fb__fig {
+    margin: 0;
+    min-width: 0;
+  }
+
+  .fb__video {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1152 / 720;
+    background: var(--surface);
+    border: 1px solid var(--line-2);
+    border-radius: 14px;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.03) inset,
+      0 24px 64px -36px rgba(0, 0, 0, 0.9);
+  }
+
+  .fb__caption {
+    margin: 16px 0 0;
+    max-width: 74ch;
+  }
+
+  .fb__body {
+    display: block;
+    color: var(--muted);
+    font-size: 0.9375rem;
+  }
+
+  .fb__keys {
+    display: block;
+    margin-top: 10px;
+    font-size: 0.75rem;
+    color: var(--faint);
+  }
+
+  .fb__stage {
+    display: grid;
+    gap: clamp(52px, 9vw, 88px);
+  }
+</style>
