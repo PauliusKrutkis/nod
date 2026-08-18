@@ -296,6 +296,17 @@ turns past an input budget, and three events come back keyed
 aborts an in-flight turn — a stop button, not an error. History persists per PR
 (`nod:chatHistory:v1`), same keying as pending comments.
 
+**The degradation ladder only catches 400 and 422** (narrowed 2026-08-18,
+dogfooding). It exists for providers that reject a request carrying `tools` at
+all, and it was matching every 4xx — including the 429 a pooled gateway
+returns when it is out of capacity. A rate limit read as "this provider has no
+tools" fires a second call a millisecond later, into the same limit. Losing
+that race gives the reviewer the 429 twice as fast; winning it is worse, and
+that is the case the narrowing is really for: an answer with no files read, no
+skill run and nothing staged, indistinguishable from a grounded one. When the
+ladder does fire, the answer now says it ran without repo access. Auth
+failures never degrade either — dropping tools cannot fix a key.
+
 ### Suggested comments are pending comments (revised 2026-08-16, owner)
 
 The model may stage findings via a `propose_comment` tool. Rust validates each

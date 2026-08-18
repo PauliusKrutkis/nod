@@ -5,8 +5,10 @@
 //! over three events keyed `{chatId, turnId}` — `ai-chat-delta` for content,
 //! `ai-chat-tool` for tool activity, and (later) `ai-chat-proposal` for
 //! suggested comments. The ask machinery in `ai.rs` is reused whole: the
-//! same tool loop over the repo snapshot, the same 4xx-round-0 degradation
-//! to tools-off, the same round guard. `ai_chat_cancel` flags a chat id in
+//! same tool loop over the repo snapshot, the same round-0 degradation to
+//! tools-off (narrowed here to the 400/422 that mean "this request may not
+//! carry tools" — a 429 retried without them wins the race and answers
+//! ungrounded), the same round guard. `ai_chat_cancel` flags a chat id in
 //! managed state; the stream checks the flag between chunks and rounds and
 //! returns the benign `cancelled` error, which is a stop button, not a
 //! failure. History is trimmed oldest-first past a character budget so a
@@ -1222,6 +1224,37 @@ fn empty_answer(message: &Value) -> String {
     format!("The model stopped without answering (the provider said: {reason}).")
 }
 
+/// Whether a failed first round is worth retrying with the tools taken off.
+/// The ladder exists for providers that reject a request carrying `tools` at
+/// all, which they answer with 400 or 422. A rate limit, an expired key or a
+/// forbidden model is not that: the retry cannot fix it, so it spends a
+/// second call on the same refusal — and against a rate-limited gateway that
+/// second call is the one that might win, answering with no repo access, no
+/// skills and nothing staged, without ever saying so.
+fn retry_without_tools(error: &str) -> bool {
+    let status = error
+        .strip_prefix("AI provider error (")
+        .and_then(|rest| rest.split(')').next())
+        .and_then(|code| code.parse::<u16>().ok());
+    matches!(status, Some(400 | 422))
+}
+
+/// An answer that came back only after the tools were dropped says so. It
+/// reads like any other answer otherwise, and "no files were read" is the
+/// difference between a grounded review and a guess.
+fn note_if_toolless(dropped: bool, answer: String) -> String {
+    if !dropped {
+        return answer;
+    }
+    format!(
+        "{answer}\n\n---\n\n**This answer was written without repo access.** The \
+provider rejected the request while it carried tools, so it ran again without \
+them: no files were read, no skill ran, and nothing could be staged as a \
+comment. Treat it as ungrounded, and try again if the provider was only \
+having a bad minute."
+    )
+}
+
 /// A reply cut off by the output budget still has text worth showing, so it
 /// is shown — with a line saying it was cut. Without one a review that
 /// stopped mid-sentence reads as a finished review, and the findings the
@@ -1336,6 +1369,7 @@ pub async fn ai_chat(
     let client = ai::ask_client()?;
     let url = format!("{}/v1/chat/completions", config.base_url);
     let mut tools_enabled = snapshot.is_some() || proposals || has_diffs;
+    let mut tools_dropped = false;
     let mut rounds = 0;
     // Set once, after a round that produced neither text nor a tool call.
     let mut forced_text = false;
@@ -1433,10 +1467,9 @@ pub async fn ai_chat(
                 state.clear(&chat_id);
                 return Err(error);
             }
-            Err(error)
-                if tools_enabled && rounds == 0 && error.starts_with("AI provider error (4") =>
-            {
+            Err(error) if tools_enabled && rounds == 0 && retry_without_tools(&error) => {
                 tools_enabled = false;
+                tools_dropped = true;
                 continue;
             }
             Err(error) => return Err(error),
@@ -1463,7 +1496,10 @@ pub async fn ai_chat(
         ));
         if calls.is_empty() || !tools_enabled {
             if let Some(answer) = ai::message_answer(&message_value) {
-                return Ok(note_if_truncated(&message_value, answer));
+                return Ok(note_if_toolless(
+                    tools_dropped,
+                    note_if_truncated(&message_value, answer),
+                ));
             }
             // A round that ends with neither text nor a tool call is a model
             // that has finished reading and not started writing — a thinking

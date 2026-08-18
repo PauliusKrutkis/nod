@@ -1,11 +1,11 @@
 use super::{
     build_chat_turn, builtin_skill_body, builtin_skills, chat_system_prompt, chat_tools,
     discover_personal_skills, discover_skills, empty_answer, execute_read_diff, execute_skill_tool,
-    format_ranges, frontmatter_description, history_messages, merge_skills, note_if_truncated,
-    parse_proposal,
-    read_personal_skill, read_skill_body, resolve_skill_body, safe_source, skill_instructions,
-    skill_name_from_path, tool_note, validate_proposal, ChatCancels, ChatDelta, ChatDiffFile,
-    ChatPart, ChatProposal, ChatRegion, ChatToolNote, ChatTurn, CommentableSide, SkillInfo,
+    format_ranges, frontmatter_description, history_messages, merge_skills, note_if_toolless,
+    note_if_truncated, parse_proposal, read_personal_skill, read_skill_body, resolve_skill_body,
+    retry_without_tools, safe_source, skill_instructions, skill_name_from_path, tool_note,
+    validate_proposal, ChatCancels, ChatDelta, ChatDiffFile, ChatPart, ChatProposal, ChatRegion,
+    ChatToolNote, ChatTurn, CommentableSide, SkillInfo,
 };
 use crate::ai::AskContext;
 use crate::snapshot::store::{partial_dir, promote, SnapshotKey};
@@ -868,6 +868,46 @@ fn an_empty_answer_says_whether_the_budget_ran_out() {
 }
 
 #[test]
+fn only_a_refused_request_shape_retries_without_tools() {
+    // 400 and 422 are how a provider says "this request may not carry
+    // tools", which is the whole reason the ladder exists.
+    for status in [400, 422] {
+        assert!(
+            retry_without_tools(&format!("AI provider error ({status}): tools unsupported")),
+            "should degrade on {status}"
+        );
+    }
+
+    // 429 is the one that made this a bug: a rate limit retried a millisecond
+    // later either fails again or, worse, succeeds with no repo access at
+    // all. A bad or forbidden key cannot be fixed by dropping tools either.
+    for status in [401, 403, 408, 429] {
+        assert!(
+            !retry_without_tools(&format!(
+                "AI provider error ({status}): All providers are rate limited"
+            )),
+            "should not degrade on {status}"
+        );
+    }
+
+    // 5xx retries elsewhere, and anything that is not a provider error at all
+    // (a socket that died, a cancel) must not be read as one.
+    assert!(!retry_without_tools("AI provider error (503): upstream"));
+    assert!(!retry_without_tools("could not reach the AI provider"));
+    assert!(!retry_without_tools(crate::ai::CANCELLED));
+}
+
+#[test]
+fn an_answer_written_without_tools_admits_it() {
+    let noted = note_if_toolless(true, "Looks fine to me.".to_string());
+    assert!(noted.starts_with("Looks fine to me."));
+    assert!(noted.contains("without repo access"), "got {noted}");
+    assert!(noted.contains("nothing could be staged"), "got {noted}");
+
+    assert_eq!(note_if_toolless(false, "grounded".to_string()), "grounded");
+}
+
+#[test]
 fn an_answer_cut_off_by_the_budget_says_so() {
     // The failure this covers: a review skill wrote 1889 characters, stopped
     // mid-sentence at the budget, staged nothing, and the app showed it as a
@@ -875,7 +915,10 @@ fn an_answer_cut_off_by_the_budget_says_so() {
     // reader just has to know it stopped.
     let cut = json!({ "content": "report", "finish_reason": "length" });
     let noted = note_if_truncated(&cut, "## Findings\n1. ...".to_string());
-    assert!(noted.starts_with("## Findings"), "keeps the answer: {noted}");
+    assert!(
+        noted.starts_with("## Findings"),
+        "keeps the answer: {noted}"
+    );
     assert!(noted.contains("output budget"), "got {noted}");
     assert!(
         noted.contains("had not staged"),
@@ -897,7 +940,10 @@ fn the_proposal_rule_puts_staging_before_the_write_up() {
     // budget on prose unless the order is explicit, which is how ten findings
     // reached the reviewer as text and zero as comments.
     let prompt = chat_system_prompt(true, true, true, true);
-    assert!(prompt.contains("BEFORE you write the report"), "got {prompt}");
+    assert!(
+        prompt.contains("BEFORE you write the report"),
+        "got {prompt}"
+    );
     assert!(prompt.contains("keep the writing short"), "got {prompt}");
     assert!(
         prompt.contains("the diff does not touch"),
@@ -906,7 +952,10 @@ fn the_proposal_rule_puts_staging_before_the_write_up() {
 
     // And none of it is sent when there is nowhere to anchor a comment.
     let no_proposals = chat_system_prompt(true, true, false, true);
-    assert!(!no_proposals.contains("propose_comment"), "got {no_proposals}");
+    assert!(
+        !no_proposals.contains("propose_comment"),
+        "got {no_proposals}"
+    );
 }
 
 #[test]
