@@ -425,6 +425,170 @@ function handleZoomKey(
   return false;
 }
 
+/** The component rail: find field, the catalogue with its per-component note
+ *  count, and the "N of M catalogued" footer. */
+function GalleryRail({
+  allNames,
+  cataloguedNames,
+  componentNames,
+  filter,
+  findSel,
+  onFindChange,
+  onFindKeyDown,
+  onSelect,
+  openNotesOf,
+  selected,
+  visibleNames,
+}: {
+  allNames: readonly string[];
+  cataloguedNames: ReadonlySet<string>;
+  componentNames: readonly string[];
+  filter: string;
+  findSel: number;
+  onFindChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onFindKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  onSelect: (name: string) => void;
+  openNotesOf: (name: string) => number;
+  selected: string;
+  visibleNames: readonly string[];
+}) {
+  return (
+    <aside className="qg-rail">
+      <div className="qg-rail-head">
+        <span className="qg-brand">Nod</span>
+        <span className="qg-env">gallery · dev</span>
+      </div>
+      <div className="qg-find">
+        <input
+          aria-label="Find a component"
+          onChange={onFindChange}
+          onKeyDown={onFindKeyDown}
+          placeholder="Find a component  /"
+          type="text"
+          value={filter}
+        />
+      </div>
+      <nav aria-label="Components" className="qg-rail-list">
+        {visibleNames.map((name, index) => {
+          const catalogued = cataloguedNames.has(name);
+          return (
+            <button
+              className={[
+                "qg-rail-item",
+                catalogued ? "" : "qg-bare",
+                name === selected ? "qg-sel" : "",
+                filter && index === findSel ? "qg-cand" : "",
+              ].join(" ")}
+              key={name}
+              onClick={() => onSelect(name)}
+              type="button"
+            >
+              <i className="qg-dot" />
+              <span className="qg-name">{name}</span>
+              {openNotesOf(name) > 0 ? (
+                <span className="qg-mark">{openNotesOf(name)}</span>
+              ) : null}
+              <span className="qg-count">
+                {catalogued ? fixturesOf(name).length : "—"}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+      <div className="qg-rail-foot">
+        {componentNames.length} of {allNames.length} catalogued
+      </div>
+    </aside>
+  );
+}
+
+/** The stage's controls: fixture, theme, width and view, each a segmented
+ *  row that writes straight into the route. */
+function StageControls({
+  fixtureNames,
+  onRouteChange,
+  route,
+}: {
+  fixtureNames: readonly string[];
+  onRouteChange: (next: (r: GalleryRoute) => GalleryRoute) => void;
+  route: GalleryRoute;
+}) {
+  return (
+    <div className="qg-controls">
+      <div className="qg-ctl qg-ctl-fixtures">
+        <span className="qg-ctl-label">fixture · {fixtureNames.length}</span>
+        {fixtureNames.map((name) => (
+          <button
+            className={`qg-chip ${name === route.fixture ? "qg-on" : ""}`}
+            key={name}
+            onClick={() => {
+              onRouteChange((r) => normalize({ ...r, fixture: name }));
+            }}
+            type="button"
+          >
+            {name}
+          </button>
+        ))}
+        <Kbd combo="f" />
+      </div>
+      <div className="qg-ctl">
+        <span className="qg-ctl-label">theme</span>
+        <div className="qg-seg">
+          {GALLERY_THEMES.map((theme) => (
+            <button
+              className={theme === route.theme ? "qg-on" : ""}
+              key={theme}
+              onClick={() => {
+                onRouteChange((r) => normalize({ ...r, theme }));
+              }}
+              type="button"
+            >
+              {THEME_LABELS[theme]}
+            </button>
+          ))}
+        </div>
+        <Kbd combo="t" />
+      </div>
+      <div className="qg-ctl">
+        <span className="qg-ctl-label">width</span>
+        <div className="qg-seg">
+          {GALLERY_WIDTHS.map((width) => (
+            <button
+              className={width === route.width ? "qg-on" : ""}
+              key={width}
+              onClick={() => {
+                onRouteChange((r) => normalize({ ...r, width }));
+              }}
+              type="button"
+            >
+              {widthLabel(width)}
+            </button>
+          ))}
+        </div>
+        <Kbd combo="w" />
+      </div>
+      <div className="qg-ctl">
+        <span className="qg-ctl-label">view</span>
+        <div className="qg-seg">
+          {GALLERY_MODES.map((mode) => (
+            <button
+              className={mode === route.mode ? "qg-on" : ""}
+              key={mode}
+              onClick={() => {
+                onRouteChange((r) => normalize({ ...r, mode }));
+              }}
+              type="button"
+            >
+              {MODE_LABELS[mode]}
+            </button>
+          ))}
+        </div>
+        <Kbd combo="m" />
+      </div>
+    </div>
+  );
+}
+
 export function Gallery() {
   const [route, setRoute] = useState<GalleryRoute>(() =>
     parseGalleryHash(window.location.hash, allNames, fixturesOf)
@@ -596,52 +760,19 @@ export function Gallery() {
         capture ? "qg-capture" : "",
       ].join(" ")}
     >
-      <aside className="qg-rail">
-        <div className="qg-rail-head">
-          <span className="qg-brand">Nod</span>
-          <span className="qg-env">gallery · dev</span>
-        </div>
-        <div className="qg-find">
-          <input
-            aria-label="Find a component"
-            onChange={onFindChange}
-            onKeyDown={onFindKeyDown}
-            placeholder="Find a component  /"
-            type="text"
-            value={filter}
-          />
-        </div>
-        <nav aria-label="Components" className="qg-rail-list">
-          {visibleNames.map((name, index) => {
-            const catalogued = cataloguedNames.has(name);
-            return (
-              <button
-                className={[
-                  "qg-rail-item",
-                  catalogued ? "" : "qg-bare",
-                  name === route.component ? "qg-sel" : "",
-                  filter && index === findSel ? "qg-cand" : "",
-                ].join(" ")}
-                key={name}
-                onClick={() => select(name)}
-                type="button"
-              >
-                <i className="qg-dot" />
-                <span className="qg-name">{name}</span>
-                {openNotesOf(name) > 0 ? (
-                  <span className="qg-mark">{openNotesOf(name)}</span>
-                ) : null}
-                <span className="qg-count">
-                  {catalogued ? fixturesOf(name).length : "—"}
-                </span>
-              </button>
-            );
-          })}
-        </nav>
-        <div className="qg-rail-foot">
-          {componentNames.length} of {allNames.length} catalogued
-        </div>
-      </aside>
+      <GalleryRail
+        allNames={allNames}
+        cataloguedNames={cataloguedNames}
+        componentNames={componentNames}
+        filter={filter}
+        findSel={findSel}
+        onFindChange={onFindChange}
+        onFindKeyDown={onFindKeyDown}
+        onSelect={select}
+        openNotesOf={openNotesOf}
+        selected={route.component}
+        visibleNames={visibleNames}
+      />
 
       <div className="qg-main">
         <header className="qg-topbar">
@@ -666,80 +797,11 @@ export function Gallery() {
             )}
           </div>
           {entry ? (
-            <div className="qg-controls">
-              <div className="qg-ctl qg-ctl-fixtures">
-                <span className="qg-ctl-label">
-                  fixture · {fixtureNames.length}
-                </span>
-                {fixtureNames.map((name) => (
-                  <button
-                    className={`qg-chip ${name === route.fixture ? "qg-on" : ""}`}
-                    key={name}
-                    onClick={() => {
-                      setRoute((r) => normalize({ ...r, fixture: name }));
-                    }}
-                    type="button"
-                  >
-                    {name}
-                  </button>
-                ))}
-                <Kbd combo="f" />
-              </div>
-              <div className="qg-ctl">
-                <span className="qg-ctl-label">theme</span>
-                <div className="qg-seg">
-                  {GALLERY_THEMES.map((theme) => (
-                    <button
-                      className={theme === route.theme ? "qg-on" : ""}
-                      key={theme}
-                      onClick={() => {
-                        setRoute((r) => normalize({ ...r, theme }));
-                      }}
-                      type="button"
-                    >
-                      {THEME_LABELS[theme]}
-                    </button>
-                  ))}
-                </div>
-                <Kbd combo="t" />
-              </div>
-              <div className="qg-ctl">
-                <span className="qg-ctl-label">width</span>
-                <div className="qg-seg">
-                  {GALLERY_WIDTHS.map((width) => (
-                    <button
-                      className={width === route.width ? "qg-on" : ""}
-                      key={width}
-                      onClick={() => {
-                        setRoute((r) => normalize({ ...r, width }));
-                      }}
-                      type="button"
-                    >
-                      {widthLabel(width)}
-                    </button>
-                  ))}
-                </div>
-                <Kbd combo="w" />
-              </div>
-              <div className="qg-ctl">
-                <span className="qg-ctl-label">view</span>
-                <div className="qg-seg">
-                  {GALLERY_MODES.map((mode) => (
-                    <button
-                      className={mode === route.mode ? "qg-on" : ""}
-                      key={mode}
-                      onClick={() => {
-                        setRoute((r) => normalize({ ...r, mode }));
-                      }}
-                      type="button"
-                    >
-                      {MODE_LABELS[mode]}
-                    </button>
-                  ))}
-                </div>
-                <Kbd combo="m" />
-              </div>
-            </div>
+            <StageControls
+              fixtureNames={fixtureNames}
+              onRouteChange={setRoute}
+              route={route}
+            />
           ) : null}
         </header>
 
