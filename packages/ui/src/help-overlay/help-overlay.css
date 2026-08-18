@@ -5,10 +5,17 @@
    are explicit here: the desktop inherited them from Tailwind's preflight,
    and a host without one would otherwise indent every row.
 
+   Rows are a two-track grid with the row wrappers on display: contents, so
+   every key cap in a scope shares one left edge sized by that scope's longest
+   chord — fit-content(50%) keeps the long-chord cap-and-wrap behaviour. The
+   row padding therefore lives on the cells, not the wrapper: a contents
+   element paints nothing.
+
    The column count is intrinsic (auto-fit over a 240px minimum) rather than a
    viewport media query, because the panel is not always as wide as the
    window: embedded at a fixed width it kept two columns and shredded every
-   label to one word per line. */
+   label to one word per line. A query collapses the grid to one ranked
+   column (.qh-grid-filtered). */
 
 .qh-panel {
   width: min(720px, calc(100vw - 32px));
@@ -16,16 +23,17 @@
 }
 .qh-head {
   display: flex;
+  gap: 12px;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: 12px 20px;
   border-bottom: 1px solid var(--line);
 }
 .qh-head-title {
   display: flex;
+  flex-shrink: 0;
   gap: 10px;
   align-items: center;
-  min-width: 0;
 }
 .qh-head-title svg {
   flex-shrink: 0;
@@ -36,13 +44,48 @@
   font-weight: 700;
   color: var(--fg);
 }
-.qh-head-note {
+.qh-search {
+  display: flex;
+  flex: 1;
+  gap: 7px;
+  align-items: center;
   min-width: 0;
-  overflow: hidden;
-  font-size: 12px;
+  padding: 5px 10px;
+  background: var(--surface-hi);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-md);
+  transition: border-color 120ms ease;
+}
+.qh-search:focus-within {
+  border-color: var(--accent-line);
+}
+.qh-search-icon {
+  flex-shrink: 0;
   color: var(--faint);
-  text-overflow: ellipsis;
+}
+.qh-search-input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  color: var(--fg);
+  background: transparent;
+  border: none;
+}
+.qh-search-input::placeholder {
+  color: var(--faint);
+}
+.qh-search-count {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
   white-space: nowrap;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.qh-search-none {
+  color: var(--del);
 }
 .qh-close {
   display: grid;
@@ -68,6 +111,10 @@
   align-items: start;
   padding: 20px;
   overflow-y: auto;
+}
+.qh-grid-filtered {
+  grid-template-columns: 1fr;
+  gap: 6px;
 }
 .qh-col {
   display: flex;
@@ -123,33 +170,52 @@
   white-space: nowrap;
 }
 .qh-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
+  display: grid;
+  grid-template-columns: fit-content(50%) 1fr;
+  row-gap: 1px;
+  column-gap: 10px;
   margin: 0;
 }
 .qh-row {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  padding: 4px 0;
+  display: contents;
 }
 .qh-keys {
   display: flex;
-  flex-shrink: 0;
   gap: 4px;
+  align-items: center;
   min-width: 64px;
-  max-width: 50%;
+  padding: 4px 0;
 }
 .qh-keys .q-kbd-combo {
   flex-wrap: wrap;
 }
 .qh-label {
+  align-self: center;
   min-width: 0;
+  padding: 4px 0;
   margin: 0;
   font-size: 13px;
   color: var(--fg);
   overflow-wrap: anywhere;
+}
+.qh-blank {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  padding: 44px 20px;
+  text-align: center;
+}
+.qh-blank-line {
+  margin: 0;
+  font-size: 13px;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+.qh-blank-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--faint);
 }
 .qh-foot {
   padding: 12px 20px;
