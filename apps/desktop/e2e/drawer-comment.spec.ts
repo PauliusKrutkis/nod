@@ -77,7 +77,9 @@ test("the first click arms the confirm; leaving the button disarms it", async ({
   await expect(del).toHaveText("Delete?");
 
   await mine.getByText("Deploying to staging first.").hover();
-  await expect(del).toHaveText("Delete");
+  // Disarmed is the icon again, which carries no text of its own — the label
+  // stays on aria-label, which is how this locator still finds it.
+  await expect(del).toHaveText("");
   await expect(page.getByText("Deploying to staging first.")).toBeVisible();
 });
 
@@ -186,7 +188,7 @@ test("copy is offered on every conversation comment, not just your own", async (
 
   await theirs.hover();
   await theirs.getByRole("button", { name: "Copy comment text" }).click();
-  await expect(theirs.getByText("Copied")).toBeVisible();
+  await expect(page.getByRole("tooltip")).toContainText("Copied");
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
     "Nice direction overall."
   );

@@ -52,6 +52,7 @@ import { useReviewUnmountCleanup } from "../../hooks/use-review-unmount-cleanup.
 import { useViewedFileReconcile } from "../../hooks/use-viewed-file-reconcile.ts";
 import { api } from "../../lib/api.ts";
 import { regionFromSnapshot } from "../../lib/ask-context.ts";
+import { copyTextToClipboard } from "../../lib/clipboard.ts";
 import { cn } from "../../lib/cn.ts";
 import {
   type CapturedSelection,
@@ -812,11 +813,22 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const advanceAfterSubmit = () =>
     advanceToNextReview(owner, repo, number, goInbox);
 
+  /** The pending comment the strip's keys act on: the one just placed, if the
+   *  cursor is still armed on it, else the newest under the cursor — the same
+   *  card that shows the key hints in its tooltips. */
+  const pendingForKeys = () => {
+    const armed = armedPendingRef.current;
+    return (
+      (armed ? pending.find((p) => p.id === armed) : pendingAtCursor()) ?? null
+    );
+  };
+
   const {
     discardPendingAtCursor,
     editActiveThreadComment,
     goToComment,
     jumpToThread,
+    pendingAtCursor,
     replyToActiveThreadOrNextFile,
     resolveActiveThread,
     toggleActiveThread,
@@ -1036,6 +1048,14 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     copyLink,
     cursorMoverRefs,
     cycleFile,
+    copyPendingAtCursor: () => {
+      const target = pendingForKeys();
+      if (!target) {
+        return;
+      }
+      copyTextToClipboard(target.body);
+      setToast({ message: target.body, title: "Copied comment" });
+    },
     discardPendingAtCursor: () => {
       const armed = armedPendingRef.current;
       if (armed) {
@@ -1044,6 +1064,21 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
         return;
       }
       discardPendingAtCursor();
+    },
+    postPendingAtCursor: () => {
+      const target = pendingForKeys();
+      if (!target) {
+        return;
+      }
+      armedPendingRef.current = null;
+      listCallbacks.onPostPendingNow({
+        body: target.body,
+        id: target.id,
+        line: target.line,
+        path: target.path,
+        side: target.side,
+        startLine: target.startLine,
+      });
     },
     editActiveThreadComment: () => {
       const armed = armedPendingRef.current;

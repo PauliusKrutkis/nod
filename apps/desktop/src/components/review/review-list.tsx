@@ -520,6 +520,7 @@ function PendingCommentCard({
           ) : undefined
         }
         confirmDelete={false}
+        copyKbd={showKbd ? "shift+y" : undefined}
         deleteKbd={showKbd ? "shift+d" : undefined}
         deleteLabel="Discard"
         editKbd={showKbd ? "shift+e" : undefined}
@@ -536,6 +537,7 @@ function PendingCommentCard({
         }}
         onStartEdit={() => onEdit(comment.id)}
         pendingLabel="Pending"
+        postKbd={showKbd ? "shift+p" : undefined}
         renderMarkdown={(body: string) => (
           <Markdown highlightLine={(code) => highlightLine(code, filename)}>
             {body}

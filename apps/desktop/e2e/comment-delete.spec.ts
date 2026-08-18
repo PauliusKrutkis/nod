@@ -30,7 +30,8 @@ test("the first click arms the confirm; leaving the button disarms it", async ({
   await expect(del).toHaveText("Delete?");
 
   await mine.getByText("I will tighten this loop tomorrow.").hover();
-  await expect(del).toHaveText("Delete");
+  // Disarmed is the icon again, which carries no text of its own.
+  await expect(del).toHaveText("");
   await expect(
     mine.getByText("I will tighten this loop tomorrow.")
   ).toBeVisible();

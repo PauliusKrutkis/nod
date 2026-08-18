@@ -149,20 +149,31 @@ export function useReviewThreadActions(args: {
     );
   };
 
-  const discardPendingAtCursor = () => {
+  /** The comment block under the cursor, if the cursor is on one. */
+  const commentsItemAtCursor = () => {
     const m = args.modelRef.current;
     const cur = args.cursorRef.current;
     if (!cur) {
-      return;
+      return null;
     }
     const navIdx = m.navIndexOf.get(
       navKey(cur.fileIndex, cur.anchor, "comments")
     );
     if (navIdx === undefined) {
-      return;
+      return null;
     }
     const item = m.items[m.nav[navIdx].itemIndex];
-    if (item?.kind !== "comments") {
+    return item?.kind === "comments" ? item : null;
+  };
+
+  /** The newest pending comment under the cursor — the one whose strip shows
+   *  the keys, so every key acts on the card the reviewer can see them on. */
+  const pendingAtCursor = () => commentsItemAtCursor()?.pending.at(-1) ?? null;
+
+  const discardPendingAtCursor = () => {
+    const cur = args.cursorRef.current;
+    const item = commentsItemAtCursor();
+    if (!(cur && item)) {
       return;
     }
     const newest = item.pending.at(-1);
@@ -224,6 +235,7 @@ export function useReviewThreadActions(args: {
     discardPendingAtCursor,
     editActiveThreadComment,
     goToComment,
+    pendingAtCursor,
     jumpToThread,
     replyToActiveThreadOrNextFile,
     resolveActiveThread,

@@ -38,6 +38,7 @@ import {
   Pencil,
   Search,
   Send,
+  SendHorizontal,
   Sparkles,
   TextSearch,
   Trash2,
@@ -59,6 +60,8 @@ export function useReviewHotkeys(config: {
   commentOnPr: () => void;
   copyFilePath: () => void;
   copyLink: () => void;
+  copyPendingAtCursor: () => void;
+  postPendingAtCursor: () => void;
   cursorMoverRefs: Parameters<typeof buildCursorMover>[0];
   cycleFile: (dir: number) => void;
   editActiveThreadComment: () => void;
@@ -230,6 +233,25 @@ export function useReviewHotkeys(config: {
       icon: Pencil,
       keys: "shift+e",
       run: config.editActiveThreadComment,
+    },
+    {
+      description: "Copy comment text",
+      group: "Comments",
+      icon: Copy,
+      keys: "shift+y",
+      run: config.copyPendingAtCursor,
+    },
+    {
+      description: "Post this comment now",
+      group: "Comments",
+      icon: SendHorizontal,
+      keys: "shift+p",
+      run: (e: KeyboardEvent) => {
+        if (e.repeat) {
+          return;
+        }
+        config.postPendingAtCursor();
+      },
     },
     {
       description: "Discard pending comment",
