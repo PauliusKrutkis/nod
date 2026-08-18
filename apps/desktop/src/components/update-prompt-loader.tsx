@@ -80,9 +80,8 @@ export function UpdatePromptLoader() {
       setLicenseState(await api.activateLicense());
     } catch (e) {
       setError(String(e));
-    } finally {
-      setPurchasing(false);
     }
+    setPurchasing(false);
   };
 
   if (!update) {

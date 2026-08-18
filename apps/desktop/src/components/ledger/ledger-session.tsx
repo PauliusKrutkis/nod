@@ -173,7 +173,7 @@ export function LedgerSession({
     cursorRef.current = cursor;
   });
 
-  const mover = buildCursorMover({
+  const cursorMoverRefs = {
     activeIndexRef,
     activeThreadRef,
     cursorRafRef,
@@ -187,7 +187,7 @@ export function LedgerSession({
     setActiveIndex,
     setCursor,
     setInputMode,
-  });
+  };
 
   const placeCursor = (fileIndex: number, anchor: string) => {
     setInputMode("keyboard");
@@ -216,6 +216,7 @@ export function LedgerSession({
     placedRef.current = true;
     const at = initialAnchorFor(files, model, initialTarget);
     if (at) {
+      // react-doctor-disable-next-line react-hooks-js/set-state-in-effect -- landing the cursor needs the built model and a mounted list to center against, so it cannot be derived before render; the placedRef guard keeps it to once per payload
       placeCursor(at.fileIndex, at.anchor);
       const itemIndex = model.anchorItem.get(
         fileAnchorKey(at.fileIndex, at.anchor)
@@ -279,9 +280,8 @@ export function LedgerSession({
       onExit();
     } catch (e) {
       setToast({ message: String(e), title: "Approval failed" });
-    } finally {
-      setApproving(false);
     }
+    setApproving(false);
   };
 
   const sign = async () => {
@@ -303,9 +303,8 @@ export function LedgerSession({
       onSigned(current.target);
     } catch (e) {
       setToast({ message: String(e), title: "Signing failed" });
-    } finally {
-      setSigning(false);
     }
+    setSigning(false);
   };
 
   const scrollPage = (dir: 1 | -1) => {
@@ -398,13 +397,13 @@ export function LedgerSession({
       description: "Next line",
       group: "Session",
       keys: ["j", "down"],
-      run: (e) => mover.move(1, e.repeat),
+      run: (e) => buildCursorMover(cursorMoverRefs).move(1, e.repeat),
     },
     {
       description: "Previous line",
       group: "Session",
       keys: ["k", "up"],
-      run: (e) => mover.move(-1, e.repeat),
+      run: (e) => buildCursorMover(cursorMoverRefs).move(-1, e.repeat),
     },
     {
       description: "Page down",
