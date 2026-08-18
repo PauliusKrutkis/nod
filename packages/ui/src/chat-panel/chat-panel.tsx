@@ -47,6 +47,7 @@ import { CannedSuggestions } from "../canned-suggestions/canned-suggestions.tsx"
 import {
   ChatComposer,
   type ChatComposerHandle,
+  type ChatComposerPiece,
   type ChatPart,
 } from "../chat-composer/chat-composer.tsx";
 import { cn } from "../cn/cn.ts";
@@ -152,6 +153,8 @@ export interface ChatPanelProps {
   /** Reveal an inline chip's lines in the diff. Pasted code has no lines to
    *  point at, so the composer only calls this for a region chip. */
   onRevealRegion?: (region: ChatRegionChip) => void;
+  /** A draft to seed the composer with, once, on mount. */
+  composerDraft?: readonly ChatComposerPiece[];
   onSend: () => void;
   onSkillChange?: (names: string[]) => void;
   onSlashQuery?: (query: string | null) => void;
@@ -512,6 +515,7 @@ function ThreadBar({
 }
 
 export function ChatPanel({
+  composerDraft,
   composerRef,
   contextNote = null,
   onComposerChange,
@@ -709,6 +713,7 @@ export function ChatPanel({
         <div className="qch-composer">
           <div className="qch-field">
             <ChatComposer
+              initialPieces={composerDraft}
               onChange={onComposerChange}
               onEscape={onEscape}
               onKeyDown={onComposerKeyDown}

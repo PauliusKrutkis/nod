@@ -47,7 +47,16 @@ export interface ChatComposerHandle {
   skills: () => string[];
 }
 
+/** One piece of a seeded draft: prose, attached code, or an invoked skill,
+ *  in the order they sit in the field. */
+export type ChatComposerPiece = ChatPart | { kind: "skill"; name: string };
+
 export interface ChatComposerProps {
+  /** A draft to start from — the composer stays uncontrolled, this only
+   *  seeds the field once on mount, the way `initialMarkdown` seeds the
+   *  comment composer. It is what lets a fixture (or a restored draft) show
+   *  a field with chips in it. */
+  initialPieces?: readonly ChatComposerPiece[];
   onChange?: (text: string) => void;
   onEscape?: () => void;
   onKeyDown?: (e: KeyboardEvent<HTMLDivElement>) => boolean;
@@ -351,6 +360,7 @@ function insertAtCaret(root: HTMLElement, node: Node) {
 }
 
 export function ChatComposer({
+  initialPieces,
   onChange,
   onEscape,
   onKeyDown,
@@ -363,6 +373,7 @@ export function ChatComposer({
 }: ChatComposerProps) {
   const fieldRef = useRef<HTMLDivElement>(null);
   const onSkillChangeRef = useLatest(onSkillChange);
+  const seededRef = useRef(false);
   const onSlashQueryRef = useLatest(onSlashQuery);
 
   /** What the caret is typing, if it is typing a slash command. */
@@ -389,6 +400,26 @@ export function ChatComposer({
   const report = (el: HTMLElement | null) => {
     onChange?.(el?.textContent ?? "");
     onSlashQueryRef.current?.(slashAtCaret());
+  };
+
+  /** Builds the seeded draft once. A ref callback rather than an effect: the
+   *  field has to carry its content the first time it paints, or a
+   *  screenshot catches the empty frame. */
+  const attachField = (el: HTMLDivElement | null) => {
+    fieldRef.current = el;
+    if (!el || seededRef.current || !initialPieces?.length) {
+      return;
+    }
+    seededRef.current = true;
+    for (const piece of initialPieces) {
+      if (piece.kind === "text") {
+        el.append(document.createTextNode(piece.text));
+      } else if (piece.kind === "code") {
+        el.append(chipElement(piece.region), document.createTextNode(" "));
+      } else {
+        el.append(skillElement(piece.name), document.createTextNode(" "));
+      }
+    }
   };
 
   useImperativeHandle(ref, () => ({
@@ -532,7 +563,7 @@ export function ChatComposer({
       onKeyDown={handleKeyDown}
       onKeyUp={() => onSlashQueryRef.current?.(slashAtCaret())}
       onPaste={handlePaste}
-      ref={fieldRef}
+      ref={attachField}
       role="textbox"
       spellCheck={false}
       suppressContentEditableWarning
