@@ -132,7 +132,17 @@ export function useReviewSubmitActions(args: {
     args.advanceAfterSubmit();
     args.submitReview
       .mutateAsync(payload)
-      .then(() => args.clearPendingComments(args.keyValue))
+      .then((res) => {
+        if (res.queued) {
+          args.setToast({
+            message:
+              "You're offline. The review is staged and sends only when you press send once the connection returns.",
+            title: "Review staged",
+          });
+          return;
+        }
+        args.clearPendingComments(args.keyValue);
+      })
       .catch((e) => {
         args.setFlash(
           `Review for ${args.owner}/${args.repo}#${args.number} didn't submit. Your comments are still pending. ${String(e)}`

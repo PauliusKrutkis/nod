@@ -8,6 +8,7 @@ mod http;
 mod ledger;
 mod license;
 mod model;
+mod offline;
 mod platform;
 #[allow(dead_code)]
 mod snapshot;
@@ -138,6 +139,10 @@ pub fn run() {
             commands::search_repo_content,
             commands::get_viewed_map,
             commands::set_viewed_map,
+            offline::connectivity_status,
+            offline::queue_write,
+            offline::discard_queued,
+            offline::replay_queue,
             update::check_for_update,
             update::install_update,
             update::get_app_version,

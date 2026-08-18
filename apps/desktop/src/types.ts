@@ -167,6 +167,64 @@ export type ViewedFileMap = Record<string, string>;
 
 export type ViewedMap = Record<string, ViewedFileMap>;
 
+export type QueueVerb =
+  | {
+      kind: "comment";
+      body: string;
+      commitId: string;
+      path: string;
+      line: number;
+      side: string;
+      startLine?: number | null;
+    }
+  | { kind: "reply"; body: string; inReplyTo: number }
+  | { kind: "resolve"; threadId: string; resolved: boolean }
+  | { kind: "issueComment"; body: string }
+  | {
+      kind: "submitReview";
+      event: string;
+      body: string;
+      commitId: string;
+      comments: {
+        path: string;
+        line: number;
+        side: string;
+        body: string;
+        startLine?: number | null;
+      }[];
+    };
+
+/** A write made while offline, held in the Rust queue. `state` is "queued"
+ *  until a replay either lands it (it leaves the queue), finds nothing to do
+ *  (it leaves too), or fails, which keeps the item with `failure` set so its
+ *  text is never lost. */
+export interface QueuedWrite {
+  createdAt: number;
+  failure: string | null;
+  id: string;
+  number: number;
+  owner: string;
+  repo: string;
+  state: "queued" | "failed";
+  verb: QueueVerb;
+}
+
+export interface ConnectivityInfo {
+  online: boolean;
+  queue: QueuedWrite[];
+}
+
+export interface ReplayedItem {
+  item: QueuedWrite;
+  outcome: "landed" | "nothingToDo" | "failed";
+  reason: string | null;
+}
+
+export interface ReplayReport {
+  attempted: ReplayedItem[];
+  wentOffline: boolean;
+}
+
 export interface RepoHit {
   description: string;
   fullName: string;
