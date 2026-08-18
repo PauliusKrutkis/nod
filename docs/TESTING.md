@@ -128,12 +128,24 @@ produces a perfectly clean baseline of the wrong thing.
 Runs `blocking: warning` over `apps/desktop`, scoped to the branch's changes,
 so a **warning** fails the PR. Two consequences worth knowing:
 
-- Reproduce it with `npx react-doctor@latest --scope changed --no-cache`
-  from `apps/desktop`. The version matters: the repo pins 0.7.1 as a
-  devDependency and the action pulls `@latest`, so `pnpm exec react-doctor`
-  runs a rule set the gate does not have. So does `--no-cache` — the scan
-  caches under `node_modules/.cache/react-doctor` and a stale entry will
-  report a clean run over code that fails in CI.
+- Reproducing it takes three things, and missing any one of them scores a
+  different codebase than the gate does:
+
+  ```sh
+  W=$(mktemp -d) && git ls-files -z | tar --null -T - -cf - | (cd "$W" && tar xf -)
+  cd "$W/apps/desktop" && npx react-doctor@latest --project '*' --no-cache
+  ```
+
+  **A tree with no `node_modules`** — the workflow checks out and runs the
+  action without ever installing, so the CLI cannot resolve React and falls
+  back to `react-hooks-js`, a heuristic plugin that never fires when
+  dependencies are present. This is the big one: scanning the working copy
+  reports a *different set of rules*, not a subset, and it is why the gate can
+  sit at 72/100 while a local run says 92. **The version** — the repo pins
+  0.7.1 as a devDependency while the action pulls `@latest`, so
+  `pnpm exec react-doctor` runs a rule set the gate does not have. And
+  **`--no-cache`** — the scan caches under `node_modules/.cache/react-doctor`,
+  and a stale entry will report a clean run over code that fails in CI.
 - `react-doctor-disable-next-line` covers exactly the next line, and "the
   line" is the one the finding is REPORTED on: for `exhaustive-deps` that is
   the dependency array, not the `useEffect(`. Inserting anything between a

@@ -41,9 +41,8 @@ export function PurchasePromptLoader() {
       setLicenseState(await api.activateLicense());
     } catch (e) {
       setError(String(e));
-    } finally {
-      setPurchasing(false);
     }
+    setPurchasing(false);
   };
 
   return (

@@ -15,8 +15,9 @@
  * it. The last opened repo (nod:ledgerLastRepo:v1) short-circuits straight
  * to its queue on return visits. Status derivation runs the repo's own
  * ledger CLI through Rust — a full blame pass, so a cold load takes seconds
- * and the spinner says what it is waiting on. Selection clamps after every
- * refetch because signing shrinks the group list under the cursor.
+ * and the spinner says what it is waiting on. Selection clamps at read rather
+ * than in an effect, because signing shrinks the group list under the cursor
+ * and a clamping effect would cost a second render on every refetch.
  */
 import { InboxZero } from "@nod/ui/inbox-zero";
 import { Kbd } from "@nod/ui/kbd";
@@ -115,7 +116,7 @@ export function Ledger() {
   const goInbox = useAppStore((s) => s.goInbox);
   const [view, setView] = useState<LedgerView>(initialView);
   const [paths, setPaths] = useState(loadRepoPaths);
-  const [selected, setSelected] = useState(0);
+  const [selectedIndex, setSelected] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
 
   const watched = useQuery({
@@ -135,9 +136,11 @@ export function Ledger() {
 
   const activeCount = view.kind === "queue" ? groups.length : repos.length;
 
-  useEffect(() => {
-    setSelected((s) => Math.max(0, Math.min(s, activeCount - 1)));
-  }, [activeCount]);
+  // Signing a region shrinks the queue under the cursor, so the stored index
+  // can outrun the list. Clamping at read keeps the selection in range without
+  // the extra render an effect would cost; the movement keys write back the
+  // clamped value, so the raw index never drifts past what was on screen.
+  const selected = Math.max(0, Math.min(selectedIndex, activeCount - 1));
 
   useEffect(() => {
     listRef.current
@@ -199,14 +202,14 @@ export function Ledger() {
       group: "Queue",
       icon: ArrowDown,
       keys: ["j", "down"],
-      run: () => setSelected((s) => Math.min(s + 1, activeCount - 1)),
+      run: () => setSelected(Math.min(selected + 1, activeCount - 1)),
     },
     {
       description: "Previous",
       group: "Queue",
       icon: ArrowUp,
       keys: ["k", "up"],
-      run: () => setSelected((s) => Math.max(s - 1, 0)),
+      run: () => setSelected(Math.max(selected - 1, 0)),
     },
     {
       description: view.kind === "pick" ? "Open repository" : "Open session",
