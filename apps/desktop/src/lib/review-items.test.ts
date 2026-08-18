@@ -9,6 +9,7 @@ import {
   clampFastStep,
   fileAnchorKey,
   navKey,
+  withoutResolvedThreads,
 } from "./review-items.ts";
 
 const PATCH = `@@ -1,4 +1,4 @@
@@ -461,5 +462,76 @@ describe("armedThreadAt", () => {
 
     expect(m.commentItems).toHaveLength(1);
     expect(armedThreadAt(m, [LONG_FILE], m.commentItems[0])).toBeNull();
+  });
+});
+
+describe("withoutResolvedThreads", () => {
+  it("drops a resolved root and its replies, and counts it once per file", () => {
+    const input = [
+      comment({ id: 1, resolved: true, threadId: "t1" }),
+      comment({
+        body: "fixed in 9de693c",
+        id: 2,
+        inReplyToId: 1,
+        resolved: true,
+        threadId: "t1",
+      }),
+      comment({ id: 3, threadId: "t2" }),
+    ];
+
+    const { comments, hiddenByPath } = withoutResolvedThreads(input);
+
+    expect(comments.map((c) => c.id)).toEqual([3]);
+    expect(hiddenByPath.get("src/retry.ts")).toBe(1);
+  });
+
+  it("never drops an unresolved thread, even when a reply says resolved", () => {
+    const input = [
+      comment({ id: 1, resolved: false, threadId: "t1" }),
+      comment({
+        id: 2,
+        inReplyToId: 1,
+        resolved: true,
+        threadId: "t1",
+      }),
+    ];
+
+    const { comments, hiddenByPath } = withoutResolvedThreads(input);
+
+    expect(comments.map((c) => c.id)).toEqual([1, 2]);
+    expect(hiddenByPath.size).toBe(0);
+  });
+
+  it("counts per file so each header owns its own number", () => {
+    const input = [
+      comment({ id: 1, resolved: true, threadId: "t1" }),
+      comment({
+        id: 2,
+        path: "src/other.ts",
+        resolved: true,
+        threadId: "t2",
+      }),
+      comment({
+        id: 3,
+        path: "src/other.ts",
+        resolved: true,
+        threadId: "t3",
+      }),
+    ];
+
+    const { comments, hiddenByPath } = withoutResolvedThreads(input);
+
+    expect(comments).toHaveLength(0);
+    expect(hiddenByPath.get("src/retry.ts")).toBe(1);
+    expect(hiddenByPath.get("src/other.ts")).toBe(2);
+  });
+
+  it("returns everything untouched when nothing is resolved", () => {
+    const input = [comment({ id: 1 }), comment({ id: 2, inReplyToId: 1 })];
+
+    const { comments, hiddenByPath } = withoutResolvedThreads(input);
+
+    expect(comments).toHaveLength(2);
+    expect(hiddenByPath.size).toBe(0);
   });
 });

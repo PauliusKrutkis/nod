@@ -47,6 +47,7 @@ export function ReviewDiffPane({
   findSafeIndex,
   flashKey,
   headSha,
+  hiddenResolved,
   initialMem,
   inputMode,
   listCallbacks,
@@ -92,6 +93,7 @@ export function ReviewDiffPane({
   findSafeIndex: number;
   flashKey: string | null;
   headSha: string;
+  hiddenResolved?: ListProps["hiddenResolved"];
   initialMem: ReturnType<typeof getReviewMemory>;
   inputMode: ListProps["inputMode"];
   listCallbacks: ListProps["callbacks"];
@@ -153,6 +155,7 @@ export function ReviewDiffPane({
           findCurrent={findCurrent}
           flashKey={flashKey}
           headSha={headSha}
+          hiddenResolved={hiddenResolved}
           initialFileIndex={initialMem?.fileIndex ?? 0}
           inputMode={inputMode}
           marks={marks}

@@ -107,11 +107,14 @@ export interface DrawerReview {
 
 export interface DrawerInlineComment {
   body: string;
+  createdAt: string;
   id: number;
   inReplyToId: number | null;
   line: number | null;
   path: string;
   resolved: boolean;
+  user: string;
+  userAvatarUrl: string;
 }
 
 export interface PrDrawerCallbacks {
@@ -314,12 +317,15 @@ export function PrDrawer({
   const threads: ThreadIndexRow[] = inlineComments
     .filter((c) => c.inReplyToId === null)
     .map((root) => ({
+      createdAt: root.createdAt,
       id: root.id,
       line: root.line,
       path: root.path,
       replyCount: replyCounts.get(root.id) ?? 0,
       resolved: root.resolved,
       snippet: firstLine(root.body),
+      user: root.user,
+      userAvatarUrl: root.userAvatarUrl,
     }));
 
   const handleAddComment = (text: string) => {

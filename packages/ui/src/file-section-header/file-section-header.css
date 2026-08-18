@@ -95,7 +95,8 @@ button.qf-fsec-copy {
   color: var(--add);
 }
 
-.qf-updated-chip {
+.qf-updated-chip,
+.qf-hidden-resolved-chip {
   flex-shrink: 0;
   padding: 3px 6px;
   font-family: var(--font-mono);

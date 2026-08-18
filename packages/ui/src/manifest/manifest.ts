@@ -304,6 +304,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "crowd",
       "expanded",
       "expanding",
+      "hidden-resolved",
       "markup-as-text",
       "minimal",
       "no-extension",

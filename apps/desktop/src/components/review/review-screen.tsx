@@ -81,6 +81,7 @@ import {
   fileAnchorKey,
   navKey,
   type ReviewListModel,
+  withoutResolvedThreads,
 } from "../../lib/review-items.ts";
 import {
   getReviewMemory,
@@ -147,6 +148,27 @@ const EMPTY_COMMENTS: ReviewComment[] = [];
 const EMPTY_PENDING: PendingComment[] = [];
 const EMPTY_OCC: OccurrenceMatch[] = [];
 const EMPTY_COLLAPSED: ReadonlyMap<number, ReadonlySet<number>> = new Map();
+const EMPTY_HIDDEN_RESOLVED: ReadonlyMap<string, number> = new Map();
+
+function groupVisibleComments(
+  comments: readonly ReviewComment[],
+  hideResolved: boolean
+): {
+  byFile: Map<string, ReviewComment[]>;
+  hiddenByFile: ReadonlyMap<string, number>;
+} {
+  if (!hideResolved) {
+    return {
+      byFile: buildCommentsByFile(comments),
+      hiddenByFile: EMPTY_HIDDEN_RESOLVED,
+    };
+  }
+  const filtered = withoutResolvedThreads(comments);
+  return {
+    byFile: buildCommentsByFile(filtered.comments),
+    hiddenByFile: filtered.hiddenByPath,
+  };
+}
 
 function applyLineSelection(args: {
   anchor: string;
@@ -384,6 +406,8 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const clearPendingComments = useAppStore((s) => s.clearPendingComments);
   const setFlash = useAppStore((s) => s.setFlash);
   const setToast = useAppStore((s) => s.setToast);
+  const hideResolved = useAppStore((s) => s.hideResolvedThreads);
+  const toggleHideResolved = useAppStore((s) => s.toggleHideResolvedThreads);
   const activeLogin = useAppStore(
     (s) => s.accounts.find((a) => a.id === s.activeAccountId)?.login
   );
@@ -440,9 +464,8 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     detail?.comments ?? EMPTY_COMMENTS
   );
 
-  const commentsByFile = buildCommentsByFile(
-    detail?.comments ?? EMPTY_COMMENTS
-  );
+  const { byFile: commentsByFile, hiddenByFile: hiddenResolvedByFile } =
+    groupVisibleComments(detail?.comments ?? EMPTY_COMMENTS, hideResolved);
   const pendingByFile = buildPendingByFile(pending);
 
   const rawCursorRef = useLatest(cursor);
@@ -1078,6 +1101,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     sidebarOverlayOpenRef,
     toggleActiveThread,
     toggleChat: onToggleChat,
+    toggleHideResolved,
     toggleInfoPanel: onToggleRightPanel,
     toggleFullFile: () => toggleExpandHeld(activeIndexRef.current),
     toggleSidebar: onToggleSidebar,
@@ -1167,6 +1191,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
           findSafeIndex={findSafeIndex}
           flashKey={flashKey}
           headSha={pr.headSha}
+          hiddenResolved={hiddenResolvedByFile}
           initialMem={initialMem}
           inputMode={inputMode}
           listCallbacks={{

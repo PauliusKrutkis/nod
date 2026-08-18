@@ -185,6 +185,7 @@ interface ReviewListProps {
   findCurrent: FindCurrent | null;
   flashKey: string | null;
   headSha: string;
+  hiddenResolved?: ReadonlyMap<string, number>;
   initialFileIndex?: number;
   inputMode: "keyboard" | "mouse";
   marks: MarkSpec | null;
@@ -734,6 +735,7 @@ function GroupHeader({
     copiedPathIndex,
     expandedFiles,
     expandingFiles,
+    hiddenResolved,
     callbacks,
   } = ctx.props;
   const { push } = ctx;
@@ -772,6 +774,7 @@ function GroupHeader({
       expanding={expandingFiles.has(file.filename)}
       fileIndex={groupIndex}
       filename={file.filename}
+      hiddenResolved={hiddenResolved?.get(file.filename) ?? 0}
       leadRef={setLead}
       onCopyPath={handleCopyPath}
       onToggleExpand={handleToggleExpand}

@@ -43,6 +43,7 @@ export interface FileSectionHeaderProps {
   expanding?: boolean;
   fileIndex: number;
   filename: string;
+  hiddenResolved?: number;
   leadRef?: Ref<HTMLSpanElement>;
   onCopyPath?: () => void;
   onToggleExpand?: () => void;
@@ -64,6 +65,7 @@ export function FileSectionHeader({
   expanding = false,
   fileIndex,
   filename,
+  hiddenResolved = 0,
   leadRef,
   onCopyPath,
   onToggleExpand,
@@ -112,6 +114,14 @@ export function FileSectionHeader({
           title="Changed since you marked it viewed"
         >
           updated
+        </span>
+      )}
+      {hiddenResolved > 0 && (
+        <span
+          className="qf-hidden-resolved-chip"
+          title="Resolved threads are hidden · shift+z shows them"
+        >
+          {hiddenResolved} resolved hidden
         </span>
       )}
       <span className="qf-filebar-stat">

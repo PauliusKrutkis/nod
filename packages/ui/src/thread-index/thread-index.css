@@ -3,12 +3,15 @@
    resolved tick. The section heading and its count are names under this
    component's own prefix, because the drawer's other headings (.qf-drawer-h,
    .qf-drawer-count) belong to pr-drawer and travel in its sheet: one class,
-   one owner.
+   one owner. The author and time values mirror comment-item's pair without
+   importing its sheet, for the same reason.
 
    The section carries no bottom margin: it is always the drawer's last
-   section, and the space above it comes from the section before. The path
-   inside a row is laid out rtl so the ellipsis eats the directory prefix
-   rather than the file name. */
+   section, and the space above it comes from the section before. The snippet
+   and the location chip indent by the avatar column (20px + 8px gap) so the
+   text block aligns under the author, matching the conversation rows above.
+   The path inside the chip is laid out rtl so the ellipsis eats the directory
+   prefix rather than the file name. */
 
 .qf-threadindex-h {
   display: flex;
@@ -40,7 +43,7 @@
 .qf-thread-row {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   width: 100%;
   min-width: 0;
   padding: 8px 11px;
@@ -60,14 +63,65 @@
   border-color: var(--accent-line);
 }
 
+.qf-thread-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.qf-thread-author {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--fg);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qf-thread-time {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--faint);
+}
+
+.qf-thread-check {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--add);
+}
+
+.qf-thread-snip {
+  min-width: 0;
+  padding-left: 28px;
+  overflow: hidden;
+  font-size: 12.5px;
+  color: var(--fg);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .qf-thread-loc {
   display: flex;
   gap: 6px;
   align-items: baseline;
   min-width: 0;
+  padding-left: 28px;
+}
+
+.qf-thread-chip {
+  display: inline-flex;
+  align-items: baseline;
+  min-width: 0;
+  padding: 2px 7px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--muted);
+  background: var(--surface-hi);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
 }
 
 .qf-thread-path {
@@ -84,22 +138,10 @@
   color: var(--faint);
 }
 
-.qf-thread-check {
-  flex-shrink: 0;
-  color: var(--add);
-}
-
 .qf-thread-replies {
   flex-shrink: 0;
   margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
   color: var(--accent);
-}
-
-.qf-thread-snip {
-  min-width: 0;
-  overflow: hidden;
-  font-size: 12.5px;
-  color: var(--fg);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
