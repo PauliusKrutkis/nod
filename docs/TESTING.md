@@ -128,13 +128,31 @@ produces a perfectly clean baseline of the wrong thing.
 Runs `blocking: warning` over `apps/desktop`, scoped to the branch's changes,
 so a **warning** fails the PR. Two consequences worth knowing:
 
-- Reproduce it with `pnpm exec react-doctor --scope changed` from
-  `apps/desktop` — the repo root has no binary and a full-project scan
-  reports pre-existing findings the gate ignores.
-- `react-doctor-disable-next-line` covers exactly the next line. Inserting
-  anything between a suppression and the declaration it was written for
-  silently un-suppresses a pre-existing finding, and the PR that inserted it
-  gets the blame.
+- Reproduce it with `npx react-doctor@latest --scope changed --no-cache`
+  from `apps/desktop`. The version matters: the repo pins 0.7.1 as a
+  devDependency and the action pulls `@latest`, so `pnpm exec react-doctor`
+  runs a rule set the gate does not have. So does `--no-cache` — the scan
+  caches under `node_modules/.cache/react-doctor` and a stale entry will
+  report a clean run over code that fails in CI.
+- `react-doctor-disable-next-line` covers exactly the next line, and "the
+  line" is the one the finding is REPORTED on: for `exhaustive-deps` that is
+  the dependency array, not the `useEffect(`. Inserting anything between a
+  suppression and its line silently un-suppresses a pre-existing finding, and
+  the PR that inserted it gets the blame.
+
+## Running the gates locally
+
+Every gate here has a command, and the failure mode is running something
+adjacent to it instead:
+
+- **Check exit codes, not output.** `ultracite check` prints a file-level
+  formatting error as `path/to/file.ts format` with no line or column, so a
+  grep for `file:line:col` reports "no problems" while the gate fails.
+- **Run the package's own scripts.** `apps/web` keeps a second tsconfig for
+  its Pages functions (`typecheck:functions`) that the root `pnpm typecheck`
+  never sees — among other things it forbids the `.ts` import extension the
+  desktop app requires.
+- **Match CI's tool versions**, per React Doctor above.
 
 ## Marketing site (`apps/web`)
 

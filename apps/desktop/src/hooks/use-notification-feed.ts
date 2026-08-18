@@ -52,6 +52,26 @@ function isOpenOnScreen(route: Route, event: StoredNotification): boolean {
   );
 }
 
+/** Clears the announcement without acting on it. */
+function dismiss() {
+  useNotificationStore.getState().setAnnouncement(null);
+}
+
+/** Opens the announced PR: marks the event read and seen, then routes. */
+function open() {
+  const store = useNotificationStore.getState();
+  const current = store.announcement;
+  if (!current) {
+    return;
+  }
+  const { event } = current;
+  store.setAnnouncement(null);
+  store.markRead(event.id);
+  const app = useAppStore.getState();
+  app.markSeen(event.prKey, event.createdAt);
+  app.openReview(event.owner, event.name, event.number);
+}
+
 export function useNotificationFeed() {
   const { data } = useInbox();
   const announcement = useNotificationStore((s) => s.announcement);
@@ -94,24 +114,6 @@ export function useNotificationFeed() {
     );
     return () => window.clearTimeout(t);
   }, [announcement]);
-
-  const dismiss = () => {
-    useNotificationStore.getState().setAnnouncement(null);
-  };
-
-  const open = () => {
-    const store = useNotificationStore.getState();
-    const current = store.announcement;
-    if (!current) {
-      return;
-    }
-    const { event } = current;
-    store.setAnnouncement(null);
-    store.markRead(event.id);
-    const app = useAppStore.getState();
-    app.markSeen(event.prKey, event.createdAt);
-    app.openReview(event.owner, event.name, event.number);
-  };
 
   return { announcement, dismiss, open };
 }

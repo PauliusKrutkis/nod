@@ -324,6 +324,7 @@ export function KeyboardProvider({ children }: { children: ReactNode }) {
   };
 
   return (
+    // react-doctor-disable-next-line context-provider-value-from-unmemoized-local-literal -- babel-plugin-react-compiler is on for this app (vite.config.ts) and caches this literal; a hand-written useMemo would trip react-compiler-no-manual-memoization instead
     <KeyboardContext.Provider value={value}>
       {children}
     </KeyboardContext.Provider>

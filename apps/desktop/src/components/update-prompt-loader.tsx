@@ -31,6 +31,10 @@ import { queryKeys } from "../lib/query-client.ts";
 const RECHECK_MS = 4 * 60 * 60 * 1000;
 const FOCUS_STALE_MS = 30 * 60 * 1000;
 const PRICE = "$59";
+function openDownloads() {
+  openUrl(DOWNLOADS_URL).catch(() => undefined);
+}
+
 const DOWNLOADS_URL = "https://nodreview.com/downloads";
 
 export function UpdatePromptLoader() {
@@ -79,10 +83,6 @@ export function UpdatePromptLoader() {
     } finally {
       setPurchasing(false);
     }
-  };
-
-  const openDownloads = () => {
-    openUrl(DOWNLOADS_URL).catch(() => undefined);
   };
 
   if (!update) {

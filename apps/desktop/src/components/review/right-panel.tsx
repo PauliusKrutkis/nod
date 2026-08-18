@@ -65,6 +65,14 @@ interface RightPanelProps {
   tab: "info" | "chat";
 }
 
+/** Focus lands back on the diff's scroll host when the panel closes, so the
+ *  Esc ladder keeps working from wherever the reviewer was. */
+function focusScrollHost() {
+  document
+    .querySelector<HTMLElement>(".qf-scrollhost")
+    ?.focus({ preventScroll: true });
+}
+
 export function RightPanel({
   ref,
   chatFocusSeq,
@@ -102,12 +110,6 @@ export function RightPanel({
       {body}
     </Markdown>
   );
-
-  const focusScrollHost = () => {
-    document
-      .querySelector<HTMLElement>(".qf-scrollhost")
-      ?.focus({ preventScroll: true });
-  };
 
   return (
     <RightDock
