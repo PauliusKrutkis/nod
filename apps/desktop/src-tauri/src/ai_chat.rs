@@ -5,8 +5,12 @@
 //! over three events keyed `{chatId, turnId}` — `ai-chat-delta` for content,
 //! `ai-chat-tool` for tool activity, and (later) `ai-chat-proposal` for
 //! suggested comments. The ask machinery in `ai.rs` is reused whole: the
-//! same tool loop over the repo snapshot, the same 4xx-round-0 degradation
-//! to tools-off, the same round guard. `ai_chat_cancel` flags a chat id in
+//! same tool loop over the repo snapshot, the same round-0 degradation to
+//! tools-off (narrowed here to the 400/422 that mean "this request may not
+//! carry tools" — a 429 retried without them wins the race and answers
+//! ungrounded), the same round guard. A refused thinking level is dropped
+//! ahead of either, because a gateway that will not route the request says
+//! so with the same 429 it uses for a full pool. `ai_chat_cancel` flags a chat id in
 //! managed state; the stream checks the flag between chunks and rounds and
 //! returns the benign `cancelled` error, which is a stop button, not a
 //! failure. History is trimmed oldest-first past a character budget so a
@@ -147,8 +151,15 @@ produces findings, STAGE each one with propose_comment rather than asking \
 which to stage: staging is not posting — every suggestion appears in the diff \
 as a pending comment the reviewer accepts or discards, and that IS the \
 confirmation step, even when the skill's own instructions say to confirm \
-before acting. side is LEFT for deleted lines and RIGHT for added or \
-unchanged lines, and the line numbers must fall inside the diff.";
+before acting. Stage them BEFORE you write the report, not after: a written \
+report can use up the reply budget before a single comment is staged, and a \
+finding you described but never staged is one the reviewer has to copy across \
+by hand. When a skill's output format asks for a long write-up, stage every \
+finding first, then keep the writing short and let the staged comments carry \
+the detail. A finding about a file the diff does not touch cannot be staged, \
+so write those in the answer and say why. side is LEFT for deleted lines and \
+RIGHT for added or unchanged lines, and the line numbers must fall inside the \
+diff.";
 
 fn chat_system_prompt(snapshot_ready: bool, skills: bool, proposals: bool, diffs: bool) -> String {
     let mut parts = vec![CHAT_SYSTEM_BASE];
@@ -1215,6 +1226,91 @@ fn empty_answer(message: &Value) -> String {
     format!("The model stopped without answering (the provider said: {reason}).")
 }
 
+/// Whether a failure reads like the route refusing the request's shape
+/// rather than refusing the reviewer.
+///
+/// Nexos answers a request carrying a parameter its chosen provider does not
+/// take with `429 {"code":102200,"message":"All providers are rate limited"}`
+/// — the same status and wording it uses when the pool really is exhausted.
+/// Probed 2026-08-18: Claude Sonnet 5 routes to vertex-ai, which refuses
+/// `reasoning_effort` on every request, in 100ms, at any level; Sonnet 4.5
+/// routes to anthropic and takes it. An invented `banana_split` parameter
+/// draws the identical 429, which is what proves it is the request shape and
+/// not the account.
+fn route_refused(error: &str) -> bool {
+    let status = error
+        .strip_prefix("AI provider error (")
+        .and_then(|rest| rest.split(')').next())
+        .and_then(|code| code.parse::<u16>().ok());
+    matches!(status, Some(400 | 422 | 429))
+}
+
+/// An answer whose thinking level was dropped to get a reply at all says so,
+/// because the popover still reads "medium" and would otherwise be lying.
+fn note_if_effort_dropped(dropped: bool, answer: String) -> String {
+    if !dropped {
+        return answer;
+    }
+    format!(
+        "{answer}\n\n---\n\n**This model would not take a thinking level, so it ran \
+without one.** The provider refused every request carrying one and reported it \
+as a rate limit. The answer is otherwise a normal answer; set Thinking back to \
+Default for this model to skip the failed first attempt."
+    )
+}
+
+/// Whether a failed first round is worth retrying with the tools taken off.
+/// The ladder exists for providers that reject a request carrying `tools` at
+/// all, which they answer with 400 or 422. A rate limit, an expired key or a
+/// forbidden model is not that: the retry cannot fix it, so it spends a
+/// second call on the same refusal — and against a rate-limited gateway that
+/// second call is the one that might win, answering with no repo access, no
+/// skills and nothing staged, without ever saying so.
+fn retry_without_tools(error: &str) -> bool {
+    let status = error
+        .strip_prefix("AI provider error (")
+        .and_then(|rest| rest.split(')').next())
+        .and_then(|code| code.parse::<u16>().ok());
+    matches!(status, Some(400 | 422))
+}
+
+/// An answer that came back only after the tools were dropped says so. It
+/// reads like any other answer otherwise, and "no files were read" is the
+/// difference between a grounded review and a guess.
+fn note_if_toolless(dropped: bool, answer: String) -> String {
+    if !dropped {
+        return answer;
+    }
+    format!(
+        "{answer}\n\n---\n\n**This answer was written without repo access.** The \
+provider rejected the request while it carried tools, so it ran again without \
+them: no files were read, no skill ran, and nothing could be staged as a \
+comment. Treat it as ungrounded, and try again if the provider was only \
+having a bad minute."
+    )
+}
+
+/// A reply cut off by the output budget still has text worth showing, so it
+/// is shown — with a line saying it was cut. Without one a review that
+/// stopped mid-sentence reads as a finished review, and the findings the
+/// model never got to look like findings it did not have.
+fn note_if_truncated(message: &Value, answer: String) -> String {
+    let truncated = message
+        .get("finish_reason")
+        .and_then(Value::as_str)
+        .is_some_and(|reason| reason == "length");
+    if !truncated {
+        return answer;
+    }
+    format!(
+        "{answer}\n\n---\n\n**This answer stopped at the model's output budget.** \
+Whatever it had not written yet is missing, including comments it had not \
+staged. Thinking models spend the same budget on thought, so a long skill can \
+run out before the first comment is staged. Ask for the rest, narrow the \
+request, or run the skill over fewer files."
+    )
+}
+
 /// Validates and, when valid, emits the proposal to the webview to stage.
 /// Either way the return is the tool result the model reads.
 fn run_propose_comment(
@@ -1308,6 +1404,11 @@ pub async fn ai_chat(
     let client = ai::ask_client()?;
     let url = format!("{}/v1/chat/completions", config.base_url);
     let mut tools_enabled = snapshot.is_some() || proposals || has_diffs;
+    let mut tools_dropped = false;
+    // The reviewer's thinking level, and whether a route refused it. Dropped
+    // at most once per turn: a second failure is the provider's, not ours.
+    let mut effort_sent = effort.clone();
+    let mut effort_dropped = false;
     let mut rounds = 0;
     // Set once, after a round that produced neither text nor a tool call.
     let mut forced_text = false;
@@ -1345,7 +1446,7 @@ pub async fn ai_chat(
         // reasoning applies it to every round, including the ones that just
         // read two files, and sending nothing leaves that choice where it
         // already lives.
-        if let Some(level) = effort.as_deref().filter(|e| !e.trim().is_empty()) {
+        if let Some(level) = effort_sent.as_deref().filter(|e| !e.trim().is_empty()) {
             body["reasoning_effort"] = serde_json::json!(level);
         }
         if tools_enabled {
@@ -1405,10 +1506,17 @@ pub async fn ai_chat(
                 state.clear(&chat_id);
                 return Err(error);
             }
-            Err(error)
-                if tools_enabled && rounds == 0 && error.starts_with("AI provider error (4") =>
-            {
+            // Tried before the tools ladder: a refused thinking level fails
+            // every round, not just the first, and dropping the parameter the
+            // route actually named beats dropping the repo access it did not.
+            Err(error) if effort_sent.is_some() && route_refused(&error) => {
+                effort_sent = None;
+                effort_dropped = true;
+                continue;
+            }
+            Err(error) if tools_enabled && rounds == 0 && retry_without_tools(&error) => {
                 tools_enabled = false;
+                tools_dropped = true;
                 continue;
             }
             Err(error) => return Err(error),
@@ -1435,7 +1543,10 @@ pub async fn ai_chat(
         ));
         if calls.is_empty() || !tools_enabled {
             if let Some(answer) = ai::message_answer(&message_value) {
-                return Ok(answer);
+                return Ok(note_if_effort_dropped(
+                    effort_dropped,
+                    note_if_toolless(tools_dropped, note_if_truncated(&message_value, answer)),
+                ));
             }
             // A round that ends with neither text nor a tool call is a model
             // that has finished reading and not started writing — a thinking

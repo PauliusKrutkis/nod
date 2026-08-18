@@ -1,8 +1,9 @@
 use super::{
     build_chat_turn, builtin_skill_body, builtin_skills, chat_system_prompt, chat_tools,
     discover_personal_skills, discover_skills, empty_answer, execute_read_diff, execute_skill_tool,
-    format_ranges, frontmatter_description, history_messages, merge_skills, parse_proposal,
-    read_personal_skill, read_skill_body, resolve_skill_body, safe_source, skill_instructions,
+    format_ranges, frontmatter_description, history_messages, merge_skills, note_if_effort_dropped,
+    note_if_toolless, note_if_truncated, parse_proposal, read_personal_skill, read_skill_body,
+    resolve_skill_body, retry_without_tools, route_refused, safe_source, skill_instructions,
     skill_name_from_path, tool_note, validate_proposal, ChatCancels, ChatDelta, ChatDiffFile,
     ChatPart, ChatProposal, ChatRegion, ChatToolNote, ChatTurn, CommentableSide, SkillInfo,
 };
@@ -863,6 +864,134 @@ fn an_empty_answer_says_whether_the_budget_ran_out() {
         empty_answer(&odd).contains("content_filter"),
         "got {}",
         empty_answer(&odd)
+    );
+}
+
+#[test]
+fn a_route_that_refuses_the_request_shape_is_told_apart_by_status() {
+    // Probed against Nexos on 2026-08-18: a parameter the chosen provider
+    // does not take comes back as 429 "All providers are rate limited", the
+    // same wording as a genuinely full pool. Sonnet 5 refuses
+    // reasoning_effort this way; so does an invented parameter, which is what
+    // proves it is the shape and not the account.
+    for status in [400, 422, 429] {
+        assert!(
+            route_refused(&format!(
+                "AI provider error ({status}): All providers are rate limited"
+            )),
+            "should drop the thinking level on {status}"
+        );
+    }
+
+    // A key problem is not a shape problem, and neither is a dead upstream.
+    for status in [401, 403, 500, 503] {
+        assert!(
+            !route_refused(&format!("AI provider error ({status}): nope")),
+            "should not drop the thinking level on {status}"
+        );
+    }
+    assert!(!route_refused("could not reach the AI provider"));
+}
+
+#[test]
+fn an_answer_that_lost_its_thinking_level_says_so() {
+    let noted = note_if_effort_dropped(true, "Here is the answer.".to_string());
+    assert!(noted.starts_with("Here is the answer."));
+    assert!(
+        noted.contains("would not take a thinking level"),
+        "got {noted}"
+    );
+    assert_eq!(note_if_effort_dropped(false, "plain".to_string()), "plain");
+}
+
+#[test]
+fn only_a_refused_request_shape_retries_without_tools() {
+    // 400 and 422 are how a provider says "this request may not carry
+    // tools", which is the whole reason the ladder exists.
+    for status in [400, 422] {
+        assert!(
+            retry_without_tools(&format!("AI provider error ({status}): tools unsupported")),
+            "should degrade on {status}"
+        );
+    }
+
+    // 429 is the one that made this a bug: a rate limit retried a millisecond
+    // later either fails again or, worse, succeeds with no repo access at
+    // all. A bad or forbidden key cannot be fixed by dropping tools either.
+    for status in [401, 403, 408, 429] {
+        assert!(
+            !retry_without_tools(&format!(
+                "AI provider error ({status}): All providers are rate limited"
+            )),
+            "should not degrade on {status}"
+        );
+    }
+
+    // 5xx retries elsewhere, and anything that is not a provider error at all
+    // (a socket that died, a cancel) must not be read as one.
+    assert!(!retry_without_tools("AI provider error (503): upstream"));
+    assert!(!retry_without_tools("could not reach the AI provider"));
+    assert!(!retry_without_tools(crate::ai::CANCELLED));
+}
+
+#[test]
+fn an_answer_written_without_tools_admits_it() {
+    let noted = note_if_toolless(true, "Looks fine to me.".to_string());
+    assert!(noted.starts_with("Looks fine to me."));
+    assert!(noted.contains("without repo access"), "got {noted}");
+    assert!(noted.contains("nothing could be staged"), "got {noted}");
+
+    assert_eq!(note_if_toolless(false, "grounded".to_string()), "grounded");
+}
+
+#[test]
+fn an_answer_cut_off_by_the_budget_says_so() {
+    // The failure this covers: a review skill wrote 1889 characters, stopped
+    // mid-sentence at the budget, staged nothing, and the app showed it as a
+    // finished answer with no error. The text is still worth showing; the
+    // reader just has to know it stopped.
+    let cut = json!({ "content": "report", "finish_reason": "length" });
+    let noted = note_if_truncated(&cut, "## Findings\n1. ...".to_string());
+    assert!(
+        noted.starts_with("## Findings"),
+        "keeps the answer: {noted}"
+    );
+    assert!(noted.contains("output budget"), "got {noted}");
+    assert!(
+        noted.contains("had not staged"),
+        "says what else is missing: {noted}"
+    );
+
+    // A normal answer is passed through untouched — a note on every reply
+    // would train the reader to ignore it.
+    for reason in ["stop", ""] {
+        let done = json!({ "content": "report", "finish_reason": reason });
+        assert_eq!(note_if_truncated(&done, "done".to_string()), "done");
+    }
+    assert_eq!(note_if_truncated(&json!({}), "done".to_string()), "done");
+}
+
+#[test]
+fn the_proposal_rule_puts_staging_before_the_write_up() {
+    // A skill whose output format demands a long report will spend the reply
+    // budget on prose unless the order is explicit, which is how ten findings
+    // reached the reviewer as text and zero as comments.
+    let prompt = chat_system_prompt(true, true, true, true);
+    assert!(
+        prompt.contains("BEFORE you write the report"),
+        "got {prompt}"
+    );
+    assert!(prompt.contains("keep the writing short"), "got {prompt}");
+    assert!(
+        prompt.contains("the diff does not touch"),
+        "tells it what to do with an unstageable finding: {prompt}"
+    );
+
+    // And none of it is sent when there is nowhere to anchor a comment.
+    let no_proposals = chat_system_prompt(true, true, false, true);
+    assert!(
+        !no_proposals.contains("propose_comment"),
+        "got {no_proposals}"
     );
 }
 

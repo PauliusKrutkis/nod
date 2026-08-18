@@ -296,6 +296,35 @@ turns past an input budget, and three events come back keyed
 aborts an in-flight turn — a stop button, not an error. History persists per PR
 (`nod:chatHistory:v1`), same keying as pending comments.
 
+**A 429 from Nexos does not mean you are rate limited.** Probed 2026-08-18
+after "medium thinking fails, Default works": `429 {"code":102200,"message":
+"All providers are rate limited"}` is also what the gateway returns when the
+provider it routed to will not accept a parameter in the body. Claude Sonnet
+5 routes to `vertex-ai`, which refuses `reasoning_effort` at every level, in
+about 100ms; Sonnet 4.5 routes to `anthropic` and accepts it. An invented
+`banana_split` parameter draws the identical error, which is what proves it
+is the request shape rather than the account — a real limit does not
+discriminate by parameter, and does not answer in 100ms.
+
+So the thinking level is now dropped and retried once when a route refuses
+it, and the answer says it ran without one. `reasoning: {effort}` and
+`thinking: {budget_tokens}` are both *accepted* on that route and produce no
+reasoning tokens at all, so translating the parameter would buy a control
+that silently does nothing — worse than one that honestly says it was
+refused. Opus 5 was refusing every request, thinking level or not, on the day
+this was probed; that one is capacity, and looks the same from here.
+
+**The degradation ladder only catches 400 and 422** (narrowed 2026-08-18,
+dogfooding). It exists for providers that reject a request carrying `tools` at
+all, and it was matching every 4xx — including the 429 a pooled gateway
+returns when it is out of capacity. A rate limit read as "this provider has no
+tools" fires a second call a millisecond later, into the same limit. Losing
+that race gives the reviewer the 429 twice as fast; winning it is worse, and
+that is the case the narrowing is really for: an answer with no files read, no
+skill run and nothing staged, indistinguishable from a grounded one. When the
+ladder does fire, the answer now says it ran without repo access. Auth
+failures never degrade either — dropping tools cannot fix a key.
+
 ### Suggested comments are pending comments (revised 2026-08-16, owner)
 
 The model may stage findings via a `propose_comment` tool. Rust validates each
@@ -402,6 +431,22 @@ nothing), low, medium, high. Default is honest — a gateway configured for
 deep reasoning applies it to every round, including the ones that only read
 two files, and that is where the minutes went; sending `reasoning_effort`
 only when asked leaves the choice where it already lives.
+
+**The completion budget is shared with thought, and that is what breaks
+staging** (found dogfooding v0.8.0, MR with ten findings). A thinking model
+spent the final round's 8000 tokens reasoning and writing, and the answer
+stopped mid-sentence at 1889 characters with nothing staged: eight minutes,
+fourteen reads, ten findings, zero comments. Two things were wrong. The
+reply was shown as a finished answer — `empty_answer` speaks only when there
+is no text at all, so a *truncated* one arrived silently, which is the worst
+version of this failure because a review that stops mid-sentence still reads
+like a review. It now carries a line saying it was cut and that comments it
+had not staged are missing. And the order was wrong: a skill whose output
+format demands a long write-up spends the budget on prose, so the system
+prompt now says to stage every finding *before* writing and keep the writing
+short. Findings arriving as comments rather than as prose to transcribe is
+the whole thesis of this surface; a report the reviewer has to copy across by
+hand is the failure it exists to remove.
 
 Two more things keep a skill run from being a drip-feed of round-trips. A
 turn that invokes a skill carries the full (capped) diff with it — a review
