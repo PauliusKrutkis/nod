@@ -8,7 +8,9 @@
 //! same tool loop over the repo snapshot, the same round-0 degradation to
 //! tools-off (narrowed here to the 400/422 that mean "this request may not
 //! carry tools" — a 429 retried without them wins the race and answers
-//! ungrounded), the same round guard. `ai_chat_cancel` flags a chat id in
+//! ungrounded), the same round guard. A refused thinking level is dropped
+//! ahead of either, because a gateway that will not route the request says
+//! so with the same 429 it uses for a full pool. `ai_chat_cancel` flags a chat id in
 //! managed state; the stream checks the flag between chunks and rounds and
 //! returns the benign `cancelled` error, which is a stop button, not a
 //! failure. History is trimmed oldest-first past a character budget so a
@@ -1224,6 +1226,39 @@ fn empty_answer(message: &Value) -> String {
     format!("The model stopped without answering (the provider said: {reason}).")
 }
 
+/// Whether a failure reads like the route refusing the request's shape
+/// rather than refusing the reviewer.
+///
+/// Nexos answers a request carrying a parameter its chosen provider does not
+/// take with `429 {"code":102200,"message":"All providers are rate limited"}`
+/// — the same status and wording it uses when the pool really is exhausted.
+/// Probed 2026-08-18: Claude Sonnet 5 routes to vertex-ai, which refuses
+/// `reasoning_effort` on every request, in 100ms, at any level; Sonnet 4.5
+/// routes to anthropic and takes it. An invented `banana_split` parameter
+/// draws the identical 429, which is what proves it is the request shape and
+/// not the account.
+fn route_refused(error: &str) -> bool {
+    let status = error
+        .strip_prefix("AI provider error (")
+        .and_then(|rest| rest.split(')').next())
+        .and_then(|code| code.parse::<u16>().ok());
+    matches!(status, Some(400 | 422 | 429))
+}
+
+/// An answer whose thinking level was dropped to get a reply at all says so,
+/// because the popover still reads "medium" and would otherwise be lying.
+fn note_if_effort_dropped(dropped: bool, answer: String) -> String {
+    if !dropped {
+        return answer;
+    }
+    format!(
+        "{answer}\n\n---\n\n**This model would not take a thinking level, so it ran \
+without one.** The provider refused every request carrying one and reported it \
+as a rate limit. The answer is otherwise a normal answer; set Thinking back to \
+Default for this model to skip the failed first attempt."
+    )
+}
+
 /// Whether a failed first round is worth retrying with the tools taken off.
 /// The ladder exists for providers that reject a request carrying `tools` at
 /// all, which they answer with 400 or 422. A rate limit, an expired key or a
@@ -1370,6 +1405,10 @@ pub async fn ai_chat(
     let url = format!("{}/v1/chat/completions", config.base_url);
     let mut tools_enabled = snapshot.is_some() || proposals || has_diffs;
     let mut tools_dropped = false;
+    // The reviewer's thinking level, and whether a route refused it. Dropped
+    // at most once per turn: a second failure is the provider's, not ours.
+    let mut effort_sent = effort.clone();
+    let mut effort_dropped = false;
     let mut rounds = 0;
     // Set once, after a round that produced neither text nor a tool call.
     let mut forced_text = false;
@@ -1407,7 +1446,7 @@ pub async fn ai_chat(
         // reasoning applies it to every round, including the ones that just
         // read two files, and sending nothing leaves that choice where it
         // already lives.
-        if let Some(level) = effort.as_deref().filter(|e| !e.trim().is_empty()) {
+        if let Some(level) = effort_sent.as_deref().filter(|e| !e.trim().is_empty()) {
             body["reasoning_effort"] = serde_json::json!(level);
         }
         if tools_enabled {
@@ -1467,6 +1506,14 @@ pub async fn ai_chat(
                 state.clear(&chat_id);
                 return Err(error);
             }
+            // Tried before the tools ladder: a refused thinking level fails
+            // every round, not just the first, and dropping the parameter the
+            // route actually named beats dropping the repo access it did not.
+            Err(error) if effort_sent.is_some() && route_refused(&error) => {
+                effort_sent = None;
+                effort_dropped = true;
+                continue;
+            }
             Err(error) if tools_enabled && rounds == 0 && retry_without_tools(&error) => {
                 tools_enabled = false;
                 tools_dropped = true;
@@ -1496,9 +1543,9 @@ pub async fn ai_chat(
         ));
         if calls.is_empty() || !tools_enabled {
             if let Some(answer) = ai::message_answer(&message_value) {
-                return Ok(note_if_toolless(
-                    tools_dropped,
-                    note_if_truncated(&message_value, answer),
+                return Ok(note_if_effort_dropped(
+                    effort_dropped,
+                    note_if_toolless(tools_dropped, note_if_truncated(&message_value, answer)),
                 ));
             }
             // A round that ends with neither text nor a tool call is a model

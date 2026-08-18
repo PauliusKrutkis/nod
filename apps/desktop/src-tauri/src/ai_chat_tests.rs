@@ -1,11 +1,11 @@
 use super::{
     build_chat_turn, builtin_skill_body, builtin_skills, chat_system_prompt, chat_tools,
     discover_personal_skills, discover_skills, empty_answer, execute_read_diff, execute_skill_tool,
-    format_ranges, frontmatter_description, history_messages, merge_skills, note_if_toolless,
-    note_if_truncated, parse_proposal, read_personal_skill, read_skill_body, resolve_skill_body,
-    retry_without_tools, safe_source, skill_instructions, skill_name_from_path, tool_note,
-    validate_proposal, ChatCancels, ChatDelta, ChatDiffFile, ChatPart, ChatProposal, ChatRegion,
-    ChatToolNote, ChatTurn, CommentableSide, SkillInfo,
+    format_ranges, frontmatter_description, history_messages, merge_skills, note_if_effort_dropped,
+    note_if_toolless, note_if_truncated, parse_proposal, read_personal_skill, read_skill_body,
+    resolve_skill_body, retry_without_tools, route_refused, safe_source, skill_instructions,
+    skill_name_from_path, tool_note, validate_proposal, ChatCancels, ChatDelta, ChatDiffFile,
+    ChatPart, ChatProposal, ChatRegion, ChatToolNote, ChatTurn, CommentableSide, SkillInfo,
 };
 use crate::ai::AskContext;
 use crate::snapshot::store::{partial_dir, promote, SnapshotKey};
@@ -865,6 +865,43 @@ fn an_empty_answer_says_whether_the_budget_ran_out() {
         "got {}",
         empty_answer(&odd)
     );
+}
+
+#[test]
+fn a_route_that_refuses_the_request_shape_is_told_apart_by_status() {
+    // Probed against Nexos on 2026-08-18: a parameter the chosen provider
+    // does not take comes back as 429 "All providers are rate limited", the
+    // same wording as a genuinely full pool. Sonnet 5 refuses
+    // reasoning_effort this way; so does an invented parameter, which is what
+    // proves it is the shape and not the account.
+    for status in [400, 422, 429] {
+        assert!(
+            route_refused(&format!(
+                "AI provider error ({status}): All providers are rate limited"
+            )),
+            "should drop the thinking level on {status}"
+        );
+    }
+
+    // A key problem is not a shape problem, and neither is a dead upstream.
+    for status in [401, 403, 500, 503] {
+        assert!(
+            !route_refused(&format!("AI provider error ({status}): nope")),
+            "should not drop the thinking level on {status}"
+        );
+    }
+    assert!(!route_refused("could not reach the AI provider"));
+}
+
+#[test]
+fn an_answer_that_lost_its_thinking_level_says_so() {
+    let noted = note_if_effort_dropped(true, "Here is the answer.".to_string());
+    assert!(noted.starts_with("Here is the answer."));
+    assert!(
+        noted.contains("would not take a thinking level"),
+        "got {noted}"
+    );
+    assert_eq!(note_if_effort_dropped(false, "plain".to_string()), "plain");
 }
 
 #[test]

@@ -296,6 +296,24 @@ turns past an input budget, and three events come back keyed
 aborts an in-flight turn — a stop button, not an error. History persists per PR
 (`nod:chatHistory:v1`), same keying as pending comments.
 
+**A 429 from Nexos does not mean you are rate limited.** Probed 2026-08-18
+after "medium thinking fails, Default works": `429 {"code":102200,"message":
+"All providers are rate limited"}` is also what the gateway returns when the
+provider it routed to will not accept a parameter in the body. Claude Sonnet
+5 routes to `vertex-ai`, which refuses `reasoning_effort` at every level, in
+about 100ms; Sonnet 4.5 routes to `anthropic` and accepts it. An invented
+`banana_split` parameter draws the identical error, which is what proves it
+is the request shape rather than the account — a real limit does not
+discriminate by parameter, and does not answer in 100ms.
+
+So the thinking level is now dropped and retried once when a route refuses
+it, and the answer says it ran without one. `reasoning: {effort}` and
+`thinking: {budget_tokens}` are both *accepted* on that route and produce no
+reasoning tokens at all, so translating the parameter would buy a control
+that silently does nothing — worse than one that honestly says it was
+refused. Opus 5 was refusing every request, thinking level or not, on the day
+this was probed; that one is capacity, and looks the same from here.
+
 **The degradation ladder only catches 400 and 422** (narrowed 2026-08-18,
 dogfooding). It exists for providers that reject a request carrying `tools` at
 all, and it was matching every 4xx — including the 429 a pooled gateway
