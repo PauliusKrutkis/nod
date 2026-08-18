@@ -49,7 +49,9 @@ jobs:
             try {
               report = JSON.parse(readFileSync(path, "utf8"));
             } catch {
-              appendFileSync(process.env.GITHUB_STEP_SUMMARY, "React Doctor: no machine-readable report to list.\n");
+              const miss = "React Doctor: no machine-readable report to list.\n";
+              appendFileSync(process.env.GITHUB_STEP_SUMMARY, miss);
+              process.stdout.write(miss);
               process.exit(0);
             }
             const rows = report.diagnostics ?? [];
@@ -63,6 +65,8 @@ jobs:
               "| --- | --- | --- | --- |",
               ...rows.map((d) => `| ${d.severity} | ${d.plugin ?? "react-doctor"}/${d.rule} | ${d.id.split("::")[0]} | ${d.line} |`),
             ];
-            appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join("\n")}\n`);
+            const table = `${lines.join("\n")}\n`;
+            appendFileSync(process.env.GITHUB_STEP_SUMMARY, table);
+            process.stdout.write(table);
           '
 
