@@ -30,3 +30,39 @@ jobs:
         with:
           blocking: warning
           directory: apps/desktop
+      # The action publishes counts — a commit status reading "5 errors" and a
+      # job summary — but not which findings they are, so nobody can act on
+      # the number without rerunning the scan by hand. This lists them, with
+      # the same flags the action uses, into the job summary. It never fails
+      # the job: the action above owns the verdict.
+      - name: List the findings behind the score
+        if: always()
+        working-directory: apps/desktop
+        run: |
+          npx --yes react-doctor@latest --project '*' --json --json-compact \
+            > "${RUNNER_TEMP}/react-doctor.json" || true
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            import { appendFileSync } from "node:fs";
+            const path = `${process.env.RUNNER_TEMP}/react-doctor.json`;
+            let report;
+            try {
+              report = JSON.parse(readFileSync(path, "utf8"));
+            } catch {
+              appendFileSync(process.env.GITHUB_STEP_SUMMARY, "React Doctor: no machine-readable report to list.\n");
+              process.exit(0);
+            }
+            const rows = report.diagnostics ?? [];
+            const s = report.summary ?? {};
+            const lines = [
+              `### React Doctor findings`,
+              "",
+              `score ${s.score ?? "?"} · ${s.errorCount ?? 0} errors · ${s.warningCount ?? 0} warnings · ${rows.length} diagnostics`,
+              "",
+              "| severity | rule | file | line |",
+              "| --- | --- | --- | --- |",
+              ...rows.map((d) => `| ${d.severity} | ${d.plugin ?? "react-doctor"}/${d.rule} | ${d.id.split("::")[0]} | ${d.line} |`),
+            ];
+            appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join("\n")}\n`);
+          '
+
