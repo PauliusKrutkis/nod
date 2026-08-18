@@ -637,6 +637,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "merged",
       "minimal",
       "overflow",
+      "stacked",
       "unicode",
       "unknown-state",
     ],
