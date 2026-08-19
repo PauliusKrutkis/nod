@@ -84,6 +84,20 @@ pub struct ChatProposal {
     pub body: String,
 }
 
+/// Sent once, the first time a model's route refuses a thinking level.
+///
+/// Whether a model accepts one cannot be known before asking: the provider's
+/// model list carries no capability field, and the platform it runs on does
+/// not predict it either — probed 2026-08-19, Claude Sonnet 5 refuses while
+/// Gemini 3 Flash, on the same Vertex platform, accepts. So the first refusal
+/// is the answer, and the webview keeps it against the model id.
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ChatEffortUnsupported {
+    chat_id: String,
+    model: String,
+}
+
 /// Chat ids whose in-flight turn should stop. A cancel outlives nothing: the
 /// flag is cleared when the turn notices it, and a new turn clears any stale
 /// flag on entry, so stopping an idle chat is a no-op.
@@ -1245,20 +1259,6 @@ fn route_refused(error: &str) -> bool {
     matches!(status, Some(400 | 422 | 429))
 }
 
-/// An answer whose thinking level was dropped to get a reply at all says so,
-/// because the popover still reads "medium" and would otherwise be lying.
-fn note_if_effort_dropped(dropped: bool, answer: String) -> String {
-    if !dropped {
-        return answer;
-    }
-    format!(
-        "{answer}\n\n---\n\n**This model would not take a thinking level, so it ran \
-without one.** The provider refused every request carrying one and reported it \
-as a rate limit. The answer is otherwise a normal answer; set Thinking back to \
-Default for this model to skip the failed first attempt."
-    )
-}
-
 /// Whether a failed first round is worth retrying with the tools taken off.
 /// The ladder exists for providers that reject a request carrying `tools` at
 /// all, which they answer with 400 or 422. A rate limit, an expired key or a
@@ -1405,10 +1405,9 @@ pub async fn ai_chat(
     let url = format!("{}/v1/chat/completions", config.base_url);
     let mut tools_enabled = snapshot.is_some() || proposals || has_diffs;
     let mut tools_dropped = false;
-    // The reviewer's thinking level, and whether a route refused it. Dropped
-    // at most once per turn: a second failure is the provider's, not ours.
+    // The reviewer's thinking level. Dropped at most once per turn: a second
+    // failure is the provider's, not ours.
     let mut effort_sent = effort.clone();
-    let mut effort_dropped = false;
     let mut rounds = 0;
     // Set once, after a round that produced neither text nor a tool call.
     let mut forced_text = false;
@@ -1511,7 +1510,16 @@ pub async fn ai_chat(
             // route actually named beats dropping the repo access it did not.
             Err(error) if effort_sent.is_some() && route_refused(&error) => {
                 effort_sent = None;
-                effort_dropped = true;
+                // The webview remembers this against the model and stops
+                // offering a thinking level for it, so the wasted first
+                // attempt happens once per model rather than once per turn.
+                let _ = app.emit(
+                    "ai-chat-effort-unsupported",
+                    ChatEffortUnsupported {
+                        chat_id: chat_id.clone(),
+                        model: model.clone(),
+                    },
+                );
                 continue;
             }
             Err(error) if tools_enabled && rounds == 0 && retry_without_tools(&error) => {
@@ -1543,9 +1551,9 @@ pub async fn ai_chat(
         ));
         if calls.is_empty() || !tools_enabled {
             if let Some(answer) = ai::message_answer(&message_value) {
-                return Ok(note_if_effort_dropped(
-                    effort_dropped,
-                    note_if_toolless(tools_dropped, note_if_truncated(&message_value, answer)),
+                return Ok(note_if_toolless(
+                    tools_dropped,
+                    note_if_truncated(&message_value, answer),
                 ));
             }
             // A round that ends with neither text nor a tool call is a model
@@ -1679,6 +1687,85 @@ pub async fn ai_chat(
 pub async fn ai_chat_cancel(state: State<'_, ChatCancels>, chat_id: String) -> Result<(), String> {
     state.request(&chat_id);
     Ok(())
+}
+
+const TITLE_SYSTEM: &str = "Name this pull-request review conversation in three \
+to six words, as a noun phrase a reviewer would recognise in a list. No \
+quotes, no trailing period, no prefix like \"Chat about\". Reply with the \
+title and nothing else.";
+
+/// How much of the exchange the namer reads. A title comes from the subject,
+/// which is established early; sending the whole thread would cost tokens to
+/// re-read a report the reviewer has already had.
+const TITLE_INPUT_CHARS: usize = 1500;
+
+/// The name at the top of a thread, written by the model.
+///
+/// The first version of this derived a title from the reviewer's own first
+/// line, on the reasoning that a label is not worth a model call. Dogfooding
+/// disagreed: a send that is only a skill, or only attached code, has no first
+/// line to take, and those are exactly the sends worth finding again later.
+/// This runs once per thread, off the first exchange, with no tools and a
+/// budget that cannot fund anything but a title. Failure is not an error —
+/// the caller keeps the derived name.
+#[tauri::command]
+pub async fn ai_chat_title(
+    app: AppHandle,
+    question: String,
+    answer: String,
+    model: Option<String>,
+) -> Result<String, String> {
+    let config = ai::load(&app)?.ok_or_else(|| "AI is not configured".to_string())?;
+    let model = model
+        .filter(|m| !m.trim().is_empty())
+        .or(config.model)
+        .ok_or_else(|| "Choose a model in AI settings first".to_string())?;
+    let mut exchange = format!("Reviewer:\n{question}\n\nAssistant:\n{answer}");
+    exchange.truncate(
+        exchange
+            .char_indices()
+            .map(|(i, _)| i)
+            .take_while(|i| *i <= TITLE_INPUT_CHARS)
+            .last()
+            .unwrap_or(0),
+    );
+    let body = serde_json::json!({
+        "model": model,
+        "messages": [
+            { "role": "system", "content": TITLE_SYSTEM },
+            { "role": "user", "content": exchange },
+        ],
+        "max_completion_tokens": 24,
+    });
+    let client = ai::ask_client()?;
+    let url = format!("{}/v1/chat/completions", config.base_url);
+    let value = ai::post_chat(&client, &url, &config.api_key, &body).await?;
+    let title = value
+        .pointer("/choices/0/message/content")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .map(|t| t.trim_matches('"').trim())
+        .unwrap_or_default()
+        .to_string();
+    if title.is_empty() {
+        return Err("the model returned no title".to_string());
+    }
+    Ok(clip_title(&title))
+}
+
+/// One line, short enough for the thread list. A model that ignores the word
+/// budget should cost the reader a truncated title, not a wrapped sidebar.
+fn clip_title(raw: &str) -> String {
+    let line = raw.lines().next().unwrap_or(raw).trim();
+    let mut out = String::new();
+    for (count, ch) in line.chars().enumerate() {
+        if count >= 48 {
+            out.push('…');
+            break;
+        }
+        out.push(ch);
+    }
+    out
 }
 
 #[cfg(test)]

@@ -57,6 +57,11 @@ export const api = {
     effort: string | null;
   }) => invoke<string>("ai_chat", args),
   aiChatCancel: (chatId: string) => invoke<void>("ai_chat_cancel", { chatId }),
+  aiChatTitle: (args: {
+    question: string;
+    answer: string;
+    model: string | null;
+  }) => invoke<string>("ai_chat_title", args),
   aiComplete: (args: {
     prefix: string;
     context: { filePath?: string; code?: string };

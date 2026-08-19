@@ -30,6 +30,11 @@ import "./model-picker.css";
 export interface ChatEffortState {
   current: string | null;
   onPick: (effort: string | null) => void;
+  /** False once this model's route has refused a thinking level. Whether one
+   *  is accepted cannot be known before asking — no capability field exists,
+   *  and the platform does not predict it — so the row is offered until a
+   *  refusal teaches otherwise, then says so instead of failing every turn. */
+  supported?: boolean;
 }
 
 const EFFORT_LEVELS = ["low", "medium", "high"] as const;
@@ -132,29 +137,33 @@ export function ModelPicker({
       {effort && (
         <div className="qmp-effort">
           <span className="qmp-effort-label">Thinking</span>
-          <div className="qmp-effort-opts">
-            <button
-              aria-pressed={effort.current === null}
-              className="qmp-effort-opt q-focus"
-              onClick={() => effort.onPick(null)}
-              onMouseDown={preventFocusLoss}
-              type="button"
-            >
-              Default
-            </button>
-            {EFFORT_LEVELS.map((level) => (
+          {effort.supported === false ? (
+            <span className="qmp-effort-none">not accepted by this model</span>
+          ) : (
+            <div className="qmp-effort-opts">
               <button
-                aria-pressed={effort.current === level}
+                aria-pressed={effort.current === null}
                 className="qmp-effort-opt q-focus"
-                key={level}
-                onClick={() => effort.onPick(level)}
+                onClick={() => effort.onPick(null)}
                 onMouseDown={preventFocusLoss}
                 type="button"
               >
-                {level}
+                Default
               </button>
-            ))}
-          </div>
+              {EFFORT_LEVELS.map((level) => (
+                <button
+                  aria-pressed={effort.current === level}
+                  className="qmp-effort-opt q-focus"
+                  key={level}
+                  onClick={() => effort.onPick(level)}
+                  onMouseDown={preventFocusLoss}
+                  type="button"
+                >
+                  {level}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
       <div className="qmp-field">

@@ -254,6 +254,10 @@ export interface ChatDiff {
 
 export interface ChatThread {
   id: string;
+  /** The model's name for the thread, written once off the first exchange.
+   *  Absent until it arrives, and absent forever if the call failed — the
+   *  reader falls back to the message the thread opened with. */
+  title?: string;
   turns: ChatTurnRecord[];
 }
 
