@@ -13,6 +13,14 @@
  * untouched, which is what keeps a keystroke in the find bar from rebuilding
  * every rendered row's code. The find-perf spec pins that by counting
  * mutated `.qf-code` elements.
+ *
+ * The optional `delta` prop carries the changes-since-your-review mode
+ * (delta-review.ts): per-file classification for row dimming, plus the badge
+ * every file header shows while the list is a subset. Null everywhere but the
+ * review screen, which renders the ordinary full diff. Dimming reaches the row
+ * as DiffRow's `dimmed` boolean rather than a wrapper element, so the mode
+ * costs no extra DOM in a virtualized list and stays a primitive prop the
+ * memoization boundary above can compare.
  */
 
 import { AddCommentBox } from "@nod/ui/add-comment-box";
@@ -178,12 +186,6 @@ interface ReviewListProps {
   changedSinceViewed: ReadonlySet<string>;
   copiedPathIndex: number | null;
   cursorKey: string | null;
-  /**
-   * The changes-since-your-review mode, when active: per-file classification
-   * for row dimming plus the badge every file header shows while the list is
-   * a subset. Null (the default everywhere but the review screen) renders the
-   * ordinary full diff.
-   */
   delta?: {
     badge: { label: string; title: string };
     files: ReadonlyMap<string, DeltaFileState>;
@@ -329,6 +331,7 @@ function DiffLine({
   filename,
   active,
   commentable,
+  dimmed,
   selected,
   selectionEnd,
   flash,
@@ -350,6 +353,7 @@ function DiffLine({
   filename: string;
   active: boolean;
   commentable: boolean;
+  dimmed: boolean;
   selected: boolean;
   selectionEnd: boolean;
   flash: boolean;
@@ -374,6 +378,7 @@ function DiffLine({
       active={active}
       anchor={anchor}
       canComment={commentable && item.target !== null}
+      dimmed={dimmed}
       fileIndex={fileIndex}
       flash={flash}
       guideLvl={guideLvl}
@@ -960,12 +965,11 @@ function renderRowItem(
     index >= sel.fromItem &&
     index <= sel.toItem;
 
-  const deltaDimmed = rowDeltaDimmed(p.delta, file.filename, item.anchor);
-
-  const line = (
+  return (
     <DiffLine
       active={key !== null && key === p.cursorKey}
       commentable={p.capabilities?.comment ?? true}
+      dimmed={rowDeltaDimmed(p.delta, file.filename, item.anchor)}
       filename={file.filename}
       findOrdinal={findOrdinal}
       flash={key !== null && key === p.flashKey}
@@ -986,7 +990,6 @@ function renderRowItem(
       startsInComment={meta.commentByRow.get(item.row) ?? false}
     />
   );
-  return deltaDimmed ? <div className="qf-delta-dim">{line}</div> : line;
 }
 
 function renderAskAnswer(text: string) {

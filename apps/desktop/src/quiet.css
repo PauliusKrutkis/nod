@@ -472,7 +472,7 @@ textarea.q-input {
 /* Changes-since-your-review mode: already-reviewed rows dim as a whole (text
    and wash together), and a file that did not move folds to one band whose
    only job is to undo itself. */
-.dir-quiet .qf-delta-dim {
+.dir-quiet .qf-row-dimmed {
   opacity: 0.45;
 }
 .dir-quiet .qf-delta-fold {

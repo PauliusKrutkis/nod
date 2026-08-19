@@ -4,6 +4,8 @@
  * localStorage like the review memory: local-only, loaded once, written
  * through a module cache. Saving prunes to the newest MAX_PRS entries by
  * submission time so a year of reviewing cannot grow the key without bound.
+ * The cache loads once at import, so tests reload it through
+ * resetDeltaSnapshotCache after writing the key themselves.
  */
 
 import type { DeltaSnapshot } from "./delta-review.ts";
@@ -13,14 +15,20 @@ const MAX_PRS = 40;
 
 function loadAll(): Record<string, DeltaSnapshot> {
   try {
-    const v = JSON.parse(localStorage.getItem(KEY) ?? "{}");
-    return v && typeof v === "object" && !Array.isArray(v) ? v : {};
+    const parsed = JSON.parse(localStorage.getItem(KEY) ?? "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed
+      : {};
   } catch {
     return {};
   }
 }
 
-const cache: Record<string, DeltaSnapshot> = loadAll();
+let cache: Record<string, DeltaSnapshot> = loadAll();
+
+export function resetDeltaSnapshotCache(): void {
+  cache = loadAll();
+}
 
 function persist() {
   try {

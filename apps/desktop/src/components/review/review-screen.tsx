@@ -14,7 +14,7 @@ import { treeOrder } from "@nod/ui/file-tree";
 import { useEdgeResize } from "@nod/ui/use-edge-resize";
 import { useLatest } from "@nod/ui/use-latest";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   askModelInput,
   nudgeAskIntoView,
@@ -105,6 +105,7 @@ import type {
   ChatRegion,
   PendingComment,
   PullRequest,
+  PullRequestDetail,
   ReviewComment,
 } from "../../types.ts";
 import { parsePrKey } from "../../types.ts";
@@ -204,6 +205,22 @@ function openPrFilesInBrowser(pr: PullRequest | undefined): void {
   }
   const urlFilesPath = isGitlabPrUrl(pr.url) ? "/diffs" : "/files";
   openUrl(pr.url + urlFilesPath);
+}
+
+/** The delta classification for the current PR, or null when the mode is off
+ *  or the PR carries no snapshot. Plain derivation, not memoized: the React
+ *  Compiler (vite.config.ts) caches it, and a hand-written useMemo trips
+ *  react-compiler-no-manual-memoization. */
+function buildDeltaView(
+  on: boolean,
+  detail: PullRequestDetail | undefined,
+  keyValue: string
+): DeltaView | null {
+  if (!(on && detail)) {
+    return null;
+  }
+  const snap = getDeltaSnapshot(keyValue);
+  return snap ? classifyDelta(snap, detail.files, detail.pr.headSha) : null;
 }
 
 /** The files delta mode folds: unchanged since the review and not explicitly
@@ -441,16 +458,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     autoUnviewedForHead
   );
 
-  const deltaView = useMemo(() => {
-    if (!(deltaOn && detail)) {
-      return null;
-    }
-    const snap = getDeltaSnapshot(keyValue);
-    if (!snap) {
-      return null;
-    }
-    return classifyDelta(snap, detail.files, detail.pr.headSha);
-  }, [deltaOn, detail, keyValue]);
+  const deltaView = buildDeltaView(deltaOn, detail, keyValue);
   const deltaCollapsedFiles = deltaCollapsedIndexes(
     deltaView,
     files,
@@ -463,7 +471,10 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
       return;
     }
     if (!getDeltaSnapshot(keyValue)) {
-      setFlash(deltaUnavailableMessage());
+      setToast({
+        message: deltaUnavailableMessage(),
+        title: "Nothing to compare against",
+      });
       return;
     }
     setDeltaShown(new Set<string>());
