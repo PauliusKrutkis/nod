@@ -9,14 +9,13 @@
  * Stack detection also lives here: the chain joins over the inbox snapshot,
  * read from the query cache the way review-screen-pending already does (a
  * plain cache read, not a subscription — the inbox refreshes on its own
- * cadence). The join is memoized on that snapshot because this header
- * re-renders on every pending-comment and panel toggle, and none of those
- * can change the chain. Navigation reuses openReview, the same action the
- * inbox rows use.
+ * cadence — the header re-renders plenty). The join is left for the React
+ * Compiler to memoize like the rest of this file's derivations; a hand-rolled
+ * useMemo here is dead weight the compiler already does. Navigation reuses
+ * openReview, the same action the inbox rows use.
  */
 
 import { ReviewHeader } from "@nod/ui/review-header";
-import { useMemo } from "react";
 import { copyTextToClipboard } from "../../lib/clipboard.ts";
 import { openExternal } from "../../lib/open-external.ts";
 import { queryClient, queryKeys } from "../../lib/query-client.ts";
@@ -59,17 +58,15 @@ export function ReviewHeaderLoader({
   const openReview = useAppStore((s) => s.openReview);
 
   const inbox = queryClient.getQueryData<InboxData>(queryKeys.inbox);
-  const stack = useMemo(() => {
-    const pool = inbox
-      ? [
-          ...inbox.assigned.prs,
-          ...inbox.created.prs,
-          ...inbox.involved.prs,
-          ...inbox.reviewRequested.prs,
-        ]
-      : [];
-    return detectStack(pr, pool);
-  }, [inbox, pr]);
+  const pool = inbox
+    ? [
+        ...inbox.assigned.prs,
+        ...inbox.created.prs,
+        ...inbox.involved.prs,
+        ...inbox.reviewRequested.prs,
+      ]
+    : [];
+  const stack = detectStack(pr, pool);
 
   const openStackEntry = (number: number) => {
     const entry = stack?.entries.find((e) => e.number === number);
