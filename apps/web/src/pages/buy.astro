@@ -9,7 +9,7 @@ const PURCHASE_STEPS = [
     detail: "read:user only. Nod never sees your code or repositories.",
   },
   {
-    title: "Pay $59 through Polar",
+    title: "Pay $39 through Polar",
     detail: "One time, by card. A year of updates included.",
   },
   {
@@ -27,7 +27,9 @@ const PURCHASE_STEPS = [
 
   <main>
     <section class="wrap purchase">
-      <p class="eyebrow">Buy Nod · $59</p>
+      <p class="eyebrow">
+        Buy Nod · <del class="purchase__del">$59</del> $39 launch price
+      </p>
       <h1 class="purchase__title">Your GitHub account is your license.</h1>
       <p class="purchase__sub">
         No license keys. Sign in, pay once, and Nod activates on any machine
@@ -76,6 +78,23 @@ const PURCHASE_STEPS = [
     max-width: 560px;
     padding-top: clamp(48px, 9vh, 96px);
     padding-bottom: 96px;
+  }
+
+  .purchase__del {
+    position: relative;
+    color: var(--faint);
+    text-decoration: none;
+  }
+
+  .purchase__del::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 55%;
+    height: 0.08em;
+    width: 100%;
+    border-radius: 1px;
+    background: var(--faint);
   }
 
   .purchase__title {

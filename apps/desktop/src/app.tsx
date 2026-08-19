@@ -19,6 +19,7 @@ import { ReviewNotifier } from "./components/review-notifier.tsx";
 import { TokenGateFlow } from "./components/token-gate-flow.tsx";
 import { UpdatePromptLoader } from "./components/update-prompt-loader.tsx";
 import { WhatsNewLoader } from "./components/whats-new-loader.tsx";
+import { takeLaunchPrTarget, useDeepLinkPr } from "./hooks/use-deep-link-pr.ts";
 import { useGlobalBindings } from "./keyboard/use-global-bindings.ts";
 import { api } from "./lib/api.ts";
 import { applyZoom, loadZoom } from "./lib/zoom.ts";
@@ -127,17 +128,28 @@ export default function App() {
   useEffect(() => {
     api
       .hasToken()
-      .then((has) =>
-        setRoute(
-          has ? (loadLastRoute() ?? { name: "inbox" }) : { name: "token" }
-        )
-      )
+      .then(async (has) => {
+        if (!has) {
+          setRoute({ name: "token" });
+          return;
+        }
+        const launch = await takeLaunchPrTarget();
+        if (launch) {
+          useAppStore
+            .getState()
+            .openReview(launch.owner, launch.repo, launch.number);
+          return;
+        }
+        setRoute(loadLastRoute() ?? { name: "inbox" });
+      })
       .catch(() => setRoute({ name: "token" }));
     api
       .listAccounts()
       .then(setAccounts)
       .catch(() => undefined);
   }, [setRoute, setAccounts]);
+
+  useDeepLinkPr();
 
   useGlobalBindings({
     openCanned: openCannedDialog,
