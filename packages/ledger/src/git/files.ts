@@ -1,4 +1,4 @@
-import { mapLimit } from "../concurrency.ts";
+import { Buffer } from "node:buffer";
 import type { GitRun } from "./exec.ts";
 
 const BINARY_PATH =
@@ -17,29 +17,54 @@ const listTrackableFiles = async (
   return out.split("\0").filter((path) => path && isTrackablePath(path));
 };
 
-export const readLinesAt = async (
-  git: GitRun,
-  rev: string,
-  path: string
-): Promise<string[]> => {
-  const out = await git(["cat-file", "blob", `${rev}:${path}`]);
-  const lines = out.split("\n");
+const toLines = (text: string): string[] => {
+  const lines = text.split("\n");
   if (lines.at(-1) === "") {
     lines.pop();
   }
   return lines;
 };
 
-/** All trackable files at `rev` with their raw lines. */
+export const readLinesAt = async (
+  git: GitRun,
+  rev: string,
+  path: string
+): Promise<string[]> =>
+  toLines(await git(["cat-file", "blob", `${rev}:${path}`]));
+
+/**
+ * All trackable files at `rev` with their raw lines, through one
+ * `cat-file --batch` process — a spawn per file dwarfs the read itself at
+ * tree scale. Batch output is framed by byte counts, hence the latin1
+ * round-trip: slice by bytes, then decode each blob as utf8.
+ */
 export const readTreeLines = async (
   git: GitRun,
   rev: string
 ): Promise<Map<string, string[]>> => {
   const paths = await listTrackableFiles(git, rev);
-  const contents = await mapLimit(paths, 16, (path) =>
-    readLinesAt(git, rev, path)
-  );
-  return new Map(paths.map((path, i) => [path, contents[i]]));
+  const out = await git(["cat-file", "--batch"], {
+    encoding: "latin1",
+    input: paths.map((path) => `${rev}:${path}`).join("\n"),
+  });
+  const contents = new Map<string, string[]>();
+  let pos = 0;
+  for (const path of paths) {
+    const headerEnd = out.indexOf("\n", pos);
+    if (headerEnd === -1) {
+      break;
+    }
+    const header = out.slice(pos, headerEnd);
+    pos = headerEnd + 1;
+    if (header.endsWith(" missing")) {
+      continue;
+    }
+    const size = Number(header.split(" ")[2]);
+    const blob = out.slice(pos, pos + size);
+    pos += size + 1;
+    contents.set(path, toLines(Buffer.from(blob, "latin1").toString("utf8")));
+  }
+  return contents;
 };
 
 /**

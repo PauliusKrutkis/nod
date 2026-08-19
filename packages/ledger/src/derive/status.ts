@@ -9,7 +9,7 @@ import {
 } from "../anchors/resolve.ts";
 import type { Actor, Fact } from "../facts/schema.ts";
 import { readAnchorRefs, readFacts } from "../facts/store.ts";
-import { blameTree } from "../git/blame.ts";
+import { cachedBlameTree } from "../git/blame-cache.ts";
 import type { GitRun } from "../git/exec.ts";
 import { readTreeLines } from "../git/files.ts";
 
@@ -541,7 +541,7 @@ export const deriveStatus = async (
   const postEpoch = new Set(
     (await git(["rev-list", `${epoch}..${tip}`])).split("\n").filter(Boolean)
   );
-  const blames = await blameTree(git, tip, [...raw.keys()]);
+  const blames = await cachedBlameTree(git, tip, [...raw.keys()]);
   const { subjects, topicBySha } = await classifyTipShas(
     git,
     blames,
