@@ -7,8 +7,10 @@
  * time, every row leading with avatar, author and relative time. A thread
  * row carries what only a thread has — the file:line chip, the reply count,
  * the resolved tick — and clicking it jumps to the thread in the diff, while
- * PR-level rows render their full body and keep the edit/delete tools.
- * Comments post optimistically — the composer never blocks.
+ * PR-level rows render their full body and keep the edit/delete tools. The
+ * ordering rules, and why a thread sits at its root comment's time, live in
+ * pr-drawer-timeline.ts, which derives the feed. Comments post
+ * optimistically — the composer never blocks.
  *
  * Your own conversation comments (never verdicts) carry the same quiet
  * Edit/Delete tools as inline threads, with the in-place "Delete?" confirm;
@@ -75,13 +77,15 @@ import {
   PrSummary,
   type SummaryPullRequest,
 } from "../pr-summary/pr-summary.tsx";
-import {
-  type ThreadIndexRow,
-  ThreadRow,
-} from "../thread-index/thread-index.tsx";
+import { ThreadRow } from "../thread-index/thread-index.tsx";
 import { formatAbsolute, formatRelativeTime } from "../time/time.ts";
 import { Tooltip } from "../tooltip/tooltip.tsx";
 import { useLatest } from "../use-latest/use-latest.ts";
+import {
+  buildDiscussionTimeline,
+  type TimelineEntry as DrawerTimelineEntry,
+  newestCommentEntry,
+} from "./pr-drawer-timeline.ts";
 import "../badge/badge.css";
 import "./pr-drawer.css";
 
@@ -175,10 +179,7 @@ export interface PrDrawerProps {
   wide?: boolean;
 }
 
-type TimelineEntry =
-  | { kind: "comment"; at: string; comment: DrawerComment }
-  | { kind: "review"; at: string; review: DrawerReview }
-  | { kind: "thread"; at: string; thread: ThreadIndexRow };
+type TimelineEntry = DrawerTimelineEntry<DrawerComment, DrawerReview>;
 
 const noop = () => undefined;
 
@@ -188,11 +189,6 @@ const REVIEW_STATES: Record<string, { label: string; cls: string }> = {
   COMMENTED: { cls: "q-pill-commented", label: "Commented" },
   DISMISSED: { cls: "q-pill-muted", label: "Dismissed" },
 };
-
-/** The first line of a comment body — the snippet a thread-index row shows. */
-function firstLine(body: string): string {
-  return body.trim().split("\n")[0] ?? "";
-}
 
 const defaultComposer = (props: DrawerComposerProps) => (
   <AddCommentBox {...props} />
@@ -299,43 +295,11 @@ export function PrDrawer({
     panelRef.current?.focus({ preventScroll: true });
   };
 
-  const replyCounts = new Map<number, number>();
-  for (const c of inlineComments) {
-    if (c.inReplyToId !== null) {
-      replyCounts.set(c.inReplyToId, (replyCounts.get(c.inReplyToId) ?? 0) + 1);
-    }
-  }
-  const threads: ThreadIndexRow[] = inlineComments
-    .filter((c) => c.inReplyToId === null)
-    .map((root) => ({
-      createdAt: root.createdAt,
-      id: root.id,
-      line: root.line,
-      path: root.path,
-      replyCount: replyCounts.get(root.id) ?? 0,
-      resolved: root.resolved,
-      snippet: firstLine(root.body),
-      user: root.user,
-      userAvatarUrl: root.userAvatarUrl,
-    }));
-
-  const timeline: TimelineEntry[] = [
-    ...conversation.map((c) => ({
-      at: c.createdAt,
-      comment: c,
-      kind: "comment" as const,
-    })),
-    ...reviews.map((r) => ({
-      at: r.submittedAt,
-      kind: "review" as const,
-      review: r,
-    })),
-    ...threads.map((t) => ({
-      at: t.createdAt,
-      kind: "thread" as const,
-      thread: t,
-    })),
-  ].sort((a, b) => a.at.localeCompare(b.at));
+  const timeline = buildDiscussionTimeline({
+    conversation,
+    inlineComments,
+    reviews,
+  });
 
   const handleAddComment = (text: string) => {
     justPostedRef.current = true;
@@ -540,12 +504,7 @@ function DrawerConversation({
   renderMarkdown,
   timeline,
 }: DrawerConversationProps) {
-  let newestComment: TimelineEntry | undefined;
-  for (const entry of timeline) {
-    if (entry.kind === "comment") {
-      newestComment = entry;
-    }
-  }
+  const newestComment = newestCommentEntry(timeline);
 
   return (
     <section className="qf-drawer-section">

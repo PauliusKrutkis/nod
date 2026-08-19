@@ -534,4 +534,38 @@ describe("withoutResolvedThreads", () => {
     expect(comments).toHaveLength(2);
     expect(hiddenByPath.size).toBe(0);
   });
+
+  it("keeps the unresolved thread and counts only the resolved one", () => {
+    const input = [
+      comment({ id: 1, resolved: true, threadId: "t1" }),
+      comment({ id: 2, line: 3, resolved: false, threadId: "t2" }),
+    ];
+
+    const { comments, hiddenByPath } = withoutResolvedThreads(input);
+
+    expect(comments.map((c) => c.id)).toEqual([2]);
+    expect(hiddenByPath.get("src/retry.ts")).toBe(1);
+  });
+
+  it("keeps a reply whose root is not in the list", () => {
+    const input = [comment({ id: 2, inReplyToId: 99, threadId: "t9" })];
+
+    const { comments, hiddenByPath } = withoutResolvedThreads(input);
+
+    expect(comments.map((c) => c.id)).toEqual([2]);
+    expect(hiddenByPath.size).toBe(0);
+  });
+
+  it("still renders the file, and its header count, when every thread is hidden", () => {
+    const { comments, hiddenByPath } = withoutResolvedThreads([
+      comment({ id: 1, resolved: true, threadId: "t1" }),
+    ]);
+    const model = build(comments);
+
+    expect(comments).toHaveLength(0);
+    expect(hiddenByPath.get(FILE.filename)).toBe(1);
+    expect(model.groupCounts).toHaveLength(1);
+    expect(model.items.some((item) => item.kind === "row")).toBe(true);
+    expect(model.commentItems).toEqual([]);
+  });
 });
