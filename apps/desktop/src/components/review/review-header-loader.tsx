@@ -9,8 +9,10 @@
  * Stack detection also lives here: the chain joins over the inbox snapshot,
  * read from the query cache the way review-screen-pending already does (a
  * plain cache read, not a subscription — the inbox refreshes on its own
- * cadence and the header re-renders plenty). Navigation reuses openReview,
- * the same action the inbox rows use.
+ * cadence). The join is memoized on that snapshot because this header
+ * re-renders on every pending-comment and panel toggle, and none of those
+ * can change the chain. Navigation reuses openReview, the same action the
+ * inbox rows use.
  */
 
 import { ReviewHeader } from "@nod/ui/review-header";
