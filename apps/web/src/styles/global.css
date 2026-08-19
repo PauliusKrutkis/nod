@@ -423,6 +423,23 @@ a {
   color: var(--fg);
 }
 
+.pricing__del {
+  position: relative;
+  color: var(--faint);
+  text-decoration: none;
+}
+
+.pricing__del::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 55%;
+  height: 0.06em;
+  width: 100%;
+  border-radius: 1px;
+  background: var(--faint);
+}
+
 .pricing__term {
   display: block;
   margin-top: 6px;
