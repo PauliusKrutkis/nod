@@ -1,4 +1,9 @@
-import type { QueuedWrite, QueueVerb, ReviewComment } from "../types.ts";
+import type {
+  QueuedWrite,
+  QueueVerb,
+  ReviewComment,
+  ReviewEvent,
+} from "../types.ts";
 import { api } from "./api.ts";
 import { queryClient } from "./query-client.ts";
 
@@ -117,7 +122,7 @@ export const offlineWrites = {
     owner: string;
     repo: string;
     number: number;
-    event: string;
+    event: ReviewEvent;
     body: string;
     commitId: string;
     comments: {
@@ -128,23 +133,15 @@ export const offlineWrites = {
       startLine?: number;
     }[];
   }): Promise<WriteAttempt<void>> {
-    return attemptOrQueue(
-      () =>
-        api.submitReview({
-          ...args,
-          event: args.event as "COMMENT" | "APPROVE" | "REQUEST_CHANGES",
-        }),
-      args,
-      {
-        body: args.body,
-        comments: args.comments.map((c) => ({
-          ...c,
-          startLine: c.startLine ?? null,
-        })),
-        commitId: args.commitId,
-        event: args.event,
-        kind: "submitReview",
-      }
-    );
+    return attemptOrQueue(() => api.submitReview(args), args, {
+      body: args.body,
+      comments: args.comments.map((c) => ({
+        ...c,
+        startLine: c.startLine ?? null,
+      })),
+      commitId: args.commitId,
+      event: args.event,
+      kind: "submitReview",
+    });
   },
 };

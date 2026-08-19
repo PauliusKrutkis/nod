@@ -182,7 +182,7 @@ export type QueueVerb =
   | { kind: "issueComment"; body: string }
   | {
       kind: "submitReview";
-      event: string;
+      event: ReviewEvent;
       body: string;
       commitId: string;
       comments: {

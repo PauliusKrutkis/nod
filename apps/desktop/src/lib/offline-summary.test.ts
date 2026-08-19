@@ -56,6 +56,38 @@ describe("queueSummary", () => {
   it("is empty for an empty queue", () => {
     expect(queueSummary([])).toBe("");
   });
+
+  it("orders the verbs the same way whatever order they queued in", () => {
+    const reply: QueueVerb = { body: "same", inReplyTo: 4, kind: "reply" };
+    const resolve: QueueVerb = {
+      kind: "resolve",
+      resolved: true,
+      threadId: "T",
+    };
+    const forwards = queueSummary([item(comment), item(reply), item(resolve)]);
+    const backwards = queueSummary([item(resolve), item(reply), item(comment)]);
+    expect(forwards).toBe("1 comment · 1 reply · 1 resolve");
+    expect(backwards).toBe(forwards);
+  });
+
+  it("separates the verbs with the house middot", () => {
+    const summary = queueSummary([
+      item(comment),
+      item({ body: "ship it", kind: "issueComment" }),
+    ]);
+    expect(summary).toBe("1 comment · 1 PR comment");
+    expect(summary).not.toContain("—");
+  });
+
+  it("pluralises every verb it counts", () => {
+    const queue = [
+      item({ kind: "resolve", resolved: true, threadId: "A" }),
+      item({ kind: "resolve", resolved: false, threadId: "B" }),
+      item({ body: "one", kind: "issueComment" }),
+      item({ body: "two", kind: "issueComment" }),
+    ];
+    expect(queueSummary(queue)).toBe("2 PR comments · 2 resolves");
+  });
 });
 
 describe("itemLabel and itemText", () => {
@@ -75,5 +107,39 @@ describe("itemLabel and itemText", () => {
     expect(
       canPlaceAgain(item({ body: "hi", inReplyTo: 1, kind: "reply" }))
     ).toBe(false);
+  });
+
+  it("names a reopen as reopening rather than resolving", () => {
+    const reopen = item({ kind: "resolve", resolved: false, threadId: "T" });
+    expect(itemLabel(reopen)).toBe("reopen a thread on acme/site#7");
+  });
+
+  it("keeps the text of everything a reviewer wrote", () => {
+    expect(itemText(item({ body: "ship it", kind: "issueComment" }))).toBe(
+      "ship it"
+    );
+    expect(itemText(item({ body: "same", inReplyTo: 1, kind: "reply" }))).toBe(
+      "same"
+    );
+    const staged = item({
+      body: "lgtm",
+      comments: [],
+      commitId: "abc",
+      event: "APPROVE",
+      kind: "submitReview",
+    });
+    expect(itemText(staged)).toBe("lgtm");
+  });
+
+  it("has no text for a review submitted with an empty body", () => {
+    const staged = item({
+      body: "",
+      comments: [],
+      commitId: "abc",
+      event: "APPROVE",
+      kind: "submitReview",
+    });
+    expect(itemText(staged)).toBeNull();
+    expect(itemLabel(staged)).toBe("review of acme/site#7");
   });
 });

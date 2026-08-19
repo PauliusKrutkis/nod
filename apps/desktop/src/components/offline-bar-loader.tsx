@@ -1,3 +1,4 @@
+import { useLatest } from "@nod/ui/use-latest";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -25,6 +26,13 @@ import { prKey } from "../types.ts";
  * with their text until placed again (inline comments become pending comments
  * at the same spot), copied, or discarded, so no outcome is ever "lost". The
  * landed and nothing-to-do lines are transient and dismiss with the report.
+ *
+ * The offline-to-online transition is a latch, not an edge compared against
+ * the previous render: it clears only once a replay actually starts (or there
+ * is nothing to replay), so a reconnect that lands mid-replay still gets its
+ * queue drained instead of consuming the transition and waiting for the next
+ * one. `mutate` is read through useLatest because writing a ref during render
+ * makes the React Compiler skip the component.
  */
 
 const POLL_MS = 5000;
@@ -76,17 +84,28 @@ export function OfflineBarLoader() {
     onSuccess: (r) => finishReplay(r.attempted),
   });
 
-  const replayRef = useRef(replay.mutate);
-  replayRef.current = replay.mutate;
-  const prevOnline = useRef(online);
-  const pendingReplay = online && autoQueued.length > 0 && !replay.isPending;
+  const startReplay = useLatest(replay.mutate);
+  const sawOffline = useRef(!online);
+  const autoQueuedCount = autoQueued.length;
+  const replaying = replay.isPending;
   useEffect(() => {
-    const cameBack = online && !prevOnline.current;
-    prevOnline.current = online;
-    if (cameBack && pendingReplay) {
-      replayRef.current(false);
+    if (!online) {
+      sawOffline.current = true;
+      return;
     }
-  }, [online, pendingReplay]);
+    if (!sawOffline.current) {
+      return;
+    }
+    if (autoQueuedCount === 0) {
+      sawOffline.current = false;
+      return;
+    }
+    if (replaying) {
+      return;
+    }
+    sawOffline.current = false;
+    startReplay.current(false);
+  }, [online, autoQueuedCount, replaying, startReplay]);
 
   const discard = async (item: QueuedWrite) => {
     await api.discardQueued(item.id).catch(() => undefined);

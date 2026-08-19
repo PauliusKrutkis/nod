@@ -139,7 +139,14 @@ pub(crate) fn classify_replay_error(verb: &QueueVerb, err: &str) -> Classified {
     let lower = err.to_lowercase();
     match verb {
         QueueVerb::Resolve { resolved, .. } => {
-            if lower.contains("already resolved") || lower.contains("already been resolved") {
+            let already_holds = if *resolved {
+                lower.contains("already resolved") || lower.contains("already been resolved")
+            } else {
+                lower.contains("is not resolved")
+                    || lower.contains("already unresolved")
+                    || lower.contains("already been unresolved")
+            };
+            if already_holds {
                 let reason = if *resolved {
                     "someone had already resolved this thread".to_string()
                 } else {
