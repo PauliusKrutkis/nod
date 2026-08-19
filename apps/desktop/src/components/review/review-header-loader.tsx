@@ -14,6 +14,7 @@
  */
 
 import { ReviewHeader } from "@nod/ui/review-header";
+import { useMemo } from "react";
 import { copyTextToClipboard } from "../../lib/clipboard.ts";
 import { openExternal } from "../../lib/open-external.ts";
 import { queryClient, queryKeys } from "../../lib/query-client.ts";
@@ -56,15 +57,17 @@ export function ReviewHeaderLoader({
   const openReview = useAppStore((s) => s.openReview);
 
   const inbox = queryClient.getQueryData<InboxData>(queryKeys.inbox);
-  const pool = inbox
-    ? [
-        ...inbox.assigned.prs,
-        ...inbox.created.prs,
-        ...inbox.involved.prs,
-        ...inbox.reviewRequested.prs,
-      ]
-    : [];
-  const stack = detectStack(pr, pool);
+  const stack = useMemo(() => {
+    const pool = inbox
+      ? [
+          ...inbox.assigned.prs,
+          ...inbox.created.prs,
+          ...inbox.involved.prs,
+          ...inbox.reviewRequested.prs,
+        ]
+      : [];
+    return detectStack(pr, pool);
+  }, [inbox, pr]);
 
   const openStackEntry = (number: number) => {
     const entry = stack?.entries.find((e) => e.number === number);

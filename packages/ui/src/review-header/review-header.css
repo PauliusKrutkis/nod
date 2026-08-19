@@ -21,6 +21,10 @@
    child. The chip sits inside the tooltip's anchor span, the real flex item,
    so .qf-branch-anchor has to be told it may shrink too.
 
+   The stack chip's menu (.qf-stack-menu) anchors to the chip and floats below
+   the header row; its rows are mono like the chips they sit among, and titles
+   ellipsize because the menu, not the title, decides the width.
+
    The CI dot is ringed in the button's own background so it reads on both the
    rest and pressed states. The keycap inside the submit button is .q-kbd (the
    Kbd component's class); the app's stylesheet still carried a .qf-kbd
@@ -349,9 +353,6 @@
   border-radius: var(--r-pill);
 }
 
-/* The stack chip and its summoned menu. The menu anchors to the chip and
-   floats below the header row; rows are mono like the chips they sit among,
-   and titles ellipsize because the menu, not the title, decides the width. */
 .qf-stack {
   position: relative;
   display: inline-flex;

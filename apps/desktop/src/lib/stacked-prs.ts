@@ -16,9 +16,8 @@
 
 import type { PullRequest } from "../types.ts";
 
-export interface StackEntry {
+interface StackEntry {
   current: boolean;
-  headRef: string;
   name: string;
   number: number;
   owner: string;
@@ -69,7 +68,6 @@ export function detectStack(
   return {
     entries: chain.map((p) => ({
       current: p.number === current.number,
-      headRef: p.headRef,
       name: p.name,
       number: p.number,
       owner: p.owner,
