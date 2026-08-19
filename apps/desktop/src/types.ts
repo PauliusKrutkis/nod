@@ -3,7 +3,9 @@
  * the Rust backend (see src-tauri/src/github.rs).
  *
  * PullRequest list items omit heavy fields (headSha, files); detail fetches
- * fill baseSha/headRef/baseRef and lastComment (inbox pane teaser only).
+ * fill baseSha and lastComment (inbox pane teaser only). headRef/baseRef ride
+ * the list query too, which is what lets stacked-PR detection join over the
+ * inbox without a second request.
  * ReviewComment.threadId/resolved come from the provider's resolvable-thread
  * handle — null hides the resolve affordance. PendingComment.line is the
  * range end for multi-line drafts; startLine is the start when present.
