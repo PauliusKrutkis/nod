@@ -30,6 +30,10 @@ pnpm ledger session [target]…    # queued files as net-diff patches
 pnpm ledger review <path>        # sign every queued region in a file
 pnpm ledger review <path>:12-40  # sign one region
 pnpm ledger approve <topic>…     # stamp a topic at tip; deltas baseline here
+pnpm ledger comment <path>:12-40 "text"   # start a thread on a region
+pnpm ledger comment --reply <id> "text"   # answer a thread
+pnpm ledger resolve <id>         # close a thread
+pnpm ledger comments             # every thread, positioned on tip
 pnpm ledger sync                 # exchange facts via origin
 pnpm ledger init [rev]           # adopt a repo: set the epoch (default HEAD)
 ```
@@ -44,11 +48,20 @@ cascade). `j`/`k` navigate, `enter` opens the topic's **session** — the
 code rendered on the same surface as a PR review, as the net diff since
 the last attestation (real `git diff baseline..tip` when a signed
 anchor or approval decayed, unreviewed-lines-as-adds when never
-signed). In the session `r` signs the region under the cursor, `v`
-marks a file viewed (client-local reading progress, invalidated when
-the content changes), and `a` — enabled only once **every** file is
-viewed — approves the topic: a fact at tip that counts the topic's
-current lines as reviewed and baselines future deltas there. With
+signed). In the session `r` signs the region under the cursor, `c`
+opens a comment composer on the line — threads are §15's comment facts,
+anchored to content, posted immediately (no staging: there is no forge
+review to batch into), rendered inline like PR comments with replies
+and resolution, and following the code through moves ("commented on a
+previous version" once it drifts) — `v` marks a file viewed
+(client-local reading progress, invalidated when the content changes),
+and `a` — enabled only once **every** file is viewed — approves the
+topic: a fact at tip that counts the topic's current lines as reviewed
+and baselines future deltas there. The queue shows the derived topic
+states: a `Δ since <sha>` badge on an approved topic whose lines
+changed after the stamp, and a "signed off" strip of topics with
+nothing left to read — the closest thing to "merged" the ledger has,
+and deliberately a derived state, reopened by the next commit. With
 `approvalsRequired: 2` in `.ledger/config.json`, coverage needs two
 humans' attestations line by line. `mod+f` finds, `esc` steps out —
 session → queue → picker → inbox. Signing and approving exist only
@@ -65,8 +78,11 @@ publishes them through the ordinary git remote.
 Dogfood-phase constraints, deliberate: the target repo must vendor the
 engine and be locally cloned; the desktop app spawns `node` from PATH
 (fine for terminal-launched dev builds — the sidecar binary replaces
-this); every status derivation is a full blame pass, so a cold load takes
-seconds (the SQLite index arrives when scale demands it).
+this). Derivation cost: the blame pass is disk-cached per tip (exact —
+blame is a pure function of the rev) and the tree is read through one
+`cat-file --batch`, so only the first load after a fetch pays full price
+(~5s on this repo); every later status, including right after signing,
+is sub-second. The SQLite index still arrives when scale demands it.
 
 ---
 
@@ -485,7 +501,9 @@ but the model supports all of it by construction.
   gracefully when code is rewritten ("commented on a previous version;
   here's the net change since") instead of orphaning like diff-positioned
   comments. Threads are facts referencing a parent fact; resolving is a
-  fact.
+  fact. *Built 2026-08-19: `commented`/`resolved` verdicts, `ledger
+  comment|comments|resolve`, and the session surface renders threads
+  inline with replies and resolution.*
 - **Global comments.** The fact subject is a union — anchor | topic |
   delta | fact. Topic comments are feature-level discussion; no new
   machinery.
