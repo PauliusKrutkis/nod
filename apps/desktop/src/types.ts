@@ -419,13 +419,13 @@ export interface LedgerQueueItem {
   topic: string;
 }
 
-interface LedgerTopicApproval {
+export interface LedgerTopicApproval {
   actor: LedgerActor;
   atTime: string;
   sha: string;
 }
 
-interface LedgerTopicStatus {
+export interface LedgerTopicStatus {
   /** Distinct human actors with a resolvable approval. */
   approvals: number;
   /** Null until the threshold is met. */
