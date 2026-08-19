@@ -8,9 +8,10 @@
    A check name is host text and unbounded (matrix jobs concatenate their
    whole parameter list), so the name ellipsizes and the row never wraps.
 
-   A row the host gave no link keeps its state in text (qf-cicheck-said,
-   offscreen) rather than an aria-label, which a plain div cannot carry: the
-   linked rows fold the same word into their own accessible name. */
+   A row the host gave no link keeps its state in offscreen text
+   (qf-cicheck-state-label) rather than an aria-label, which a plain div
+   cannot carry: the linked rows fold the same word into their own
+   accessible name. */
 
 .qf-cichecks {
   flex: 1 1 auto;
@@ -119,7 +120,7 @@
   white-space: nowrap;
 }
 
-.qf-cicheck-said {
+.qf-cicheck-state-label {
   position: absolute;
   width: 1px;
   height: 1px;

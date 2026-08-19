@@ -71,22 +71,26 @@ export function CiChecks({
       <div className="qf-cichecks-list">
         {rows.map(({ check, hostOrder, url }) => {
           const meta = ROW[check.state];
-          const label = `${check.name} · ${meta.label}`;
+          const face = (
+            <>
+              <span className="qf-cicheck-state">{meta.icon}</span>
+              <span className="qf-cicheck-name">{check.name}</span>
+            </>
+          );
           if (!url) {
             return (
               <div
                 className={cn("qf-cicheck-row", meta.className)}
                 key={hostOrder}
               >
-                <span className="qf-cicheck-state">{meta.icon}</span>
-                <span className="qf-cicheck-name">{check.name}</span>
-                <span className="qf-cicheck-said">{meta.label}</span>
+                {face}
+                <span className="qf-cicheck-state-label">{meta.label}</span>
               </div>
             );
           }
           return (
             <button
-              aria-label={label}
+              aria-label={`${check.name} · ${meta.label}`}
               className={cn("qf-cicheck-row q-focus", meta.className)}
               data-check-url={url}
               key={hostOrder}
@@ -94,8 +98,7 @@ export function CiChecks({
               title="Open the full log"
               type="button"
             >
-              <span className="qf-cicheck-state">{meta.icon}</span>
-              <span className="qf-cicheck-name">{check.name}</span>
+              {face}
             </button>
           );
         })}
