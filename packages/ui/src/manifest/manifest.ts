@@ -363,9 +363,11 @@ export const catalogManifest: Record<string, ManifestEntry> = {
     dialog: true,
     fixtures: [
       "empty",
+      "filtered",
       "full",
       "long-chord",
       "markup-as-text",
+      "no-matches",
       "one-section",
       "overflow",
       "unicode",
