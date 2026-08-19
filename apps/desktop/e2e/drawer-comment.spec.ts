@@ -77,8 +77,6 @@ test("the first click arms the confirm; leaving the button disarms it", async ({
   await expect(del).toHaveText("Delete?");
 
   await mine.getByText("Deploying to staging first.").hover();
-  // Disarmed is the icon again, which carries no text of its own — the label
-  // stays on aria-label, which is how this locator still finds it.
   await expect(del).toHaveText("");
   await expect(page.getByText("Deploying to staging first.")).toBeVisible();
 });

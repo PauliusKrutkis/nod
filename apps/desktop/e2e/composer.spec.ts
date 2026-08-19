@@ -221,9 +221,6 @@ test("only the last pending card advertises its hotkeys", async ({ page }) => {
   await page.keyboard.press("ControlOrMeta+Enter");
   await expect(page.locator(".qf-pending")).toHaveCount(2);
 
-  // The keys live in the tools' tooltips now, so "advertises" means the
-  // tooltip names a key — and only the card the keys would actually act on
-  // does. Hovering is how the strip appears at all.
   const cards = page.locator(".qf-pending");
   const tip = page.getByRole("tooltip");
 
@@ -263,8 +260,6 @@ test.describe("the tool strip's keys", () => {
 
     await page.keyboard.press("Shift+p");
 
-    // One comment reaches the host and the pile empties: no submit, no
-    // review, just this line.
     await expect
       .poll(() =>
         page.evaluate(

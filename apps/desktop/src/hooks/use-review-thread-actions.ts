@@ -3,6 +3,11 @@
  * on the active (hovered or q-focused) thread, plus the flash-and-land scroll
  * that walks q/w between threads. State arrives as refs and setters; the
  * request objects carry nonces so repeated actions on the same thread re-fire.
+ *
+ * The pending-comment actions all aim at the same target: the newest pending
+ * comment in the block under the cursor. That is the card whose tool strip
+ * shows the key hints, so every key acts on the one the reviewer can see them
+ * on, and `pendingAtCursor` is exported for the keys the screen owns.
  */
 import type React from "react";
 import type { ReviewListHandle } from "../components/review/review-list.tsx";
@@ -149,7 +154,6 @@ export function useReviewThreadActions(args: {
     );
   };
 
-  /** The comment block under the cursor, if the cursor is on one. */
   const commentsItemAtCursor = () => {
     const m = args.modelRef.current;
     const cur = args.cursorRef.current;
@@ -166,8 +170,6 @@ export function useReviewThreadActions(args: {
     return item?.kind === "comments" ? item : null;
   };
 
-  /** The newest pending comment under the cursor — the one whose strip shows
-   *  the keys, so every key acts on the card the reviewer can see them on. */
   const pendingAtCursor = () => commentsItemAtCursor()?.pending.at(-1) ?? null;
 
   const discardPendingAtCursor = () => {
