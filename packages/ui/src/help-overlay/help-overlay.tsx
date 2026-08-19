@@ -13,11 +13,12 @@
  * closes once it is empty, mirroring the find bar. `initialQuery` exists for
  * fixtures — the filtered states are unreachable from props otherwise.
  *
- * Layout is two columns while browsing: every inactive scope on the left, the
- * scope you are currently in on the right wearing the iris tint, so the keys
- * that apply right now read as one block. A query collapses that split into
- * one ranked column, because relevance ordering and the active/inactive split
- * would fight over the same axis.
+ * One column, always: browsing and filtering share identical geometry, so a
+ * query never re-layouts the panel, it only reorders sections. Browsing puts
+ * the active scope first at full strength and dims the rest; a query ranks
+ * sections by best hit instead. Rows read label first with the key caps
+ * right-aligned, and each scope's eyebrow header sticks while its rows
+ * scroll under it.
  *
  * `inline` opens with show() instead of showModal() (see useModalDialog) — no
  * top layer, no tab trap — and `.qh-inline` puts the panel back in normal flow
@@ -105,9 +106,11 @@ function HelpOverlayContent({
     }
   };
 
-  const columns = filtering
-    ? [matched]
-    : [matched.filter((s) => !s.active), matched.filter((s) => s.active)];
+  const ordered = filtering
+    ? matched
+    : [...matched].sort(
+        (a, b) => Number(b.active ?? false) - Number(a.active ?? false)
+      );
 
   return (
     <dialog
@@ -161,13 +164,9 @@ function HelpOverlayContent({
           <p className="qh-blank-hint">Esc clears the search</p>
         </div>
       ) : (
-        <div className={cn("qh-grid", filtering && "qh-grid-filtered")}>
-          {columns.map((column, index) => (
-            <div className="qh-col" key={index === 0 ? "inactive" : "active"}>
-              {column.map((section) => (
-                <ScopeCard key={section.scope} section={section} />
-              ))}
-            </div>
+        <div className={cn("qh-list", filtering && "qh-list-ranked")}>
+          {ordered.map((section) => (
+            <ScopeCard key={section.scope} section={section} />
           ))}
         </div>
       )}
@@ -196,14 +195,14 @@ function ScopeCard({ section }: { section: MatchedSection }) {
             className="qh-row"
             key={`${binding.combo}-${binding.description}`}
           >
-            <dt className="qh-keys">
-              <Kbd combo={binding.combo} />
-            </dt>
-            <dd className="qh-label">
+            <dt className="qh-label">
               <HighlightIndices
                 indices={binding.indices}
                 text={binding.description}
               />
+            </dt>
+            <dd className="qh-keys">
+              <Kbd combo={binding.combo} />
             </dd>
           </div>
         ))}
