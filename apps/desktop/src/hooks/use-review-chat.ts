@@ -162,6 +162,7 @@ function regionTitle(region: ChatRegion): string {
 
 const CHAT_MODEL_KEY = "nod:chatModel:v1";
 const CHAT_EFFORT_KEY = "nod:chatEffort:v1";
+const EFFORT_REFUSED_KEY = "nod:chatEffortUnsupported:v1";
 
 function readChatEffort(): string | null {
   try {
@@ -171,6 +172,28 @@ function readChatEffort(): string | null {
       : null;
   } catch {
     return null;
+  }
+}
+
+/** Models whose route refused a thinking level, learned one refusal at a
+ *  time. Nothing the provider publishes says which models take one — the
+ *  model list has no capability field, and the platform does not predict it
+ *  (Sonnet 5 refuses where Gemini 3 Flash, on the same one, accepts) — so the
+ *  first failed turn is the only source, and it is worth keeping. */
+function readEffortRefused(): string[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(EFFORT_REFUSED_KEY) ?? "[]");
+    return Array.isArray(raw) ? raw.filter((m) => typeof m === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistEffortRefused(models: string[]): void {
+  try {
+    localStorage.setItem(EFFORT_REFUSED_KEY, JSON.stringify(models));
+  } catch {
+    /* storage unavailable — the model is re-learned next launch */
   }
 }
 
@@ -463,6 +486,7 @@ export function useReviewChat(args: {
   const keyValue = prKey(args.pr);
   const threads = useAppStore((s) => s.chatHistory[keyValue]) ?? EMPTY_THREADS;
   const appendChatTurn = useAppStore((s) => s.appendChatTurn);
+  const nameChatThread = useAppStore((s) => s.nameChatThread);
   const removeChatThread = useAppStore((s) => s.removeChatThread);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(
     () => threads.at(-1)?.id ?? null
@@ -502,6 +526,26 @@ export function useReviewChat(args: {
     setEffortState(next);
     persistChatEffort(next);
   };
+  const [effortRefused, setEffortRefused] =
+    useState<string[]>(readEffortRefused);
+  const effortRefusedRef = useLatest(effortRefused);
+  useEffect(() => {
+    const stop = listen<{ chatId: string; model: string }>(
+      "ai-chat-effort-unsupported",
+      (event) => {
+        const known = effortRefusedRef.current;
+        if (known.includes(event.payload.model)) {
+          return;
+        }
+        const next = [...known, event.payload.model];
+        setEffortRefused(next);
+        persistEffortRefused(next);
+      }
+    );
+    return () => {
+      stop.then((off) => off());
+    };
+  }, [effortRefusedRef]);
   const aiConfig = useQuery({
     enabled: args.active,
     queryFn: api.getAiConfig,
@@ -514,6 +558,9 @@ export function useReviewChat(args: {
     staleTime: Number.POSITIVE_INFINITY,
   });
   const currentModel = modelOverride ?? aiConfig.data?.model ?? null;
+  const effortSupported =
+    currentModel === null || !effortRefused.includes(currentModel);
+  const modelRef = useLatest(currentModel);
 
   const pickModel = (id: string) => {
     const trimmed = id.trim();
@@ -634,6 +681,7 @@ export function useReviewChat(args: {
         kind: "assistant",
         text: answer,
       });
+      nameThreadOnce(vars.threadId, vars.message, answer);
     },
     onSettled: flushQueued,
   });
@@ -648,6 +696,41 @@ export function useReviewChat(args: {
     },
     [keyValue, chatPendingRef]
   );
+
+  /** Asks the model for a thread name, once, off the first exchange.
+   *
+   *  Fire and forget on purpose: a name is worth one small call but not one
+   *  moment of the reviewer's waiting, and a thread that never gets one still
+   *  reads fine under the message it opened with. Skipped when the thread is
+   *  already named or already has history, so a long conversation is not
+   *  renamed out from under the reader. The store is read through getState
+   *  rather than the rendered value: this runs from the mutation's success
+   *  callback, moments after the same turn was appended, and a rendered
+   *  snapshot is one commit behind — which would leave both guards judging
+   *  the thread as it was before the turn that just landed. */
+  const nameThreadOnce = (
+    threadId: string,
+    question: string,
+    answer: string
+  ) => {
+    const thread = useAppStore
+      .getState()
+      .chatHistory[keyValue]?.find((t) => t.id === threadId);
+    if (thread === undefined || thread.title !== undefined) {
+      return;
+    }
+    if (thread.turns.filter((t) => t.kind === "user").length > 1) {
+      return;
+    }
+    api
+      .aiChatTitle({ answer, model: modelRef.current, question })
+      .then((title) => {
+        if (title.trim()) {
+          nameChatThread(keyValue, threadId, title.trim());
+        }
+      })
+      .catch(() => undefined);
+  };
 
   /** Starts the turn. Callers decide whether a turn may start; by the time
    *  this runs the decision is made, which is why the parked message can
@@ -688,7 +771,7 @@ export function useReviewChat(args: {
       diffs: buildChatDiffs(args.files),
       history,
       message: text,
-      effort,
+      effort: effortSupported ? effort : null,
       model: modelOverride,
       parts,
       regions,
@@ -819,7 +902,11 @@ export function useReviewChat(args: {
       ? null
       : {
           current: currentModel,
-          effort: { current: effort, onPick: pickEffort },
+          effort: {
+            current: effortSupported ? effort : null,
+            onPick: pickEffort,
+            supported: effortSupported,
+          },
           models: models.data ?? null,
           onPick: pickModel,
         };
