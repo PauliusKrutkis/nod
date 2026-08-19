@@ -351,6 +351,7 @@ export function LedgerSession({
       }, 1200);
     },
     onDeleteComment: asyncNoop,
+    onDeltaExpand: noop,
     onEditComment: asyncNoop,
     onMouseMove: (x, y) => {
       isRealPointer(x, y, keyboardHoldRef, lastPointRef);

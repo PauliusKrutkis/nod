@@ -21,6 +21,10 @@
    child. The chip sits inside the tooltip's anchor span, the real flex item,
    so .qf-branch-anchor has to be told it may shrink too.
 
+   The stack chip's menu (.qf-stack-menu) anchors to the chip and floats below
+   the header row; its rows are mono like the chips they sit among, and titles
+   ellipsize because the menu, not the title, decides the width.
+
    The CI dot is ringed in the button's own background so it reads on both the
    rest and pressed states. The keycap inside the submit button is .q-kbd (the
    Kbd component's class); the app's stylesheet still carried a .qf-kbd
@@ -347,4 +351,75 @@
   color: var(--accent);
   background: var(--accent-ink);
   border-radius: var(--r-pill);
+}
+
+.qf-stack {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.qf-stack-open {
+  color: var(--fg);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+
+.qf-stack-menu {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  min-width: 260px;
+  max-width: 380px;
+  padding: 4px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-lg);
+  box-shadow: 0 16px 40px -20px rgba(0, 0, 0, 0.65);
+}
+
+.qf-stack-opt {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  width: 100%;
+  padding: 5px 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--r-sm);
+}
+
+.qf-stack-opt-on {
+  color: var(--fg);
+  background: var(--surface-hi);
+}
+
+.qf-stack-ordinal {
+  flex-shrink: 0;
+  color: var(--faint);
+}
+
+.qf-stack-num {
+  flex-shrink: 0;
+}
+
+.qf-stack-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qf-stack-here {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--accent);
 }

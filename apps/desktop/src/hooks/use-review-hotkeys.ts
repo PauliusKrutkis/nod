@@ -26,11 +26,14 @@ import {
   ChevronsUp,
   Copy,
   ExternalLink,
+  EyeOff,
   FileCode,
   FileSearch,
+  History,
   Inbox,
   Info,
   Link,
+  ListChecks,
   MessageSquare,
   MessageSquarePlus,
   MessagesSquare,
@@ -92,6 +95,9 @@ export function useReviewHotkeys(config: {
   sidebarOverlayOpenRef: React.RefObject<boolean>;
   toggleActiveThread: () => void;
   toggleChat: () => void;
+  toggleChecks: () => void;
+  toggleDelta: () => void;
+  toggleHideResolved: () => void;
   toggleInfoPanel: () => void;
   toggleFullFile: () => void;
   toggleSidebar: () => void;
@@ -273,6 +279,18 @@ export function useReviewHotkeys(config: {
       run: config.toggleActiveThread,
     },
     {
+      description: "Hide / show resolved threads",
+      group: "Comments",
+      icon: EyeOff,
+      keys: "shift+z",
+      run: (e: KeyboardEvent) => {
+        if (e.repeat) {
+          return;
+        }
+        config.toggleHideResolved();
+      },
+    },
+    {
       description: "Mark viewed & next",
       group: "Files",
       icon: CheckCheck,
@@ -306,6 +324,18 @@ export function useReviewHotkeys(config: {
       icon: Send,
       keys: "s",
       run: config.openSubmit,
+    },
+    {
+      description: "Changes since your review",
+      group: "Review",
+      icon: History,
+      keys: "d",
+      run: (e: KeyboardEvent) => {
+        if (e.repeat) {
+          return;
+        }
+        config.toggleDelta();
+      },
     },
     {
       description: "Ask about code (AI)",
@@ -342,6 +372,14 @@ export function useReviewHotkeys(config: {
       icon: Info,
       keys: "mod+i",
       run: config.toggleInfoPanel,
+    },
+    {
+      description: "Toggle checks panel",
+      global: true,
+      group: "General",
+      icon: ListChecks,
+      keys: "mod+j",
+      run: config.toggleChecks,
     },
     {
       description: "Chat about this PR (AI)",

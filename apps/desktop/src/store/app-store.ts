@@ -283,6 +283,7 @@ interface AppState {
   ) => void;
   chatChips: ChatRegion[];
   chatHistory: Record<string, ChatThread[]>;
+  nameChatThread: (prKey: string, threadId: string, title: string) => void;
   clearChat: (prKey: string) => void;
   removeChatThread: (prKey: string, threadId: string) => void;
   clearChatChips: () => void;
@@ -298,6 +299,7 @@ interface AppState {
   goInbox: () => void;
   goLedger: () => void;
   helpOpen: boolean;
+  hideResolvedThreads: boolean;
   inboxPaneVisible: boolean;
   inboxSelectedKey: string | null;
   inboxTab: InboxTabKey;
@@ -345,6 +347,7 @@ interface AppState {
 
   toast: AppToast | null;
   toggleHelp: () => void;
+  toggleHideResolvedThreads: () => void;
   togglePalette: () => void;
   toggleSearch: () => void;
   toggleViewed: (prKey: string, file: string, fingerprint?: string) => void;
@@ -419,6 +422,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ chatHistory: map });
     saveChats(map);
   },
+  nameChatThread: (prKey, threadId, title) => {
+    const threads = get().chatHistory[prKey] ?? [];
+    if (!threads.some((t) => t.id === threadId)) {
+      return;
+    }
+    const map = {
+      ...get().chatHistory,
+      [prKey]: threads.map((t) => (t.id === threadId ? { ...t, title } : t)),
+    };
+    set({ chatHistory: map });
+    saveChats(map);
+  },
   chatChips: [],
   chatHistory: loadChats(),
   clearChat: (prKey) => {
@@ -463,6 +478,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ paletteOpen: false, route: { name: "ledger" } });
   },
   helpOpen: false,
+  hideResolvedThreads: false,
   inboxPaneVisible: false,
   inboxSelectedKey: null,
   inboxTab: loadLastTab() ?? "reviewRequested",
@@ -583,6 +599,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   toast: null,
   toggleHelp: () => set((s) => ({ helpOpen: !s.helpOpen })),
+  toggleHideResolvedThreads: () =>
+    set((s) => ({ hideResolvedThreads: !s.hideResolvedThreads })),
   togglePalette: () => set((s) => ({ paletteOpen: !s.paletteOpen })),
   toggleSearch: () => set((s) => ({ searchOpen: !s.searchOpen })),
   toggleViewed: (prKey, file, fingerprint = UNKNOWN_FINGERPRINT) => {

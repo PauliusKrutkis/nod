@@ -22,6 +22,29 @@ function rows(page: Page) {
   return page.locator(".qcs-row");
 }
 
+/** Two frames, so a mount that has reached the DOM has also reached the pixels
+ *  and the browser is no longer mid-commit when the next key arrives. */
+function settled(page: Page) {
+  return page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      })
+  );
+}
+
+function caretOffset(page: Page) {
+  return page.evaluate(() => document.getSelection()?.anchorOffset ?? -1);
+}
+
+/** Press ArrowLeft and wait for the caret to actually move, so a keypress the
+ *  browser drops fails here rather than as a confusing assertion downstream. */
+async function moveCaretLeft(page: Page) {
+  const before = await caretOffset(page);
+  await page.keyboard.press("ArrowLeft");
+  await expect.poll(() => caretOffset(page)).toBe(before - 1);
+}
+
 test.beforeEach(async ({ page }) => {
   await setupApp(page);
   await expect(page.getByRole("option").first()).toBeVisible();
@@ -118,19 +141,18 @@ test("nothing is offered inside a code block", async ({ page }) => {
 });
 
 test("nothing is offered mid-line", async ({ page }) => {
-  // What this asserts on is a native caret move, and ProseMirror only syncs
-  // one while its document holds focus. Under parallel workers a sibling page
-  // can take it, leaving the editor state stale and the panel up for the full
-  // timeout. That is the flake this failed on in CI, never the behaviour.
-  await page.bringToFront();
   await page.keyboard.type("nit");
   await expect(panel(page)).toBeVisible();
 
-  // focus(), not click(): a click would move the caret to wherever it landed,
-  // which is the very thing under test. This only puts the selection back in
-  // the editor's hands if a sibling worker took the document's focus.
-  await box(page).focus();
-  await page.keyboard.press("ArrowLeft");
+  // An arrow key is handled natively inside the contenteditable, and one
+  // pressed in the frame the panel is mounting into is dropped by the browser
+  // before it reaches the caret: the caret stays at the end of the line, which
+  // is exactly the state this test is trying to leave. Waiting for the mount to
+  // paint gives the keypress an editor that can receive it, and moveCaretLeft
+  // then proves the caret moved before anything is asserted about the panel.
+  await settled(page);
+  await moveCaretLeft(page);
+
   await expect(panel(page)).toBeHidden();
 });
 

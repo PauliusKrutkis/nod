@@ -11,8 +11,10 @@
  *
  * `unknown-status` is a forge word this app has never seen: it must fall back
  * to the modified glyph rather than render an empty square. `crowd` is every
- * optional control at once — updated chip, expand, viewed, copied
- * acknowledgement — which is the narrowest the path ever gets.
+ * optional control at once — updated chip, hidden-resolved count, expand,
+ * viewed, copied acknowledgement — which is the narrowest the path ever gets.
+ * `hidden-resolved` alone pins the count that must stay on screen while
+ * resolved threads are hidden.
  */
 
 import { defineEntry } from "../fixtures/fixtures.ts";
@@ -30,6 +32,21 @@ export const fileSectionHeaderEntry = defineEntry(FileSectionHeader, {
       fileIndex: 1,
       filename: "packages/ui/src/diff-row/diff-row.tsx",
       status: "added",
+    },
+  },
+  "delta-mode": {
+    props: {
+      additions: 9,
+      deletions: 2,
+      deltaBadge: {
+        label: "since your review",
+        title:
+          "Showing what changed since the review you submitted on Aug 12. Rows you already reviewed are dimmed; files that did not move are folded. Press d to show everything.",
+      },
+      expandable: true,
+      fileIndex: 0,
+      filename: "apps/desktop/src/lib/review-items.ts",
+      status: "modified",
     },
   },
   copied: {
@@ -52,9 +69,20 @@ export const fileSectionHeaderEntry = defineEntry(FileSectionHeader, {
       expanding: true,
       fileIndex: 4,
       filename: DEEP,
+      hiddenResolved: 12,
       status: "modified",
       updated: true,
       viewed: true,
+    },
+  },
+  "hidden-resolved": {
+    props: {
+      additions: 9,
+      deletions: 2,
+      fileIndex: 0,
+      filename: "apps/desktop/src/store/app-store.ts",
+      hiddenResolved: 3,
+      status: "modified",
     },
   },
   expanded: {

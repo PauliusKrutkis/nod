@@ -11,6 +11,7 @@ import { IssueTrackerSettings } from "./components/issue-tracker-settings.tsx";
 import { KeyboardHelp } from "./components/keyboard-help.tsx";
 import { Ledger } from "./components/ledger/ledger.tsx";
 import { NotificationCenterLoader } from "./components/notification-center-loader.tsx";
+import { OfflineBarLoader } from "./components/offline-bar-loader.tsx";
 import { PurchasePromptLoader } from "./components/purchase-prompt-loader.tsx";
 import { ReleaseHistoryLoader } from "./components/release-history-loader.tsx";
 import { ReviewScreen } from "./components/review/review-screen.tsx";
@@ -171,12 +172,15 @@ export default function App() {
       </div>
 
       <div aria-live="polite" className="qb-stack qb-stack-host">
-        {showRouteChrome ? <UpdatePromptLoader /> : null}
         {showRouteChrome ? (
-          <WhatsNewLoader onShowHistory={openHistory} />
+          <>
+            <UpdatePromptLoader />
+            <WhatsNewLoader onShowHistory={openHistory} />
+            <ReviewNotifier />
+            <PurchasePromptLoader />
+            <OfflineBarLoader />
+          </>
         ) : null}
-        {showRouteChrome ? <ReviewNotifier /> : null}
-        {showRouteChrome ? <PurchasePromptLoader /> : null}
         {!!toast && (
           <div className="qb-toast" role="alert">
             <span aria-hidden className="qb-toast-rail" />
