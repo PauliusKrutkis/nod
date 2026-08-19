@@ -172,6 +172,17 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "unicode",
     ],
   },
+  "ci-checks": {
+    fixtures: [
+      "all-green",
+      "empty",
+      "missing",
+      "mixed",
+      "overflow",
+      "single-pipeline",
+      "unlinked",
+    ],
+  },
   "ci-pill": {
     fixtures: [
       "failure",
@@ -683,7 +694,14 @@ export const catalogManifest: Record<string, ManifestEntry> = {
     ],
   },
   "right-dock": {
-    fixtures: ["chat-active", "overflow", "single-tab", "two-tabs", "unicode"],
+    fixtures: [
+      "chat-active",
+      "indicators",
+      "overflow",
+      "single-tab",
+      "two-tabs",
+      "unicode",
+    ],
   },
   "search-pane": {
     dialog: true,

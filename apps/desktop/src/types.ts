@@ -19,6 +19,9 @@
  * UpdateInfo.selfInstallable is false on a Linux .deb/.rpm install, where the
  * app cannot put a release in place and the new package has to be downloaded
  * and installed by hand.
+ * CiStatus.checks is optional because details cached by an older version
+ * predate the per-check breakdown; an absent list reads the same as an empty
+ * one, which is a host that reports only a rollup.
  */
 
 export interface GitHubUser {
@@ -116,7 +119,14 @@ export interface ReviewSummary {
   userAvatarUrl: string;
 }
 
+interface CiCheck {
+  name: string;
+  state: "success" | "failure" | "pending";
+  url: string;
+}
+
 export interface CiStatus {
+  checks?: CiCheck[];
   failed: number;
   state: "success" | "failure" | "pending" | "none";
   total: number;
