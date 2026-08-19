@@ -313,6 +313,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "added",
       "copied",
       "crowd",
+      "delta-mode",
       "expanded",
       "expanding",
       "markup-as-text",
