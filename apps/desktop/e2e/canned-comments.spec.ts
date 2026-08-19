@@ -118,9 +118,18 @@ test("nothing is offered inside a code block", async ({ page }) => {
 });
 
 test("nothing is offered mid-line", async ({ page }) => {
+  // What this asserts on is a native caret move, and ProseMirror only syncs
+  // one while its document holds focus. Under parallel workers a sibling page
+  // can take it, leaving the editor state stale and the panel up for the full
+  // timeout. That is the flake this failed on in CI, never the behaviour.
+  await page.bringToFront();
   await page.keyboard.type("nit");
   await expect(panel(page)).toBeVisible();
 
+  // focus(), not click(): a click would move the caret to wherever it landed,
+  // which is the very thing under test. This only puts the selection back in
+  // the editor's hands if a sibling worker took the document's focus.
+  await box(page).focus();
   await page.keyboard.press("ArrowLeft");
   await expect(panel(page)).toBeHidden();
 });
