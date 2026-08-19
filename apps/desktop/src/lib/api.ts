@@ -16,6 +16,7 @@ import type {
   LedgerSession,
   LedgerStatus,
   LicenseState,
+  PrLinkTarget,
   PullRequestDetail,
   ReleaseInfo,
   RepoHit,
@@ -215,6 +216,7 @@ export const api = {
       startLine?: number;
     }[];
   }) => invoke<void>("submit_review", args),
+  takeDeepLinkPr: () => invoke<PrLinkTarget | null>("take_deep_link_pr"),
   updateIssueComment: (args: {
     owner: string;
     repo: string;

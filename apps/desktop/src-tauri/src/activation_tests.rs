@@ -78,6 +78,24 @@ fn purchase_token_reads_only_the_purchase_deep_link() {
 }
 
 #[test]
+fn pr_link_reads_only_a_complete_pr_deep_link() {
+    let parse = |s: &str| url::Url::parse(s).unwrap();
+    assert_eq!(
+        super::pr_link(&parse("nod://pr/acme/rocket/1")),
+        Some(super::PrLink {
+            owner: "acme".to_string(),
+            repo: "rocket".to_string(),
+            number: 1,
+        })
+    );
+    assert_eq!(super::pr_link(&parse("nod://pr/acme/rocket")), None);
+    assert_eq!(super::pr_link(&parse("nod://pr/acme/rocket/notanumber")), None);
+    assert_eq!(super::pr_link(&parse("nod://pr/acme/rocket/1/extra")), None);
+    assert_eq!(super::pr_link(&parse("nod://purchase?token=abc")), None);
+    assert_eq!(super::pr_link(&parse("https://pr/acme/rocket/1")), None);
+}
+
+#[test]
 fn an_unknown_path_is_a_404() {
     let (token, response) = roundtrip("GET /favicon.ico HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
     assert_eq!(token, None);
