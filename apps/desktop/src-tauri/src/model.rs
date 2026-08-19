@@ -237,7 +237,7 @@ pub struct RepoHit {
     pub description: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ReviewCommentInput {
     pub path: String,
