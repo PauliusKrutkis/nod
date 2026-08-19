@@ -180,6 +180,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "mixed",
       "overflow",
       "single-pipeline",
+      "unlinked",
     ],
   },
   "ci-pill": {

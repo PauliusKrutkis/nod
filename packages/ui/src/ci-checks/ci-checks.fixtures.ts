@@ -7,6 +7,10 @@
  * The overflow fixture carries a matrix job's concatenated parameter list,
  * the one unbounded text a row holds — it must ellipsize instead of wrapping
  * or widening the drawer.
+ *
+ * The unlinked fixture is the row a host named without linking, rendered with
+ * no fallback to stand in: it must read as a plain row rather than offering a
+ * press that would go nowhere.
  */
 import { defineEntry } from "../fixtures/fixtures.ts";
 import { CiChecks } from "./ci-checks.tsx";
@@ -63,6 +67,15 @@ export const ciChecksEntry = defineEntry(CiChecks, {
           state: "pending",
           url: "https://gitlab.com/nod/nod/-/pipelines/9001",
         },
+      ],
+      onOpen: noop,
+    },
+  },
+  unlinked: {
+    props: {
+      checks: [
+        { name: "Deploy preview", state: "failure", url: "" },
+        { name: "Lint", state: "success", url: URL },
       ],
       onOpen: noop,
     },
