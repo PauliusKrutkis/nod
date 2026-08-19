@@ -146,6 +146,19 @@ fn ci_from_github_check_rows_fall_back_to_checks_url() {
 }
 
 #[test]
+fn ci_status_cached_before_the_breakdown_still_deserializes() {
+    let cached = serde_json::json!({
+        "state": "success",
+        "total": 3,
+        "failed": 0,
+        "url": "https://x/checks"
+    });
+    let ci: crate::model::CiStatus = serde_json::from_value(cached).unwrap();
+    assert_eq!(ci.state, "success");
+    assert!(ci.checks.is_empty());
+}
+
+#[test]
 fn ci_from_github_pending_then_success_then_none() {
     let pending = ci_from_github(
         &serde_json::json!({ "check_runs": [

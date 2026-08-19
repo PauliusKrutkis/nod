@@ -3,26 +3,22 @@
  * commit status, each opening that check's own log through the host. The
  * pill in the summary answers "is CI green"; this surface answers the next
  * question, which check failed, so rows sort failures first, then running,
- * then passes. Passing checks stay listed rather than hidden, because
- * "everything else is green" is itself information.
+ * then passes (orderChecks). Passing checks stay listed rather than hidden,
+ * because "everything else is green" is itself information.
  *
  * With no checks it renders nothing rather than an empty heading — the host
  * gates the tab on the same fact, so repos without CI (and hosts that only
- * report a rollup) never see the surface at all. Rows arrive in host order;
- * the sort is this component's own promise, so an unsorted host still
- * renders failures first.
+ * report a rollup) never see the surface at all. `fallbackUrl` is the PR's
+ * checks page, standing in for hosts that name a check without linking it;
+ * a row that ends up with no link at all is rendered plain rather than as a
+ * button that would do nothing on press.
  */
 import { Check, Loader, X } from "lucide-react";
 import type { MouseEvent } from "react";
 import type { CiCheck } from "../ci-pill/ci-pill.tsx";
 import { cn } from "../cn/cn.ts";
+import { orderChecks } from "./order-checks.ts";
 import "./ci-checks.css";
-
-const ORDER: Record<CiCheck["state"], number> = {
-  failure: 0,
-  pending: 1,
-  success: 2,
-};
 
 const ROW: Record<
   CiCheck["state"],
@@ -47,18 +43,17 @@ const ROW: Record<
 
 export function CiChecks({
   checks,
+  fallbackUrl,
   onOpen,
 }: {
   checks: readonly CiCheck[] | undefined;
+  fallbackUrl?: string;
   onOpen: (url: string) => void;
 }) {
-  if (!checks || checks.length === 0) {
+  const rows = orderChecks(checks, fallbackUrl);
+  if (rows.length === 0) {
     return null;
   }
-
-  const sorted = checks
-    .map((check, hostOrder) => ({ check, hostOrder }))
-    .sort((a, b) => ORDER[a.check.state] - ORDER[b.check.state]);
 
   const handleClick = (e: MouseEvent<HTMLButtonElement>) => {
     const url = e.currentTarget.dataset.checkUrl;
@@ -71,16 +66,29 @@ export function CiChecks({
     <section className="qf-cichecks">
       <h3 className="qf-cichecks-h">
         Checks
-        <span className="qf-cichecks-count">{checks.length}</span>
+        <span className="qf-cichecks-count">{rows.length}</span>
       </h3>
       <div className="qf-cichecks-list">
-        {sorted.map(({ check, hostOrder }) => {
+        {rows.map(({ check, hostOrder, url }) => {
           const meta = ROW[check.state];
+          const label = `${check.name} · ${meta.label}`;
+          if (!url) {
+            return (
+              <div
+                className={cn("qf-cicheck-row", meta.className)}
+                key={hostOrder}
+              >
+                <span className="qf-cicheck-state">{meta.icon}</span>
+                <span className="qf-cicheck-name">{check.name}</span>
+                <span className="qf-cicheck-said">{meta.label}</span>
+              </div>
+            );
+          }
           return (
             <button
-              aria-label={`${check.name} · ${meta.label}`}
+              aria-label={label}
               className={cn("qf-cicheck-row q-focus", meta.className)}
-              data-check-url={check.url}
+              data-check-url={url}
               key={hostOrder}
               onClick={handleClick}
               title="Open the full log"

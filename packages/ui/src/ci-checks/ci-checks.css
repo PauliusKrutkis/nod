@@ -6,7 +6,11 @@
    padding and its scroll instead of a drawer section's bottom margin.
 
    A check name is host text and unbounded (matrix jobs concatenate their
-   whole parameter list), so the name ellipsizes and the row never wraps. */
+   whole parameter list), so the name ellipsizes and the row never wraps.
+
+   A row the host gave no link keeps its state in text (qf-cicheck-said,
+   offscreen) rather than an aria-label, which a plain div cannot carry: the
+   linked rows fold the same word into their own accessible name. */
 
 .qf-cichecks {
   flex: 1 1 auto;
@@ -112,5 +116,14 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qf-cicheck-said {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
   white-space: nowrap;
 }

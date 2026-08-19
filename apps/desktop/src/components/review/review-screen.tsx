@@ -11,6 +11,7 @@
  */
 
 import { treeOrder } from "@nod/ui/file-tree";
+import { checksVerdict } from "@nod/ui/order-checks";
 import { useEdgeResize } from "@nod/ui/use-edge-resize";
 import { useLatest } from "@nod/ui/use-latest";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -1080,7 +1081,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     toggleActiveThread,
     toggleChat: onToggleChat,
     toggleChecks: () => {
-      if ((detail?.ciStatus?.checks?.length ?? 0) > 0) {
+      if (checksVerdict(detail?.ciStatus?.checks)) {
         onToggleChecks();
       }
     },

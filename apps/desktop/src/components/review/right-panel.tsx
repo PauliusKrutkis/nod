@@ -15,6 +15,7 @@
  */
 
 import { CiChecks } from "@nod/ui/ci-checks";
+import { checksVerdict } from "@nod/ui/order-checks";
 import { PrDrawer, type PrDrawerHandle } from "@nod/ui/pr-drawer";
 import { RightDock, type RightDockTab } from "@nod/ui/right-dock";
 import type { Ref } from "react";
@@ -36,13 +37,15 @@ import { ChatTab } from "./chat-tab.tsx";
 export type { PrDrawerHandle as RightPanelHandle } from "@nod/ui/pr-drawer";
 
 /** The Checks tab exists only when the PR carries per-check rows, and its
- *  dot repeats the pill's verdict so a red build is visible from any tab. */
+ *  dot is the verdict of those same rows so it cannot disagree with the list
+ *  it labels. */
 function dockTabs(ci: CiStatus | undefined): RightDockTab[] {
   const tabs: RightDockTab[] = [{ id: "info", kbd: "mod+i", label: "Info" }];
-  if (ci && ci.state !== "none" && (ci.checks?.length ?? 0) > 0) {
+  const verdict = checksVerdict(ci?.checks);
+  if (verdict) {
     tabs.push({
       id: "checks",
-      indicator: ci.state,
+      indicator: verdict,
       kbd: "mod+j",
       label: "Checks",
     });
@@ -172,7 +175,11 @@ export function RightPanel({
       </div>
       {hasChecksTab && (
         <div className="qf-dock-tabpane" hidden={activeTab !== "checks"}>
-          <CiChecks checks={ci?.checks} onOpen={openExternal} />
+          <CiChecks
+            checks={ci?.checks}
+            fallbackUrl={ci?.url}
+            onOpen={openExternal}
+          />
         </div>
       )}
       <div className="qf-dock-tabpane" hidden={activeTab !== "chat"}>
