@@ -3,6 +3,13 @@
 # cache keyed by the installed @playwright/test version. Reinstalling browsers
 # cost 40-65s on every run; a cache hit leaves only the apt system deps, which
 # is the one part a cache cannot carry across runner images.
+#
+# Both Playwright steps are wrapped in `timeout` because they shell out to
+# apt-get: an unreachable Ubuntu mirror stalls the install rather than failing
+# it, and twice in one afternoon that turned a 9-minute job into the full
+# 6-hour runner limit with no test ever running. Composite actions cannot
+# carry `timeout-minutes` on a step, so the bound has to be the command's own.
+# Normal runs finish these in well under a minute.
 name: Setup
 description: pnpm, node, workspace install, and optionally cached Playwright browsers
 
@@ -37,8 +44,8 @@ runs:
     - name: Install Playwright browsers
       if: inputs.browsers != '' && steps.playwright-cache.outputs.cache-hit != 'true'
       shell: bash
-      run: pnpm exec playwright install --with-deps ${{ inputs.browsers }}
+      run: timeout 600 pnpm exec playwright install --with-deps ${{ inputs.browsers }}
     - name: Install Playwright system deps
       if: inputs.browsers != '' && steps.playwright-cache.outputs.cache-hit == 'true'
       shell: bash
-      run: pnpm exec playwright install-deps ${{ inputs.browsers }}
+      run: timeout 600 pnpm exec playwright install-deps ${{ inputs.browsers }}

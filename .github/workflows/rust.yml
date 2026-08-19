@@ -17,6 +17,7 @@ concurrency:
 jobs:
   rust:
     runs-on: ubuntu-22.04
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - name: Install Linux system dependencies
