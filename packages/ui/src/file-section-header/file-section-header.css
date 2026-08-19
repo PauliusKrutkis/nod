@@ -124,13 +124,21 @@ button.qf-fsec-copy {
 /* A squeezed column keeps the header one line tall: the buttons drop their
    words and stand on their icons (the tooltips still name them), because a
    header that wraps to three lines steals the diff's room and reads as
-   damage. The path keeps whatever is left and ellipsizes. */
+   damage. The path keeps whatever is left and ellipsizes. The updated chip
+   goes entirely, but the hidden-resolved count only sheds its middle word:
+   the count has to stay while anything is hidden, and at full length it
+   pushed the filename and both controls off the row, which trades one wrong
+   reading for a worse one. */
 @container qf-fsec (width < 460px) {
   .qf-fsec-btn-label {
     display: none;
   }
 
   .qf-updated-chip {
+    display: none;
+  }
+
+  .qf-hidden-resolved-word {
     display: none;
   }
 }

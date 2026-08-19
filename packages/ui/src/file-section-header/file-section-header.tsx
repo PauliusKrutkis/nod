@@ -121,7 +121,8 @@ export function FileSectionHeader({
           className="qf-hidden-resolved-chip"
           title="Resolved threads are hidden · shift+z shows them"
         >
-          {hiddenResolved} resolved hidden
+          {hiddenResolved}{" "}
+          <span className="qf-hidden-resolved-word">resolved</span> hidden
         </span>
       )}
       <span className="qf-filebar-stat">
