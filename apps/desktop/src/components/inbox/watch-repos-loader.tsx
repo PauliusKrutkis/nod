@@ -8,6 +8,7 @@ import { useWatchedRepos } from "../../hooks/use-subscribed.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
 import { api } from "../../lib/api.ts";
 import { queryClient, queryKeys } from "../../lib/query-client.ts";
+import { openOrgApprovalDocs } from "./org-access-hint.tsx";
 
 /**
  * Query, provider search and persistence for the watched-repository list; the
@@ -145,6 +146,7 @@ function WatchReposLoaderContent({ onClose }: { onClose: () => void }) {
       error={writeError}
       hits={answered ? (searchResult?.hits ?? null) : null}
       onOpenChange={onOpenChange}
+      onOrgAccessHelp={openOrgApprovalDocs}
       onQueryChange={setQuery}
       onStopWatching={onStopWatching}
       onWatch={onWatch}

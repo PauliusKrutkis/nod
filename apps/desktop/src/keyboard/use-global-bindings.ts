@@ -6,15 +6,21 @@
  * that keeping it inline buried the render.
  *
  * The hook reads the store itself for everything the bindings act on, so the
- * caller only passes what App alone owns: the three dialogs held in its local
+ * caller only passes what App alone owns: the dialogs held in its local
  * state. Bindings with `keys: []` are palette-only — reachable by name, with
  * no chord to remember.
+ *
+ * The license panel gets two palette entries against one destination —
+ * "Activate my license" and "Check my license" — because two searchable
+ * phrasings cost nothing and catch both mental models. Both work in every
+ * license state; the panel itself carries the answer.
  */
 import {
   Bell,
   Command as CommandIcon,
   HelpCircle,
   History,
+  KeyRound,
   ListChecks,
   MessageSquareQuote,
   Search,
@@ -26,7 +32,6 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { useAiCompletionEnabled } from "../hooks/use-ai-completion.ts";
-import { useLicenseCommand } from "../hooks/use-license-command.ts";
 import { setAiCompletionEnabled } from "../lib/ai-completion.ts";
 import { applyZoom, clampZoom, loadZoom, ZOOM_STEP } from "../lib/zoom.ts";
 import { useAppStore } from "../store/app-store.ts";
@@ -36,6 +41,7 @@ import { useHotkeys } from "./use-hotkeys.ts";
 export function useGlobalBindings(dialogs: {
   openCanned: () => void;
   openHistory: () => void;
+  openLicense: () => void;
   openTracker: () => void;
   toggleNotifications: () => void;
 }): void {
@@ -44,9 +50,14 @@ export function useGlobalBindings(dialogs: {
   const activeAccountId = useAppStore((s) => s.activeAccountId);
   const switchAccount = useAppStore((s) => s.switchAccount);
   const setToast = useAppStore((s) => s.setToast);
-  const licenseCommand = useLicenseCommand();
   const aiCompletionOn = useAiCompletionEnabled();
-  const { openCanned, openHistory, openTracker, toggleNotifications } = dialogs;
+  const {
+    openCanned,
+    openHistory,
+    openLicense,
+    openTracker,
+    toggleNotifications,
+  } = dialogs;
 
   const accountBindings: Binding[] = [
     ...accounts.slice(0, 9).map(
@@ -172,7 +183,22 @@ export function useGlobalBindings(dialogs: {
         keys: [],
         run: () => useAppStore.getState().openAiSetup(),
       },
-      licenseCommand,
+      {
+        description: "Activate my license",
+        global: true,
+        group: "General",
+        icon: KeyRound,
+        keys: [],
+        run: openLicense,
+      },
+      {
+        description: "Check my license",
+        global: true,
+        group: "General",
+        icon: KeyRound,
+        keys: [],
+        run: openLicense,
+      },
       {
         description: "Release history · what's new",
         global: true,
