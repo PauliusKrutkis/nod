@@ -5,6 +5,11 @@ import {
   writeLedgerConfig,
 } from "./config.ts";
 import { approveTopic } from "./derive/approve.ts";
+import {
+  commentOnRegion,
+  replyToComment,
+  resolveComment,
+} from "./derive/comment.ts";
 import { deriveSession } from "./derive/session.ts";
 import { signRegion } from "./derive/sign.ts";
 import { deriveStatus, type LedgerStatus } from "./derive/status.ts";
@@ -34,6 +39,10 @@ const USAGE = `usage: ledger <command>
   review <target>…  mark regions reviewed; target: path or path:start-end
   approve <topic>…  stamp a topic at tip; deltas baseline here (--force for
                     a topic id the queue does not currently show)
+  comment <target> <body>      start a thread on a region (path:line[-end])
+  comment --reply <id> <body>  answer the thread rooted at fact id
+  resolve <id>      close the thread rooted at fact id
+  comments          every thread, positioned on tip
   sync [remote]     push/pull facts via git (default origin)
 `;
 
@@ -218,6 +227,77 @@ const runReview = async (
   );
 };
 
+const COMMENT_TARGET = /^(.+):(\d+)(?:-(\d+))?$/;
+
+const runComment = async (
+  git: GitRun,
+  repoRoot: string,
+  args: readonly string[]
+): Promise<void> => {
+  await requireConfig(repoRoot);
+  const tip = (await git(["rev-parse", "HEAD"])).trim();
+  const actor = await getActor(git);
+  const atTime = new Date().toISOString();
+
+  if (args[0] === "--reply") {
+    const [, parent, body] = args;
+    if (!(parent && body)) {
+      die("usage: ledger comment --reply <fact-id> <body>");
+    }
+    const id = await replyToComment(git, tip, parent, actor, atTime, body);
+    if (!id) {
+      die(`no comment thread rooted at ${parent} — see \`ledger comments\``);
+    }
+    console.log(`replied · ${id}`);
+    return;
+  }
+
+  const [target, body] = args;
+  const range = target === undefined ? null : COMMENT_TARGET.exec(target);
+  if (!(range && body)) {
+    die("usage: ledger comment <path>:<line>[-<end>] <body>");
+    return;
+  }
+  const region = {
+    path: range[1],
+    startLine: Number(range[2]),
+    endLine: Number(range[3] ?? range[2]),
+  };
+  const id = await commentOnRegion(git, tip, region, actor, atTime, body);
+  if (!id) {
+    die(`nothing to anchor to at ${target} — is the region on tip?`);
+  }
+  console.log(`commented on ${target} · ${id}`);
+};
+
+const runComments = async (git: GitRun, repoRoot: string, json: boolean) => {
+  const status = await requireStatus(git, repoRoot);
+  if (json) {
+    console.log(JSON.stringify(status.comments));
+    return;
+  }
+  if (status.comments.length === 0) {
+    console.log("no comment threads yet");
+    return;
+  }
+  for (const comment of status.comments) {
+    const where =
+      comment.startLine === null
+        ? `${comment.path} (content gone)`
+        : `${comment.path}:${comment.startLine}-${comment.endLine}`;
+    const marks = [
+      comment.anchorStatus === "stale" ? "previous version" : null,
+      comment.resolved ? "resolved" : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    const head = comment.parent === null ? where : "  ↳";
+    console.log(
+      `${head} ${comment.actor.id}: ${comment.body}${marks ? ` (${marks})` : ""} · ${comment.id.slice(0, 8)}`
+    );
+  }
+};
+
 const main = async (): Promise<void> => {
   const argv = process.argv.slice(2);
   const json = argv.includes("--json");
@@ -278,6 +358,33 @@ const main = async (): Promise<void> => {
     }
     case "approve": {
       await runApprove(git, repoRoot, args, force);
+      return;
+    }
+    case "comment": {
+      await runComment(git, repoRoot, args);
+      return;
+    }
+    case "comments": {
+      await runComments(git, repoRoot, json);
+      return;
+    }
+    case "resolve": {
+      if (!args[0]) {
+        die("usage: ledger resolve <fact-id>");
+      }
+      await requireConfig(repoRoot);
+      const tip = (await git(["rev-parse", "HEAD"])).trim();
+      const id = await resolveComment(
+        git,
+        tip,
+        args[0],
+        await getActor(git),
+        new Date().toISOString()
+      );
+      if (!id) {
+        die(`no comment thread rooted at ${args[0]} — see \`ledger comments\``);
+      }
+      console.log(`resolved · ${id}`);
       return;
     }
     case "sync": {

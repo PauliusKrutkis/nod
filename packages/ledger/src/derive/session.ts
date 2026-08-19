@@ -2,7 +2,12 @@ import type { ResolveConfig } from "../anchors/resolve.ts";
 import { diffFilePatch } from "../git/diff.ts";
 import type { GitRun } from "../git/exec.ts";
 import { readLinesAt } from "../git/files.ts";
-import { deriveStatus, type QueueBaseline, type QueueItem } from "./status.ts";
+import {
+  deriveStatus,
+  type LedgerComment,
+  type QueueBaseline,
+  type QueueItem,
+} from "./status.ts";
 
 /**
  * The session payload (docs/LEDGER.md §6 screen 2): each queued file as a
@@ -31,6 +36,8 @@ interface SessionFile {
 export interface LedgerSession {
   tip: string;
   sessions: SessionFile[];
+  /** Every thread positioned in one of the session's files. */
+  comments: LedgerComment[];
 }
 
 /** Context lines around each unreviewed run in a synthesized patch. */
@@ -170,7 +177,12 @@ export const deriveSession = async (
       regions,
     });
   }
-  return { tip: status.tip, sessions };
+  const paths = new Set(sessions.map((file) => file.path));
+  return {
+    tip: status.tip,
+    sessions,
+    comments: status.comments.filter((comment) => paths.has(comment.path)),
+  };
 };
 
 /**

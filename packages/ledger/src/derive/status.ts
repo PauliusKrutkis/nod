@@ -7,7 +7,7 @@ import {
   type ResolveConfig,
   resolveAnchor,
 } from "../anchors/resolve.ts";
-import type { Actor, Fact } from "../facts/schema.ts";
+import { type Actor, type Fact, factId } from "../facts/schema.ts";
 import { readAnchorRefs, readFacts } from "../facts/store.ts";
 import { cachedBlameTree } from "../git/blame-cache.ts";
 import type { GitRun } from "../git/exec.ts";
@@ -82,6 +82,29 @@ export interface QueueItem {
   topic: string;
 }
 
+/**
+ * A comment thread entry, positioned on tip by resolving its anchor: `alive`
+ * sits exactly where the discussed content lives now, `stale` on the nearest
+ * surviving lines ("commented on a previous version"), `gone` degrades to
+ * the file it was made in. Replies inherit the root's position.
+ */
+export interface LedgerComment {
+  id: string;
+  /** Root fact id for replies; null on thread roots. */
+  parent: string | null;
+  actor: Actor;
+  atSha: string;
+  atTime: string;
+  body: string;
+  path: string;
+  /** 1-based tip span; null when the commented content is gone. */
+  startLine: number | null;
+  endLine: number | null;
+  anchorStatus: "alive" | "stale" | "gone";
+  /** True when a `resolved` fact closes the thread; roots only. */
+  resolved: boolean;
+}
+
 export interface LedgerStatus {
   tip: string;
   epoch: string;
@@ -91,6 +114,7 @@ export interface LedgerStatus {
   coverage: number;
   queue: QueueItem[];
   topics: TopicStatus[];
+  comments: LedgerComment[];
 }
 
 const SQUASH_SUBJECT = /\(#(\d+)\)\s*$/;
@@ -146,26 +170,38 @@ interface ResolvedAnchor {
   resolution: Resolution;
 }
 
-/** Paint every line still covered by a human's reviewed/approved anchor. */
+/**
+ * Paint every line still covered by a human's reviewed/approved anchor, and
+ * resolve comment-thread roots to their tip position on the way (same index,
+ * same pass; comments never touch the masks — a remark is not a review).
+ */
 const applyReviewMarks = async (
   git: GitRun,
   raw: ReadonlyMap<string, string[]>,
   config: ResolveConfig,
   facts: readonly Fact[]
-): Promise<{ masks: Map<string, Uint8Array>; resolved: ResolvedAnchor[] }> => {
+): Promise<{
+  masks: Map<string, Uint8Array>;
+  resolved: ResolvedAnchor[];
+  commented: ResolvedAnchor[];
+}> => {
   const anchorRefs = await readAnchorRefs(git);
   const index = buildTipIndex(raw, config.normalization);
   const masks = new Map<string, Uint8Array>();
   const resolved: ResolvedAnchor[] = [];
+  const commented: ResolvedAnchor[] = [];
 
   for (const fact of facts) {
+    if (fact.subject.kind !== "anchor") {
+      continue;
+    }
     // Agent facts are triage signal, never coverage — the ratchet counts
     // human attention only (docs/LEDGER.md §5).
-    const relevant =
+    const marks =
       (fact.verdict === "reviewed" || fact.verdict === "approved") &&
-      fact.subject.kind === "anchor" &&
       fact.actor.kind === "human";
-    const ref = relevant ? anchorRefs.get(fact.subject.id) : undefined;
+    const isRoot = fact.verdict === "commented" && fact.parent === undefined;
+    const ref = marks || isRoot ? anchorRefs.get(fact.subject.id) : undefined;
     if (!ref) {
       continue;
     }
@@ -175,26 +211,117 @@ const applyReviewMarks = async (
     }
     const anchor: Anchor = { ...ref, lines };
     const resolution = resolveAnchor(index, anchor, config);
-    resolved.push({ ref, fact, resolution });
-    if (resolution.status === "gone") {
+    if (isRoot) {
+      commented.push({ ref, fact, resolution });
       continue;
     }
-    const length = raw.get(resolution.path)?.length ?? 0;
-    if (resolution.status === "alive") {
-      markRange(
-        masks,
-        resolution.path,
-        length,
-        resolution.line - 1,
-        lines.length
-      );
-    } else {
-      for (const line of resolution.matchedTipLines) {
-        markRange(masks, resolution.path, length, line, 1);
-      }
+    resolved.push({ ref, fact, resolution });
+    paintResolution(masks, raw, resolution, lines.length);
+  }
+  return { masks, resolved, commented };
+};
+
+const paintResolution = (
+  masks: Map<string, Uint8Array>,
+  raw: ReadonlyMap<string, string[]>,
+  resolution: Resolution,
+  lineCount: number
+): void => {
+  if (resolution.status === "gone") {
+    return;
+  }
+  const length = raw.get(resolution.path)?.length ?? 0;
+  if (resolution.status === "alive") {
+    markRange(masks, resolution.path, length, resolution.line - 1, lineCount);
+  } else {
+    for (const line of resolution.matchedTipLines) {
+      markRange(masks, resolution.path, length, line, 1);
     }
   }
-  return { masks, resolved };
+};
+
+const commentSpan = (
+  record: ResolvedAnchor
+): Pick<LedgerComment, "path" | "startLine" | "endLine" | "anchorStatus"> => {
+  const { ref, resolution } = record;
+  if (resolution.status === "alive") {
+    return {
+      path: resolution.path,
+      startLine: resolution.line,
+      endLine: resolution.line + ref.lineCount - 1,
+      anchorStatus: "alive",
+    };
+  }
+  if (resolution.status === "stale" && resolution.matchedTipLines.length > 0) {
+    return {
+      path: resolution.path,
+      startLine: Math.min(...resolution.matchedTipLines) + 1,
+      endLine: Math.max(...resolution.matchedTipLines) + 1,
+      anchorStatus: "stale",
+    };
+  }
+  return {
+    path: ref.path,
+    startLine: null,
+    endLine: null,
+    anchorStatus: "gone",
+  };
+};
+
+const byThreadOrder = (a: LedgerComment, b: LedgerComment): number => {
+  if (a.path !== b.path) {
+    return a.path < b.path ? -1 : 1;
+  }
+  if ((a.startLine ?? 0) !== (b.startLine ?? 0)) {
+    return (a.startLine ?? 0) - (b.startLine ?? 0);
+  }
+  return a.atTime < b.atTime ? -1 : 1;
+};
+
+/** Thread roots positioned on tip, each followed by its replies in order. */
+const deriveComments = (
+  facts: readonly Fact[],
+  commented: readonly ResolvedAnchor[]
+): LedgerComment[] => {
+  const roots: LedgerComment[] = commented
+    .map((record) => ({
+      id: factId(record.fact),
+      parent: null,
+      actor: record.fact.actor,
+      atSha: record.fact.atSha,
+      atTime: record.fact.atTime,
+      body: record.fact.body ?? "",
+      resolved: false,
+      ...commentSpan(record),
+    }))
+    .sort(byThreadOrder);
+
+  const out: LedgerComment[] = [];
+  for (const root of roots) {
+    root.resolved = facts.some(
+      (fact) => fact.verdict === "resolved" && fact.parent === root.id
+    );
+    out.push(root);
+    const replies = facts
+      .filter((fact) => fact.verdict === "commented" && fact.parent === root.id)
+      .sort((a, b) => (a.atTime < b.atTime ? -1 : 1));
+    for (const reply of replies) {
+      out.push({
+        id: factId(reply),
+        parent: root.id,
+        actor: reply.actor,
+        atSha: reply.atSha,
+        atTime: reply.atTime,
+        body: reply.body ?? "",
+        path: root.path,
+        startLine: root.startLine,
+        endLine: root.endLine,
+        anchorStatus: root.anchorStatus,
+        resolved: false,
+      });
+    }
+  }
+  return out;
 };
 
 /** Walk one file's lines, counting coverage and growing queue runs. */
@@ -549,7 +676,12 @@ export const deriveStatus = async (
   );
 
   const facts = await readFacts(git);
-  const { masks, resolved } = await applyReviewMarks(git, raw, config, facts);
+  const { masks, resolved, commented } = await applyReviewMarks(
+    git,
+    raw,
+    config,
+    facts
+  );
   const topicStates = await buildTopicApprovals(git, facts, {
     epoch,
     postEpoch,
@@ -637,5 +769,6 @@ export const deriveStatus = async (
     coverage: totalLines === 0 ? 1 : reviewedLines / totalLines,
     queue,
     topics,
+    comments: deriveComments(facts, commented),
   };
 };
