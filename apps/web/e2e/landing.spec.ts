@@ -201,7 +201,7 @@ test("shows each capability as real footage with a poster", async ({
 }) => {
   await page.goto("/");
 
-  const shows = page.locator(".show");
+  const shows = page.locator(".fb__feat");
   await expect(shows).toHaveCount(3);
   for (const [i, scene] of ["loop", "comments", "scan"].entries()) {
     const video = shows.nth(i).locator("video");
@@ -210,11 +210,44 @@ test("shows each capability as real footage with a poster", async ({
   }
 });
 
+test("the feature rail moves on j and k without launching the hero demo", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  const rows = page.getByRole("option");
+  await rows.first().click();
+  await expect(rows.first()).toHaveAttribute("aria-selected", "true");
+
+  await page.keyboard.press("j");
+  await expect(rows.nth(1)).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator(".fb__feat[data-active]")).toHaveCount(1);
+  await expect(page.locator("#feature-comments")).toBeVisible();
+
+  await page.keyboard.press("k");
+  await expect(rows.first()).toHaveAttribute("aria-selected", "true");
+
+  // The page-wide j that starts the hero demo must not also fire from inside
+  // the rail; the surface with focus owns the key.
+  await expect(page.locator(".hd__frame--live")).toHaveCount(0);
+});
+
+test("deep links open their own feature", async ({ page }) => {
+  await page.goto("/#feature-scan");
+
+  await expect(page.locator("#feature-scan")).toBeVisible();
+  await expect(page.locator(".fb__feat[data-active]")).toHaveCount(1);
+  await expect(page.getByRole("option").nth(2)).toHaveAttribute(
+    "aria-selected",
+    "true"
+  );
+});
+
 test("plays footage only in view, never under reduced motion", async ({
   page,
 }) => {
   await page.goto("/");
-  const firstVideo = page.locator(".show video").first();
+  const firstVideo = page.locator(".fb__video").first();
 
   await firstVideo.scrollIntoViewIfNeeded();
   await expect
@@ -244,7 +277,7 @@ test("never runs more than one loop at a time down the whole page", async ({
       "play",
       () => {
         const playing = [
-          ...document.querySelectorAll<HTMLVideoElement>(".show video"),
+          ...document.querySelectorAll<HTMLVideoElement>(".fb__video"),
         ].filter((video) => !video.paused).length;
         window.peakConcurrentLoops = Math.max(
           window.peakConcurrentLoops,
@@ -259,7 +292,7 @@ test("never runs more than one loop at a time down the whole page", async ({
   const playingCount = () =>
     page.evaluate(
       () =>
-        [...document.querySelectorAll<HTMLVideoElement>(".show video")].filter(
+        [...document.querySelectorAll<HTMLVideoElement>(".fb__video")].filter(
           (video) => !video.paused
         ).length
     );
@@ -267,7 +300,7 @@ test("never runs more than one loop at a time down the whole page", async ({
   // Establish that playback happens at all before asserting a cap on it: a
   // cap is satisfied trivially by a page where nothing ever plays, which is
   // how the first version of this spec passed against the bug.
-  await page.locator(".show video").first().scrollIntoViewIfNeeded();
+  await page.locator(".fb__video").first().scrollIntoViewIfNeeded();
   await expect.poll(playingCount).toBe(1);
 
   // `scroll-behavior: smooth` is set page-wide, so the two-argument scrollTo
