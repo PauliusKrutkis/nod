@@ -1,6 +1,7 @@
 /**
  * Every binding that works wherever you are: the palette and help, the two
- * the two comment preferences, search, zoom, notifications, the settings
+ * the two comment preferences, search, zoom, notifications, the update
+ * check, the settings
  * dialogs and the account switcher. They live here rather than in App because App renders routes and
  * chrome — this is a list of what the keyboard can do, and it is long enough
  * that keeping it inline buried the render.
@@ -26,6 +27,7 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { useAiCompletionEnabled } from "../hooks/use-ai-completion.ts";
+import { useCheckUpdatesCommand } from "../hooks/use-check-updates-command.ts";
 import { useLicenseCommand } from "../hooks/use-license-command.ts";
 import { setAiCompletionEnabled } from "../lib/ai-completion.ts";
 import { applyZoom, clampZoom, loadZoom, ZOOM_STEP } from "../lib/zoom.ts";
@@ -44,6 +46,7 @@ export function useGlobalBindings(dialogs: {
   const activeAccountId = useAppStore((s) => s.activeAccountId);
   const switchAccount = useAppStore((s) => s.switchAccount);
   const setToast = useAppStore((s) => s.setToast);
+  const checkUpdatesCommand = useCheckUpdatesCommand();
   const licenseCommand = useLicenseCommand();
   const aiCompletionOn = useAiCompletionEnabled();
   const { openCanned, openHistory, openTracker, toggleNotifications } = dialogs;
@@ -173,6 +176,7 @@ export function useGlobalBindings(dialogs: {
         run: () => useAppStore.getState().openAiSetup(),
       },
       licenseCommand,
+      checkUpdatesCommand,
       {
         description: "Release history · what's new",
         global: true,

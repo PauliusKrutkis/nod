@@ -96,6 +96,7 @@ export function UpdatePromptLoader() {
       currentVersion={update.currentVersion}
       eligible={update.eligible}
       error={error}
+      installedAs={update.installedAs}
       installing={installing}
       notes={update.notes}
       onBuyLicense={buyLicense}
@@ -105,6 +106,7 @@ export function UpdatePromptLoader() {
       price={PRICE}
       purchasing={purchasing}
       selfInstallable={update.selfInstallable}
+      updateCommand={update.updateCommand}
       version={update.version}
     />
   );

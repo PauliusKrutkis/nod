@@ -779,6 +779,8 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "installing",
       "overflow",
       "packaged",
+      "packaged-apt",
+      "packaged-aur",
       "packaged-ineligible",
       "ready-to-restart",
       "with-notes",
