@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   blobLines,
+  buildRepoState,
+  isSnapshotNotReady,
   repoSearchPhase,
+  SNAPSHOT_SETTLED,
   sliceContext,
   tagRepoHits,
 } from "./repo-search.ts";
@@ -60,6 +63,24 @@ describe("tagRepoHits", () => {
     expect(hit.fileIndex).toBeNull();
   });
 
+  it("does not treat a path that merely ends with a changed path as that file", () => {
+    const [hit] = tagRepoHits(
+      [{ line: 10, path: "vendor/src/a.ts", text: "const a = 1;" }],
+      FILES
+    );
+    expect(hit.anchor).toBeNull();
+    expect(hit.fileIndex).toBeNull();
+  });
+
+  it("locates a changed file that carries no hunks without anchoring it", () => {
+    const [hit] = tagRepoHits(
+      [{ line: 1, path: "assets/logo.png", text: "binary" }],
+      FILES
+    );
+    expect(hit.fileIndex).toBe(1);
+    expect(hit.anchor).toBeNull();
+  });
+
   it("sorts anchored hits first, keeping each group's order", () => {
     const hits = tagRepoHits(
       [
@@ -111,6 +132,93 @@ describe("sliceContext", () => {
     const slice = sliceContext(lines, 3, 1);
     expect(slice.map((l) => l.hit)).toEqual([false, true, false]);
     expect(slice.map((l) => l.text)).toEqual(["l2", "l3", "l4"]);
+  });
+});
+
+describe("isSnapshotNotReady", () => {
+  it("recognises the backend's race message and nothing else", () => {
+    expect(isSnapshotNotReady("snapshot not ready")).toBe(true);
+    expect(isSnapshotNotReady(new Error("snapshot not ready"))).toBe(true);
+    expect(isSnapshotNotReady("search failed: boom")).toBe(false);
+    expect(isSnapshotNotReady(null)).toBe(false);
+  });
+});
+
+describe("SNAPSHOT_SETTLED", () => {
+  it("stops polling only on the terminal states", () => {
+    expect([...SNAPSHOT_SETTLED].sort()).toEqual([
+      "failed",
+      "ready",
+      "skipped",
+    ]);
+    expect(SNAPSHOT_SETTLED.has("downloading")).toBe(false);
+  });
+});
+
+describe("buildRepoState", () => {
+  const ready = {
+    files: FILES,
+    grepError: null,
+    grepFetching: false,
+    peekRadius: 1,
+    snapshot: { detail: "", state: "ready" } as const,
+    snapshotError: null,
+    truncated: false,
+  };
+
+  it("attaches peek context to the peeked path only", () => {
+    const state = buildRepoState({
+      ...ready,
+      hits: [
+        { line: 2, path: "src/other.ts", text: "b" },
+        { line: 2, path: "src/far.ts", text: "b" },
+      ],
+      peekLines: ["one", "two", "three"],
+      peekPath: "src/other.ts",
+    });
+    expect(state.hits[0].context?.map((l) => l.text)).toEqual([
+      "one",
+      "two",
+      "three",
+    ]);
+    expect(state.hits[1].context).toBeUndefined();
+  });
+
+  it("leaves hits uncontexted until the blob arrives", () => {
+    const state = buildRepoState({
+      ...ready,
+      hits: [{ line: 2, path: "src/other.ts", text: "b" }],
+      peekLines: null,
+      peekPath: "src/other.ts",
+    });
+    expect(state.hits[0].context).toBeUndefined();
+  });
+
+  it("carries the phase and the truncation flag onto the pane state", () => {
+    const state = buildRepoState({
+      ...ready,
+      hits: [],
+      peekLines: null,
+      peekPath: null,
+      snapshot: { detail: "", state: "downloading" },
+      truncated: true,
+    });
+    expect(state.status).toBe("preparing");
+    expect(state.truncated).toBe(true);
+    expect(state.hits).toEqual([]);
+  });
+
+  it("keeps the anchored-first order the pane renders", () => {
+    const state = buildRepoState({
+      ...ready,
+      hits: [
+        { line: 1, path: "src/z.ts", text: "z" },
+        { line: 10, path: "src/a.ts", text: "const a = 1;" },
+      ],
+      peekLines: null,
+      peekPath: null,
+    });
+    expect(state.hits.map((h) => h.path)).toEqual(["src/a.ts", "src/z.ts"]);
   });
 });
 

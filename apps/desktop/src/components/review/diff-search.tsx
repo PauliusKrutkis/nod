@@ -32,7 +32,7 @@ import {
   type RepoSearchState,
 } from "@nod/ui/pr-search";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useCallback, useMemo, useState } from "react";
+import { useState } from "react";
 
 import { useDebouncedValue } from "../../hooks/use-debounced-value.ts";
 import { api } from "../../lib/api.ts";
@@ -40,11 +40,9 @@ import { type DiffRow, parsePatch } from "../../lib/diff.ts";
 import { highlightLineWithMatch } from "../../lib/highlight.ts";
 import {
   blobLines,
+  buildRepoState,
   isSnapshotNotReady,
-  repoSearchPhase,
   SNAPSHOT_SETTLED,
-  sliceContext,
-  tagRepoHits,
 } from "../../lib/repo-search.ts";
 import type { ChangedFile } from "../../types.ts";
 
@@ -101,10 +99,7 @@ export function DiffSearch({
   const pattern = useDebouncedValue(repoQuery.trim(), 250);
   const repoActive = open && mode === "text" && scope === "repo";
 
-  const searchFiles = useMemo(
-    () => (open ? toSearchFiles(files) : []),
-    [open, files]
-  );
+  const searchFiles = open ? toSearchFiles(files) : [];
 
   const snapshot = useQuery({
     enabled: repoActive,
@@ -149,46 +144,32 @@ export function DiffSearch({
   const blob = useQuery({
     enabled: repoActive && peekPath !== null,
     queryFn: () =>
-      api.getFileBlob(pr.owner, pr.name, peekPath as string, pr.headSha),
+      peekPath === null
+        ? null
+        : api.getFileBlob(pr.owner, pr.name, peekPath, pr.headSha),
     queryKey: ["repoPeek", pr.owner, pr.name, pr.headSha, peekPath],
     retry: false,
     staleTime: Number.POSITIVE_INFINITY,
   });
 
-  const peekLines = useMemo(
-    () => (blob.data ? blobLines(blob.data.base64) : null),
-    [blob.data]
-  );
+  const peekLines = blob.data ? blobLines(blob.data.base64) : null;
 
-  const repo: RepoSearchState = useMemo(() => {
-    const hits = tagRepoHits(grep.data?.hits ?? [], searchFiles).map((hit) =>
-      hit.path === peekPath && peekLines
-        ? { ...hit, context: sliceContext(peekLines, hit.line, PEEK_RADIUS) }
-        : hit
-    );
-    const phase = repoSearchPhase({
-      grepError: grep.isError ? grep.error : null,
-      grepFetching: grep.isFetching,
-      snapshot: snapshot.data,
-      snapshotError: snapshot.isError ? snapshot.error : null,
-    });
-    return { hits, ...phase, truncated: grep.data?.truncated ?? false };
-  }, [
-    grep.data,
-    grep.error,
-    grep.isError,
-    grep.isFetching,
-    snapshot.data,
-    snapshot.isError,
-    snapshot.error,
-    searchFiles,
-    peekPath,
+  const repo: RepoSearchState = buildRepoState({
+    files: searchFiles,
+    grepError: grep.isError ? grep.error : null,
+    grepFetching: grep.isFetching,
+    hits: grep.data?.hits ?? [],
     peekLines,
-  ]);
+    peekPath,
+    peekRadius: PEEK_RADIUS,
+    snapshot: snapshot.data,
+    snapshotError: snapshot.isError ? snapshot.error : null,
+    truncated: grep.data?.truncated ?? false,
+  });
 
-  const onNeedRepoContext = useCallback((hit: RepoSearchHit) => {
+  const onNeedRepoContext = (hit: RepoSearchHit) => {
     setPeekPath(hit.path);
-  }, []);
+  };
 
   const onSelectRepoHit = (hit: RepoSearchHit) => {
     if (hit.fileIndex !== null && hit.anchor !== null) {

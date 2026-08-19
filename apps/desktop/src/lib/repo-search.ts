@@ -16,6 +16,10 @@
  * read as different problems. The grep's "snapshot not ready" error still
  * maps to "preparing" as a race guard for a snapshot evicted between the
  * status poll and the search.
+ *
+ * `buildRepoState` assembles the pane's whole prop from those pieces, so the
+ * host computes it during render with nothing to memoize and the assembly
+ * itself is testable without a component.
  */
 import type {
   PrSearchFile,
@@ -124,4 +128,25 @@ export function repoSearchPhase(args: {
       : { reason: String(grepError), status: "failed" };
   }
   return { status: grepFetching ? "loading" : "ready" };
+}
+
+export function buildRepoState(args: {
+  files: readonly PrSearchFile[];
+  grepError: unknown;
+  grepFetching: boolean;
+  hits: readonly GrepHit[];
+  peekLines: readonly string[] | null;
+  peekPath: string | null;
+  peekRadius: number;
+  snapshot: SnapshotStatus | undefined;
+  snapshotError: unknown;
+  truncated: boolean;
+}): RepoSearchState {
+  const { files, hits, peekLines, peekPath, peekRadius, truncated } = args;
+  const withContext = tagRepoHits(hits, files).map((hit) =>
+    hit.path === peekPath && peekLines
+      ? { ...hit, context: sliceContext(peekLines, hit.line, peekRadius) }
+      : hit
+  );
+  return { hits: withContext, ...repoSearchPhase(args), truncated };
 }
