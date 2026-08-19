@@ -14,8 +14,9 @@
  * so the review screen's shift+c hotkey keeps its name for the composer.
  */
 
+import { CiChecks } from "@nod/ui/ci-checks";
 import { PrDrawer, type PrDrawerHandle } from "@nod/ui/pr-drawer";
-import { RightDock } from "@nod/ui/right-dock";
+import { RightDock, type RightDockTab } from "@nod/ui/right-dock";
 import type { Ref } from "react";
 import { openExternal } from "../../lib/open-external.ts";
 import { openOnProviderLabel } from "../../lib/provider.ts";
@@ -34,10 +35,21 @@ import { ChatTab } from "./chat-tab.tsx";
 
 export type { PrDrawerHandle as RightPanelHandle } from "@nod/ui/pr-drawer";
 
-const DOCK_TABS = [
-  { id: "info", kbd: "mod+i", label: "Info" },
-  { id: "chat", kbd: "mod+l", label: "Chat" },
-];
+/** The Checks tab exists only when the PR carries per-check rows, and its
+ *  dot repeats the pill's verdict so a red build is visible from any tab. */
+function dockTabs(ci: CiStatus | undefined): RightDockTab[] {
+  const tabs: RightDockTab[] = [{ id: "info", kbd: "mod+i", label: "Info" }];
+  if (ci && ci.state !== "none" && (ci.checks?.length ?? 0) > 0) {
+    tabs.push({
+      id: "checks",
+      indicator: ci.state,
+      kbd: "mod+j",
+      label: "Checks",
+    });
+  }
+  tabs.push({ id: "chat", kbd: "mod+l", label: "Chat" });
+  return tabs;
+}
 
 interface RightPanelProps {
   chatFocusSeq: number;
@@ -62,7 +74,7 @@ interface RightPanelProps {
   pr: PullRequest;
   ref?: Ref<PrDrawerHandle>;
   reviews: ReviewSummary[];
-  tab: "info" | "chat";
+  tab: "chat" | "checks" | "info";
 }
 
 /** Focus lands back on the diff's scroll host when the panel closes, so the
@@ -111,19 +123,23 @@ export function RightPanel({
     </Markdown>
   );
 
+  const tabs = dockTabs(ci);
+  const hasChecksTab = tabs.some((dockTab) => dockTab.id === "checks");
+  const activeTab = tab === "checks" && !hasChecksTab ? "info" : tab;
+
   return (
     <RightDock
-      activeTab={tab}
+      activeTab={activeTab}
       onClose={onClose}
       onFocusExit={focusScrollHost}
       onResize={onDockResize}
       onSelectTab={onSelectTab}
       open={open}
       overlay={overlay}
-      tabs={DOCK_TABS}
+      tabs={tabs}
       width={dockWidth}
     >
-      <div className="qf-dock-tabpane" hidden={tab !== "info"}>
+      <div className="qf-dock-tabpane" hidden={activeTab !== "info"}>
         <PrDrawer
           addCommentPending={addIssueCommentPending}
           callbacks={{
@@ -135,6 +151,9 @@ export function RightPanel({
             onOpenCiUrl: openExternal,
             onOpenPr,
             onOpenTicket: openExternal,
+            onShowChecks: hasChecksTab
+              ? () => onSelectTab("checks")
+              : undefined,
           }}
           ci={ci}
           conversation={conversation}
@@ -151,7 +170,12 @@ export function RightPanel({
           trackerBase={trackerBase}
         />
       </div>
-      <div className="qf-dock-tabpane" hidden={tab !== "chat"}>
+      {hasChecksTab && (
+        <div className="qf-dock-tabpane" hidden={activeTab !== "checks"}>
+          <CiChecks checks={ci?.checks} onOpen={openExternal} />
+        </div>
+      )}
+      <div className="qf-dock-tabpane" hidden={activeTab !== "chat"}>
         <ChatTab
           files={files}
           focusSeq={chatFocusSeq}

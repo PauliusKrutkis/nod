@@ -60,7 +60,6 @@ import {
 } from "react";
 import { AddCommentBox } from "../add-comment-box/add-comment-box.tsx";
 import { Avatar } from "../avatar/avatar.tsx";
-import { CiChecks } from "../ci-checks/ci-checks.tsx";
 import type { CiStatus } from "../ci-pill/ci-pill.tsx";
 import { cn } from "../cn/cn.ts";
 import { CommentBody } from "../comment-item/comment-item.tsx";
@@ -123,6 +122,10 @@ export interface PrDrawerCallbacks {
   onFocusExit?: () => void;
   onJumpToThread: (path: string, rootId: number) => void;
   onOpenCiUrl: (url: string) => void;
+  /** When the host seats a Checks tab beside this one, the CI pill switches
+   *  to it instead of leaving the app; absent, the pill opens the host's
+   *  checks page as it always did. */
+  onShowChecks?: () => void;
   onOpenPr: () => void;
   onOpenTicket: (url: string) => void;
   /** Only the drawer's own (non-frameless) head shows the widen button. */
@@ -379,12 +382,11 @@ export function PrDrawer({
           onOpenCiUrl={callbacks.onOpenCiUrl}
           onOpenPr={callbacks.onOpenPr}
           onOpenTicket={callbacks.onOpenTicket}
+          onShowChecks={callbacks.onShowChecks}
           openLabel={openLabel}
           pr={pr}
           trackerBase={trackerBase}
         />
-
-        <CiChecks checks={ci?.checks} onOpen={callbacks.onOpenCiUrl} />
 
         <DrawerDescription body={body} renderMarkdown={renderMarkdown} />
 

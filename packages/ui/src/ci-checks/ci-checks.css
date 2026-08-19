@@ -2,14 +2,17 @@
    on the state glyph — a whole tinted row per check would out-shout the
    verdicts. The heading and its count reuse the drawer's caption treatment
    under this component's own prefix (one class, one owner, as thread-index
-   settled). Unlike thread-index this section is never the drawer's last, so
-   spacing below comes from the section itself.
+   settled). The section is a dock tab's whole pane now, so it owns its
+   padding and its scroll instead of a drawer section's bottom margin.
 
    A check name is host text and unbounded (matrix jobs concatenate their
    whole parameter list), so the name ellipsizes and the row never wraps. */
 
 .qf-cichecks {
-  margin-bottom: 24px;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 18px 20px;
+  overflow-y: auto;
 }
 
 .qf-cichecks-h {

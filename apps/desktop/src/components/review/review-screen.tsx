@@ -292,6 +292,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     onCloseSidebar,
     onSidebarResize,
     onSelectRightTab,
+    onToggleChecks,
     onToggleRightPanel,
     onToggleSidebar,
     openChatTab,
@@ -1078,6 +1079,11 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     sidebarOverlayOpenRef,
     toggleActiveThread,
     toggleChat: onToggleChat,
+    toggleChecks: () => {
+      if ((detail?.ciStatus?.checks?.length ?? 0) > 0) {
+        onToggleChecks();
+      }
+    },
     toggleInfoPanel: onToggleRightPanel,
     toggleFullFile: () => toggleExpandHeld(activeIndexRef.current),
     toggleSidebar: onToggleSidebar,

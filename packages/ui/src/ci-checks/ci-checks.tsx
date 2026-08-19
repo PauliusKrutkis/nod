@@ -1,15 +1,16 @@
 /**
- * The per-check list inside the PR info drawer: one row per check-run or
+ * The Checks tab's content in the right dock: one row per check-run or
  * commit status, each opening that check's own log through the host. The
- * pill in the summary answers "is CI green"; this section answers the next
+ * pill in the summary answers "is CI green"; this surface answers the next
  * question, which check failed, so rows sort failures first, then running,
  * then passes. Passing checks stay listed rather than hidden, because
  * "everything else is green" is itself information.
  *
- * With no checks the section renders nothing rather than an empty heading,
- * which keeps repos without CI (and hosts that only report a rollup) exactly
- * as quiet as they are today. Rows arrive in host order; the sort is this
- * component's own promise, so an unsorted host still renders failures first.
+ * With no checks it renders nothing rather than an empty heading — the host
+ * gates the tab on the same fact, so repos without CI (and hosts that only
+ * report a rollup) never see the surface at all. Rows arrive in host order;
+ * the sort is this component's own promise, so an unsorted host still
+ * renders failures first.
  */
 import { Check, Loader, X } from "lucide-react";
 import type { MouseEvent } from "react";

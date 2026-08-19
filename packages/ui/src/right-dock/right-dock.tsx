@@ -34,12 +34,25 @@ import "./right-dock.css";
 
 export interface RightDockTab {
   id: string;
+  /** A state dot before the label (the CI vocabulary: red failing, muted
+   *  running, green passing), for a tab whose content carries a verdict the
+   *  reviewer should see without opening it. */
+  indicator?: "failure" | "pending" | "success";
   /** The key that reaches this tab, shown in the tab's tooltip — present
    *  but not printed, the same discoverability contract every other
    *  keyboard-first control in the app keeps. */
   kbd?: string;
   label: string;
 }
+
+const INDICATOR_LABEL: Record<
+  NonNullable<RightDockTab["indicator"]>,
+  string
+> = {
+  failure: "failing",
+  pending: "running",
+  success: "passing",
+};
 
 export interface RightDockProps {
   activeTab: string;
@@ -140,11 +153,25 @@ export function RightDock({
               {tabs.map((tab) => (
                 <Tooltip combo={tab.kbd} key={tab.id} label={tab.label}>
                   <button
+                    aria-label={
+                      tab.indicator
+                        ? `${tab.label} · ${INDICATOR_LABEL[tab.indicator]}`
+                        : undefined
+                    }
                     aria-pressed={tab.id === activeTab}
                     className="qf-dock-tab q-focus"
                     onClick={() => onSelectTab(tab.id)}
                     type="button"
                   >
+                    {tab.indicator && (
+                      <span
+                        aria-hidden
+                        className={cn(
+                          "qf-dock-tab-dot",
+                          `qf-dock-tab-dot-${tab.indicator}`
+                        )}
+                      />
+                    )}
                     {tab.label}
                   </button>
                 </Tooltip>
