@@ -22,6 +22,29 @@ function rows(page: Page) {
   return page.locator(".qcs-row");
 }
 
+/** Two frames, so a mount that has reached the DOM has also reached the pixels
+ *  and the browser is no longer mid-commit when the next key arrives. */
+function settled(page: Page) {
+  return page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      })
+  );
+}
+
+function caretOffset(page: Page) {
+  return page.evaluate(() => document.getSelection()?.anchorOffset ?? -1);
+}
+
+/** Press ArrowLeft and wait for the caret to actually move, so a keypress the
+ *  browser drops fails here rather than as a confusing assertion downstream. */
+async function moveCaretLeft(page: Page) {
+  const before = await caretOffset(page);
+  await page.keyboard.press("ArrowLeft");
+  await expect.poll(() => caretOffset(page)).toBe(before - 1);
+}
+
 test.beforeEach(async ({ page }) => {
   await setupApp(page);
   await expect(page.getByRole("option").first()).toBeVisible();
@@ -121,7 +144,15 @@ test("nothing is offered mid-line", async ({ page }) => {
   await page.keyboard.type("nit");
   await expect(panel(page)).toBeVisible();
 
-  await page.keyboard.press("ArrowLeft");
+  // An arrow key is handled natively inside the contenteditable, and one
+  // pressed in the frame the panel is mounting into is dropped by the browser
+  // before it reaches the caret: the caret stays at the end of the line, which
+  // is exactly the state this test is trying to leave. Waiting for the mount to
+  // paint gives the keypress an editor that can receive it, and moveCaretLeft
+  // then proves the caret moved before anything is asserted about the panel.
+  await settled(page);
+  await moveCaretLeft(page);
+
   await expect(panel(page)).toBeHidden();
 });
 

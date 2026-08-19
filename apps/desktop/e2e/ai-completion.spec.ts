@@ -7,7 +7,15 @@ import type { Page } from "./types.ts";
  * The gate is the point of the first two — it is off until asked for, and
  * asking for it is not enough on its own if no model is configured. The rest
  * pin that it never touches the keys the composer already owns.
+ *
+ * Five of these prove a negative (nothing is offered), which cannot be
+ * awaited on a locator: they have to sit out the debounce window and then
+ * look. That deliberate second-and-a-bit rides on top of app setup, and
+ * under a loaded two-worker runner the pair overran the 15s default and
+ * reddened the whole job on unrelated pull requests. The budget here is the
+ * file's own, so a genuine hang still fails rather than hanging forever.
  */
+test.describe.configure({ timeout: 30_000 });
 
 const CONFIGURED = {
   aiInfo: { baseUrl: "https://api.nexos.ai", configured: true, model: "gpt-5" },

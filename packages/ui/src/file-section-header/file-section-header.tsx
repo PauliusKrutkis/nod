@@ -21,6 +21,11 @@
  * `viewable` follows the same convention for the viewed control — a host
  * with no viewed state (the ledger session) omits the button entirely.
  *
+ * `deltaBadge` is the host's mode announcement — the review screen's
+ * changes-since-your-review filter pins its label to every file header so the
+ * subset can never read as the whole diff. The band renders whatever label and
+ * tooltip it is handed; what the mode means stays the host's business.
+ *
  * `leadRef` marks the strip immediately above the band. The host measures the
  * hand-off between one sticky header and the next against it; nothing here
  * reads it.
@@ -38,6 +43,7 @@ export interface FileSectionHeaderProps {
   additions: number;
   copied?: boolean;
   deletions: number;
+  deltaBadge?: { label: string; title: string } | null;
   expandable?: boolean;
   expanded?: boolean;
   expanding?: boolean;
@@ -60,6 +66,7 @@ export function FileSectionHeader({
   additions,
   copied = false,
   deletions,
+  deltaBadge = null,
   expandable = false,
   expanded = false,
   expanding = false,
@@ -123,6 +130,11 @@ export function FileSectionHeader({
         >
           {hiddenResolved}{" "}
           <span className="qf-hidden-resolved-word">resolved</span> hidden
+        </span>
+      )}
+      {deltaBadge && (
+        <span className="qf-delta-chip" title={deltaBadge.title}>
+          {deltaBadge.label}
         </span>
       )}
       <span className="qf-filebar-stat">

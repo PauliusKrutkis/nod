@@ -31,6 +31,7 @@ export function ReviewDiffPane({
   clampedIndex,
   closeFind,
   copiedPathIndex,
+  delta,
   dragging,
   editingPending,
   editReq,
@@ -77,6 +78,7 @@ export function ReviewDiffPane({
   clampedIndex: number;
   closeFind: () => void;
   copiedPathIndex: number | null;
+  delta?: ListProps["delta"];
   dragging: boolean;
   editingPending: string | null;
   editReq: ListProps["editRequest"];
@@ -146,6 +148,7 @@ export function ReviewDiffPane({
               ? navKey(liveCursor.fileIndex, liveCursor.anchor, liveCursor.kind)
               : null
           }
+          delta={delta}
           dragging={dragging}
           editingPending={editingPending}
           editRequest={editReq}

@@ -1,7 +1,7 @@
 use super::{
     build_chat_turn, builtin_skill_body, builtin_skills, chat_system_prompt, chat_tools,
-    discover_personal_skills, discover_skills, empty_answer, execute_read_diff, execute_skill_tool,
-    format_ranges, frontmatter_description, history_messages, merge_skills, note_if_effort_dropped,
+    clip_title, discover_personal_skills, discover_skills, empty_answer, execute_read_diff,
+    execute_skill_tool, format_ranges, frontmatter_description, history_messages, merge_skills,
     note_if_toolless, note_if_truncated, parse_proposal, read_personal_skill, read_skill_body,
     resolve_skill_body, retry_without_tools, route_refused, safe_source, skill_instructions,
     skill_name_from_path, tool_note, validate_proposal, ChatCancels, ChatDelta, ChatDiffFile,
@@ -894,17 +894,6 @@ fn a_route_that_refuses_the_request_shape_is_told_apart_by_status() {
 }
 
 #[test]
-fn an_answer_that_lost_its_thinking_level_says_so() {
-    let noted = note_if_effort_dropped(true, "Here is the answer.".to_string());
-    assert!(noted.starts_with("Here is the answer."));
-    assert!(
-        noted.contains("would not take a thinking level"),
-        "got {noted}"
-    );
-    assert_eq!(note_if_effort_dropped(false, "plain".to_string()), "plain");
-}
-
-#[test]
 fn only_a_refused_request_shape_retries_without_tools() {
     // 400 and 422 are how a provider says "this request may not carry
     // tools", which is the whole reason the ladder exists.
@@ -932,6 +921,24 @@ fn only_a_refused_request_shape_retries_without_tools() {
     assert!(!retry_without_tools("AI provider error (503): upstream"));
     assert!(!retry_without_tools("could not reach the AI provider"));
     assert!(!retry_without_tools(crate::ai::CANCELLED));
+}
+
+#[test]
+fn a_title_is_one_short_line_whatever_the_model_sends() {
+    assert_eq!(
+        clip_title("Retry budget on the poller"),
+        "Retry budget on the poller"
+    );
+    // A model that ignores the word budget costs the reader an ellipsis, not
+    // a wrapped thread list.
+    let long = clip_title(&"nine words is plenty for a name ".repeat(6));
+    assert!(long.chars().count() <= 49, "got {long}");
+    assert!(long.ends_with('…'));
+    // Anything past the first line is the model explaining itself.
+    assert_eq!(
+        clip_title("Cache invalidation\nHere is why:"),
+        "Cache invalidation"
+    );
 }
 
 #[test]

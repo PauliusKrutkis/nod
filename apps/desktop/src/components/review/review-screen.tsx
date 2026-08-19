@@ -11,6 +11,7 @@
  */
 
 import { treeOrder } from "@nod/ui/file-tree";
+import { checksVerdict } from "@nod/ui/order-checks";
 import { useEdgeResize } from "@nod/ui/use-edge-resize";
 import { useLatest } from "@nod/ui/use-latest";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -58,6 +59,13 @@ import {
   type OccState,
   restoreCodeSelection,
 } from "../../lib/code-dom.ts";
+import {
+  classifyDelta,
+  type DeltaView,
+  deltaBadge,
+  deltaUnavailableMessage,
+} from "../../lib/delta-review.ts";
+import { getDeltaSnapshot } from "../../lib/delta-snapshots.ts";
 import { warmHighlightCache } from "../../lib/highlight.ts";
 import { isImageFile } from "../../lib/image-file.ts";
 import { locatePastedCode } from "../../lib/locate-code.ts";
@@ -99,6 +107,7 @@ import type {
   ChatRegion,
   PendingComment,
   PullRequest,
+  PullRequestDetail,
   ReviewComment,
 } from "../../types.ts";
 import { parsePrKey } from "../../types.ts";
@@ -221,6 +230,44 @@ function openPrFilesInBrowser(pr: PullRequest | undefined): void {
   openUrl(pr.url + urlFilesPath);
 }
 
+/** The delta classification for the current PR, or null when the mode is off
+ *  or the PR carries no snapshot. Plain derivation, not memoized: the React
+ *  Compiler (vite.config.ts) caches it, and a hand-written useMemo trips
+ *  react-compiler-no-manual-memoization. */
+function buildDeltaView(
+  on: boolean,
+  detail: PullRequestDetail | undefined,
+  keyValue: string
+): DeltaView | null {
+  if (!(on && detail)) {
+    return null;
+  }
+  const snap = getDeltaSnapshot(keyValue);
+  return snap ? classifyDelta(snap, detail.files, detail.pr.headSha) : null;
+}
+
+/** The files delta mode folds: unchanged since the review and not explicitly
+ *  reopened. Indexed to match the built item model's file order. */
+function deltaCollapsedIndexes(
+  view: DeltaView | null,
+  files: readonly ChangedFile[],
+  shown: ReadonlySet<string>
+): Set<number> | undefined {
+  if (!view) {
+    return undefined;
+  }
+  const out = new Set<number>();
+  files.forEach((file, index) => {
+    if (
+      view.files.get(file.filename)?.kind === "unchanged" &&
+      !shown.has(file.filename)
+    ) {
+      out.add(index);
+    }
+  });
+  return out;
+}
+
 /** "12–18", "12—18" or "12-18" — chips are written with whichever dash the
  *  producing surface used. */
 const LINE_RANGE_DASH = /[–—-]/;
@@ -314,6 +361,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     onCloseSidebar,
     onSidebarResize,
     onSelectRightTab,
+    onToggleChecks,
     onToggleRightPanel,
     onToggleSidebar,
     openChatTab,
@@ -338,6 +386,10 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const askOpenRef = useLatest(askNote.open);
   const [submitOpen, setSubmitOpen] = useState(false);
   const [prSearch, setPrSearch] = useState<null | "files" | "text">(null);
+  const [deltaOn, setDeltaOn] = useState(false);
+  const [deltaShown, setDeltaShown] = useState<ReadonlySet<string>>(
+    () => new Set<string>()
+  );
   const [reconcileDismissed, setReconcileDismissed] = useState<Set<string>>(
     () => new Set()
   );
@@ -432,6 +484,41 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     autoUnviewedForHead
   );
 
+  const deltaView = buildDeltaView(deltaOn, detail, keyValue);
+  const deltaCollapsedFiles = deltaCollapsedIndexes(
+    deltaView,
+    files,
+    deltaShown
+  );
+
+  const toggleDelta = () => {
+    if (deltaOn) {
+      setDeltaOn(false);
+      return;
+    }
+    if (!getDeltaSnapshot(keyValue)) {
+      setToast({
+        message: deltaUnavailableMessage(),
+        title: "Nothing to compare against",
+      });
+      return;
+    }
+    setDeltaShown(new Set<string>());
+    setDeltaOn(true);
+  };
+
+  const showDeltaFile = (fileIndex: number) => {
+    const file = filesRef.current[fileIndex];
+    if (!file) {
+      return;
+    }
+    setDeltaShown((prev) => {
+      const next = new Set(prev);
+      next.add(file.filename);
+      return next;
+    });
+  };
+
   const dismissReconcileHighlight = (filename: string) => {
     const headSha = pr?.headSha;
     if (!headSha) {
@@ -490,6 +577,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     ask: askModelInput(askNote),
     collapsed,
     commentsByFile,
+    deltaCollapsedFiles,
     expandedRows,
     files,
     isImage: isImageFile,
@@ -728,6 +816,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     reply,
     requestResolveThread,
     setActiveIndex,
+    showDeltaFile,
     dismissReconcileHighlight,
     setCollapsed,
     setCopiedPathIndex,
@@ -1101,6 +1190,12 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     sidebarOverlayOpenRef,
     toggleActiveThread,
     toggleChat: onToggleChat,
+    toggleChecks: () => {
+      if (checksVerdict(detail?.ciStatus?.checks)) {
+        onToggleChecks();
+      }
+    },
+    toggleDelta,
     toggleHideResolved,
     toggleInfoPanel: onToggleRightPanel,
     toggleFullFile: () => toggleExpandHeld(activeIndexRef.current),
@@ -1175,6 +1270,14 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
           clampedIndex={clampedIndex}
           closeFind={closeFind}
           copiedPathIndex={copiedPathIndex}
+          delta={
+            deltaView
+              ? {
+                  badge: deltaBadge(deltaView.sinceIso),
+                  files: deltaView.files,
+                }
+              : null
+          }
           dragging={dragging}
           editingPending={editingPending}
           editReq={editReq}
@@ -1262,6 +1365,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
         onClose={onClosePrSearch}
         onSelectFile={scrollToFile}
         onSelectLine={selectLine}
+        pr={pr}
       />
     </div>
   );

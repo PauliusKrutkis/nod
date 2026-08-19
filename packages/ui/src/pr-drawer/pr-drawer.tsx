@@ -134,6 +134,10 @@ export interface PrDrawerCallbacks {
   onFocusExit?: () => void;
   onJumpToThread: (path: string, rootId: number) => void;
   onOpenCiUrl: (url: string) => void;
+  /** When the host seats a Checks tab beside this one, the CI pill switches
+   *  to it instead of leaving the app; absent, the pill opens the host's
+   *  checks page as it always did. */
+  onShowChecks?: () => void;
   onOpenPr: () => void;
   onOpenTicket: (url: string) => void;
   /** Only the drawer's own (non-frameless) head shows the widen button. */
@@ -357,6 +361,7 @@ export function PrDrawer({
           onOpenCiUrl={callbacks.onOpenCiUrl}
           onOpenPr={callbacks.onOpenPr}
           onOpenTicket={callbacks.onOpenTicket}
+          onShowChecks={callbacks.onShowChecks}
           openLabel={openLabel}
           pr={pr}
           trackerBase={trackerBase}

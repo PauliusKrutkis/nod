@@ -98,19 +98,64 @@ fn graphql_maps_the_viewer_scoped_review_signal() {
 fn ci_from_github_aggregates_checks_and_status() {
     let check_runs = serde_json::json!({
         "check_runs": [
-            { "status": "completed", "conclusion": "success", "html_url": "ok" },
-            { "status": "completed", "conclusion": "failure", "html_url": "boom" },
-            { "status": "in_progress", "conclusion": null, "html_url": "wip" }
+            { "name": "lint", "status": "completed", "conclusion": "success", "html_url": "ok" },
+            { "name": "e2e", "status": "completed", "conclusion": "failure", "html_url": "boom" },
+            { "name": "shots", "status": "in_progress", "conclusion": null, "html_url": "wip" }
         ]
     });
     let combined = serde_json::json!({
-        "statuses": [ { "state": "success", "target_url": "t" } ]
+        "statuses": [ { "context": "deploy", "state": "success", "target_url": "t" } ]
     });
     let ci = ci_from_github(&check_runs, &combined, "https://x/checks");
     assert_eq!(ci.state, "failure");
     assert_eq!(ci.total, 4);
     assert_eq!(ci.failed, 1);
     assert_eq!(ci.url, "boom");
+
+    let rows: Vec<(&str, &str, &str)> = ci
+        .checks
+        .iter()
+        .map(|c| (c.name.as_str(), c.state.as_str(), c.url.as_str()))
+        .collect();
+    assert_eq!(
+        rows,
+        vec![
+            ("lint", "success", "ok"),
+            ("e2e", "failure", "boom"),
+            ("shots", "pending", "wip"),
+            ("deploy", "success", "t"),
+        ]
+    );
+}
+
+#[test]
+fn ci_from_github_check_rows_fall_back_to_checks_url() {
+    let ci = ci_from_github(
+        &serde_json::json!({ "check_runs": [
+            { "name": "lint", "status": "completed", "conclusion": "failure" }
+        ] }),
+        &serde_json::json!({ "statuses": [
+            { "context": "deploy", "state": "pending" }
+        ] }),
+        "https://x/checks",
+    );
+    assert_eq!(ci.checks.len(), 2);
+    assert_eq!(ci.checks[0].url, "https://x/checks");
+    assert_eq!(ci.checks[1].url, "https://x/checks");
+    assert_eq!(ci.checks[1].state, "pending");
+}
+
+#[test]
+fn ci_status_cached_before_the_breakdown_still_deserializes() {
+    let cached = serde_json::json!({
+        "state": "success",
+        "total": 3,
+        "failed": 0,
+        "url": "https://x/checks"
+    });
+    let ci: crate::model::CiStatus = serde_json::from_value(cached).unwrap();
+    assert_eq!(ci.state, "success");
+    assert!(ci.checks.is_empty());
 }
 
 #[test]

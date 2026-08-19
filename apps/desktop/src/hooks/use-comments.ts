@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { api } from "../lib/api.ts";
+import { offlineWrites, type WriteAttempt } from "../lib/offline-writes.ts";
 import { queryClient, queryKeys } from "../lib/query-client.ts";
 import { useAppStore } from "../store/app-store.ts";
 import type {
@@ -14,6 +15,13 @@ import type {
  * states"): the comment appears in the cached detail the moment you act, the
  * network reconciles in the background, and a failure rolls back + surfaces a
  * flash message instead of ever blocking the UI.
+ *
+ * The queueable writes (comment, reply, resolve, PR comment, submit) go
+ * through `offlineWrites`: a connectivity failure queues the write in Rust
+ * instead of erroring, the optimistic state stays put, and a toast says so.
+ * A queued result skips the detail invalidation — there is nothing new to
+ * fetch, and a refetch would only churn. Edits and deletes stay online-only;
+ * offline they fail and roll back exactly as before.
  */
 
 let tempId = -1;
@@ -86,8 +94,22 @@ export function useCommentMutations(
       );
   };
 
+  const settleWrite = (
+    res: WriteAttempt<unknown> | undefined,
+    what: string
+  ) => {
+    if (res?.queued) {
+      useAppStore.getState().setToast({
+        message: `You're offline. The ${what} is queued and posts when the connection returns.`,
+        title: "Queued for reconnect",
+      });
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: detailKey });
+  };
+
   const addReviewComment = useMutation<
-    ReviewComment,
+    WriteAttempt<ReviewComment>,
     Error,
     {
       body: string;
@@ -106,7 +128,7 @@ export function useCommentMutations(
       line: number;
       side: string;
       startLine?: number;
-    }) => api.createReviewComment({ number, owner, repo, ...args }),
+    }) => offlineWrites.createReviewComment({ number, owner, repo, ...args }),
     onError: (e, _args, before) => rollback(before, "Comment", e),
     onMutate: (args) =>
       insertOptimistic(
@@ -118,22 +140,17 @@ export function useCommentMutations(
           side: args.side,
         })
       ),
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: detailKey });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: detailKey });
-    },
+    onSettled: (res) => settleWrite(res, "comment"),
   });
 
   const reply = useMutation<
-    ReviewComment,
+    WriteAttempt<ReviewComment>,
     Error,
     { body: string; inReplyTo: number },
     DetailSnapshot
   >({
     mutationFn: (args: { body: string; inReplyTo: number }) =>
-      api.replyToReviewComment({ number, owner, repo, ...args }),
+      offlineWrites.replyToReviewComment({ number, owner, repo, ...args }),
     onError: (e, _args, before) => rollback(before, "Reply", e),
     onMutate: (args) => {
       const detail = queryClient.getQueryData<PullRequestDetail>(detailKey);
@@ -150,22 +167,17 @@ export function useCommentMutations(
         })
       );
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: detailKey });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: detailKey });
-    },
+    onSettled: (res) => settleWrite(res, "reply"),
   });
 
   const addIssueComment = useMutation<
-    void,
+    WriteAttempt<void>,
     Error,
     { body: string },
     DetailSnapshot
   >({
     mutationFn: (args: { body: string }) =>
-      api.createIssueComment({ number, owner, repo, ...args }),
+      offlineWrites.createIssueComment({ number, owner, repo, ...args }),
     onError: (e, _args, before) => rollback(before, "Comment", e),
     onMutate: async (args) => {
       await queryClient.cancelQueries({ queryKey: detailKey });
@@ -191,12 +203,7 @@ export function useCommentMutations(
       );
       return before;
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: detailKey });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: detailKey });
-    },
+    onSettled: (res) => settleWrite(res, "comment"),
   });
 
   const deleteReviewComment = useMutation<
@@ -379,13 +386,13 @@ export function useCommentMutations(
   };
 
   const resolveThread = useMutation<
-    void,
+    WriteAttempt<void>,
     Error,
     { threadId: string; resolved: boolean },
     DetailSnapshot
   >({
     mutationFn: (args: { threadId: string; resolved: boolean }) =>
-      api.resolveThread({ number, owner, repo, ...args }),
+      offlineWrites.resolveThread({ number, owner, repo, ...args }),
     onError: (e, args, before) =>
       rollback(before, args.resolved ? "Resolve" : "Unresolve", e),
     onMutate: async (args) => {
@@ -394,13 +401,10 @@ export function useCommentMutations(
       patchThreadResolved(args.threadId, args.resolved);
       return before;
     },
-    onSettled: () => {
+    onSettled: (res) => {
       resolveInflightRef.current = null;
-      queryClient.invalidateQueries({ queryKey: detailKey });
+      settleWrite(res, "resolve");
       flushResolveIntents();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: detailKey });
     },
   });
 
@@ -410,11 +414,11 @@ export function useCommentMutations(
       body: string;
       commitId: string;
       comments: { path: string; line: number; side: string; body: string }[];
-    }) => api.submitReview({ number, owner, repo, ...args }),
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: detailKey });
-    },
-    onSuccess: () => {
+    }) => offlineWrites.submitReview({ number, owner, repo, ...args }),
+    onSettled: (res) => {
+      if (res?.queued) {
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: detailKey });
     },
   });

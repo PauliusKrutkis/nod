@@ -283,6 +283,7 @@ interface AppState {
   ) => void;
   chatChips: ChatRegion[];
   chatHistory: Record<string, ChatThread[]>;
+  nameChatThread: (prKey: string, threadId: string, title: string) => void;
   clearChat: (prKey: string) => void;
   removeChatThread: (prKey: string, threadId: string) => void;
   clearChatChips: () => void;
@@ -418,6 +419,18 @@ export const useAppStore = create<AppState>((set, get) => ({
         )
       : [...threads, { id: threadId, turns: [turn] }].slice(-MAX_CHAT_THREADS);
     const map = { ...get().chatHistory, [prKey]: next };
+    set({ chatHistory: map });
+    saveChats(map);
+  },
+  nameChatThread: (prKey, threadId, title) => {
+    const threads = get().chatHistory[prKey] ?? [];
+    if (!threads.some((t) => t.id === threadId)) {
+      return;
+    }
+    const map = {
+      ...get().chatHistory,
+      [prKey]: threads.map((t) => (t.id === threadId ? { ...t, title } : t)),
+    };
     set({ chatHistory: map });
     saveChats(map);
   },

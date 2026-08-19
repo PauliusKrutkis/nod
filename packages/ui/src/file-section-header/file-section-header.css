@@ -109,6 +109,20 @@ button.qf-fsec-copy {
   border-radius: var(--r-pill);
 }
 
+.qf-delta-chip {
+  flex-shrink: 0;
+  padding: 3px 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  background: var(--accent-soft);
+  border-radius: var(--r-pill);
+}
+
 .qf-filebar-prev {
   color: var(--faint);
 }
