@@ -54,7 +54,16 @@ real webview.
 **Source:** the WebKit layout notes, `packages/ui`, recent dialog fixes
 (`fix(ui): stop the watch dialog collapsing in WebKit`).
 
-**Home:** r/tauri, r/rust, HN. Highest signal-to-effort ratio on this list.
+**Home:** r/tauri, HN, r/webdev. Not r/rust: the post is 680 words of CSS
+and WebKit with one mention of Tauri and none of Rust, so it is off topic
+there and a removal costs the sub that idea 6 actually needs.
+
+**Shipped** 2026-08-14 as `/blog/wkwebview-flex-collapse/`. Submitted to
+r/tauri (2 points, no comments) and r/Playwright (3 points, 4 comments, and
+a genuinely good exchange about running a macOS-native contract suite over
+layout primitives). HN refuses the domain: "Sorry, your account isn't able
+to submit this site", which is a site-level block on a domain registered
+three weeks earlier with a pricing page on it. Emailed hn@ycombinator.com.
 
 ---
 
@@ -207,11 +216,70 @@ than r/programming.
 
 ---
 
+## 10. The 429 that means your JSON is wrong
+
+**Hook:** the gateway said "All providers are rate limited". It was not a rate
+limit. It was one unsupported parameter, and a parameter I invented proved it.
+
+**Why it lands:** everyone routing through an OpenAI-compatible gateway
+(Nexos, OpenRouter, LiteLLM, Portkey, Bedrock shims) eventually gets a status
+that describes the pool rather than the request, and goes looking for quota
+that is not the problem. The debugging is the post and it is short: the same
+model answered 200 with no `reasoning_effort` and 429 with it at any level, in
+about 100 ms, which is too fast to be a real limit, and a real limit does not
+discriminate by parameter. The control is the part people will remember. Send
+`banana_split: 3`, a parameter that cannot exist, and get the identical 429.
+That is not quota, that is a router refusing a shape.
+
+The second half is the unwritten bit: you cannot know in advance which models
+take a thinking level. The model list carries no capability field, and the
+platform does not predict it. Claude Sonnet 5 refuses where Gemini 3 Flash, on
+the same Vertex platform, accepts, and Azure and Mistral refuse with a clean
+400 instead. So the only honest design is to learn from the first refusal,
+remember it against the model, and stop offering the control. Publish the
+matrix; nobody else has.
+
+Third beat, with teeth for anyone building on this: a rate limit misread as
+"this provider has no tools" makes the retry drop the tools and answer
+ungrounded, which looks exactly like a normal answer. Degrade on the statuses
+that describe the request (400, 422), never on the ones that describe the
+caller.
+
+**Source:** `docs/AI.md` § Budgets and § Protocol, `ai_chat.rs`
+(`route_refused`), probe transcripts from 2026-08-19.
+
+**Home:** r/LocalLLaMA, r/LLMDevs, HN. Searchable in a way most of this list
+is not: people paste the error string into a search box.
+
+---
+
 ## Sequencing
 
-Ship 2 first — it is the smallest, the most searchable, and the least like
-marketing. Then 1, which is the strongest pure-craft post. Then 4, because the
-competitive window is open now.
+2 shipped on 2026-08-14. Then 1, the strongest pure-craft post, then 4, while
+the competitive window is open. 10 sits beside 2 as the other post someone
+finds by pasting an error into a search box.
 
 One post per week or so, each to a single primary home. Cross-posting the same
 text to five subs the same day is the thing that gets a domain filtered.
+
+## What post 2 actually did (measured 2026-08-19)
+
+Writing was never the bottleneck. The reach was.
+
+- Site, 30 days: 150 views, 120 visits, and Cloudflare samples in tens, so the
+  raw beacon hits are nearer a tenth of that. By path: `/` 80, the post 50,
+  `/downloads` 10, `/faq` 10.
+- Referrers: `nodreview.com` 200 and blank 100. No third one. Reddit strips
+  referrers from its app, so the blank bucket is where those readers landed,
+  which is why the referrer table cannot be read as "nobody came".
+- Reddit: 2 points on r/tauri, 3 points and 4 comments on r/Playwright. Both
+  at a 1.0 upvote ratio, so nobody disliked it. Almost nobody saw it.
+- Repo, 14 days: 350 views from 4 unique visitors. 0 stars, 0 forks, 0
+  watchers since 2026-06-25. The 7,127 clones are Actions.
+- 40 installer downloads across every release ever; 2 each for v0.6.0, v0.7.0
+  and v0.8.0, which is what one person on two architectures looks like.
+
+The venues with reach were never tried. HN has no submission of the domain at
+all, and blocks it (see idea 2). r/programming and r/webdev are untried. The
+next move is not the next post, it is getting this one in front of a room with
+people in it, and watching for a referrer that is not our own domain.
