@@ -24,7 +24,7 @@ export interface HelpSection {
   scope: string;
 }
 
-export interface MatchedBinding extends HelpBinding {
+interface MatchedBinding extends HelpBinding {
   indices?: number[];
 }
 

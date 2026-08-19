@@ -84,6 +84,31 @@ describe("searchHelp", () => {
     expect(r.total).toBe(6);
   });
 
+  it("ignores case, so a shouted query still finds its row", () => {
+    const r = searchHelp(sections, "PALETTE");
+    expect(r.sections.map((s) => s.scope)).toEqual(["global"]);
+    expect(r.shown).toBe(1);
+  });
+
+  it("a scope-note match keeps the whole section", () => {
+    const r = searchHelp(sections, "diff");
+    expect(r.sections.map((s) => s.scope)).toEqual(["review"]);
+    expect(r.sections[0].bindings).toHaveLength(2);
+  });
+
+  it("a combo-only hit carries no highlight indices", () => {
+    const r = searchHelp(sections, "shift");
+    const row = r.sections
+      .flatMap((s) => s.bindings)
+      .find((b) => b.combo === "mod+shift+a");
+    expect(row?.indices).toBeUndefined();
+  });
+
+  it("keeps the active flag on a filtered section", () => {
+    const r = searchHelp(sections, "submit");
+    expect(r.sections[0].active).toBe(true);
+  });
+
   it("keeps rows in registry order inside a matched section", () => {
     const r = searchHelp(sections, "next");
     for (const s of r.sections) {

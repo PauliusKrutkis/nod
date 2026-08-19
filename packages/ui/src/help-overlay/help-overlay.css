@@ -13,7 +13,12 @@
    own surface so rows slide under them cleanly. While browsing, the active
    scope leads and the others dim; under a query the ranking is the signal,
    so the dimming lifts (.qh-list-ranked). The row padding lives on the
-   cells, not the row wrapper: a display: contents element paints nothing. */
+   cells, not the row wrapper: a display: contents element paints nothing.
+
+   The list scrolls with `flex: 1 1 auto`, never `flex: 1`: the shorthand's
+   0% basis resolves against a panel that is height: auto under a max-height,
+   which WebKit reads as zero and collapses the list away
+   (nodreview.com/blog/wkwebview-flex-collapse). */
 
 .qh-panel {
   max-height: min(72vh, 640px);
@@ -103,8 +108,6 @@
 }
 
 .qh-list {
-  /* flex-basis auto, not 0%: WKWebView collapses a 0%-basis column child of
-     an auto-height dialog panel (nodreview.com/blog/wkwebview-flex-collapse). */
   flex: 1 1 auto;
   min-height: 0;
   padding-bottom: 10px;
