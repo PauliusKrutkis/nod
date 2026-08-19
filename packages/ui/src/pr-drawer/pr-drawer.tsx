@@ -1,9 +1,14 @@
 /**
  * The PR detail drawer (toggled with `i`, Esc closes): pr-summary at the top,
- * the description, the complete conversation (PR-level comments merged with
- * review verdicts), thread-index for the inline code threads, and a composer
- * that expands from a one-line prompt (Esc backs out of the composer first,
- * then the drawer). Comments post optimistically — the composer never blocks.
+ * the description, one Discussion feed, and a composer that expands from a
+ * one-line prompt (Esc backs out of the composer first, then the drawer).
+ * The feed is the PR's whole history in one chronological list: PR-level
+ * comments, review verdicts and inline code threads interleaved by creation
+ * time, every row leading with avatar, author and relative time. A thread
+ * row carries what only a thread has — the file:line chip, the reply count,
+ * the resolved tick — and clicking it jumps to the thread in the diff, while
+ * PR-level rows render their full body and keep the edit/delete tools.
+ * Comments post optimistically — the composer never blocks.
  *
  * Your own conversation comments (never verdicts) carry the same quiet
  * Edit/Delete tools as inline threads, with the in-place "Delete?" confirm;
@@ -71,8 +76,8 @@ import {
   type SummaryPullRequest,
 } from "../pr-summary/pr-summary.tsx";
 import {
-  ThreadIndex,
   type ThreadIndexRow,
+  ThreadRow,
 } from "../thread-index/thread-index.tsx";
 import { formatAbsolute, formatRelativeTime } from "../time/time.ts";
 import { Tooltip } from "../tooltip/tooltip.tsx";
@@ -172,7 +177,8 @@ export interface PrDrawerProps {
 
 type TimelineEntry =
   | { kind: "comment"; at: string; comment: DrawerComment }
-  | { kind: "review"; at: string; review: DrawerReview };
+  | { kind: "review"; at: string; review: DrawerReview }
+  | { kind: "thread"; at: string; thread: ThreadIndexRow };
 
 const noop = () => undefined;
 
@@ -252,7 +258,6 @@ export function PrDrawer({
   const justPostedRef = useRef(false);
   const [bodyScrolls, setBodyScrolls] = useState(false);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: re-scans el.children, which gains the "Code discussion" section once inlineComments goes non-empty
   useEffect(() => {
     const el = bodyRef.current;
     if (!el) {
@@ -268,8 +273,7 @@ export function PrDrawer({
       ro.observe(section);
     }
     return () => ro.disconnect();
-    // react-doctor-disable-next-line exhaustive-deps -- the expression is the dependency: the observer only needs rebuilding when the comment list crosses empty/non-empty, not when a comment is edited
-  }, [inlineComments.length > 0]);
+  }, []);
 
   useEffect(() => {
     if (composing) {
@@ -295,19 +299,6 @@ export function PrDrawer({
     panelRef.current?.focus({ preventScroll: true });
   };
 
-  const timeline: TimelineEntry[] = [
-    ...conversation.map((c) => ({
-      at: c.createdAt,
-      comment: c,
-      kind: "comment" as const,
-    })),
-    ...reviews.map((r) => ({
-      at: r.submittedAt,
-      kind: "review" as const,
-      review: r,
-    })),
-  ].sort((a, b) => a.at.localeCompare(b.at));
-
   const replyCounts = new Map<number, number>();
   for (const c of inlineComments) {
     if (c.inReplyToId !== null) {
@@ -327,6 +318,24 @@ export function PrDrawer({
       user: root.user,
       userAvatarUrl: root.userAvatarUrl,
     }));
+
+  const timeline: TimelineEntry[] = [
+    ...conversation.map((c) => ({
+      at: c.createdAt,
+      comment: c,
+      kind: "comment" as const,
+    })),
+    ...reviews.map((r) => ({
+      at: r.submittedAt,
+      kind: "review" as const,
+      review: r,
+    })),
+    ...threads.map((t) => ({
+      at: t.createdAt,
+      kind: "thread" as const,
+      thread: t,
+    })),
+  ].sort((a, b) => a.at.localeCompare(b.at));
 
   const handleAddComment = (text: string) => {
     justPostedRef.current = true;
@@ -397,14 +406,13 @@ export function PrDrawer({
           newestRef={revealNewestComment}
           onCancelEdit={cancelEdit}
           onDelete={callbacks.onDeleteComment}
+          onJumpToThread={callbacks.onJumpToThread}
           onStartEdit={startEdit}
           onSubmitEdit={submitEdit}
           ownLogin={ownLogin}
           renderMarkdown={renderMarkdown}
           timeline={timeline}
         />
-
-        <ThreadIndex onJump={callbacks.onJumpToThread} threads={threads} />
       </div>
 
       <div
@@ -511,6 +519,7 @@ interface DrawerConversationProps {
   newestRef: (el: HTMLDivElement | null) => void;
   onCancelEdit: () => void;
   onDelete: (a: { commentId: number }) => Promise<void>;
+  onJumpToThread: (path: string, rootId: number) => void;
   onStartEdit: (commentId: number) => void;
   onSubmitEdit: (commentId: number, body: string) => void;
   ownLogin: string | undefined;
@@ -524,18 +533,24 @@ function DrawerConversation({
   newestRef,
   onCancelEdit,
   onDelete,
+  onJumpToThread,
   onStartEdit,
   onSubmitEdit,
   ownLogin,
   renderMarkdown,
   timeline,
 }: DrawerConversationProps) {
-  const newest = timeline.at(-1);
+  let newestComment: TimelineEntry | undefined;
+  for (const entry of timeline) {
+    if (entry.kind === "comment") {
+      newestComment = entry;
+    }
+  }
 
   return (
     <section className="qf-drawer-section">
       <h3 className="qf-drawer-h">
-        Conversation
+        Discussion
         {timeline.length > 0 && (
           <span className="qf-drawer-count">{timeline.length}</span>
         )}
@@ -544,8 +559,17 @@ function DrawerConversation({
         <p className="qf-drawer-empty">No discussion yet. Start one below.</p>
       ) : (
         <div className="qf-convo">
-          {timeline.map((entry) =>
-            entry.kind === "comment" ? (
+          {timeline.map((entry) => {
+            if (entry.kind === "thread") {
+              return (
+                <ThreadRow
+                  key={`t-${entry.thread.id}`}
+                  onJump={onJumpToThread}
+                  thread={entry.thread}
+                />
+              );
+            }
+            return entry.kind === "comment" ? (
               <ConversationItem
                 at={entry.comment.createdAt}
                 avatarUrl={entry.comment.userAvatarUrl}
@@ -559,7 +583,7 @@ function DrawerConversation({
                 onStartEdit={onStartEdit}
                 onSubmitEdit={onSubmitEdit}
                 own={entry.comment.id > 0 && entry.comment.user === ownLogin}
-                ref={entry === newest ? newestRef : undefined}
+                ref={entry === newestComment ? newestRef : undefined}
                 renderMarkdown={renderMarkdown}
                 user={entry.comment.user}
               />
@@ -574,8 +598,8 @@ function DrawerConversation({
                 state={entry.review.state}
                 user={entry.review.user}
               />
-            )
-          )}
+            );
+          })}
         </div>
       )}
     </section>
