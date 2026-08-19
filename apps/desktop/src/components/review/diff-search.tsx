@@ -9,14 +9,17 @@
  * and they are built only while the pane is open (`mode === null` is closed),
  * since parsing every patch of a large PR is wasted work the rest of the time.
  *
- * Repo scope is fetched here and handed to the pane as data. The grep runs
- * over the snapshot the review chat already downloads; "snapshot not ready"
- * is a state, not an error — the query kicks `ensureRepoSnapshot` and polls
- * until the snapshot lands. Peek context decodes one blob per requested path
- * (immutable at a sha, so it caches indefinitely) and slices a few lines
- * around each hit in that file. Scope, query and peek reset when the pane
- * closes: reopening always starts back at the PR, widening is a deliberate
- * gesture.
+ * Repo scope is fetched here and handed to the pane as data, and owns its
+ * snapshot: widening the scope fires `ensureRepoSnapshot` (idempotent in the
+ * backend) and polls it until the snapshot settles, so the download starts
+ * before the first keystroke and never depends on another surface having
+ * wanted the same snapshot. A settled failure or a too-large refusal
+ * surfaces as the pane's failed state with the backend's reason; the grep
+ * only runs once the snapshot is ready. Peek context decodes one blob per
+ * requested path (immutable at a sha, so it caches indefinitely) and slices
+ * a few lines around each hit in that file. Scope, query and peek reset when
+ * the pane closes: reopening always starts back at the PR, widening is a
+ * deliberate gesture.
  */
 
 import {
@@ -35,16 +38,19 @@ import { useDebouncedValue } from "../../hooks/use-debounced-value.ts";
 import { api } from "../../lib/api.ts";
 import { type DiffRow, parsePatch } from "../../lib/diff.ts";
 import { highlightLineWithMatch } from "../../lib/highlight.ts";
-import { blobLines, sliceContext, tagRepoHits } from "../../lib/repo-search.ts";
+import {
+  blobLines,
+  isSnapshotNotReady,
+  repoSearchPhase,
+  SNAPSHOT_SETTLED,
+  sliceContext,
+  tagRepoHits,
+} from "../../lib/repo-search.ts";
 import type { ChangedFile } from "../../types.ts";
 
 const PEEK_RADIUS = 4;
 const MIN_REPO_QUERY = 2;
 const SNAPSHOT_POLL_MS = 1500;
-
-function isSnapshotNotReady(error: unknown): boolean {
-  return String(error).includes("snapshot not ready");
-}
 
 function rowAnchor(row: DiffRow): string | null {
   if (row.type === "del") {
@@ -100,8 +106,22 @@ export function DiffSearch({
     [open, files]
   );
 
+  const snapshot = useQuery({
+    enabled: repoActive,
+    queryFn: () => api.ensureRepoSnapshot(pr.owner, pr.name, pr.headSha),
+    queryKey: ["repoSnapshot", pr.owner, pr.name, pr.headSha],
+    refetchInterval: (query) => {
+      const state = query.state.data?.state;
+      return state !== undefined && SNAPSHOT_SETTLED.has(state)
+        ? false
+        : SNAPSHOT_POLL_MS;
+    },
+    retry: false,
+  });
+  const snapshotReady = snapshot.data?.state === "ready";
+
   const grep = useQuery({
-    enabled: repoActive && pattern.length >= MIN_REPO_QUERY,
+    enabled: repoActive && snapshotReady && pattern.length >= MIN_REPO_QUERY,
     placeholderData: keepPreviousData,
     queryFn: async () => {
       try {
@@ -146,20 +166,21 @@ export function DiffSearch({
         ? { ...hit, context: sliceContext(peekLines, hit.line, PEEK_RADIUS) }
         : hit
     );
-    const failure = grep.failureReason ?? grep.error;
-    let status: RepoSearchState["status"] = "ready";
-    if (grep.isFetching) {
-      status = isSnapshotNotReady(failure) ? "preparing" : "loading";
-    } else if (grep.isError) {
-      status = isSnapshotNotReady(grep.error) ? "preparing" : "failed";
-    }
-    return { hits, status, truncated: grep.data?.truncated ?? false };
+    const phase = repoSearchPhase({
+      grepError: grep.isError ? grep.error : null,
+      grepFetching: grep.isFetching,
+      snapshot: snapshot.data,
+      snapshotError: snapshot.isError ? snapshot.error : null,
+    });
+    return { hits, ...phase, truncated: grep.data?.truncated ?? false };
   }, [
     grep.data,
     grep.error,
-    grep.failureReason,
     grep.isError,
     grep.isFetching,
+    snapshot.data,
+    snapshot.isError,
+    snapshot.error,
     searchFiles,
     peekPath,
     peekLines,

@@ -81,6 +81,10 @@ export interface RepoSearchHit {
 
 export interface RepoSearchState {
   hits: readonly RepoSearchHit[];
+  /** Why the repo scope is unavailable, shown when status is "failed"; the
+   *  host passes the backend's own words so a too-large repository and a
+   *  dead network read as different problems. */
+  reason?: string;
   status: "failed" | "loading" | "preparing" | "ready";
   truncated: boolean;
 }
@@ -429,6 +433,7 @@ function PrSearchContent({
     displayQ,
     mode,
     noItems: items.length === 0,
+    repoReason: repo?.reason,
     repoScope,
     repoStatus,
   });
@@ -651,12 +656,14 @@ function paneNotice(args: {
   mode: PrSearchMode;
   noItems: boolean;
   repoScope: boolean;
+  repoReason?: string;
   repoStatus: RepoSearchState["status"];
 }): { hint: string; title: string } | null {
-  const { displayQ, mode, noItems, repoScope, repoStatus } = args;
+  const { displayQ, mode, noItems, repoReason, repoScope, repoStatus } = args;
   if (repoScope && repoStatus === "failed") {
     return {
-      hint: "The snapshot for this revision could not be downloaded.",
+      hint:
+        repoReason ?? "The snapshot for this revision could not be downloaded.",
       title: "Repo search is unavailable.",
     };
   }

@@ -582,6 +582,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "repo-scope-no-matches",
       "repo-scope-peek",
       "repo-scope-preparing",
+      "repo-scope-unavailable",
       "text-empty-query",
       "text-first-line",
       "text-hunk-boundary",

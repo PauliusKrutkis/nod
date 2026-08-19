@@ -355,6 +355,19 @@ export const prSearchEntry = defineEntry(
         repo: { hits: [], status: "preparing", truncated: false },
       },
     },
+    "repo-scope-unavailable": {
+      props: {
+        ...repoShared,
+        files,
+        initialQuery: "gamma",
+        repo: {
+          hits: [],
+          reason: "This repository is too large for a local snapshot.",
+          status: "failed",
+          truncated: false,
+        },
+      },
+    },
     "text-empty-query": {
       props: { ...shared, files, initialQuery: "", mode: "text" },
     },

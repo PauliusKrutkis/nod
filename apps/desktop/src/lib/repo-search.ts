@@ -1,20 +1,30 @@
 /**
  * Pure logic behind repo-scope search: tagging snapshot grep hits against the
- * diff and slicing peek context out of a fetched blob.
+ * diff, slicing peek context out of a fetched blob, and deriving the pane's
+ * phase from the snapshot's lifecycle.
  *
  * A hit counts as "in this PR" only when its exact line exists on the new side
  * of the diff (a `RIGHT:` anchor) — path overlap alone is not enough to jump
  * to or comment on. Anchored hits sort first, stably, so the results a review
  * can act on lead the list. Blob decoding goes through TextDecoder because
  * atob alone mangles anything outside Latin-1.
+ *
+ * The phase derivation orders the snapshot above the grep: until the snapshot
+ * is ready the grep cannot mean anything, and a snapshot the backend refused
+ * (too large) or lost (download error) is a terminal "failed" whose reason is
+ * the backend's own words — a too-large repository and a dead network must
+ * read as different problems. The grep's "snapshot not ready" error still
+ * maps to "preparing" as a race guard for a snapshot evicted between the
+ * status poll and the search.
  */
 import type {
   PrSearchFile,
   PrSearchSnippetLine,
   RepoSearchHit,
+  RepoSearchState,
 } from "@nod/ui/pr-search";
 
-import type { GrepHit } from "../types.ts";
+import type { GrepHit, SnapshotStatus } from "../types.ts";
 
 export function tagRepoHits(
   hits: readonly GrepHit[],
@@ -69,4 +79,49 @@ export function sliceContext(
     out.push({ hit: num === line, num, text: lines[num - 1] });
   }
   return out;
+}
+
+const NOT_READY = "snapshot not ready";
+
+export const SNAPSHOT_SETTLED: ReadonlySet<SnapshotStatus["state"]> = new Set([
+  "failed",
+  "ready",
+  "skipped",
+]);
+
+export function isSnapshotNotReady(error: unknown): boolean {
+  return String(error).includes(NOT_READY);
+}
+
+export function repoSearchPhase(args: {
+  snapshot: SnapshotStatus | undefined;
+  snapshotError: unknown;
+  grepFetching: boolean;
+  grepError: unknown;
+}): Pick<RepoSearchState, "reason" | "status"> {
+  const { snapshot, snapshotError, grepFetching, grepError } = args;
+  if (snapshotError !== null && snapshotError !== undefined) {
+    return { reason: String(snapshotError), status: "failed" };
+  }
+  if (snapshot?.state === "skipped") {
+    return {
+      reason: "This repository is too large for a local snapshot.",
+      status: "failed",
+    };
+  }
+  if (snapshot?.state === "failed") {
+    return {
+      reason: snapshot.detail === "" ? undefined : snapshot.detail,
+      status: "failed",
+    };
+  }
+  if (snapshot?.state !== "ready") {
+    return { status: "preparing" };
+  }
+  if (grepError !== null && grepError !== undefined) {
+    return isSnapshotNotReady(grepError)
+      ? { status: "preparing" }
+      : { reason: String(grepError), status: "failed" };
+  }
+  return { status: grepFetching ? "loading" : "ready" };
 }
