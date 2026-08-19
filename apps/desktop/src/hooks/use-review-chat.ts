@@ -533,20 +533,29 @@ export function useReviewChat(args: {
     const stop = listen<{ chatId: string; model: string }>(
       "ai-chat-effort-unsupported",
       (event) => {
-        setEffortRefused((known) => {
-          if (known.includes(event.payload.model)) {
-            return known;
-          }
-          const next = [...known, event.payload.model];
-          persistEffortRefused(next);
-          return next;
-        });
+        // The updater stays pure — React may run it twice — so the write to
+        // storage rides the state it produced, in the effect below.
+        setEffortRefused((known) =>
+          known.includes(event.payload.model)
+            ? known
+            : [...known, event.payload.model]
+        );
       }
     );
     return () => {
       stop.then((off) => off());
     };
   }, []);
+  // The write lives here rather than in the updater, which React may run
+  // twice. The first pass only arms it: that state came out of storage, and
+  // writing it straight back would be a write per mount for nothing.
+  const refusedWritten = useRef(false);
+  useEffect(() => {
+    if (refusedWritten.current) {
+      persistEffortRefused(effortRefused);
+    }
+    refusedWritten.current = true;
+  }, [effortRefused]);
   const aiConfig = useQuery({
     enabled: args.active,
     queryFn: api.getAiConfig,
