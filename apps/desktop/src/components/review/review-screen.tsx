@@ -1244,6 +1244,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
         onClose={onClosePrSearch}
         onSelectFile={scrollToFile}
         onSelectLine={selectLine}
+        pr={pr}
       />
     </div>
   );

@@ -252,6 +252,17 @@ export interface SnapshotStatus {
   detail: string;
 }
 
+export interface GrepHit {
+  line: number;
+  path: string;
+  text: string;
+}
+
+export interface GrepResult {
+  hits: GrepHit[];
+  truncated: boolean;
+}
+
 export interface AccountInfo {
   avatarUrl: string;
   host: string;

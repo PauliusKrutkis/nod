@@ -12,6 +12,7 @@ import type {
   ConnectivityInfo,
   FileBlob,
   GitHubUser,
+  GrepResult,
   InboxBucket,
   InboxData,
   LedgerSession,
@@ -203,6 +204,13 @@ export const api = {
     threadId: string;
     resolved: boolean;
   }) => invoke<void>("resolve_thread", args),
+
+  searchRepoContent: (
+    owner: string,
+    repo: string,
+    sha: string,
+    pattern: string
+  ) => invoke<GrepResult>("search_repo_content", { owner, pattern, repo, sha }),
 
   searchRepos: (query: string) => invoke<RepoHit[]>("search_repos", { query }),
   setActiveAccount: (id: string) => invoke<void>("set_active_account", { id }),

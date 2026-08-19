@@ -52,6 +52,11 @@ export interface AppOptions {
   aiModelsError?: string;
   chatSkills?: { name: string; description: string; source: string }[];
   snapshotState?: "ready" | "downloading" | "failed" | "skipped";
+  snapshotDetail?: string;
+  repoGrep?: {
+    hits: { line: number; path: string; text: string }[];
+    truncated: boolean;
+  };
   detailByCall?: unknown[];
   detailByLoad?: unknown[];
   detailByNumber?: Record<number, unknown>;
@@ -108,6 +113,8 @@ function aiDefaults(opts: AppOptions) {
     aiCompletion: opts.aiCompletion ?? "",
     chatSkills: opts.chatSkills ?? [],
     snapshotState: opts.snapshotState ?? "ready",
+    snapshotDetail: opts.snapshotDetail ?? "",
+    repoGrep: opts.repoGrep ?? { hits: [], truncated: false },
     aiInfo: opts.aiInfo ?? { baseUrl: null, configured: false, model: null },
     aiModelsError: opts.aiModelsError ?? null,
     aiModels: opts.aiModels ?? [
@@ -442,14 +449,27 @@ export function installBridge(cfg: BridgeConfig) {
       localStorage.setItem("e2e:lastCommentDelete", JSON.stringify(args));
       return null;
     },
-    snapshot_status: () => ({ detail: "", state: snapshotState }),
+    snapshot_status: () => ({
+      detail: cfg.snapshotDetail,
+      state: snapshotState,
+    }),
     ensure_repo_snapshot: (args) => {
       const seen = JSON.parse(
         localStorage.getItem("e2e:snapshotEnsures") ?? "[]"
       ) as unknown[];
       seen.push(args);
       localStorage.setItem("e2e:snapshotEnsures", JSON.stringify(seen));
-      return { detail: "", state: "skipped" };
+      return { detail: cfg.snapshotDetail, state: snapshotState };
+    },
+    search_repo_content: (args) => {
+      if (snapshotState !== "ready") {
+        throw new Error("snapshot not ready");
+      }
+      const pattern = String(args.pattern ?? "");
+      return {
+        hits: cfg.repoGrep.hits.filter((hit) => hit.text.includes(pattern)),
+        truncated: cfg.repoGrep.truncated,
+      };
     },
     get_app_version: () => cfg.appVersion,
     get_cached_inbox: () => null,
