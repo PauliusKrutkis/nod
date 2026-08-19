@@ -487,7 +487,6 @@ export function useReviewChat(args: {
   const threads = useAppStore((s) => s.chatHistory[keyValue]) ?? EMPTY_THREADS;
   const appendChatTurn = useAppStore((s) => s.appendChatTurn);
   const nameChatThread = useAppStore((s) => s.nameChatThread);
-  const threadsRef = useLatest(threads);
   const removeChatThread = useAppStore((s) => s.removeChatThread);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(
     () => threads.at(-1)?.id ?? null
@@ -529,33 +528,24 @@ export function useReviewChat(args: {
   };
   const [effortRefused, setEffortRefused] =
     useState<string[]>(readEffortRefused);
+  const effortRefusedRef = useLatest(effortRefused);
   useEffect(() => {
     const stop = listen<{ chatId: string; model: string }>(
       "ai-chat-effort-unsupported",
       (event) => {
-        // The updater stays pure — React may run it twice — so the write to
-        // storage rides the state it produced, in the effect below.
-        setEffortRefused((known) =>
-          known.includes(event.payload.model)
-            ? known
-            : [...known, event.payload.model]
-        );
+        const known = effortRefusedRef.current;
+        if (known.includes(event.payload.model)) {
+          return;
+        }
+        const next = [...known, event.payload.model];
+        setEffortRefused(next);
+        persistEffortRefused(next);
       }
     );
     return () => {
       stop.then((off) => off());
     };
-  }, []);
-  // The write lives here rather than in the updater, which React may run
-  // twice. The first pass only arms it: that state came out of storage, and
-  // writing it straight back would be a write per mount for nothing.
-  const refusedWritten = useRef(false);
-  useEffect(() => {
-    if (refusedWritten.current) {
-      persistEffortRefused(effortRefused);
-    }
-    refusedWritten.current = true;
-  }, [effortRefused]);
+  }, [effortRefusedRef]);
   const aiConfig = useQuery({
     enabled: args.active,
     queryFn: api.getAiConfig,
@@ -568,7 +558,6 @@ export function useReviewChat(args: {
     staleTime: Number.POSITIVE_INFINITY,
   });
   const currentModel = modelOverride ?? aiConfig.data?.model ?? null;
-  // A thinking level is only offered where one has not already been refused.
   const effortSupported =
     currentModel === null || !effortRefused.includes(currentModel);
   const modelRef = useLatest(currentModel);
@@ -714,17 +703,23 @@ export function useReviewChat(args: {
    *  moment of the reviewer's waiting, and a thread that never gets one still
    *  reads fine under the message it opened with. Skipped when the thread is
    *  already named or already has history, so a long conversation is not
-   *  renamed out from under the reader. */
+   *  renamed out from under the reader. The store is read through getState
+   *  rather than the rendered value: this runs from the mutation's success
+   *  callback, moments after the same turn was appended, and a rendered
+   *  snapshot is one commit behind — which would leave both guards judging
+   *  the thread as it was before the turn that just landed. */
   const nameThreadOnce = (
     threadId: string,
     question: string,
     answer: string
   ) => {
-    const thread = threadsRef.current.find((t) => t.id === threadId);
-    if (thread?.title !== undefined) {
+    const thread = useAppStore
+      .getState()
+      .chatHistory[keyValue]?.find((t) => t.id === threadId);
+    if (thread === undefined || thread.title !== undefined) {
       return;
     }
-    if ((thread?.turns.filter((t) => t.kind === "user").length ?? 0) > 1) {
+    if (thread.turns.filter((t) => t.kind === "user").length > 1) {
       return;
     }
     api

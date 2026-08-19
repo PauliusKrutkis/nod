@@ -1720,15 +1720,10 @@ pub async fn ai_chat_title(
         .filter(|m| !m.trim().is_empty())
         .or(config.model)
         .ok_or_else(|| "Choose a model in AI settings first".to_string())?;
-    let mut exchange = format!("Reviewer:\n{question}\n\nAssistant:\n{answer}");
-    exchange.truncate(
-        exchange
-            .char_indices()
-            .map(|(i, _)| i)
-            .take_while(|i| *i <= TITLE_INPUT_CHARS)
-            .last()
-            .unwrap_or(0),
-    );
+    let exchange: String = format!("Reviewer:\n{question}\n\nAssistant:\n{answer}")
+        .chars()
+        .take(TITLE_INPUT_CHARS)
+        .collect();
     let body = serde_json::json!({
         "model": model,
         "messages": [
