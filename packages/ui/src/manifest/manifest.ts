@@ -316,6 +316,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "delta-mode",
       "expanded",
       "expanding",
+      "hidden-resolved",
       "markup-as-text",
       "minimal",
       "no-extension",

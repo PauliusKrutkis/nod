@@ -1,14 +1,18 @@
 /* The thread rows moved out of the app's quiet.css keeping their class names —
    the desktop's end-to-end specs locate threads by .qf-thread-row and its
    resolved tick. The section heading and its count are names under this
-   component's own prefix, because the drawer's other headings (.qf-drawer-h,
+   component's own prefix, because the drawer's headings (.qf-drawer-h,
    .qf-drawer-count) belong to pr-drawer and travel in its sheet: one class,
-   one owner.
+   one owner. The author and time values mirror comment-item's pair without
+   importing its sheet, for the same reason.
 
-   The section carries no bottom margin: it is always the drawer's last
-   section, and the space above it comes from the section before. The path
-   inside a row is laid out rtl so the ellipsis eats the directory prefix
-   rather than the file name. */
+   A row's geometry is the conversation item's — avatar in a fixed left
+   column, a main column beside it — because the drawer interleaves these
+   rows with PR-level comments in one feed and the two kinds must read as one
+   list. The card border is gone for the same reason; the hover wash is the
+   click affordance, painted over a negative margin so the row's text stays
+   on the feed's alignment. The path inside the chip is laid out rtl so the
+   ellipsis eats the directory prefix rather than the file name. */
 
 .qf-threadindex-h {
   display: flex;
@@ -34,30 +38,78 @@
 .qf-threadindex-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 14px;
 }
 
 .qf-thread-row {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
-  width: 100%;
+  gap: 10px;
   min-width: 0;
-  padding: 8px 11px;
+  padding: 5px 6px;
+  margin: -5px -6px;
   font: inherit;
   text-align: left;
   cursor: pointer;
-  background: var(--bg);
-  border: 1px solid var(--line);
+  background: none;
+  border: 0;
   border-radius: var(--r-lg);
-  transition:
-    border-color 120ms ease,
-    background-color 120ms ease;
+  transition: background-color 120ms ease;
 }
 
 .qf-thread-row:hover {
   background: var(--surface-hi);
-  border-color: var(--accent-line);
+}
+
+.qf-thread-row > :first-child {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.qf-thread-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.qf-thread-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.qf-thread-author {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--fg);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qf-thread-time {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--faint);
+}
+
+.qf-thread-check {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--add);
+}
+
+.qf-thread-snip {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12.5px;
+  color: var(--fg);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .qf-thread-loc {
@@ -65,9 +117,19 @@
   gap: 6px;
   align-items: baseline;
   min-width: 0;
+}
+
+.qf-thread-chip {
+  display: inline-flex;
+  align-items: baseline;
+  min-width: 0;
+  padding: 2px 7px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--muted);
+  background: var(--surface-hi);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
 }
 
 .qf-thread-path {
@@ -84,22 +146,10 @@
   color: var(--faint);
 }
 
-.qf-thread-check {
-  flex-shrink: 0;
-  color: var(--add);
-}
-
 .qf-thread-replies {
   flex-shrink: 0;
   margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
   color: var(--accent);
-}
-
-.qf-thread-snip {
-  min-width: 0;
-  overflow: hidden;
-  font-size: 12.5px;
-  color: var(--fg);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }

@@ -26,6 +26,7 @@ import {
   ChevronsUp,
   Copy,
   ExternalLink,
+  EyeOff,
   FileCode,
   FileSearch,
   History,
@@ -93,6 +94,7 @@ export function useReviewHotkeys(config: {
   toggleChat: () => void;
   toggleChecks: () => void;
   toggleDelta: () => void;
+  toggleHideResolved: () => void;
   toggleInfoPanel: () => void;
   toggleFullFile: () => void;
   toggleSidebar: () => void;
@@ -253,6 +255,18 @@ export function useReviewHotkeys(config: {
       icon: ChevronsDownUp,
       keys: "z",
       run: config.toggleActiveThread,
+    },
+    {
+      description: "Hide / show resolved threads",
+      group: "Comments",
+      icon: EyeOff,
+      keys: "shift+z",
+      run: (e: KeyboardEvent) => {
+        if (e.repeat) {
+          return;
+        }
+        config.toggleHideResolved();
+      },
     },
     {
       description: "Mark viewed & next",

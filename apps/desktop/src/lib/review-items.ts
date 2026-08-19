@@ -716,6 +716,31 @@ export function fileRenderMeta(
   return meta;
 }
 
+/**
+ * Drops resolved threads (root + replies) from the comment stream and counts
+ * what was dropped per file, so the file header can say "N resolved hidden"
+ * while the diff shows nothing. Unresolved threads always pass through — the
+ * toggle this feeds is only ever about resolved ones.
+ */
+export function withoutResolvedThreads(comments: readonly ReviewComment[]): {
+  comments: ReviewComment[];
+  hiddenByPath: Map<string, number>;
+} {
+  const resolvedRoots = new Set<number>();
+  const hiddenByPath = new Map<string, number>();
+  for (const c of comments) {
+    if (c.inReplyToId === null && c.resolved) {
+      resolvedRoots.add(c.id);
+      hiddenByPath.set(c.path, (hiddenByPath.get(c.path) ?? 0) + 1);
+    }
+  }
+  const visible = comments.filter((c) => {
+    const rootId = c.inReplyToId ?? c.id;
+    return !resolvedRoots.has(rootId);
+  });
+  return { comments: visible, hiddenByPath };
+}
+
 export function buildCommentsByFile(
   comments: readonly ReviewComment[]
 ): Map<string, ReviewComment[]> {
