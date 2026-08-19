@@ -40,7 +40,7 @@ concurrency:
 jobs:
   shots:
     runs-on: ubuntu-22.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -125,7 +125,7 @@ jobs:
     needs: shots
     if: ${{ !cancelled() }}
     runs-on: ubuntu-22.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Merge shard baselines
         continue-on-error: true
