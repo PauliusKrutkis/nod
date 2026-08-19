@@ -136,7 +136,15 @@ export function useReviewSubmitActions(args: {
     args.advanceAfterSubmit();
     args.submitReview
       .mutateAsync(payload)
-      .then(() => {
+      .then((res) => {
+        if (res.queued) {
+          args.setToast({
+            message:
+              "You're offline. The review is staged and sends only when you press send once the connection returns.",
+            title: "Review staged",
+          });
+          return;
+        }
         args.clearPendingComments(args.keyValue);
         saveDeltaSnapshot(
           args.keyValue,

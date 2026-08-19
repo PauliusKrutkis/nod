@@ -35,6 +35,15 @@
   color: var(--faint);
 }
 
+/* Said, rather than shown as a row of dead buttons: a disabled segmented
+   control invites clicking and explains nothing. */
+.qmp-effort-none {
+  margin-left: auto;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--faint);
+}
+
 .qmp-effort-opts {
   display: flex;
   gap: 2px;

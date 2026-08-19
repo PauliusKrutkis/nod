@@ -9,15 +9,20 @@ import type {
   ChatPart,
   ChatRegion,
   CommentableSide,
+  ConnectivityInfo,
   FileBlob,
   GitHubUser,
+  GrepResult,
   InboxBucket,
   InboxData,
   LedgerSession,
   LedgerStatus,
   LicenseState,
   PullRequestDetail,
+  QueuedWrite,
+  QueueVerb,
   ReleaseInfo,
+  ReplayReport,
   RepoHit,
   ReviewComment,
   ReviewEvent,
@@ -57,6 +62,11 @@ export const api = {
     effort: string | null;
   }) => invoke<string>("ai_chat", args),
   aiChatCancel: (chatId: string) => invoke<void>("ai_chat_cancel", { chatId }),
+  aiChatTitle: (args: {
+    question: string;
+    answer: string;
+    model: string | null;
+  }) => invoke<string>("ai_chat_title", args),
   aiComplete: (args: {
     prefix: string;
     context: { filePath?: string; code?: string };
@@ -67,6 +77,7 @@ export const api = {
     invoke<SkillInfo[]>("list_chat_skills", { headSha, owner, repo }),
 
   checkForUpdate: () => invoke<UpdateInfo | null>("check_for_update"),
+  connectivityStatus: () => invoke<ConnectivityInfo>("connectivity_status"),
   clearAiConfig: () => invoke<void>("clear_ai_config"),
   clearToken: () => invoke<void>("clear_token"),
   getAiConfig: () => invoke<AiInfo>("get_ai_config"),
@@ -100,6 +111,8 @@ export const api = {
     number: number;
     commentId: number;
   }) => invoke<void>("delete_review_comment", args),
+  discardQueued: (id: string) =>
+    invoke<QueuedWrite[]>("discard_queued", { id }),
   getCachedInbox: () => invoke<InboxData | null>("get_cached_inbox"),
   getCachedPullRequestDetail: (owner: string, repo: string, number: number) =>
     invoke<PullRequestDetail | null>("get_cached_pull_request_detail", {
@@ -168,6 +181,14 @@ export const api = {
       host: args?.host ?? null,
     }),
   probeGitlab: (host: string) => invoke<string>("probe_gitlab", { host }),
+  queueWrite: (args: {
+    owner: string;
+    repo: string;
+    number: number;
+    verb: QueueVerb;
+  }) => invoke<QueuedWrite>("queue_write", args),
+  replayQueue: (includeSubmit: boolean) =>
+    invoke<ReplayReport>("replay_queue", { includeSubmit }),
   removeAccount: (id: string) => invoke<AccountsInfo>("remove_account", { id }),
   replyToReviewComment: (args: {
     owner: string;
@@ -183,6 +204,13 @@ export const api = {
     threadId: string;
     resolved: boolean;
   }) => invoke<void>("resolve_thread", args),
+
+  searchRepoContent: (
+    owner: string,
+    repo: string,
+    sha: string,
+    pattern: string
+  ) => invoke<GrepResult>("search_repo_content", { owner, pattern, repo, sha }),
 
   searchRepos: (query: string) => invoke<RepoHit[]>("search_repos", { query }),
   setActiveAccount: (id: string) => invoke<void>("set_active_account", { id }),

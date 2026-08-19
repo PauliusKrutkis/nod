@@ -19,7 +19,8 @@ use crate::http::{
     read_body, read_capped,
 };
 use crate::model::{
-    ChangedFile, CiStatus, FileBlob, GitHubUser, InboxBucket, InboxData, IssueComment, PullRequest,
+    ChangedFile, CiCheck, CiStatus, FileBlob, GitHubUser, InboxBucket, InboxData, IssueComment,
+    PullRequest,
     PullRequestDetail, RepoHit, ReviewComment, ReviewCommentInput, ReviewSummary,
     MAX_ARCHIVE_BYTES, MAX_BLOB_BYTES,
 };
@@ -75,7 +76,9 @@ fn map_state(state: &str) -> (String, bool) {
 /// newest-first) onto the shared `CiStatus`. Pure so it can be unit-tested.
 /// Pipeline status success/failed/running/pending/canceled → success/failure/
 /// pending; no pipeline → "none". `total`/`failed` are coarse (one pipeline is
-/// one row) since the list endpoint doesn't break down per-job.
+/// one row) since the list endpoint doesn't break down per-job, and `checks`
+/// carries that same single row so the drawer's list degrades honestly rather
+/// than pretending GitLab has no breakdown at all.
 fn ci_from_pipelines(pipelines: &Value) -> CiStatus {
     let Some(latest) = pipelines.as_array().and_then(|a| a.first()) else {
         return CiStatus::default();
@@ -88,11 +91,17 @@ fn ci_from_pipelines(pipelines: &Value) -> CiStatus {
         _ => return CiStatus::default(),
     };
     let failed = if state == "failure" { 1 } else { 0 };
+    let url = fstr(latest, "web_url");
     CiStatus {
         state: state.to_string(),
         total: 1,
         failed,
-        url: fstr(latest, "web_url"),
+        url: url.clone(),
+        checks: vec![CiCheck {
+            name: "Pipeline".to_string(),
+            state: state.to_string(),
+            url,
+        }],
     }
 }
 

@@ -143,6 +143,25 @@ fn provider_error(status: u16, text: &str) -> String {
     format!("AI provider error ({status}): {msg}")
 }
 
+/// One non-streaming completion, parsed. `stream_chat`'s sibling for the
+/// calls that want a single short string back and have nothing to render
+/// progressively — naming a chat thread, so far.
+pub(crate) async fn post_chat(
+    client: &reqwest::Client,
+    url: &str,
+    api_key: &str,
+    body: &Value,
+) -> Result<Value, String> {
+    let resp = client
+        .post(url)
+        .bearer_auth(api_key)
+        .json(body)
+        .send()
+        .await
+        .map_err(net_err)?;
+    read_ai_body(resp).await
+}
+
 async fn read_ai_body(resp: reqwest::Response) -> Result<Value, String> {
     let status = resp.status();
     let text = resp.text().await.map_err(net_err)?;

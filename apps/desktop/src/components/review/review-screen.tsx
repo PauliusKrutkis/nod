@@ -11,6 +11,7 @@
  */
 
 import { treeOrder } from "@nod/ui/file-tree";
+import { checksVerdict } from "@nod/ui/order-checks";
 import { useEdgeResize } from "@nod/ui/use-edge-resize";
 import { useLatest } from "@nod/ui/use-latest";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -338,6 +339,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     onCloseSidebar,
     onSidebarResize,
     onSelectRightTab,
+    onToggleChecks,
     onToggleRightPanel,
     onToggleSidebar,
     openChatTab,
@@ -1165,6 +1167,11 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     sidebarOverlayOpenRef,
     toggleActiveThread,
     toggleChat: onToggleChat,
+    toggleChecks: () => {
+      if (checksVerdict(detail?.ciStatus?.checks)) {
+        onToggleChecks();
+      }
+    },
     toggleDelta,
     toggleInfoPanel: onToggleRightPanel,
     toggleFullFile: () => toggleExpandHeld(activeIndexRef.current),
@@ -1333,6 +1340,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
         onClose={onClosePrSearch}
         onSelectFile={scrollToFile}
         onSelectLine={selectLine}
+        pr={pr}
       />
     </div>
   );

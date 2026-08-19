@@ -32,6 +32,7 @@ import {
   Inbox,
   Info,
   Link,
+  ListChecks,
   MessageSquare,
   MessageSquarePlus,
   MessagesSquare,
@@ -90,6 +91,7 @@ export function useReviewHotkeys(config: {
   sidebarOverlayOpenRef: React.RefObject<boolean>;
   toggleActiveThread: () => void;
   toggleChat: () => void;
+  toggleChecks: () => void;
   toggleDelta: () => void;
   toggleInfoPanel: () => void;
   toggleFullFile: () => void;
@@ -334,6 +336,14 @@ export function useReviewHotkeys(config: {
       icon: Info,
       keys: "mod+i",
       run: config.toggleInfoPanel,
+    },
+    {
+      description: "Toggle checks panel",
+      global: true,
+      group: "General",
+      icon: ListChecks,
+      keys: "mod+j",
+      run: config.toggleChecks,
     },
     {
       description: "Chat about this PR (AI)",

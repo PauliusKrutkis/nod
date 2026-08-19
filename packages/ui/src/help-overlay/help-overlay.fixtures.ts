@@ -5,7 +5,9 @@
  * nothing registered, a single scope, the whole real set, a description with
  * no spaces to break on, a chord long enough to swallow the keys column, and
  * CJK/RTL/emoji labels. `full` mirrors the app's live bindings so the sheet
- * has a specimen at its production density.
+ * has a specimen at its production density. `filtered` and `no-matches` seed
+ * the search through `initialQuery`, since those states are otherwise only
+ * reachable by typing.
  */
 import { defineEntry } from "../fixtures/fixtures.ts";
 import { HelpOverlay } from "./help-overlay.tsx";
@@ -42,27 +44,32 @@ const reviewBindings = [
   { combo: "esc", description: "Back to the inbox" },
 ];
 
+const fullSections = [
+  {
+    bindings: globalBindings,
+    note: "Always available",
+    scope: "global",
+  },
+  { bindings: inboxBindings, note: "On the home list", scope: "inbox" },
+  {
+    active: true,
+    bindings: reviewBindings,
+    note: "When reading a diff",
+    scope: "review",
+  },
+];
+
 export const helpOverlayEntry = defineEntry(
   HelpOverlay,
   {
     empty: { props: { ...shared, sections: [] } },
+    filtered: {
+      props: { ...shared, initialQuery: "pull", sections: fullSections },
+    },
     full: {
       props: {
         ...shared,
-        sections: [
-          {
-            bindings: globalBindings,
-            note: "Always available",
-            scope: "global",
-          },
-          { bindings: inboxBindings, note: "On the home list", scope: "inbox" },
-          {
-            active: true,
-            bindings: reviewBindings,
-            note: "When reading a diff",
-            scope: "review",
-          },
-        ],
+        sections: fullSections,
       },
     },
     "long-chord": {
@@ -100,6 +107,9 @@ export const helpOverlayEntry = defineEntry(
           },
         ],
       },
+    },
+    "no-matches": {
+      props: { ...shared, initialQuery: "zzzz", sections: fullSections },
     },
     "one-section": {
       props: {

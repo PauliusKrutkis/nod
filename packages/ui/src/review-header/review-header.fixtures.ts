@@ -134,6 +134,27 @@ export const reviewHeaderEntry = defineEntry(ReviewHeader, {
       trackerBase: "https://tracker.test/browse/",
     },
   },
+  stacked: {
+    props: {
+      ...handlers,
+      approved: reviewers.slice(0, 1),
+      ciState: "success",
+      convoCount: 3,
+      onOpenStackEntry: noop,
+      pr: pr({
+        baseRef: "feat/port-review-header",
+        headRef: "feat/port-review-chrome",
+      }),
+      stack: {
+        entries: [
+          { current: false, number: 277, title: "Port the review header" },
+          { current: true, number: 279, title: "Port the review chrome" },
+          { current: false, number: 281, title: "Port the submit modal" },
+        ],
+        position: 2,
+      },
+    },
+  },
   "unknown-state": {
     props: {
       ...handlers,

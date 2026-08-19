@@ -17,7 +17,11 @@
  * looks like a tag must render as text, never mount.
  */
 import { defineEntry } from "../fixtures/fixtures.ts";
-import { PrSearch, type PrSearchHunk } from "./pr-search.tsx";
+import {
+  PrSearch,
+  type PrSearchHunk,
+  type RepoSearchState,
+} from "./pr-search.tsx";
 
 const noop = () => {
   return;
@@ -178,11 +182,90 @@ const manyFiles = Array.from({ length: 120 }, (_, i) => ({
   hunks: [hunk(1, [`export const Component${i} = () => null;`])],
 }));
 
+const repoHits: RepoSearchState = {
+  hits: [
+    {
+      anchor: "RIGHT:5",
+      context: [
+        {
+          hit: false,
+          num: 3,
+          text: "export function useGamma(initial: number) {",
+        },
+        {
+          hit: false,
+          num: 4,
+          text: "  const [gamma, setGamma] = useState(initial);",
+        },
+        {
+          hit: true,
+          num: 5,
+          text: "  const bump = () => setGamma((g) => g + 1);",
+        },
+        { hit: false, num: 6, text: "  return { bump, gamma, setGamma };" },
+        { hit: false, num: 7, text: "}" },
+      ],
+      fileIndex: 0,
+      line: 5,
+      path: "src/hooks/use-gamma.ts",
+      text: "  const bump = () => setGamma((g) => g + 1);",
+    },
+    {
+      anchor: null,
+      fileIndex: null,
+      line: 88,
+      path: "src/lib/format-gamma.ts",
+      text: "export function formatGamma(gamma: number): string {",
+    },
+    {
+      anchor: null,
+      fileIndex: null,
+      line: 14,
+      path: "src/pages/settings.tsx",
+      text: "  const gamma = useGamma(1);",
+    },
+  ],
+  status: "ready",
+  truncated: true,
+};
+
+const repoPeek: RepoSearchState = {
+  hits: [
+    {
+      anchor: null,
+      context: [
+        { hit: false, num: 86, text: "const SCALE = 2.2;" },
+        { hit: false, num: 87, text: "" },
+        {
+          hit: true,
+          num: 88,
+          text: "export function formatGamma(gamma: number): string {",
+        },
+        { hit: false, num: 89, text: "  return (gamma * SCALE).toFixed(1);" },
+        { hit: false, num: 90, text: "}" },
+      ],
+      fileIndex: null,
+      line: 88,
+      path: "src/lib/format-gamma.ts",
+      text: "export function formatGamma(gamma: number): string {",
+    },
+  ],
+  status: "ready",
+  truncated: false,
+};
+
 const shared = {
   onOpenChange: noop,
   onSelectFile: noop,
   onSelectLine: noop,
   open: true,
+};
+
+const repoShared = {
+  ...shared,
+  mode: "text" as const,
+  onScopeChange: noop,
+  scope: "repo" as const,
 };
 
 export const prSearchEntry = defineEntry(
@@ -238,6 +321,51 @@ export const prSearchEntry = defineEntry(
         files,
         initialQuery: "unmatchabletoken".repeat(45),
         mode: "text",
+      },
+    },
+    "repo-scope-hits": {
+      props: {
+        ...repoShared,
+        files,
+        initialQuery: "gamma",
+        repo: repoHits,
+      },
+    },
+    "repo-scope-no-matches": {
+      props: {
+        ...repoShared,
+        files,
+        initialQuery: "qqqq",
+        repo: { hits: [], status: "ready", truncated: false },
+      },
+    },
+    "repo-scope-peek": {
+      props: {
+        ...repoShared,
+        files,
+        initialQuery: "formatGamma",
+        repo: repoPeek,
+      },
+    },
+    "repo-scope-preparing": {
+      props: {
+        ...repoShared,
+        files,
+        initialQuery: "gamma",
+        repo: { hits: [], status: "preparing", truncated: false },
+      },
+    },
+    "repo-scope-unavailable": {
+      props: {
+        ...repoShared,
+        files,
+        initialQuery: "gamma",
+        repo: {
+          hits: [],
+          reason: "This repository is too large for a local snapshot.",
+          status: "failed",
+          truncated: false,
+        },
       },
     },
     "text-empty-query": {
