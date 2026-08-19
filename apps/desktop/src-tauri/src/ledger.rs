@@ -90,3 +90,29 @@ pub async fn ledger_approve(repo_path: String, topic: String) -> Result<(), Stri
         .map_err(|e| format!("ledger approve failed: {e}"))??;
     Ok(())
 }
+
+/// Start a thread on a region (`target` is `path:start-end`), or answer an
+/// existing one when `parent` carries the root fact id.
+#[tauri::command]
+pub async fn ledger_comment(
+    repo_path: String,
+    target: String,
+    body: String,
+    parent: Option<String>,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || match &parent {
+        Some(root) => run_cli(&repo_path, &["comment", "--reply", root, &body]),
+        None => run_cli(&repo_path, &["comment", &target, &body]),
+    })
+    .await
+    .map_err(|e| format!("ledger comment failed: {e}"))??;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn ledger_resolve(repo_path: String, fact_id: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || run_cli(&repo_path, &["resolve", &fact_id]))
+        .await
+        .map_err(|e| format!("ledger resolve failed: {e}"))??;
+    Ok(())
+}

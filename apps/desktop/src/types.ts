@@ -436,7 +436,28 @@ interface LedgerTopicStatus {
   totalLines: number;
 }
 
+/**
+ * A comment-thread fact positioned on tip: `alive` at the discussed content's
+ * current home, `stale` on its nearest surviving lines, `gone` (null span)
+ * when the content was rewritten away. Replies carry the root's id in
+ * `parent` and inherit its position.
+ */
+export interface LedgerComment {
+  actor: { id: string; kind: "agent" | "human" };
+  anchorStatus: "alive" | "gone" | "stale";
+  atSha: string;
+  atTime: string;
+  body: string;
+  endLine: number | null;
+  id: string;
+  parent: string | null;
+  path: string;
+  resolved: boolean;
+  startLine: number | null;
+}
+
 export interface LedgerStatus {
+  comments: LedgerComment[];
   coverage: number;
   epoch: string;
   queue: LedgerQueueItem[];
@@ -465,6 +486,8 @@ export interface LedgerSessionFile {
 }
 
 export interface LedgerSession {
+  /** Every thread positioned in one of the session's files. */
+  comments: LedgerComment[];
   sessions: LedgerSessionFile[];
   tip: string;
 }
