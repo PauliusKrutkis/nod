@@ -59,6 +59,43 @@ pub(crate) fn log(msg: &str) {
     eprintln!("[nod] {msg}");
 }
 
+const ORG_APPROVAL_DOCS: &str = "https://docs.github.com/organizations/managing-oauth-access-to-your-organizations-data/approving-oauth-apps-for-your-organization";
+
+/// Rewrites GitHub's org OAuth-restriction refusal into a sentence a person
+/// can act on. Lives here because the REST path (`read_body`) and the GraphQL
+/// path (`github.rs`) build their errors separately, and the inbox only ever
+/// sees the GraphQL one — a rewrite applied to a single path would leave the
+/// other still showing the raw string. Detection keys on GitHub's own phrase
+/// rather than the status code (GraphQL delivers it inside a 200), and the
+/// org name is lifted from their backtick-quoted mention when present, so a
+/// reword on their side degrades to the generic sentence instead of breaking.
+pub(crate) fn org_restriction_error(msg: &str) -> Option<String> {
+    if !msg.to_lowercase().contains("oauth app access restriction") {
+        return None;
+    }
+    let subject = match restricted_org(msg) {
+        Some(org) => format!("{org} has not approved Nod yet"),
+        None => "An organization has not approved Nod yet".to_string(),
+    };
+    Some(format!(
+        "{subject}. An org admin can approve Nod under the organization's third-party access settings. {ORG_APPROVAL_DOCS}"
+    ))
+}
+
+/// The org name as GitHub quotes it: "… the `acme` organization has enabled
+/// OAuth App access restrictions …". Anything that does not match that shape
+/// exactly yields None, which is the generic sentence — never a wrong name.
+fn restricted_org(msg: &str) -> Option<&str> {
+    let head = &msg[..msg.find(" organization")?];
+    let close = head.rfind('`')?;
+    let open = head[..close].rfind('`')?;
+    let name = &head[open + 1..close];
+    if name.is_empty() || name.contains(char::is_whitespace) {
+        return None;
+    }
+    Some(name)
+}
+
 /// Reads a response body, turning non-2xx responses into a friendly error that
 /// surfaces the host's own `message` field when present.
 pub(crate) async fn read_body(resp: reqwest::Response) -> Result<Value, String> {
@@ -77,6 +114,9 @@ pub(crate) async fn read_body(resp: reqwest::Response) -> Result<Value, String> 
             }
         }
         log(&format!("API error {}: {}", status.as_u16(), msg));
+        if let Some(friendly) = org_restriction_error(&msg) {
+            return Err(friendly);
+        }
         return Err(format!("API error ({}): {}", status.as_u16(), msg));
     }
     if text.trim().is_empty() {

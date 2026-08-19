@@ -465,6 +465,21 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "unknown-word",
     ],
   },
+  "license-dialog": {
+    dialog: true,
+    fixtures: [
+      "activation-failed",
+      "busy",
+      "expired",
+      "licensed",
+      "licensed-raw-date",
+      "markup-as-text",
+      "overflow-error",
+      "trial",
+      "trial-last-day",
+      "unknown-status",
+    ],
+  },
   markdown: {
     fixtures: [
       "blockquote",

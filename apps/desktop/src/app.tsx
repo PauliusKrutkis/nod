@@ -10,6 +10,7 @@ import { Inbox } from "./components/inbox/inbox.tsx";
 import { IssueTrackerSettings } from "./components/issue-tracker-settings.tsx";
 import { KeyboardHelp } from "./components/keyboard-help.tsx";
 import { Ledger } from "./components/ledger/ledger.tsx";
+import { LicenseDialogLoader } from "./components/license-dialog-loader.tsx";
 import { NotificationCenterLoader } from "./components/notification-center-loader.tsx";
 import { PurchasePromptLoader } from "./components/purchase-prompt-loader.tsx";
 import { ReleaseHistoryLoader } from "./components/release-history-loader.tsx";
@@ -47,6 +48,7 @@ export default function App() {
   const [cannedOpen, setCannedOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [licenseOpen, setLicenseOpen] = useState(false);
 
   const dismissToast = () => {
     setToast(null);
@@ -62,6 +64,12 @@ export default function App() {
   };
   const closeHistory = () => {
     setHistoryOpen(false);
+  };
+  const openLicense = () => {
+    setLicenseOpen(true);
+  };
+  const closeLicense = () => {
+    setLicenseOpen(false);
   };
   const closeNotifications = () => {
     setNotificationsOpen(false);
@@ -134,6 +142,7 @@ export default function App() {
   useGlobalBindings({
     openCanned: openCannedDialog,
     openHistory,
+    openLicense,
     openTracker,
     toggleNotifications,
   });
@@ -217,6 +226,7 @@ export default function App() {
       <CannedCommentsLoader onClose={closeCanned} open={cannedOpen} />
       <IssueTrackerSettings onClose={closeTracker} open={trackerOpen} />
       <AiSetupLoader onClose={closeAiSetup} open={aiSetupOpen} />
+      <LicenseDialogLoader onClose={closeLicense} open={licenseOpen} />
       <ReleaseHistoryLoader onClose={closeHistory} open={historyOpen} />
       <NotificationCenterLoader
         onClose={closeNotifications}

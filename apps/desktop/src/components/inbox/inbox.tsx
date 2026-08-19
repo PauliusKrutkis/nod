@@ -51,6 +51,7 @@ import { useAppStore } from "../../store/app-store.ts";
 import type { InboxData, InboxTabKey, PullRequest } from "../../types.ts";
 import { prKey } from "../../types.ts";
 import { Markdown } from "../markdown-loader.tsx";
+import { OrgAccessHint } from "./org-access-hint.tsx";
 import { WatchReposLoader } from "./watch-repos-loader.tsx";
 
 const TABS: { key: InboxTabKey; label: string; hint: string }[] = [
@@ -79,6 +80,13 @@ const EMPTY: InboxData = {
   involved: { count: 0, prs: [] },
   reviewRequested: { count: 0, prs: [] },
 };
+
+// Under this many rows the list gets the org-approval hint at its end: the
+// silent half of GitHub's OAuth restrictions removes repos with no error to
+// catch, so the hint is always-on and quiet rather than gated on a heuristic
+// that does not exist. Most short inboxes are simply short; the hint is a
+// sentence, never an alert.
+const SHORT_INBOX_MAX = 5;
 
 let autoTabSelected = false;
 
@@ -694,6 +702,9 @@ function InboxListPane({
             unread={isUnread(keyFor(pr), pr.updatedAt)}
           />
         ))}
+        {!showArchived && filtered.length <= SHORT_INBOX_MAX && (
+          <OrgAccessHint />
+        )}
       </div>
 
       {selectedPR === undefined ? null : (
