@@ -5,8 +5,7 @@
  * a detected package manager shows its one upgrade command as a copyable
  * row, an unmanaged copy falls back to the downloads page, and the lapsed
  * pair keeps the license CTA primary while the copy still admits the swap
- * is manual. There is
- * deliberately no "downloading, 43%" fixture — the install is a single
+ * is manual. There is deliberately no "downloading, 43%" fixture — the install is a single
  * backend command that ends in a relaunch and reports no progress, so a
  * progress bar here would be a picture of something the app does not know.
  *

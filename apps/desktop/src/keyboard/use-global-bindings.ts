@@ -1,8 +1,8 @@
 /**
  * Every binding that works wherever you are: the palette and help, the two
- * the two comment preferences, search, zoom, notifications, the update
- * check, the settings
- * dialogs and the account switcher. They live here rather than in App because App renders routes and
+ * comment preferences, search, zoom, notifications, the update check, the
+ * settings dialogs and the account switcher. They live here rather than in
+ * App because App renders routes and
  * chrome — this is a list of what the keyboard can do, and it is long enough
  * that keeping it inline buried the render.
  *

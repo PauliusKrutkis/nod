@@ -211,7 +211,7 @@ pub async fn list_releases() -> Result<Option<Vec<ReleaseInfo>>, String> {
 pub async fn install_update(app: AppHandle) -> Result<(), String> {
     if !current_format(&app).self_installable() {
         return Err(
-            "Nod can't replace a .deb or .rpm install on its own. Download the new package from https://nodreview.com/downloads and install it over this one."
+            "Nod can't replace this install on its own. Download the new build from https://nodreview.com/downloads and install it over this one."
                 .to_string(),
         );
     }
