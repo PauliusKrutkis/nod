@@ -1,11 +1,59 @@
-import type { QueuedWrite, QueueVerb } from "../types.ts";
-
 /**
- * Pure rendering helpers for the offline bar: the queue summarised by verb
- * ("2 comments · 1 reply · review staged") and per-item labels and text. The
- * review submission is singled out because it never replays on its own; the
- * summary word "staged" carries that.
+ * The offline bar's domain: the queue summarised by verb ("2 comments · 1
+ * reply · review staged") and per-item labels and text. The review submission
+ * is singled out because it never replays on its own; the summary word
+ * "staged" carries that.
+ *
+ * QueuedWrite and ReplayedItem are the package's own mirror of the Rust
+ * queue's serialised shapes, not imports from the app — the desktop's types
+ * satisfy them structurally, the same bridge review-toast uses for its
+ * request. `event` is a plain string here because the bar never reads the
+ * verdict, only the fact that a review is staged.
  */
+
+export type QueueVerb =
+  | {
+      kind: "comment";
+      body: string;
+      commitId: string;
+      path: string;
+      line: number;
+      side: string;
+      startLine?: number | null;
+    }
+  | { kind: "reply"; body: string; inReplyTo: number }
+  | { kind: "resolve"; threadId: string; resolved: boolean }
+  | { kind: "issueComment"; body: string }
+  | {
+      kind: "submitReview";
+      event: string;
+      body: string;
+      commitId: string;
+      comments: {
+        path: string;
+        line: number;
+        side: string;
+        body: string;
+        startLine?: number | null;
+      }[];
+    };
+
+export interface QueuedWrite {
+  createdAt: number;
+  failure: string | null;
+  id: string;
+  number: number;
+  owner: string;
+  repo: string;
+  state: "queued" | "failed";
+  verb: QueueVerb;
+}
+
+export interface ReplayedItem {
+  item: QueuedWrite;
+  outcome: "landed" | "nothingToDo" | "failed";
+  reason: string | null;
+}
 
 const VERB_NOUNS: Record<QueueVerb["kind"], [string, string]> = {
   comment: ["comment", "comments"],
