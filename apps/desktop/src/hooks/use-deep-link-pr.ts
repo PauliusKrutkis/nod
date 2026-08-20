@@ -6,12 +6,15 @@
  * content on the first frame and only refreshes in the background. A cold PR
  * seeds nothing and lands on the pending shell's diff-shaped skeleton.
  *
- * Two arrival paths mirror the Rust side (activation.rs): a cold start
- * stashes the link before the webview exists, drained here once the token
- * check has decided the app can route at all; a link while running arrives
- * as a `deep-link-pr` event. The event handler ignores links while the app
- * is on the token gate or still booting — without a token the fetch behind
- * the route could only fail, and during boot the startup drain owns routing.
+ * The Rust stash (activation.rs) is the single source of a link: every
+ * arrival is stashed and the `deep-link-pr` event is only a nudge to drain
+ * it, so a link is consumed exactly once no matter which side sees it first.
+ * A cold start stashes before the webview exists and the startup sequence
+ * drains once the token check has decided the app can route at all; while
+ * booting the event handler leaves the stash alone for that drain. On the
+ * token gate the handler drains and drops — without a token the fetch behind
+ * the route could only fail, and a stale link must not hijack a later
+ * remount after sign-in.
  */
 import { listen } from "@tauri-apps/api/event";
 import { useEffect } from "react";
@@ -47,15 +50,23 @@ export function useDeepLinkPr(): void {
   useEffect(() => {
     let disposed = false;
     let unlisten: (() => void) | undefined;
-    listen<PrLinkTarget>("deep-link-pr", (event) => {
-      const target = event.payload;
-      seedFromDiskCache(target).then(() => {
-        const { openReview, route } = useAppStore.getState();
-        if (route.name === "token" || route.name === "loading") {
-          return;
-        }
-        openReview(target.owner, target.repo, target.number);
-      });
+    listen("deep-link-pr", () => {
+      if (useAppStore.getState().route.name === "loading") {
+        return;
+      }
+      api
+        .takeDeepLinkPr()
+        .then((target) => {
+          if (!target || useAppStore.getState().route.name === "token") {
+            return;
+          }
+          return seedFromDiskCache(target).then(() => {
+            useAppStore
+              .getState()
+              .openReview(target.owner, target.repo, target.number);
+          });
+        })
+        .catch(() => undefined);
     })
       .then((fn) => {
         if (disposed) {

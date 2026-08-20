@@ -70,7 +70,7 @@ export function ReviewScreenPending({
         <div className="qrp-side-head">
           <span className="qrp-side-title">Files</span>
         </div>
-        <div className="qrp-side-body">
+        <div aria-hidden className="qrp-side-body">
           {SIDEBAR_SKELETON_WIDTHS.map((width, index, widths) => {
             const n = widths.slice(0, index).filter((w) => w === width).length;
             return (
@@ -108,7 +108,11 @@ export function ReviewScreenPending({
             </>
           )}
         </header>
-        <div className="qrp-body">
+        <div
+          aria-label="Loading pull request"
+          className="qrp-body"
+          role="status"
+        >
           {DIFF_SKELETON_FILES.map((file) => (
             <section className="qrp-file" key={file.name}>
               <div className="qrp-file-head">
