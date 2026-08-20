@@ -1,8 +1,4 @@
-import {
-  formattedLaunchPrice,
-  formattedPrice,
-  pricing,
-} from "@nod/pricing";
+import { formattedLaunchPrice, formattedPrice, pricing } from "@nod/pricing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "../pages/price.json.ts";
 

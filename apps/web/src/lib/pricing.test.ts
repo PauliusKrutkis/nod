@@ -1,8 +1,4 @@
-import {
-  formattedLaunchPrice,
-  formattedPrice,
-  pricing,
-} from "@nod/pricing";
+import { formattedLaunchPrice, formattedPrice, pricing } from "@nod/pricing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const PRODUCT = {

@@ -19,7 +19,9 @@ describe("pricing", () => {
   });
 
   it("quotes the launch price as effective when set, standing otherwise", () => {
-    expect(formattedEffectivePrice).toBe(formattedLaunchPrice ?? formattedPrice);
+    expect(formattedEffectivePrice).toBe(
+      formattedLaunchPrice ?? formattedPrice
+    );
   });
 
   it("formats whole dollars bare and fractional ones with cents", () => {
