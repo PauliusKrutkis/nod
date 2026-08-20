@@ -747,14 +747,16 @@ export function ChatPanel({
           </div>
         </div>
         {model && modelOpen && (
-          <ModelPicker
-            anchorSelector=".qch-model"
-            current={model.current}
-            effort={model.effort}
-            models={model.models}
-            onClose={closeModelPicker}
-            onPick={pickModel}
-          />
+          <div className="qch-model-pop">
+            <ModelPicker
+              anchorSelector=".qch-model"
+              current={model.current}
+              effort={model.effort}
+              models={model.models}
+              onClose={closeModelPicker}
+              onPick={pickModel}
+            />
+          </div>
         )}
         <div className="qch-footer-row">
           {model && (
