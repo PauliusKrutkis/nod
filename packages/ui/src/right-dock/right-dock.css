@@ -80,6 +80,27 @@
   color: var(--fg);
 }
 
+/* The indicator keeps the pill's state colours so the dot on the tab and
+   the verdict inside it speak the same language. */
+.qf-dock-tab-dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.qf-dock-tab-dot-failure {
+  background: var(--del);
+}
+
+.qf-dock-tab-dot-pending {
+  background: var(--muted);
+}
+
+.qf-dock-tab-dot-success {
+  background: var(--add);
+}
+
 .qf-dock-tab[aria-pressed="true"] {
   color: var(--fg);
   border-bottom-color: var(--accent);

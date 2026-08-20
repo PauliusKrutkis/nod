@@ -12,7 +12,8 @@ use crate::http::{
     org_restriction_error, read_body, read_capped,
 };
 use crate::model::{
-    ChangedFile, CiStatus, FileBlob, GitHubUser, InboxBucket, InboxData, IssueComment, LastComment,
+    ChangedFile, CiCheck, CiStatus, FileBlob, GitHubUser, InboxBucket, InboxData, IssueComment,
+    LastComment,
     PullRequest, PullRequestDetail, RepoHit, ReviewComment, ReviewCommentInput, ReviewSummary,
     MAX_ARCHIVE_BYTES, MAX_BLOB_BYTES,
 };
@@ -202,7 +203,9 @@ fn pr_from_pull(v: &Value, owner: &str, repo: &str) -> PullRequest {
 /// Precedence: any failure → "failure"; else any in-flight → "pending"; else
 /// any check at all → "success"; else "none". `checks_url` is the fallback
 /// target (the PR's checks page); a failing run's own `html_url` wins when
-/// present so the click lands on the broken check.
+/// present so the click lands on the broken check. Every run and status also
+/// becomes a `CiCheck` row so the drawer can list them individually; rows keep
+/// host order and the UI owns the failures-first sort.
 fn ci_from_github(check_runs: &Value, combined: &Value, checks_url: &str) -> CiStatus {
     let runs = check_runs
         .get("check_runs")
@@ -219,12 +222,15 @@ fn ci_from_github(check_runs: &Value, combined: &Value, checks_url: &str) -> CiS
     let mut failed: u64 = 0;
     let mut pending: u64 = 0;
     let mut fail_url: Option<String> = None;
+    let mut checks: Vec<CiCheck> = Vec::new();
 
     for run in &runs {
         total += 1;
+        let url = fopt_str(run, "html_url").unwrap_or_else(|| checks_url.to_string());
         let status = fstr(run, "status");
         if status != "completed" {
             pending += 1;
+            checks.push(check_row(fstr(run, "name"), "pending", url));
             continue;
         }
         match fstr(run, "conclusion").as_str() {
@@ -233,22 +239,28 @@ fn ci_from_github(check_runs: &Value, combined: &Value, checks_url: &str) -> CiS
                 if fail_url.is_none() {
                     fail_url = fopt_str(run, "html_url");
                 }
+                checks.push(check_row(fstr(run, "name"), "failure", url));
             }
-            _ => {}
+            _ => checks.push(check_row(fstr(run, "name"), "success", url)),
         }
     }
 
     for st in &statuses {
         total += 1;
+        let url = fopt_str(st, "target_url").unwrap_or_else(|| checks_url.to_string());
         match fstr(st, "state").as_str() {
             "failure" | "error" => {
                 failed += 1;
                 if fail_url.is_none() {
                     fail_url = fopt_str(st, "target_url");
                 }
+                checks.push(check_row(fstr(st, "context"), "failure", url));
             }
-            "pending" => pending += 1,
-            _ => {}
+            "pending" => {
+                pending += 1;
+                checks.push(check_row(fstr(st, "context"), "pending", url));
+            }
+            _ => checks.push(check_row(fstr(st, "context"), "success", url)),
         }
     }
 
@@ -271,6 +283,15 @@ fn ci_from_github(check_runs: &Value, combined: &Value, checks_url: &str) -> CiS
         total,
         failed,
         url: fail_url.unwrap_or_else(|| checks_url.to_string()),
+        checks,
+    }
+}
+
+fn check_row(name: String, state: &str, url: String) -> CiCheck {
+    CiCheck {
+        name,
+        state: state.to_string(),
+        url,
     }
 }
 

@@ -8,7 +8,8 @@
  *
  * Snippets arrive already folded to one line by the host; `newline-snippet`
  * pins what a row does with a body that was never folded — the row must stay
- * one line high either way.
+ * one line high either way. Authors ride every row now that rows read as
+ * comments; `typical` carries a handle long enough to force the ellipsis.
  */
 import { defineEntry } from "../fixtures/fixtures.ts";
 import { ThreadIndex, type ThreadIndexRow } from "./thread-index.tsx";
@@ -23,10 +24,13 @@ function thread(
   overrides: Partial<ThreadIndexRow> & { id: number }
 ): ThreadIndexRow {
   return {
+    createdAt: "2025-06-03T10:00:00Z",
     line: 42,
     path: "src/components/review/right-panel.tsx",
     replyCount: 0,
     snippet: "This derivation belongs in the container, not the view.",
+    user: "maya",
+    userAvatarUrl: "",
     ...overrides,
   };
 }
@@ -34,25 +38,31 @@ function thread(
 const typical: ThreadIndexRow[] = [
   thread({ id: 1, replyCount: 2 }),
   thread({
+    createdAt: "2025-06-03T14:25:00Z",
     id: 2,
     line: 118,
     path: "packages/ui/src/file-sidebar/file-sidebar.tsx",
     replyCount: 1,
     snippet: "Can we keep the original index on the row instead?",
+    user: "jt-osaka",
   }),
   thread({
+    createdAt: "2025-06-02T08:00:00Z",
     id: 3,
     line: null,
     path: "apps/desktop/src/quiet.css",
     snippet: "Outdated after the rebase, but worth keeping for the record.",
+    user: "priya",
   }),
   thread({
+    createdAt: "2025-06-04T19:41:00Z",
     id: 4,
     line: 7,
     path: "README.md",
     replyCount: 11,
     resolved: true,
     snippet: "Fixed in 9de693c.",
+    user: "a-very-long-github-handle-that-must-ellipsize",
   }),
 ];
 

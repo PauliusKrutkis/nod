@@ -1,6 +1,11 @@
 //! Shared reqwest helpers used by every platform adapter: JSON field
 //! extraction, response-body parsing, pagination, and an in-memory ETag
 //! cache for conditional GETs. Nothing here assumes a particular host.
+//!
+//! This is also where connectivity is observed (see `offline.rs`): every
+//! transport-level failure funnels through `net_err`, which marks the app
+//! offline, and every received response marks it back online. A non-2xx
+//! status is a host answer, so it counts as online.
 
 use serde_json::Value;
 use std::collections::HashMap;
@@ -51,6 +56,7 @@ pub(crate) fn now_millis() -> u64 {
 }
 
 pub(crate) fn net_err(e: reqwest::Error) -> String {
+    crate::offline::mark_offline();
     format!("network error: {e}")
 }
 
@@ -99,6 +105,7 @@ fn restricted_org(msg: &str) -> Option<&str> {
 /// Reads a response body, turning non-2xx responses into a friendly error that
 /// surfaces the host's own `message` field when present.
 pub(crate) async fn read_body(resp: reqwest::Response) -> Result<Value, String> {
+    crate::offline::mark_online();
     let status = resp.status();
     let text = resp.text().await.map_err(net_err)?;
     if !status.is_success() {
@@ -187,6 +194,7 @@ pub(crate) async fn get_json(client: &reqwest::Client, url: &str) -> Result<Valu
         req = req.header(reqwest::header::IF_NONE_MATCH, hit.etag.clone());
     }
     let resp = req.send().await.map_err(net_err)?;
+    crate::offline::mark_online();
 
     let status = resp.status().as_u16();
     let resp_etag = resp
@@ -229,6 +237,7 @@ pub(crate) async fn read_capped(
     max: usize,
     label: &str,
 ) -> Result<Vec<u8>, String> {
+    crate::offline::mark_online();
     let status = resp.status();
     if !status.is_success() {
         return Err(format!("{label} failed ({})", status.as_u16()));
@@ -253,6 +262,7 @@ pub(crate) async fn read_capped(
 pub(crate) async fn fetch_blob(client: &reqwest::Client, url: &str) -> Result<FileBlob, String> {
     use base64::{engine::general_purpose::STANDARD, Engine as _};
     let resp = client.get(url).send().await.map_err(net_err)?;
+    crate::offline::mark_online();
     let status = resp.status();
     if !status.is_success() {
         let text = resp.text().await.unwrap_or_default();

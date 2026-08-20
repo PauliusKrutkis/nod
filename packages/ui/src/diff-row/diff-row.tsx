@@ -42,6 +42,7 @@ export interface DiffRowProps {
   active?: boolean;
   anchor?: string | null;
   canComment?: boolean;
+  dimmed?: boolean;
   fileIndex: number;
   flash?: boolean;
   guideLvl?: number | null;
@@ -65,6 +66,7 @@ export function DiffRow({
   active = false,
   anchor = null,
   canComment = false,
+  dimmed = false,
   fileIndex,
   flash = false,
   guideLvl = null,
@@ -131,7 +133,8 @@ export function DiffRow({
         selected && "qf-row-selected",
         selectionEnd && "qf-row-sel-end",
         flash && "qf-row-flash",
-        threaded && "qf-row-threaded"
+        threaded && "qf-row-threaded",
+        dimmed && "qf-row-dimmed"
       )}
       data-anchor={anchor ?? undefined}
       data-file-index={fileIndex}

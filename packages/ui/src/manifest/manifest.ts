@@ -172,6 +172,17 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "unicode",
     ],
   },
+  "ci-checks": {
+    fixtures: [
+      "all-green",
+      "empty",
+      "missing",
+      "mixed",
+      "overflow",
+      "single-pipeline",
+      "unlinked",
+    ],
+  },
   "ci-pill": {
     fixtures: [
       "failure",
@@ -246,14 +257,12 @@ export const catalogManifest: Record<string, ManifestEntry> = {
   },
   "comment-tools": {
     fixtures: [
-      "chord",
       "copy-only",
       "delete-only",
       "edit-only",
       "markup-body",
       "own",
-      "own-with-kbd",
-      "unknown-key",
+      "pending",
     ],
   },
   "composer-editor": {
@@ -302,8 +311,10 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "added",
       "copied",
       "crowd",
+      "delta-mode",
       "expanded",
       "expanding",
+      "hidden-resolved",
       "markup-as-text",
       "minimal",
       "no-extension",
@@ -363,9 +374,11 @@ export const catalogManifest: Record<string, ManifestEntry> = {
     dialog: true,
     fixtures: [
       "empty",
+      "filtered",
       "full",
       "long-chord",
       "markup-as-text",
+      "no-matches",
       "one-section",
       "overflow",
       "unicode",
@@ -593,6 +606,11 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "overflow-long-hit",
       "overflow-long-line",
       "overflow-unbreakable-query",
+      "repo-scope-hits",
+      "repo-scope-no-matches",
+      "repo-scope-peek",
+      "repo-scope-preparing",
+      "repo-scope-unavailable",
       "text-empty-query",
       "text-first-line",
       "text-hunk-boundary",
@@ -652,6 +670,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "merged",
       "minimal",
       "overflow",
+      "stacked",
       "unicode",
       "unknown-state",
     ],
@@ -695,7 +714,14 @@ export const catalogManifest: Record<string, ManifestEntry> = {
     ],
   },
   "right-dock": {
-    fixtures: ["chat-active", "overflow", "single-tab", "two-tabs", "unicode"],
+    fixtures: [
+      "chat-active",
+      "indicators",
+      "overflow",
+      "single-tab",
+      "two-tabs",
+      "unicode",
+    ],
   },
   "search-pane": {
     dialog: true,
