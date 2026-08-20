@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { QueuedWrite, QueueVerb } from "../types.ts";
 import {
   canPlaceAgain,
   itemLabel,
   itemText,
+  type QueuedWrite,
+  type QueueVerb,
   queueSummary,
 } from "./offline-summary.ts";
 
