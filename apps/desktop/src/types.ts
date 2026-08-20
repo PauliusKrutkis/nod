@@ -3,7 +3,9 @@
  * the Rust backend (see src-tauri/src/github.rs).
  *
  * PullRequest list items omit heavy fields (headSha, files); detail fetches
- * fill baseSha/headRef/baseRef and lastComment (inbox pane teaser only).
+ * fill baseSha and lastComment (inbox pane teaser only). headRef/baseRef ride
+ * the list query too, which is what lets stacked-PR detection join over the
+ * inbox without a second request.
  * ReviewComment.threadId/resolved come from the provider's resolvable-thread
  * handle — null hides the resolve affordance. PendingComment.line is the
  * range end for multi-line drafts; startLine is the start when present.
@@ -19,6 +21,9 @@
  * updateCommand carry the backend's shared install-format detection, the
  * same one nod --version prints, so the notice can show the one command
  * that works instead of just dropping the install button.
+ * CiStatus.checks is optional because details cached by an older version
+ * predate the per-check breakdown; an absent list reads the same as an empty
+ * one, which is a host that reports only a rollup.
  */
 
 export interface GitHubUser {
@@ -116,7 +121,14 @@ export interface ReviewSummary {
   userAvatarUrl: string;
 }
 
+interface CiCheck {
+  name: string;
+  state: "success" | "failure" | "pending";
+  url: string;
+}
+
 export interface CiStatus {
+  checks?: CiCheck[];
   failed: number;
   state: "success" | "failure" | "pending" | "none";
   total: number;
@@ -175,6 +187,64 @@ export type ViewedFileMap = Record<string, string>;
 
 export type ViewedMap = Record<string, ViewedFileMap>;
 
+export type QueueVerb =
+  | {
+      kind: "comment";
+      body: string;
+      commitId: string;
+      path: string;
+      line: number;
+      side: string;
+      startLine?: number | null;
+    }
+  | { kind: "reply"; body: string; inReplyTo: number }
+  | { kind: "resolve"; threadId: string; resolved: boolean }
+  | { kind: "issueComment"; body: string }
+  | {
+      kind: "submitReview";
+      event: ReviewEvent;
+      body: string;
+      commitId: string;
+      comments: {
+        path: string;
+        line: number;
+        side: string;
+        body: string;
+        startLine?: number | null;
+      }[];
+    };
+
+/** A write made while offline, held in the Rust queue. `state` is "queued"
+ *  until a replay either lands it (it leaves the queue), finds nothing to do
+ *  (it leaves too), or fails, which keeps the item with `failure` set so its
+ *  text is never lost. */
+export interface QueuedWrite {
+  createdAt: number;
+  failure: string | null;
+  id: string;
+  number: number;
+  owner: string;
+  repo: string;
+  state: "queued" | "failed";
+  verb: QueueVerb;
+}
+
+export interface ConnectivityInfo {
+  online: boolean;
+  queue: QueuedWrite[];
+}
+
+export interface ReplayedItem {
+  item: QueuedWrite;
+  outcome: "landed" | "nothingToDo" | "failed";
+  reason: string | null;
+}
+
+export interface ReplayReport {
+  attempted: ReplayedItem[];
+  wentOffline: boolean;
+}
+
 export interface RepoHit {
   description: string;
   fullName: string;
@@ -188,6 +258,17 @@ export interface FileBlob {
 export interface SnapshotStatus {
   state: "idle" | "downloading" | "ready" | "skipped" | "failed";
   detail: string;
+}
+
+export interface GrepHit {
+  line: number;
+  path: string;
+  text: string;
+}
+
+export interface GrepResult {
+  hits: GrepHit[];
+  truncated: boolean;
 }
 
 export interface AccountInfo {

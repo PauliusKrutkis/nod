@@ -36,6 +36,7 @@ export function PrSummary({
   onOpenCiUrl,
   onOpenPr,
   onOpenTicket,
+  onShowChecks,
   openLabel,
   pr,
   trackerBase,
@@ -45,6 +46,8 @@ export function PrSummary({
   onOpenCiUrl: (url: string) => void;
   onOpenPr: () => void;
   onOpenTicket: (url: string) => void;
+  /** Routes the CI pill to the host's Checks tab instead of the browser. */
+  onShowChecks?: () => void;
   openLabel: string;
   pr: SummaryPullRequest;
   trackerBase?: string;
@@ -77,7 +80,10 @@ export function PrSummary({
         </span>
       </div>
       <div className="qf-drawer-links">
-        <CiPill ci={ci} onOpen={onOpenCiUrl} />
+        <CiPill
+          ci={ci}
+          onOpen={onShowChecks ? () => onShowChecks() : onOpenCiUrl}
+        />
         <Tooltip label={pr.url}>
           <button
             className="qf-drawer-link q-focus"

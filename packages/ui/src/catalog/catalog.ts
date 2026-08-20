@@ -9,6 +9,7 @@ import { cannedCommentsDialogEntry } from "../canned-comments-dialog/canned-comm
 import { cannedSuggestionsEntry } from "../canned-suggestions/canned-suggestions.fixtures.ts";
 import { chatComposerEntry } from "../chat-composer/chat-composer.fixtures.ts";
 import { chatPanelEntry } from "../chat-panel/chat-panel.fixtures.ts";
+import { ciChecksEntry } from "../ci-checks/ci-checks.fixtures.ts";
 import { ciPillEntry } from "../ci-pill/ci-pill.fixtures.ts";
 import { codeCellEntry } from "../code-cell/code-cell.fixtures.ts";
 import { commandPaletteEntry } from "../command-palette/command-palette.fixtures.ts";
@@ -71,6 +72,7 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   "canned-suggestions": cannedSuggestionsEntry,
   "chat-composer": chatComposerEntry,
   "chat-panel": chatPanelEntry,
+  "ci-checks": ciChecksEntry,
   "ci-pill": ciPillEntry,
   "code-cell": codeCellEntry,
   "command-palette": commandPaletteEntry,

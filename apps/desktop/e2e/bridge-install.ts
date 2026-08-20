@@ -52,6 +52,11 @@ export interface AppOptions {
   aiModelsError?: string;
   chatSkills?: { name: string; description: string; source: string }[];
   snapshotState?: "ready" | "downloading" | "failed" | "skipped";
+  snapshotDetail?: string;
+  repoGrep?: {
+    hits: { line: number; path: string; text: string }[];
+    truncated: boolean;
+  };
   detailByCall?: unknown[];
   detailByLoad?: unknown[];
   detailByNumber?: Record<number, unknown>;
@@ -70,6 +75,8 @@ export interface AppOptions {
     | null;
   inbox?: InboxFixture;
   inboxByCall?: unknown[];
+  offline?: boolean;
+  replayFailure?: string;
   ledger?: unknown;
   ledgerAfterApprove?: unknown;
   ledgerAfterReview?: unknown;
@@ -113,6 +120,8 @@ function aiDefaults(opts: AppOptions) {
     aiCompletion: opts.aiCompletion ?? "",
     chatSkills: opts.chatSkills ?? [],
     snapshotState: opts.snapshotState ?? "ready",
+    snapshotDetail: opts.snapshotDetail ?? "",
+    repoGrep: opts.repoGrep ?? { hits: [], truncated: false },
     aiInfo: opts.aiInfo ?? { baseUrl: null, configured: false, model: null },
     aiModelsError: opts.aiModelsError ?? null,
     aiModels: opts.aiModels ?? [
@@ -128,6 +137,13 @@ function detailDefaults(opts: AppOptions) {
     detailByCall: opts.detailByCall ?? null,
     detailByLoad: opts.detailByLoad ?? null,
     detailByNumber: opts.detailByNumber ?? null,
+  };
+}
+
+function offlineDefaults(opts: AppOptions) {
+  return {
+    offline: opts.offline ?? false,
+    replayFailure: opts.replayFailure ?? null,
   };
 }
 
@@ -154,6 +170,7 @@ export function buildBridgeConfig(opts: AppOptions = {}) {
     ledgerAfterApprove: opts.ledgerAfterApprove ?? null,
     ledgerAfterReview: opts.ledgerAfterReview ?? null,
     ledgerSession: opts.ledgerSession ?? null,
+    ...offlineDefaults(opts),
     repoHits: opts.repoHits ?? [],
     subscribed: opts.subscribed ?? { count: 0, prs: [] },
     subscribedDelayMs: opts.subscribedDelayMs ?? 0,
@@ -191,6 +208,15 @@ export function installBridge(cfg: BridgeConfig) {
   ).__setSnapshotState = (next: string) => {
     snapshotState = next as typeof snapshotState;
   };
+  let online = !cfg.offline;
+  let queueSeq = 0;
+  const writeQueue: Record<string, unknown>[] = [];
+  (window as unknown as { __setOnline: (v: boolean) => void }).__setOnline = (
+    next: boolean
+  ) => {
+    online = next;
+  };
+
   let ledgerReviews = 0;
   let ledgerApprovals = 0;
 
@@ -328,6 +354,63 @@ export function installBridge(cfg: BridgeConfig) {
     },
     check_for_update: () =>
       activated ? (cfg.updateAfterActivation ?? cfg.update) : cfg.update,
+    connectivity_status: () => ({
+      online,
+      queue: writeQueue.map((i) => ({ ...i })),
+    }),
+    queue_write: (args) => {
+      countCall("queue_write");
+      queueSeq += 1;
+      const item = {
+        createdAt: queueSeq,
+        failure: null,
+        id: `w-${queueSeq}`,
+        number: args.number,
+        owner: args.owner,
+        repo: args.repo,
+        state: "queued",
+        verb: args.verb,
+      };
+      writeQueue.push(item);
+      return item;
+    },
+    discard_queued: (args) => {
+      countCall("discard_queued");
+      const at = writeQueue.findIndex((i) => i.id === args.id);
+      if (at >= 0) {
+        writeQueue.splice(at, 1);
+      }
+      return writeQueue.map((i) => ({ ...i }));
+    },
+    replay_queue: (args) => {
+      countCall("replay_queue");
+      const attempted: Record<string, unknown>[] = [];
+      for (const item of [...writeQueue]) {
+        const verb = item.verb as { kind: string };
+        const isSubmit = verb.kind === "submitReview";
+        if (item.state !== "queued" || (isSubmit && !args.includeSubmit)) {
+          continue;
+        }
+        const fails = cfg.replayFailure && verb.kind === "comment";
+        writeQueue.splice(writeQueue.indexOf(item), 1);
+        if (fails) {
+          const failed = {
+            ...item,
+            failure: cfg.replayFailure,
+            state: "failed",
+          };
+          writeQueue.push(failed);
+          attempted.push({
+            item: failed,
+            outcome: "failed",
+            reason: cfg.replayFailure,
+          });
+          continue;
+        }
+        attempted.push({ item: { ...item }, outcome: "landed", reason: null });
+      }
+      return { attempted, wentOffline: false };
+    },
     create_issue_comment: () =>
       cfg.hangIssueComment
         ? new Promise(() => {
@@ -373,14 +456,27 @@ export function installBridge(cfg: BridgeConfig) {
       localStorage.setItem("e2e:lastCommentDelete", JSON.stringify(args));
       return null;
     },
-    snapshot_status: () => ({ detail: "", state: snapshotState }),
+    snapshot_status: () => ({
+      detail: cfg.snapshotDetail,
+      state: snapshotState,
+    }),
     ensure_repo_snapshot: (args) => {
       const seen = JSON.parse(
         localStorage.getItem("e2e:snapshotEnsures") ?? "[]"
       ) as unknown[];
       seen.push(args);
       localStorage.setItem("e2e:snapshotEnsures", JSON.stringify(seen));
-      return { detail: "", state: "skipped" };
+      return { detail: cfg.snapshotDetail, state: snapshotState };
+    },
+    search_repo_content: (args) => {
+      if (snapshotState !== "ready") {
+        throw new Error("snapshot not ready");
+      }
+      const pattern = String(args.pattern ?? "");
+      return {
+        hits: cfg.repoGrep.hits.filter((hit) => hit.text.includes(pattern)),
+        truncated: cfg.repoGrep.truncated,
+      };
     },
     get_app_version: () => cfg.appVersion,
     get_cached_inbox: () => null,

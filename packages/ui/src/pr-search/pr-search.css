@@ -74,3 +74,36 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+.qsp-chip {
+  padding: 1px 6px;
+  margin-left: 8px;
+  font-size: 10px;
+  color: var(--accent);
+  white-space: nowrap;
+  background: var(--accent-soft);
+  border-radius: var(--r-lg);
+}
+
+.qsp-scope-btn {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 0;
+  font-size: 11px;
+  color: var(--faint);
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+.qsp-scope-btn:hover {
+  color: var(--fg);
+}
+
+.qsp-more {
+  padding: 8px 20px;
+  font-size: 11px;
+  color: var(--faint);
+  border-top: 1px solid var(--line);
+}
