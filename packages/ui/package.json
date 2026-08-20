@@ -46,6 +46,7 @@
     "./inbox-zero": "./src/inbox-zero/inbox-zero.tsx",
     "./issue-tracker-dialog": "./src/issue-tracker-dialog/issue-tracker-dialog.tsx",
     "./kbd": "./src/kbd/kbd.tsx",
+    "./license-dialog": "./src/license-dialog/license-dialog.tsx",
     "./manifest": "./src/manifest/manifest.ts",
     "./markdown": "./src/markdown/markdown.tsx",
     "./model-picker": "./src/model-picker/model-picker.tsx",
