@@ -5,6 +5,7 @@ import {
   useSetLicenseState,
 } from "../hooks/use-license-state.ts";
 import { api } from "../lib/api.ts";
+import { useEffectivePrice } from "../lib/pricing.ts";
 
 /**
  * Container for the purchase card: the license subscription, the activation
@@ -21,14 +22,13 @@ import { api } from "../lib/api.ts";
  * dismissed card's pending activation still resolves into the shared query.
  */
 
-const PRICE = "$59";
-
 export function PurchasePromptLoader() {
   const [dismissed, setDismissed] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const license = useLicenseState();
   const setLicenseState = useSetLicenseState();
+  const price = useEffectivePrice();
 
   if (dismissed) {
     return null;
@@ -51,7 +51,7 @@ export function PurchasePromptLoader() {
       error={error}
       onBuy={buy}
       onDismiss={() => setDismissed(true)}
-      price={PRICE}
+      price={price}
       status={license?.status ?? "unknown"}
     />
   );
