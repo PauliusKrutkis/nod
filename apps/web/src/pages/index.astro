@@ -5,6 +5,7 @@ import FeatureShowcase from "../components/FeatureShowcase.astro";
 import LocalStrip from "../components/LocalStrip.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteNav from "../components/SiteNav.astro";
+import { formattedPrice } from "@nod/pricing";
 import { Kbd } from "@nod/ui/kbd";
 import { CONTACT_EMAIL } from "../lib/site";
 
@@ -100,7 +101,7 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
       <div class="wrap pricing__inner">
         <p class="eyebrow">Pricing</p>
         <p class="pricing__price">
-          $59 <span class="pricing__term"
+          {formattedPrice} <span class="pricing__term"
             >one-time · a year of updates · keeps working after</span
           >
         </p>

@@ -1,3 +1,4 @@
+import { formattedPrice } from "@nod/pricing";
 import { UpdatePrompt as UpdatePromptCard } from "@nod/ui/update-prompt";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -30,7 +31,6 @@ import { queryKeys } from "../lib/query-client.ts";
 
 const RECHECK_MS = 4 * 60 * 60 * 1000;
 const FOCUS_STALE_MS = 30 * 60 * 1000;
-const PRICE = "$59";
 function openDownloads() {
   openUrl(DOWNLOADS_URL).catch(() => undefined);
 }
@@ -102,7 +102,7 @@ export function UpdatePromptLoader() {
       onDismiss={() => setDismissed(true)}
       onInstall={install}
       onOpenDownloads={openDownloads}
-      price={PRICE}
+      price={formattedPrice}
       purchasing={purchasing}
       selfInstallable={update.selfInstallable}
       version={update.version}

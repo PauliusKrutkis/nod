@@ -1,3 +1,4 @@
+import { formattedPrice } from "@nod/pricing";
 import { PurchasePrompt as PurchasePromptCard } from "@nod/ui/purchase-prompt";
 import { useState } from "react";
 import {
@@ -20,8 +21,6 @@ import { api } from "../lib/api.ts";
  * many minutes, and abandoning it must not trap the card on screen); a
  * dismissed card's pending activation still resolves into the shared query.
  */
-
-const PRICE = "$59";
 
 export function PurchasePromptLoader() {
   const [dismissed, setDismissed] = useState(false);
@@ -51,7 +50,7 @@ export function PurchasePromptLoader() {
       error={error}
       onBuy={buy}
       onDismiss={() => setDismissed(true)}
-      price={PRICE}
+      price={formattedPrice}
       status={license?.status ?? "unknown"}
     />
   );
