@@ -1,0 +1,12 @@
+{
+  "decided": [],
+  "open": [
+    {
+      "added": "2026-08-18",
+      "cell": "model-picker/with-effort/quiet/720",
+      "id": "n1",
+      "note": "this seems to be broken?",
+      "scope": "component"
+    }
+  ]
+}

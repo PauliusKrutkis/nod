@@ -221,8 +221,54 @@ test("only the last pending card advertises its hotkeys", async ({ page }) => {
   await page.keyboard.press("ControlOrMeta+Enter");
   await expect(page.locator(".qf-pending")).toHaveCount(2);
 
-  await expect(page.locator(".qf-pending .qf-key-hint")).toHaveCount(2);
-  await expect(
-    page.locator(".qf-pending").last().locator(".qf-key-hint")
-  ).toHaveCount(2);
+  const cards = page.locator(".qf-pending");
+  const tip = page.getByRole("tooltip");
+
+  await cards.last().getByRole("button", { name: "Edit comment" }).hover();
+  await expect(tip).toHaveCount(1);
+  await expect(tip.locator(".q-kbd-combo")).toHaveCount(1);
+
+  await page.mouse.move(0, 0);
+  await expect(tip).toHaveCount(0);
+
+  await cards.first().getByRole("button", { name: "Edit comment" }).hover();
+  await expect(tip).toHaveCount(1);
+  await expect(tip.locator(".q-kbd-combo")).toHaveCount(0);
+});
+
+test.describe("the tool strip's keys", () => {
+  test.use({ permissions: ["clipboard-read", "clipboard-write"] });
+
+  test("shift+y copies the pending comment under the cursor", async ({
+    page,
+  }) => {
+    await page.keyboard.type("worth a second look");
+    await page.keyboard.press("ControlOrMeta+Enter");
+    await expect(page.locator(".qf-pending")).toHaveCount(1);
+
+    await page.keyboard.press("Shift+y");
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+      "worth a second look"
+    );
+    await expect(page.getByText("Copied comment")).toBeVisible();
+  });
+
+  test("shift+p posts the pending comment on its own", async ({ page }) => {
+    await page.keyboard.type("posting just this one");
+    await page.keyboard.press("ControlOrMeta+Enter");
+    await expect(page.locator(".qf-pending")).toHaveCount(1);
+
+    await page.keyboard.press("Shift+p");
+
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (window as unknown as { __calls?: Record<string, number> }).__calls
+              ?.create_review_comment ?? 0
+        )
+      )
+      .toBe(1);
+    await expect(page.locator(".qf-pending")).toHaveCount(0);
+  });
 });
