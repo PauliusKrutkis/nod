@@ -51,9 +51,22 @@
   padding: 4px 12px;
 }
 
+.qrp-side-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  height: 30px;
+  padding: 0 8px;
+}
+
+.qrp-side-glyph {
+  flex-shrink: 0;
+  width: 11px;
+  height: 11px;
+}
+
 .qrp-side-bar {
-  height: 17px;
-  margin: 10px 8px;
+  height: 12px;
 }
 
 .qrp-main {
