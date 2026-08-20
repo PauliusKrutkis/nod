@@ -532,6 +532,26 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "typical",
     ],
   },
+  "offline-bar": {
+    fixtures: [
+      "failed-comment",
+      "failed-crowd-12",
+      "failed-resolve",
+      "landed-many",
+      "landed-one",
+      "markup-as-text",
+      "mixed-report",
+      "nothing-to-do",
+      "offline-crowd-120",
+      "offline-empty-queue",
+      "offline-queued",
+      "online-quiet",
+      "overflow",
+      "sending",
+      "staged-review",
+      "unicode",
+    ],
+  },
   "overview-ruler": {
     fixtures: [
       "all-unmeasured",

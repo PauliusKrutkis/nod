@@ -50,6 +50,8 @@
     "./markdown": "./src/markdown/markdown.tsx",
     "./model-picker": "./src/model-picker/model-picker.tsx",
     "./notification-center": "./src/notification-center/notification-center.tsx",
+    "./offline-bar": "./src/offline-bar/offline-bar.tsx",
+    "./offline-summary": "./src/offline-bar/offline-summary.ts",
     "./overview-ruler": "./src/overview-ruler/overview-ruler.tsx",
     "./pr-drawer": "./src/pr-drawer/pr-drawer.tsx",
     "./pr-list-item": "./src/pr-list-item/pr-list-item.tsx",

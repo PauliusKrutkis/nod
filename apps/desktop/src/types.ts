@@ -226,7 +226,7 @@ export interface ConnectivityInfo {
   queue: QueuedWrite[];
 }
 
-export interface ReplayedItem {
+interface ReplayedItem {
   item: QueuedWrite;
   outcome: "landed" | "nothingToDo" | "failed";
   reason: string | null;
