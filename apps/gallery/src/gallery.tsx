@@ -129,9 +129,24 @@ const noopOpenChange = () => {
 /** Attached only to the rail item the keys land on (the selection, or the
  *  find candidate while filtering), so a j/k or arrow walk scrolls the rail
  *  along with it. Attach-on-change is the whole mechanism — a mouse click
- *  selects an item that is already in view, so `nearest` moves nothing. */
+ *  selects an item that is already in view, so `nearest` moves nothing.
+ *  The candidate wears its own wrapper identity because React only
+ *  re-attaches a ref whose function changed: find's Enter turns the
+ *  candidate into the selection on the same element while the cleared
+ *  filter pours the full list back around it, and one shared callback
+ *  would leave that handoff unannounced with the selection off-screen. */
 function revealRailItem(el: HTMLButtonElement | null) {
   el?.scrollIntoView({ block: "nearest" });
+}
+
+const revealFindCandidate = (el: HTMLButtonElement | null) =>
+  revealRailItem(el);
+
+function railRevealRef(isFindCandidate: boolean, isSelected: boolean) {
+  if (isFindCandidate) {
+    return revealFindCandidate;
+  }
+  return isSelected ? revealRailItem : undefined;
 }
 
 function ModalLauncher({ route }: { route: GalleryRoute }) {
@@ -479,21 +494,19 @@ function GalleryRail({
       <nav aria-label="Components" className="qg-rail-list">
         {visibleNames.map((name, index) => {
           const catalogued = cataloguedNames.has(name);
+          const isSelected = name === selected;
+          const isFindCandidate = filter !== "" && index === findSel;
           return (
             <button
               className={[
                 "qg-rail-item",
                 catalogued ? "" : "qg-bare",
-                name === selected ? "qg-sel" : "",
-                filter && index === findSel ? "qg-cand" : "",
+                isSelected ? "qg-sel" : "",
+                isFindCandidate ? "qg-cand" : "",
               ].join(" ")}
               key={name}
               onClick={() => onSelect(name)}
-              ref={
-                name === selected || (filter && index === findSel)
-                  ? revealRailItem
-                  : undefined
-              }
+              ref={railRevealRef(isFindCandidate, isSelected)}
               type="button"
             >
               <i className="qg-dot" />

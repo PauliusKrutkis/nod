@@ -10,12 +10,27 @@
  */
 import { catalog } from "@nod/ui/catalog";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PENDING } from "./coverage.ts";
 import { Gallery } from "./gallery.tsx";
 import { captureName, formatGalleryHash, parseGalleryHash } from "./route.ts";
 
 afterEach(cleanup);
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+function trackRailReveals(): string[] {
+  const reveals: string[] = [];
+  vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(function (
+    this: Element
+  ) {
+    if (this.classList.contains("qg-rail-item")) {
+      reveals.push(this.querySelector(".qg-name")?.textContent ?? "");
+    }
+  });
+  return reveals;
+}
 
 beforeEach(() => {
   window.location.hash = "#/gallery";
@@ -144,6 +159,26 @@ describe("gallery", () => {
     fireEvent.keyDown(find, { key: "Enter" });
     expect(window.location.hash).toContain("/badge/");
     expect((find as HTMLInputElement).value).toBe("");
+  });
+
+  it("reveals the rail item the keyboard walk lands on", () => {
+    const reveals = trackRailReveals();
+    render(<Gallery />);
+    expect(reveals.at(-1)).toBe(first);
+    fireEvent.keyDown(window, { key: "j" });
+    expect(reveals.at(-1)).toBe([...componentNames, ...PENDING][1]);
+  });
+
+  it("reveals the selection when find's Enter restores the full list", () => {
+    const reveals = trackRailReveals();
+    render(<Gallery />);
+    const find = screen.getByLabelText("Find a component");
+    fireEvent.change(find, { target: { value: "badge" } });
+    expect(reveals.at(-1)).toBe("badge");
+    const before = reveals.length;
+    fireEvent.keyDown(find, { key: "Enter" });
+    expect(reveals.length).toBeGreaterThan(before);
+    expect(reveals.at(-1)).toBe("badge");
   });
 
   it("find walks matches with the arrows", () => {
