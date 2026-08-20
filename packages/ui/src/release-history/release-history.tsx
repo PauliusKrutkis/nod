@@ -25,7 +25,6 @@
 import { History, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "../cn/cn.ts";
-import { Spinner } from "../spinner/spinner.tsx";
 import { useModalDialog } from "../use-modal-dialog/use-modal-dialog.ts";
 import "./release-history.css";
 
@@ -34,6 +33,12 @@ export interface Release {
   publishedAt: string | null;
   tag: string;
 }
+
+const SKELETON_ROWS = [
+  { body: [88, 64], date: 52, tag: 58 },
+  { body: [72, 44], date: 52, tag: 74 },
+  { body: [94, 56], date: 52, tag: 50 },
+] as const;
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -133,8 +138,28 @@ function ReleaseHistoryContent({
 
       <div className="qrh-list">
         {releases === undefined && (
-          <div className="qrh-note">
-            <Spinner label="Loading releases…" />
+          <div aria-label="Loading releases" role="status">
+            {SKELETON_ROWS.map((row) => (
+              <div className="qrh-item" key={row.tag}>
+                <span aria-hidden className="qrh-dot" />
+                <div className="qrh-item-head">
+                  <span className="qrh-skel" style={{ width: row.tag }} />
+                  <span
+                    className="qrh-skel qrh-skel-date"
+                    style={{ width: row.date }}
+                  />
+                </div>
+                <div className="qrh-skel-notes">
+                  {row.body.map((width) => (
+                    <span
+                      className="qrh-skel qrh-skel-line"
+                      key={width}
+                      style={{ width: `${width}%` }}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
         {releases === null && (
