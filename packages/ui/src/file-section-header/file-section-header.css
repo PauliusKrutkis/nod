@@ -95,7 +95,8 @@ button.qf-fsec-copy {
   color: var(--add);
 }
 
-.qf-updated-chip {
+.qf-updated-chip,
+.qf-hidden-resolved-chip {
   flex-shrink: 0;
   padding: 3px 6px;
   font-family: var(--font-mono);
@@ -105,6 +106,20 @@ button.qf-fsec-copy {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   background: var(--warn-bg);
+  border-radius: var(--r-pill);
+}
+
+.qf-delta-chip {
+  flex-shrink: 0;
+  padding: 3px 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  background: var(--accent-soft);
   border-radius: var(--r-pill);
 }
 
@@ -123,13 +138,21 @@ button.qf-fsec-copy {
 /* A squeezed column keeps the header one line tall: the buttons drop their
    words and stand on their icons (the tooltips still name them), because a
    header that wraps to three lines steals the diff's room and reads as
-   damage. The path keeps whatever is left and ellipsizes. */
+   damage. The path keeps whatever is left and ellipsizes. The updated chip
+   goes entirely, but the hidden-resolved count only sheds its middle word:
+   the count has to stay while anything is hidden, and at full length it
+   pushed the filename and both controls off the row, which trades one wrong
+   reading for a worse one. */
 @container qf-fsec (width < 460px) {
   .qf-fsec-btn-label {
     display: none;
   }
 
   .qf-updated-chip {
+    display: none;
+  }
+
+  .qf-hidden-resolved-word {
     display: none;
   }
 }

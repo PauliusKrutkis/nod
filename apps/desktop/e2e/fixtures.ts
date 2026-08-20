@@ -478,6 +478,29 @@ export const DETAIL_NO_CI = {
 };
 
 /**
+ * A host that reports the per-check breakdown, which is what seats the dock's
+ * Checks tab. Deliberately out of verdict order (a pass first, the failure
+ * third) so the failures-first sort has something to prove, and the last row
+ * carries no url of its own so the fallback to the PR's checks page is
+ * exercised. Serve via `detailByCall: [DETAIL_CHECKS]`.
+ */
+export const DETAIL_CHECKS = {
+  ...DETAIL,
+  ciStatus: {
+    checks: [
+      { name: "lint", state: "success", url: "https://x/checks/lint" },
+      { name: "shots", state: "pending", url: "https://x/checks/shots" },
+      { name: "e2e", state: "failure", url: "https://x/checks/e2e" },
+      { name: "deploy", state: "success", url: "" },
+    ],
+    failed: 1,
+    state: "failure",
+    total: 4,
+    url: "https://github.com/o/r/pull/1/checks",
+  },
+};
+
+/**
  * The same PR after a push that reworks fuzzy.ts: new head sha, changed patch
  * for the first file, second file untouched. Serve it on a later load (see
  * bridge detailByLoad) to exercise the auto-unview-on-content-change flow.

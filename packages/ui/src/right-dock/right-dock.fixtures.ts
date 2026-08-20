@@ -40,12 +40,25 @@ const TWO_TABS = [
   { id: "chat", kbd: "mod+l", label: "Chat" },
 ];
 
+const INDICATOR_TABS: RightDockProps["tabs"] = [
+  { id: "failing", indicator: "failure", label: "Failing" },
+  { id: "running", indicator: "pending", label: "Running" },
+  { id: "passing", indicator: "success", label: "Passing" },
+];
+
 export const rightDockEntry = defineEntry(RightDock, {
   "chat-active": {
     props: base({
       activeTab: "chat",
       children: content("The chat surface renders here."),
       tabs: TWO_TABS,
+    }),
+  },
+  indicators: {
+    props: base({
+      activeTab: "failing",
+      children: content("Each tab wears its state as a dot."),
+      tabs: INDICATOR_TABS,
     }),
   },
   overflow: {

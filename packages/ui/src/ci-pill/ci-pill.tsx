@@ -13,7 +13,14 @@ import { cn } from "../cn/cn.ts";
 import { Tooltip } from "../tooltip/tooltip.tsx";
 import "./ci-pill.css";
 
+export interface CiCheck {
+  name: string;
+  state: "success" | "failure" | "pending";
+  url: string;
+}
+
 export interface CiStatus {
+  checks?: CiCheck[];
   failed: number;
   state: "success" | "failure" | "pending" | "none";
   total: number;

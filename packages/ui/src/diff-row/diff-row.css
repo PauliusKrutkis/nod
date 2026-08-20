@@ -105,6 +105,10 @@
   border-left-color: var(--accent-line);
 }
 
+.qf-row-dimmed {
+  opacity: 0.45;
+}
+
 .qf-row-selected .qf-gutter {
   color: var(--fg);
 }

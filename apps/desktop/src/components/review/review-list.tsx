@@ -13,6 +13,14 @@
  * untouched, which is what keeps a keystroke in the find bar from rebuilding
  * every rendered row's code. The find-perf spec pins that by counting
  * mutated `.qf-code` elements.
+ *
+ * The optional `delta` prop carries the changes-since-your-review mode
+ * (delta-review.ts): per-file classification for row dimming, plus the badge
+ * every file header shows while the list is a subset. Null everywhere but the
+ * review screen, which renders the ordinary full diff. Dimming reaches the row
+ * as DiffRow's `dimmed` boolean rather than a wrapper element, so the mode
+ * costs no extra DOM in a virtualized list and stays a primitive prop the
+ * memoization boundary above can compare.
  */
 
 import { AddCommentBox } from "@nod/ui/add-comment-box";
@@ -47,6 +55,7 @@ import {
 import { useAiCompletion } from "../../hooks/use-ai-completion.ts";
 import { useCannedComments } from "../../hooks/use-canned-comments.ts";
 import { cn } from "../../lib/cn.ts";
+import type { DeltaFileState } from "../../lib/delta-review.ts";
 import { canExpandFile } from "../../lib/expand-file.ts";
 import { findMatchRangesInLine } from "../../lib/find-in-diff.ts";
 import { highlightLine, highlightRowHtml } from "../../lib/highlight.ts";
@@ -151,6 +160,7 @@ export interface ReviewListCallbacks {
   onUpdatePending: (id: string, body: string) => void;
   onReply: (a: { inReplyTo: number; body: string }) => Promise<void>;
   onResolveThread: (a: { threadId: string; resolved: boolean }) => void;
+  onDeltaExpand: (fileIndex: number) => void;
   onRowEnter: (fileIndex: number, anchor: string, x: number, y: number) => void;
   onScroll: () => void;
   onThreadHover: (t: { rootId: number; path: string } | null) => void;
@@ -176,6 +186,10 @@ interface ReviewListProps {
   changedSinceViewed: ReadonlySet<string>;
   copiedPathIndex: number | null;
   cursorKey: string | null;
+  delta?: {
+    badge: { label: string; title: string };
+    files: ReadonlyMap<string, DeltaFileState>;
+  } | null;
   dragging: boolean;
   editingPending: string | null;
   editRequest: (EditRequest & { path: string }) | null;
@@ -185,6 +199,7 @@ interface ReviewListProps {
   findCurrent: FindCurrent | null;
   flashKey: string | null;
   headSha: string;
+  hiddenResolved?: ReadonlyMap<string, number>;
   initialFileIndex?: number;
   inputMode: "keyboard" | "mouse";
   marks: MarkSpec | null;
@@ -317,6 +332,7 @@ function DiffLine({
   filename,
   active,
   commentable,
+  dimmed,
   selected,
   selectionEnd,
   flash,
@@ -338,6 +354,7 @@ function DiffLine({
   filename: string;
   active: boolean;
   commentable: boolean;
+  dimmed: boolean;
   selected: boolean;
   selectionEnd: boolean;
   flash: boolean;
@@ -362,6 +379,7 @@ function DiffLine({
       active={active}
       anchor={anchor}
       canComment={commentable && item.target !== null}
+      dimmed={dimmed}
       fileIndex={fileIndex}
       flash={flash}
       guideLvl={guideLvl}
@@ -520,6 +538,7 @@ function PendingCommentCard({
           ) : undefined
         }
         confirmDelete={false}
+        copyKbd={showKbd ? "shift+y" : undefined}
         deleteKbd={showKbd ? "shift+d" : undefined}
         deleteLabel="Discard"
         editKbd={showKbd ? "shift+e" : undefined}
@@ -536,6 +555,7 @@ function PendingCommentCard({
         }}
         onStartEdit={() => onEdit(comment.id)}
         pendingLabel="Pending"
+        postKbd={showKbd ? "shift+p" : undefined}
         renderMarkdown={(body: string) => (
           <Markdown highlightLine={(code) => highlightLine(code, filename)}>
             {body}
@@ -734,6 +754,7 @@ function GroupHeader({
     copiedPathIndex,
     expandedFiles,
     expandingFiles,
+    hiddenResolved,
     callbacks,
   } = ctx.props;
   const { push } = ctx;
@@ -765,6 +786,7 @@ function GroupHeader({
       additions={file.additions}
       copied={copiedPathIndex === groupIndex}
       deletions={file.deletions}
+      deltaBadge={ctx.props.delta?.badge ?? null}
       expandable={
         (ctx.props.capabilities?.expand ?? true) && canExpandFile(file)
       }
@@ -772,6 +794,7 @@ function GroupHeader({
       expanding={expandingFiles.has(file.filename)}
       fileIndex={groupIndex}
       filename={file.filename}
+      hiddenResolved={hiddenResolved?.get(file.filename) ?? 0}
       leadRef={setLead}
       onCopyPath={handleCopyPath}
       onToggleExpand={handleToggleExpand}
@@ -832,6 +855,28 @@ function renderNoteItem(item: ReviewNoteItem) {
   );
 }
 
+function DeltaCollapsedBand({
+  fileIndex,
+  onDeltaExpand,
+}: {
+  fileIndex: number;
+  onDeltaExpand: ReviewListCallbacks["onDeltaExpand"];
+}) {
+  const handleClick = () => {
+    onDeltaExpand(fileIndex);
+  };
+  return (
+    <button
+      className="qf-delta-fold"
+      data-file-index={fileIndex}
+      onClick={handleClick}
+      type="button"
+    >
+      No changes since your review · show the diff
+    </button>
+  );
+}
+
 function renderCommentsItem(
   p: ReviewListProps,
   item: ReviewCommentsItem,
@@ -868,6 +913,27 @@ function renderCommentsItem(
       }
     />
   );
+}
+
+/** Whether delta mode dims this row: everything in an unchanged (but shown)
+ *  file, and every row of a moved file that was already in the reviewed
+ *  snapshot — only rows the mode calls new keep full contrast. */
+function rowDeltaDimmed(
+  delta: ReviewListProps["delta"],
+  filename: string,
+  anchor: string | null
+): boolean {
+  const state = delta?.files.get(filename);
+  if (state === undefined) {
+    return false;
+  }
+  if (state.kind === "unchanged") {
+    return true;
+  }
+  if (state.kind !== "partial") {
+    return false;
+  }
+  return anchor === null || !state.newAnchors.has(anchor);
 }
 
 function renderRowItem(
@@ -908,6 +974,7 @@ function renderRowItem(
     <DiffLine
       active={key !== null && key === p.cursorKey}
       commentable={p.capabilities?.comment ?? true}
+      dimmed={rowDeltaDimmed(p.delta, file.filename, item.anchor)}
       filename={file.filename}
       findOrdinal={findOrdinal}
       flash={key !== null && key === p.flashKey}
@@ -953,6 +1020,13 @@ function renderItem(
       return renderImageItem(p, item, file);
     case "note":
       return renderNoteItem(item);
+    case "delta-collapsed":
+      return (
+        <DeltaCollapsedBand
+          fileIndex={item.fileIndex}
+          onDeltaExpand={p.callbacks.onDeltaExpand}
+        />
+      );
     case "hunk":
       return <HunkBand item={item} onToggleHunk={p.callbacks.onToggleHunk} />;
     case "comments":

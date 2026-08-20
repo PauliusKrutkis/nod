@@ -11,6 +11,7 @@
  */
 
 import { treeOrder } from "@nod/ui/file-tree";
+import { checksVerdict } from "@nod/ui/order-checks";
 import { useEdgeResize } from "@nod/ui/use-edge-resize";
 import { useLatest } from "@nod/ui/use-latest";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -52,12 +53,20 @@ import { useReviewUnmountCleanup } from "../../hooks/use-review-unmount-cleanup.
 import { useViewedFileReconcile } from "../../hooks/use-viewed-file-reconcile.ts";
 import { api } from "../../lib/api.ts";
 import { regionFromSnapshot } from "../../lib/ask-context.ts";
+import { copyTextToClipboard } from "../../lib/clipboard.ts";
 import { cn } from "../../lib/cn.ts";
 import {
   type CapturedSelection,
   type OccState,
   restoreCodeSelection,
 } from "../../lib/code-dom.ts";
+import {
+  classifyDelta,
+  type DeltaView,
+  deltaBadge,
+  deltaUnavailableMessage,
+} from "../../lib/delta-review.ts";
+import { getDeltaSnapshot } from "../../lib/delta-snapshots.ts";
 import { warmHighlightCache } from "../../lib/highlight.ts";
 import { isImageFile } from "../../lib/image-file.ts";
 import { locatePastedCode } from "../../lib/locate-code.ts";
@@ -81,6 +90,7 @@ import {
   fileAnchorKey,
   navKey,
   type ReviewListModel,
+  withoutResolvedThreads,
 } from "../../lib/review-items.ts";
 import {
   getReviewMemory,
@@ -98,6 +108,7 @@ import type {
   ChatRegion,
   PendingComment,
   PullRequest,
+  PullRequestDetail,
   ReviewComment,
 } from "../../types.ts";
 import { parsePrKey } from "../../types.ts";
@@ -147,6 +158,27 @@ const EMPTY_COMMENTS: ReviewComment[] = [];
 const EMPTY_PENDING: PendingComment[] = [];
 const EMPTY_OCC: OccurrenceMatch[] = [];
 const EMPTY_COLLAPSED: ReadonlyMap<number, ReadonlySet<number>> = new Map();
+const EMPTY_HIDDEN_RESOLVED: ReadonlyMap<string, number> = new Map();
+
+function groupVisibleComments(
+  comments: readonly ReviewComment[],
+  hideResolved: boolean
+): {
+  byFile: Map<string, ReviewComment[]>;
+  hiddenByFile: ReadonlyMap<string, number>;
+} {
+  if (!hideResolved) {
+    return {
+      byFile: buildCommentsByFile(comments),
+      hiddenByFile: EMPTY_HIDDEN_RESOLVED,
+    };
+  }
+  const filtered = withoutResolvedThreads(comments);
+  return {
+    byFile: buildCommentsByFile(filtered.comments),
+    hiddenByFile: filtered.hiddenByPath,
+  };
+}
 
 function applyLineSelection(args: {
   anchor: string;
@@ -197,6 +229,44 @@ function openPrFilesInBrowser(pr: PullRequest | undefined): void {
   }
   const urlFilesPath = isGitlabPrUrl(pr.url) ? "/diffs" : "/files";
   openUrl(pr.url + urlFilesPath);
+}
+
+/** The delta classification for the current PR, or null when the mode is off
+ *  or the PR carries no snapshot. Plain derivation, not memoized: the React
+ *  Compiler (vite.config.ts) caches it, and a hand-written useMemo trips
+ *  react-compiler-no-manual-memoization. */
+function buildDeltaView(
+  on: boolean,
+  detail: PullRequestDetail | undefined,
+  keyValue: string
+): DeltaView | null {
+  if (!(on && detail)) {
+    return null;
+  }
+  const snap = getDeltaSnapshot(keyValue);
+  return snap ? classifyDelta(snap, detail.files, detail.pr.headSha) : null;
+}
+
+/** The files delta mode folds: unchanged since the review and not explicitly
+ *  reopened. Indexed to match the built item model's file order. */
+function deltaCollapsedIndexes(
+  view: DeltaView | null,
+  files: readonly ChangedFile[],
+  shown: ReadonlySet<string>
+): Set<number> | undefined {
+  if (!view) {
+    return undefined;
+  }
+  const out = new Set<number>();
+  files.forEach((file, index) => {
+    if (
+      view.files.get(file.filename)?.kind === "unchanged" &&
+      !shown.has(file.filename)
+    ) {
+      out.add(index);
+    }
+  });
+  return out;
 }
 
 /** "12–18", "12—18" or "12-18" — chips are written with whichever dash the
@@ -292,6 +362,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     onCloseSidebar,
     onSidebarResize,
     onSelectRightTab,
+    onToggleChecks,
     onToggleRightPanel,
     onToggleSidebar,
     openChatTab,
@@ -316,6 +387,10 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const askOpenRef = useLatest(askNote.open);
   const [submitOpen, setSubmitOpen] = useState(false);
   const [prSearch, setPrSearch] = useState<null | "files" | "text">(null);
+  const [deltaOn, setDeltaOn] = useState(false);
+  const [deltaShown, setDeltaShown] = useState<ReadonlySet<string>>(
+    () => new Set<string>()
+  );
   const [reconcileDismissed, setReconcileDismissed] = useState<Set<string>>(
     () => new Set()
   );
@@ -384,6 +459,8 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const clearPendingComments = useAppStore((s) => s.clearPendingComments);
   const setFlash = useAppStore((s) => s.setFlash);
   const setToast = useAppStore((s) => s.setToast);
+  const hideResolved = useAppStore((s) => s.hideResolvedThreads);
+  const toggleHideResolved = useAppStore((s) => s.toggleHideResolvedThreads);
   const activeLogin = useAppStore(
     (s) => s.accounts.find((a) => a.id === s.activeAccountId)?.login
   );
@@ -407,6 +484,41 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     reconcileDismissed,
     autoUnviewedForHead
   );
+
+  const deltaView = buildDeltaView(deltaOn, detail, keyValue);
+  const deltaCollapsedFiles = deltaCollapsedIndexes(
+    deltaView,
+    files,
+    deltaShown
+  );
+
+  const toggleDelta = () => {
+    if (deltaOn) {
+      setDeltaOn(false);
+      return;
+    }
+    if (!getDeltaSnapshot(keyValue)) {
+      setToast({
+        message: deltaUnavailableMessage(),
+        title: "Nothing to compare against",
+      });
+      return;
+    }
+    setDeltaShown(new Set<string>());
+    setDeltaOn(true);
+  };
+
+  const showDeltaFile = (fileIndex: number) => {
+    const file = filesRef.current[fileIndex];
+    if (!file) {
+      return;
+    }
+    setDeltaShown((prev) => {
+      const next = new Set(prev);
+      next.add(file.filename);
+      return next;
+    });
+  };
 
   const dismissReconcileHighlight = (filename: string) => {
     const headSha = pr?.headSha;
@@ -440,9 +552,8 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     detail?.comments ?? EMPTY_COMMENTS
   );
 
-  const commentsByFile = buildCommentsByFile(
-    detail?.comments ?? EMPTY_COMMENTS
-  );
+  const { byFile: commentsByFile, hiddenByFile: hiddenResolvedByFile } =
+    groupVisibleComments(detail?.comments ?? EMPTY_COMMENTS, hideResolved);
   const pendingByFile = buildPendingByFile(pending);
 
   const rawCursorRef = useLatest(cursor);
@@ -467,6 +578,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     ask: askModelInput(askNote),
     collapsed,
     commentsByFile,
+    deltaCollapsedFiles,
     expandedRows,
     files,
     isImage: isImageFile,
@@ -705,6 +817,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     reply,
     requestResolveThread,
     setActiveIndex,
+    showDeltaFile,
     dismissReconcileHighlight,
     setCollapsed,
     setCopiedPathIndex,
@@ -812,11 +925,22 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const advanceAfterSubmit = () =>
     advanceToNextReview(owner, repo, number, goInbox);
 
+  /** The pending comment the strip's keys act on: the one just placed, if the
+   *  cursor is still armed on it, else the newest under the cursor — the same
+   *  card that shows the key hints in its tooltips. */
+  const pendingForKeys = () => {
+    const armed = armedPendingRef.current;
+    return (
+      (armed ? pending.find((p) => p.id === armed) : pendingAtCursor()) ?? null
+    );
+  };
+
   const {
     discardPendingAtCursor,
     editActiveThreadComment,
     goToComment,
     jumpToThread,
+    pendingAtCursor,
     replyToActiveThreadOrNextFile,
     resolveActiveThread,
     toggleActiveThread,
@@ -1036,6 +1160,14 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     copyLink,
     cursorMoverRefs,
     cycleFile,
+    copyPendingAtCursor: () => {
+      const target = pendingForKeys();
+      if (!target) {
+        return;
+      }
+      copyTextToClipboard(target.body);
+      setToast({ message: target.body, title: "Copied comment" });
+    },
     discardPendingAtCursor: () => {
       const armed = armedPendingRef.current;
       if (armed) {
@@ -1044,6 +1176,21 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
         return;
       }
       discardPendingAtCursor();
+    },
+    postPendingAtCursor: () => {
+      const target = pendingForKeys();
+      if (!target) {
+        return;
+      }
+      armedPendingRef.current = null;
+      listCallbacks.onPostPendingNow({
+        body: target.body,
+        id: target.id,
+        line: target.line,
+        path: target.path,
+        side: target.side,
+        startLine: target.startLine,
+      });
     },
     editActiveThreadComment: () => {
       const armed = armedPendingRef.current;
@@ -1078,6 +1225,13 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
     sidebarOverlayOpenRef,
     toggleActiveThread,
     toggleChat: onToggleChat,
+    toggleChecks: () => {
+      if (checksVerdict(detail?.ciStatus?.checks)) {
+        onToggleChecks();
+      }
+    },
+    toggleDelta,
+    toggleHideResolved,
     toggleInfoPanel: onToggleRightPanel,
     toggleFullFile: () => toggleExpandHeld(activeIndexRef.current),
     toggleSidebar: onToggleSidebar,
@@ -1151,6 +1305,14 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
           clampedIndex={clampedIndex}
           closeFind={closeFind}
           copiedPathIndex={copiedPathIndex}
+          delta={
+            deltaView
+              ? {
+                  badge: deltaBadge(deltaView.sinceIso),
+                  files: deltaView.files,
+                }
+              : null
+          }
           dragging={dragging}
           editingPending={editingPending}
           editReq={editReq}
@@ -1167,6 +1329,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
           findSafeIndex={findSafeIndex}
           flashKey={flashKey}
           headSha={pr.headSha}
+          hiddenResolved={hiddenResolvedByFile}
           initialMem={initialMem}
           inputMode={inputMode}
           listCallbacks={{
@@ -1237,6 +1400,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
         onClose={onClosePrSearch}
         onSelectFile={scrollToFile}
         onSelectLine={selectLine}
+        pr={pr}
       />
     </div>
   );
