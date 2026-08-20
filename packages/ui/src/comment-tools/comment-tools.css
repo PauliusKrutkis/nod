@@ -13,13 +13,22 @@
   display: inline-flex;
   flex-shrink: 0;
   gap: 2px;
+  /* The head packs left in reading order — avatar, author, badge — and
+     without this the tools continue that sentence instead of sitting at the
+     card's edge, which is what made the row read as one run-on line. */
+  margin-left: auto;
 }
 
 .qf-comment-tool {
   display: inline-flex;
   gap: 5px;
   align-items: center;
-  padding: 2px 6px;
+  justify-content: center;
+  /* Square enough to give each icon its own target, and tall enough to match
+     the text tools this strip still grows when a delete arms. */
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
   font-family: var(--font-ui);
   font-size: 11px;
   color: var(--faint);
@@ -37,8 +46,17 @@
   background: var(--surface-2);
 }
 
-.qf-comment-tool-danger,
-.qf-comment-tool-danger:hover {
+/* Resting destructive tool: quiet like its neighbours, and only says what it
+   is under the pointer. A permanently red glyph in a strip revealed on every
+   hover would shout across the whole diff. */
+.qf-comment-tool-destructive:hover {
+  color: var(--del);
+  background: var(--del-bg);
+}
+
+/* Armed: no longer an icon, and no longer quiet. */
+.qf-comment-tool-armed,
+.qf-comment-tool-armed:hover {
   color: var(--del);
   background: var(--del-bg);
 }

@@ -60,12 +60,14 @@ export interface CommentItemProps {
   /** Absent on a comment that has not been sent — an unsent draft has no
    *  posted time, and the pending tag stands where the timestamp would. */
   createdAt?: string;
+  copyKbd?: string;
   deleteKbd?: string;
   deleteLabel?: string;
   editKbd?: string;
   /** Marks the draft as written by the chat rather than typed. */
   onDelete?: () => void;
   onPostNow?: () => void;
+  postKbd?: string;
   onStartEdit?: () => void;
   /** "Pending" or "Suggested" — shown in place of the timestamp. */
   pendingLabel?: string;
@@ -81,11 +83,13 @@ export function CommentItem({
   composer,
   confirmDelete,
   createdAt,
+  copyKbd,
   deleteKbd,
   deleteLabel,
   editKbd,
   onDelete,
   onPostNow,
+  postKbd,
   onStartEdit,
   pendingLabel,
   renderMarkdown,
@@ -113,12 +117,14 @@ export function CommentItem({
           <CommentTools
             body={body}
             confirmDelete={confirmDelete}
+            copyKbd={copyKbd}
             deleteKbd={deleteKbd}
             deleteLabel={deleteLabel}
             editKbd={editKbd}
             onDelete={onDelete}
             onPostNow={onPostNow}
             onStartEdit={onStartEdit}
+            postKbd={postKbd}
           />
         )}
       </div>

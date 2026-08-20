@@ -257,14 +257,12 @@ export const catalogManifest: Record<string, ManifestEntry> = {
   },
   "comment-tools": {
     fixtures: [
-      "chord",
       "copy-only",
       "delete-only",
       "edit-only",
       "markup-body",
       "own",
-      "own-with-kbd",
-      "unknown-key",
+      "pending",
     ],
   },
   "composer-editor": {
