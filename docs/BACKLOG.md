@@ -246,7 +246,20 @@ most of the value:
 No native messaging. No auto-intercept. Easy to build and test.
 
 - [ ] 🟡 **Stage 2 extension** — content script + toolbar + `nod://` handler.
+      *Designed 2026-08-09:* [arriving from elsewhere](https://claude.ai/code/artifact/29efaa50-d5df-48e3-a023-953fa3e9f972) draws the button on
+      a real GitHub page, the toolbar popup and the host list. **The button
+      takes the host's shape and only Nod's accent colour**: this is the one
+      surface where the Quiet system is wrong, because a dark indigo control
+      sitting on someone else's chrome reads as an advert or a phishing
+      attempt. Recommendation is still **not to build it** until someone says
+      they keep clicking host links; the design exists so that decision is
+      cheap when it comes.
 - [ ] 🟡 **Self-hosted GitLab** — user-configurable host patterns in extension.
+      *Designed 2026-08-09:* in the same mock. The host list is treated as
+      **a permission, not a setting** — adding an internal domain is the most
+      sensitive thing this product would ever ask for, so the scope ("Nod only
+      reads the page address on hosts you list here") sits next to the field
+      that grants it rather than in a policy nobody opens.
 
 ### Stage 3 — proven pain only (⏸)
 
@@ -460,6 +473,12 @@ worth it after validation.
 
 - [ ] 🟡 **Link-open hydration** — when app opens from any source: cache-first
       paint, restore file/scroll/viewed.
+      *Designed 2026-08-09:* [arriving from elsewhere](https://claude.ai/code/artifact/29efaa50-d5df-48e3-a023-953fa3e9f972) shows both cases.
+      A seen PR restores instantly like a resume. A cold one gets **skeleton
+      rows shaped like a diff, never a spinner**: this is the only path where
+      nothing is cached, the app has no spinner language because it has never
+      needed one, and a cold link is the first screen a new user may ever see.
+      Rows say what is loading and hold the layout; a spinner says wait.
 - [ ] ⏸ Stage 2 extension (content script + toolbar + context menu).
 - [ ] ⏸ Stage 3 interception + native messaging.
 - [ ] ⏸ Universal Links / wrapper domain.
@@ -1134,7 +1153,14 @@ shared `useAutoFocus(ref)` hook, or the native `autoFocus` attribute where no
       build it at all.
 
 - [ ] 🟢 **Launch discount, $59 → $39.** Polar discount code, time- or
-      count-limited, announced in the launch posts. Anchors the real price
+      count-limited, announced in the launch posts.
+      *Designed 2026-08-09:* [arriving from elsewhere](https://claude.ai/code/artifact/29efaa50-d5df-48e3-a023-953fa3e9f972) draws the card with
+      the standing price struck through, and adds one rule: **the urgency has
+      to be true.** "First 100 buyers" is checkable and ends by itself; a
+      countdown that resets, or "limited time" with no stated limit, is the one
+      piece of marketing theatre that would undercut a product whose pitch is
+      that it rents you nothing. If the checkout cannot enforce a limit, claim
+      none: say "launch price" and remove it quietly. Anchors the real price
       while giving early adopters the friendly number, and creates the only
       honest urgency a perpetual license has. Discounting later is painless;
       raising a published price later is not, which is why the standing price
