@@ -1,0 +1,12 @@
+{
+  "decided": [],
+  "open": [
+    {
+      "added": "2026-08-20",
+      "cell": "pr-search/markup-as-text/quiet/720",
+      "id": "n1",
+      "note": "there is no code highlighing?",
+      "scope": "cell"
+    }
+  ]
+}

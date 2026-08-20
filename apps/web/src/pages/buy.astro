@@ -1,12 +1,11 @@
 ---
-import {
-  formattedEffectivePrice,
-  formattedLaunchPrice,
-  formattedPrice,
-} from "@nod/pricing";
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteNav from "../components/SiteNav.astro";
 import Base from "../layouts/Base.astro";
+import { resolvePricing } from "../lib/pricing";
+
+const price = await resolvePricing();
+const effectivePrice = price.formattedLaunchPrice ?? price.formattedPrice;
 
 const PURCHASE_STEPS = [
   {
@@ -14,7 +13,7 @@ const PURCHASE_STEPS = [
     detail: "read:user only. Nod never sees your code or repositories.",
   },
   {
-    title: `Pay ${formattedEffectivePrice} through Polar`,
+    title: `Pay ${effectivePrice} through Polar`,
     detail: "One time, by card. A year of updates included.",
   },
   {
@@ -33,9 +32,17 @@ const PURCHASE_STEPS = [
   <main>
     <section class="wrap purchase">
       <p class="eyebrow">
-        Buy Nod · {
-          formattedLaunchPrice && <del class="purchase__del">{formattedPrice}</del>
-        } {formattedEffectivePrice}{formattedLaunchPrice && " launch price"}
+        Buy Nod ·{" "}
+        {
+          price.formattedLaunchPrice ? (
+            <>
+              <del class="purchase__del">{price.formattedPrice}</del>{" "}
+              {price.formattedLaunchPrice} launch price
+            </>
+          ) : (
+            price.formattedPrice
+          )
+        }
       </p>
       <h1 class="purchase__title">Your GitHub account is your license.</h1>
       <p class="purchase__sub">
@@ -88,20 +95,7 @@ const PURCHASE_STEPS = [
   }
 
   .purchase__del {
-    position: relative;
-    color: var(--faint);
-    text-decoration: none;
-  }
-
-  .purchase__del::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 55%;
-    height: 0.08em;
-    width: 100%;
-    border-radius: 1px;
-    background: var(--faint);
+    color: var(--muted);
   }
 
   .purchase__title {
