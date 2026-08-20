@@ -3,8 +3,10 @@ mod activation;
 mod ai;
 mod ai_chat;
 mod auth;
+pub mod cli;
 mod commands;
 mod http;
+mod install_format;
 mod ledger;
 mod license;
 mod model;
@@ -148,6 +150,7 @@ pub fn run() {
             update::install_update,
             update::get_app_version,
             update::list_releases,
+            update::fetch_site_pricing,
             license::get_license_state,
             activation::activate_license,
             ledger::ledger_status,

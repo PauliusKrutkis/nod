@@ -41,6 +41,8 @@ export const CONTAINERS: Record<string, string> = {
     "reads the event log and notification channels from the stores and requests the OS permission on change; its view is notification-center, catalogued in @nod/ui",
   "keyboard-help":
     "flattens the live keyboard registry into sections; its view is help-overlay, catalogued in @nod/ui",
+  "license-dialog-loader":
+    "license-state query, the activation command and the browser-wait latch; its view is license-dialog, catalogued in @nod/ui",
   "release-history-loader":
     "releases and app-version queries, the armed ring, and Markdown notes; its view is release-history, catalogued in @nod/ui",
   "command-palette-commands":
@@ -79,6 +81,8 @@ export const CONTAINERS: Record<string, string> = {
     "detail-query payloads, the comment mutations, store reads for trackerBase and ownLogin, the app's Markdown pipeline, the Tauri opener and jump-to-thread routing; its views are right-dock, pr-drawer and the chat-tab container, the first two catalogued in @nod/ui",
   "chat-tab":
     "the chat runtime hook (store slice, ai_chat mutation, streaming listeners) and the app's Markdown pipeline; its view is chat-panel, catalogued in @nod/ui",
+  "offline-bar-loader":
+    "the connectivity poll, the replay mutation with its offline-to-online latch, and the discard/place-again/copy commands; its card is offline-bar, catalogued in @nod/ui",
 };
 
-export const PENDING: string[] = ["offline-bar-loader"];
+export const PENDING: string[] = ["org-access-hint"];

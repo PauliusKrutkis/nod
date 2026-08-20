@@ -32,9 +32,11 @@ import { inboxTabsEntry } from "../inbox-tabs/inbox-tabs.fixtures.ts";
 import { inboxZeroEntry } from "../inbox-zero/inbox-zero.fixtures.ts";
 import { issueTrackerDialogEntry } from "../issue-tracker-dialog/issue-tracker-dialog.fixtures.ts";
 import { kbdEntry } from "../kbd/kbd.fixtures.ts";
+import { licenseDialogEntry } from "../license-dialog/license-dialog.fixtures.ts";
 import { markdownEntry } from "../markdown/markdown.fixtures.ts";
 import { modelPickerEntry } from "../model-picker/model-picker.fixtures.ts";
 import { notificationCenterEntry } from "../notification-center/notification-center.fixtures.ts";
+import { offlineBarEntry } from "../offline-bar/offline-bar.fixtures.ts";
 import { overviewRulerEntry } from "../overview-ruler/overview-ruler.fixtures.ts";
 import { prDrawerEntry } from "../pr-drawer/pr-drawer.fixtures.ts";
 import { prListItemEntry } from "../pr-list-item/pr-list-item.fixtures.ts";
@@ -93,9 +95,11 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   "inbox-zero": inboxZeroEntry,
   "issue-tracker-dialog": issueTrackerDialogEntry,
   kbd: kbdEntry,
+  "license-dialog": licenseDialogEntry,
   markdown: markdownEntry,
   "model-picker": modelPickerEntry,
   "notification-center": notificationCenterEntry,
+  "offline-bar": offlineBarEntry,
   "overview-ruler": overviewRulerEntry,
   "pr-drawer": prDrawerEntry,
   "pr-list-item": prListItemEntry,

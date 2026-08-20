@@ -15,7 +15,7 @@ import type { Page } from "./types.ts";
 const POLL_WAIT = 20_000;
 
 function bar(page: Page) {
-  return page.locator(".qb-toast[role='status']");
+  return page.locator(".q-obar[role='status']");
 }
 
 function reconnect(page: Page) {
