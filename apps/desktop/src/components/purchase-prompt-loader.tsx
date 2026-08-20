@@ -1,4 +1,4 @@
-import { formattedPrice } from "@nod/pricing";
+import { formattedEffectivePrice } from "@nod/pricing";
 import { PurchasePrompt as PurchasePromptCard } from "@nod/ui/purchase-prompt";
 import { useState } from "react";
 import {
@@ -50,7 +50,7 @@ export function PurchasePromptLoader() {
       error={error}
       onBuy={buy}
       onDismiss={() => setDismissed(true)}
-      price={formattedPrice}
+      price={formattedEffectivePrice}
       status={license?.status ?? "unknown"}
     />
   );

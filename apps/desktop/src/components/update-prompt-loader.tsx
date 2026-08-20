@@ -1,4 +1,4 @@
-import { formattedPrice } from "@nod/pricing";
+import { formattedEffectivePrice } from "@nod/pricing";
 import { UpdatePrompt as UpdatePromptCard } from "@nod/ui/update-prompt";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -102,7 +102,7 @@ export function UpdatePromptLoader() {
       onDismiss={() => setDismissed(true)}
       onInstall={install}
       onOpenDownloads={openDownloads}
-      price={formattedPrice}
+      price={formattedEffectivePrice}
       purchasing={purchasing}
       selfInstallable={update.selfInstallable}
       version={update.version}
