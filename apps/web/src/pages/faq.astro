@@ -2,6 +2,7 @@
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteNav from "../components/SiteNav.astro";
 import Base from "../layouts/Base.astro";
+import { formattedEffectivePrice } from "@nod/pricing";
 import { CONTACT_EMAIL, REPO_URL } from "../lib/site";
 
 /**
@@ -22,7 +23,7 @@ const GROUPS = [
     items: [
       {
         id: "what-you-get",
-        q: "What does $39 buy?",
+        q: `What does ${formattedEffectivePrice} buy?`,
         a: "A permanent license and a year of updates. When the year ends, Nod keeps working exactly as it is. You stop receiving updates, nothing else.",
       },
       {
