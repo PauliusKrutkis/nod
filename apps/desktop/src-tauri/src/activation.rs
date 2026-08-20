@@ -31,9 +31,11 @@
 
 use std::io::Read;
 use std::net::{TcpListener, TcpStream};
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use tauri::AppHandle;
+use serde::Serialize;
+use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_deep_link::DeepLinkExt;
 
 use crate::auth::{focus_main, open_in_browser, page, success_page, write_response};
@@ -165,9 +167,10 @@ fn write_preflight_response(stream: &mut TcpStream) {
 /// (cold start via the activation page's Open Nod button), subscribes to
 /// URLs arriving while running, and best-effort registers the scheme at
 /// runtime for installs the bundler's metadata doesn't cover (dev builds,
-/// portable copies). Only `nod://purchase?token=…` is understood today;
-/// other paths are reserved for the §11a "Open in Nod" extension and are
-/// ignored, never errors — a stray link must not pop dialogs.
+/// portable copies). Two paths are understood: `nod://purchase?token=…`
+/// completes an activation, and `nod://pr/{owner}/{repo}/{number}` opens a
+/// pull request (BACKLOG link-open hydration). Anything else is ignored,
+/// never errors — a stray link must not pop dialogs.
 pub fn watch_deep_links(app: &AppHandle) {
     let _ = app.deep_link().register_all();
     if let Ok(Some(urls)) = app.deep_link().get_current() {
@@ -179,12 +182,37 @@ pub fn watch_deep_links(app: &AppHandle) {
     });
 }
 
+/// A pull request named by a `nod://pr/...` link, in the shape the webview's
+/// route expects.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct PrLink {
+    pub owner: String,
+    pub repo: String,
+    pub number: u64,
+}
+
+/// Holds the most recent PR link until the webview can act on it. A cold
+/// start drains launch URLs in setup, before the webview exists, so an emit
+/// alone would be lost — the frontend drains this via `take_deep_link_pr`
+/// once it has decided it can route at all.
+#[derive(Default)]
+pub struct PendingPrLink(Mutex<Option<PrLink>>);
+
+#[tauri::command]
+pub fn take_deep_link_pr(state: tauri::State<'_, PendingPrLink>) -> Option<PrLink> {
+    state.0.lock().ok().and_then(|mut pending| pending.take())
+}
+
 fn handle_deep_link_urls(app: &AppHandle, urls: &[url::Url]) {
-    let Some(pubkey) = license::configured_pubkey() else {
-        return;
-    };
     for url in urls {
+        if let Some(link) = pr_link(url) {
+            deliver_pr_link(app, link);
+            continue;
+        }
         let Some(token) = purchase_token(url) else {
+            continue;
+        };
+        let Some(pubkey) = license::configured_pubkey() else {
             continue;
         };
         if license::verify_license_token(&token, pubkey).is_some() {
@@ -192,6 +220,34 @@ fn handle_deep_link_urls(app: &AppHandle, urls: &[url::Url]) {
             focus_main(app);
         }
     }
+}
+
+fn deliver_pr_link(app: &AppHandle, link: PrLink) {
+    if let Some(state) = app.try_state::<PendingPrLink>() {
+        if let Ok(mut pending) = state.0.lock() {
+            *pending = Some(link.clone());
+        }
+    }
+    let _ = app.emit("deep-link-pr", link);
+    focus_main(app);
+}
+
+fn pr_link(url: &url::Url) -> Option<PrLink> {
+    if url.scheme() != "nod" || url.host_str() != Some("pr") {
+        return None;
+    }
+    let mut segments = url.path_segments()?;
+    let owner = segments.next().filter(|s| !s.is_empty())?.to_string();
+    let repo = segments.next().filter(|s| !s.is_empty())?.to_string();
+    let number: u64 = segments.next()?.parse().ok()?;
+    if segments.next().is_some() {
+        return None;
+    }
+    Some(PrLink {
+        owner,
+        repo,
+        number,
+    })
 }
 
 fn purchase_token(url: &url::Url) -> Option<String> {

@@ -145,6 +145,12 @@ export interface PullRequestDetail {
   reviews: ReviewSummary[];
 }
 
+export interface PrLinkTarget {
+  owner: string;
+  repo: string;
+  number: number;
+}
+
 export interface InboxBucket {
   count: number;
   prs: PullRequest[];

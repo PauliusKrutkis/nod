@@ -618,6 +618,7 @@ export function installBridge(cfg: BridgeConfig) {
       localStorage.setItem("e2e:lastReview", JSON.stringify(args));
       return null;
     },
+    take_deep_link_pr: () => null,
     update_issue_comment: (args) => {
       for (const c of cfg.detail.issueComments as Array<{
         id: number;
