@@ -16,9 +16,11 @@
  * defaults, which reads as "not yours, not reviewed".
  * LicenseState.updatesUntil bounds update eligibility, not app function —
  * a licensed app never stops working, it stops receiving newer releases.
- * UpdateInfo.selfInstallable is false on a Linux .deb/.rpm install, where the
- * app cannot put a release in place and the new package has to be downloaded
- * and installed by hand.
+ * UpdateInfo.selfInstallable is false on an install the app cannot replace
+ * itself (a Linux package or an unmanaged copy); installedAs and
+ * updateCommand carry the backend's shared install-format detection, the
+ * same one nod --version prints, so the notice can show the one command
+ * that works instead of just dropping the install button.
  * CiStatus.checks is optional because details cached by an older version
  * predate the per-check breakdown; an absent list reads the same as an empty
  * one, which is a host that reports only a rollup.
@@ -363,8 +365,10 @@ export interface AiAskContext {
 export interface UpdateInfo {
   currentVersion: string;
   eligible: boolean;
+  installedAs: string;
   notes: string | null;
   selfInstallable: boolean;
+  updateCommand: string | null;
   version: string;
 }
 
