@@ -31,6 +31,7 @@ export function ReviewDiffPane({
   clampedIndex,
   closeFind,
   copiedPathIndex,
+  delta,
   dragging,
   editingPending,
   editReq,
@@ -47,6 +48,7 @@ export function ReviewDiffPane({
   findSafeIndex,
   flashKey,
   headSha,
+  hiddenResolved,
   initialMem,
   inputMode,
   listCallbacks,
@@ -76,6 +78,7 @@ export function ReviewDiffPane({
   clampedIndex: number;
   closeFind: () => void;
   copiedPathIndex: number | null;
+  delta?: ListProps["delta"];
   dragging: boolean;
   editingPending: string | null;
   editReq: ListProps["editRequest"];
@@ -92,6 +95,7 @@ export function ReviewDiffPane({
   findSafeIndex: number;
   flashKey: string | null;
   headSha: string;
+  hiddenResolved?: ListProps["hiddenResolved"];
   initialMem: ReturnType<typeof getReviewMemory>;
   inputMode: ListProps["inputMode"];
   listCallbacks: ListProps["callbacks"];
@@ -144,6 +148,7 @@ export function ReviewDiffPane({
               ? navKey(liveCursor.fileIndex, liveCursor.anchor, liveCursor.kind)
               : null
           }
+          delta={delta}
           dragging={dragging}
           editingPending={editingPending}
           editRequest={editReq}
@@ -153,6 +158,7 @@ export function ReviewDiffPane({
           findCurrent={findCurrent}
           flashKey={flashKey}
           headSha={headSha}
+          hiddenResolved={hiddenResolved}
           initialFileIndex={initialMem?.fileIndex ?? 0}
           inputMode={inputMode}
           marks={marks}

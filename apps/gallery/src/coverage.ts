@@ -81,4 +81,4 @@ export const CONTAINERS: Record<string, string> = {
     "the chat runtime hook (store slice, ai_chat mutation, streaming listeners) and the app's Markdown pipeline; its view is chat-panel, catalogued in @nod/ui",
 };
 
-export const PENDING: string[] = [];
+export const PENDING: string[] = ["offline-bar-loader"];

@@ -17,9 +17,17 @@
  *
  * HeaderPullRequest is the package's own minimal shape, not an import from
  * the app: the desktop's richer PullRequest satisfies it structurally.
+ *
+ * The stack chip sits beside the base chip because the stack fact is about
+ * the base branch. It is a summoned menu in the model-picker's selection
+ * model: the chip keeps DOM focus, rows are never focus stops, ↑↓ move
+ * `aria-activedescendant`, Enter opens the active PR and Escape or blur
+ * closes. The count is of the detected chain only — the host is never asked
+ * how long the stack "really" is, so "2 of 3" claims exactly what the inbox
+ * can see. Choosing the entry you are already on just closes the menu.
  */
-import { Check, GitBranch, PanelLeft } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Check, GitBranch, Layers, PanelLeft } from "lucide-react";
+import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 import { Avatar } from "../avatar/avatar.tsx";
 import { cn } from "../cn/cn.ts";
 import { Kbd } from "../kbd/kbd.tsx";
@@ -30,6 +38,17 @@ import {
 import { TicketTitle } from "../ticket-title/ticket-title.tsx";
 import { Tooltip } from "../tooltip/tooltip.tsx";
 import "./review-header.css";
+
+export interface StackEntryView {
+  current: boolean;
+  number: number;
+  title: string;
+}
+
+export interface StackView {
+  entries: StackEntryView[];
+  position: number;
+}
 
 export interface HeaderPullRequest {
   author: string;
@@ -55,6 +74,7 @@ export function ReviewHeader({
   ciState,
   convoCount = 0,
   onCopyBranch,
+  onOpenStackEntry,
   onOpenSubmit,
   onOpenTicket,
   onToggleRightPanel,
@@ -64,6 +84,7 @@ export function ReviewHeader({
   rightOpen = false,
   showSidebarToggle = false,
   sidebarOpen = false,
+  stack = null,
   trackerBase,
 }: {
   approved?: readonly Reviewer[];
@@ -71,6 +92,7 @@ export function ReviewHeader({
   ciState?: string;
   convoCount?: number;
   onCopyBranch: (name: string) => void;
+  onOpenStackEntry?: (number: number) => void;
   onOpenSubmit: () => void;
   onOpenTicket: (url: string) => void;
   onToggleRightPanel: () => void;
@@ -80,6 +102,7 @@ export function ReviewHeader({
   rightOpen?: boolean;
   showSidebarToggle?: boolean;
   sidebarOpen?: boolean;
+  stack?: StackView | null;
   trackerBase?: string;
 }) {
   const ciDot = ciDotClass(ciState);
@@ -132,6 +155,9 @@ export function ReviewHeader({
                   name={pr.baseRef}
                   onCopy={onCopyBranch}
                 />
+                {stack && stack.entries.length > 1 && (
+                  <StackChip onOpenEntry={onOpenStackEntry} stack={stack} />
+                )}
                 <span className="qf-arrow">←</span>
                 <BranchChip
                   label="PR branch · click to copy"
@@ -226,6 +252,122 @@ function stateLabel(pr: HeaderPullRequest): string {
     return "Open";
   }
   return pr.state;
+}
+
+/** The stack chip and its summoned menu: "2 of 3" opens the detected chain in
+ *  merge order, bottom of the stack first, and picking a row navigates there. */
+function StackChip({
+  onOpenEntry,
+  stack,
+}: {
+  onOpenEntry?: (number: number) => void;
+  stack: StackView;
+}) {
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(stack.position - 1);
+  const listId = useId();
+  const rows = stack.entries;
+  const activeIndex = Math.min(active, rows.length - 1);
+
+  const openMenu = () => {
+    setActive(stack.position - 1);
+    setOpen(true);
+  };
+
+  const pick = (entry: StackEntryView) => {
+    setOpen(false);
+    if (!entry.current) {
+      onOpenEntry?.(entry.number);
+    }
+  };
+
+  const onKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
+    if (!open) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        openMenu();
+      }
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActive(Math.min(activeIndex + 1, rows.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActive(Math.max(activeIndex - 1, 0));
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      const entry = rows[activeIndex];
+      if (entry) {
+        pick(entry);
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen(false);
+    }
+  };
+
+  const label = `${stack.position} of ${rows.length}`;
+  return (
+    <span className="qf-stack">
+      <Tooltip
+        anchorClassName="qf-branch-anchor"
+        label={`Stacked pull requests · ${label}`}
+      >
+        <button
+          aria-activedescendant={
+            open ? `${listId}-${rows[activeIndex]?.number}` : undefined
+          }
+          aria-controls={open ? listId : undefined}
+          aria-expanded={open}
+          aria-haspopup="listbox"
+          aria-label={`Stacked pull requests · ${label}`}
+          className={cn("qf-branch-chip q-focus", open && "qf-stack-open")}
+          onBlur={() => setOpen(false)}
+          onClick={() => (open ? setOpen(false) : openMenu())}
+          onKeyDown={onKeyDown}
+          role="combobox"
+          type="button"
+        >
+          <Layers aria-hidden size={11} />
+          <span className="qf-branch-name">{label}</span>
+        </button>
+      </Tooltip>
+      {open && (
+        <div className="qf-stack-menu" id={listId} role="listbox">
+          {rows.map((entry, i) => (
+            <button
+              aria-selected={i === activeIndex}
+              className={cn(
+                "qf-stack-opt",
+                i === activeIndex && "qf-stack-opt-on"
+              )}
+              id={`${listId}-${entry.number}`}
+              key={entry.number}
+              onClick={() => pick(entry)}
+              onMouseDown={preventFocusLoss}
+              onMouseMove={() => setActive(i)}
+              role="option"
+              tabIndex={-1}
+              type="button"
+            >
+              <span className="qf-stack-ordinal">{i + 1}</span>
+              <span className="qf-stack-num">#{entry.number}</span>
+              <span className="qf-stack-title">{entry.title}</span>
+              {entry.current && (
+                <Check aria-hidden className="qf-stack-here" size={11} />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </span>
+  );
+}
+
+function preventFocusLoss(e: { preventDefault: () => void }) {
+  e.preventDefault();
 }
 
 /** A branch name as a copyable chip: click copies the name, the icon confirms. */
