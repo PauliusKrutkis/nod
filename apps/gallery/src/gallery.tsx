@@ -126,6 +126,14 @@ const noopOpenChange = () => {
   return;
 };
 
+/** Attached only to the rail item the keys land on (the selection, or the
+ *  find candidate while filtering), so a j/k or arrow walk scrolls the rail
+ *  along with it. Attach-on-change is the whole mechanism — a mouse click
+ *  selects an item that is already in view, so `nearest` moves nothing. */
+function revealRailItem(el: HTMLButtonElement | null) {
+  el?.scrollIntoView({ block: "nearest" });
+}
+
 function ModalLauncher({ route }: { route: GalleryRoute }) {
   const entry = catalog[route.component];
   const [open, setOpen] = useState(false);
@@ -481,6 +489,11 @@ function GalleryRail({
               ].join(" ")}
               key={name}
               onClick={() => onSelect(name)}
+              ref={
+                name === selected || (filter && index === findSel)
+                  ? revealRailItem
+                  : undefined
+              }
               type="button"
             >
               <i className="qg-dot" />
