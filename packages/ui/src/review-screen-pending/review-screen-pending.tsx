@@ -7,10 +7,11 @@
  * are bars — the difference between "loading" and "loading *this*".
  *
  * The main pane's rows are shaped like a diff, never a spinner: each block
- * suggests a file header and a few gutter-and-code lines, holding the layout
- * the real content will fill (BACKLOG link-open hydration — a cold link may
- * be the first screen a new user ever sees). The motion is a subtle pulse,
- * not a shimmer sweep, and reduced-motion turns it off entirely.
+ * suggests a file header and a few gutter-and-code lines, and the file
+ * column's rows suggest a status glyph and a name — everything holds the
+ * layout the real content will fill (BACKLOG link-open hydration — a cold
+ * link may be the first screen a new user ever sees). The motion is a subtle
+ * pulse, not a shimmer sweep, and reduced-motion turns it off entirely.
  *
  * The error face replaces the shell entirely rather than sitting inside it:
  * there is no frame to fill in any more, and the only useful thing left on
@@ -73,11 +74,13 @@ export function ReviewScreenPending({
           {SIDEBAR_SKELETON_WIDTHS.map((width, index, widths) => {
             const n = widths.slice(0, index).filter((w) => w === width).length;
             return (
-              <div
-                className="qrp-skel qrp-side-bar"
-                key={`${width}-${n}`}
-                style={{ width: `${width}%` }}
-              />
+              <div className="qrp-side-row" key={`${width}-${n}`}>
+                <span className="qrp-skel qrp-side-glyph" />
+                <span
+                  className="qrp-skel qrp-side-bar"
+                  style={{ width: `${width}%` }}
+                />
+              </div>
             );
           })}
         </div>
