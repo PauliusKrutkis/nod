@@ -423,6 +423,11 @@ a {
   color: var(--fg);
 }
 
+.pricing__del {
+  color: var(--muted);
+  text-decoration-thickness: 2px;
+}
+
 .pricing__term {
   display: block;
   margin-top: 6px;

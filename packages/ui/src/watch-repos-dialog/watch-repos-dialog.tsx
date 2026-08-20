@@ -20,6 +20,12 @@
  * rather than a blocker: the list already shows the edit, and this only says
  * the write has not landed yet. `error` is the write that never landed.
  *
+ * The empty-search state always carries the org-approval hint: an org with
+ * OAuth App restrictions makes GitHub omit its private repos from search with
+ * no error to classify, so there is no heuristic to gate on — the sentence
+ * answers the question a person is already asking, and `onOrgAccessHelp`
+ * (host-supplied, opens the GitHub docs) is the way to read more.
+ *
  * Keyboard: focus stays in the search input the whole time. Arrows walk the
  * search results, Tab arms a watched row (then Done) so Enter stops watching
  * it, and the footer names what Enter would do. Nothing here takes focus off
@@ -143,6 +149,7 @@ export interface WatchReposDialogProps {
   hits: readonly RepoHit[] | null;
   onWatch: (fullName: string) => void;
   onStopWatching: (repo: string) => void;
+  onOrgAccessHelp?: () => void;
   searching?: boolean;
   saving?: boolean;
   error?: string | null;
@@ -164,6 +171,7 @@ function WatchReposDialogContent({
   hits,
   onWatch,
   onStopWatching,
+  onOrgAccessHelp,
   searching = false,
   saving = false,
   error = null,
@@ -317,11 +325,30 @@ function WatchReposDialogContent({
               />
             ))}
             {results.length === 0 ? (
-              <p className="qw-none">
-                {query.includes("/")
-                  ? `No matches. Enter watches “${query.trim()}” as typed.`
-                  : "No matches."}
-              </p>
+              <div className="qw-none">
+                <p className="qw-none-line">
+                  {query.includes("/")
+                    ? `No matches. Enter watches “${query.trim()}” as typed.`
+                    : "No matches."}
+                </p>
+                <p className="qw-none-line">
+                  Missing a repository? An organization may need to approve Nod
+                  first.
+                  {onOrgAccessHelp ? (
+                    <>
+                      {" "}
+                      <button
+                        className="qw-more"
+                        onClick={onOrgAccessHelp}
+                        tabIndex={-1}
+                        type="button"
+                      >
+                        Read more
+                      </button>
+                    </>
+                  ) : null}
+                </p>
+              </div>
             ) : null}
           </div>
         )}

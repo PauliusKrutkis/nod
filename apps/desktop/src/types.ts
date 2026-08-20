@@ -368,6 +368,12 @@ export interface UpdateInfo {
   version: string;
 }
 
+export interface SitePricing {
+  currency: string;
+  launchPrice: number | null;
+  price: number;
+}
+
 export type LicenseState =
   | { status: "licensed"; updatesUntil: string }
   | { status: "trial"; daysLeft: number }
