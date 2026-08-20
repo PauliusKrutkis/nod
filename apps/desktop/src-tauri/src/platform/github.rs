@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 
 use crate::http::{
     fbool, fopt_str, fopt_u64, fstr, fu64, get_all_pages, get_json, log, net_err, now_millis, nstr,
-    read_body, read_capped,
+    org_restriction_error, read_body, read_capped,
 };
 use crate::model::{
     ChangedFile, CiCheck, CiStatus, FileBlob, GitHubUser, InboxBucket, InboxData, IssueComment,
@@ -450,6 +450,9 @@ impl GitHubPlatform {
         let text = resp.text().await.map_err(net_err)?;
         if !status.is_success() {
             log(&format!("GraphQL HTTP {}: {}", status.as_u16(), text));
+            if let Some(friendly) = org_restriction_error(&text) {
+                return Err(friendly);
+            }
             return Err(format!(
                 "GitHub GraphQL error ({}): {text}",
                 status.as_u16()
@@ -465,6 +468,9 @@ impl GitHubPlatform {
                     .collect::<Vec<_>>()
                     .join("; ");
                 log(&format!("GraphQL errors: {msg}"));
+                if let Some(friendly) = org_restriction_error(&msg) {
+                    return Err(friendly);
+                }
                 return Err(format!("GitHub GraphQL error: {msg}"));
             }
         }
@@ -1019,6 +1025,9 @@ impl GitHubPlatform {
                 .ok()
                 .and_then(|v| v.get("message").and_then(Value::as_str).map(String::from))
                 .unwrap_or(text);
+            if let Some(friendly) = org_restriction_error(&msg) {
+                return Err(friendly);
+            }
             return Err(format!("GitHub API error ({}): {}", status.as_u16(), msg));
         }
         let bytes = resp.bytes().await.map_err(net_err)?;

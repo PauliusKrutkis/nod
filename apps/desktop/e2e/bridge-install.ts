@@ -321,6 +321,7 @@ export function installBridge(cfg: BridgeConfig) {
       aiInfo = { baseUrl: null, configured: false, model: null };
       return null;
     },
+    fetch_site_pricing: () => null,
     get_ai_config: () => aiInfo,
     set_ai_config: (args) => {
       countCall("set_ai_config");

@@ -2,6 +2,10 @@
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteNav from "../components/SiteNav.astro";
 import Base from "../layouts/Base.astro";
+import { resolvePricing } from "../lib/pricing";
+
+const price = await resolvePricing();
+const effectivePrice = price.formattedLaunchPrice ?? price.formattedPrice;
 
 const PURCHASE_STEPS = [
   {
@@ -9,7 +13,7 @@ const PURCHASE_STEPS = [
     detail: "read:user only. Nod never sees your code or repositories.",
   },
   {
-    title: "Pay $39 through Polar",
+    title: `Pay ${effectivePrice} through Polar`,
     detail: "One time, by card. A year of updates included.",
   },
   {
@@ -28,7 +32,17 @@ const PURCHASE_STEPS = [
   <main>
     <section class="wrap purchase">
       <p class="eyebrow">
-        Buy Nod · <del aria-hidden="true" class="purchase__del">$59</del> $39 launch price
+        Buy Nod ·{" "}
+        {
+          price.formattedLaunchPrice ? (
+            <>
+              <del aria-hidden="true" class="purchase__del">{price.formattedPrice}</del>{" "}
+              {price.formattedLaunchPrice} launch price
+            </>
+          ) : (
+            price.formattedPrice
+          )
+        }
       </p>
       <h1 class="purchase__title">Your GitHub account is your license.</h1>
       <p class="purchase__sub">

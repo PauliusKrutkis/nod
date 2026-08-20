@@ -6,6 +6,7 @@ import LocalStrip from "../components/LocalStrip.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteNav from "../components/SiteNav.astro";
 import { Kbd } from "@nod/ui/kbd";
+import { resolvePricing } from "../lib/pricing";
 import { CONTACT_EMAIL } from "../lib/site";
 
 // The buy button appears only when a checkout exists (build-time env, set
@@ -19,6 +20,8 @@ import { CONTACT_EMAIL } from "../lib/site";
 // survive the flip to a live checkout — which is exactly when someone buying
 // for a team needs an invoicing route.
 const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
+
+const price = await resolvePricing();
 ---
 
 <Base
@@ -100,9 +103,25 @@ const checkoutUrl = import.meta.env.PUBLIC_CHECKOUT_URL as string | undefined;
       <div class="wrap pricing__inner">
         <p class="eyebrow">Pricing</p>
         <p class="pricing__price">
-          <del aria-hidden="true" class="pricing__del">$59</del> $39 <span class="pricing__term"
-            >launch price · one-time · a year of updates · keeps working after</span
-          >
+          {
+            price.formattedLaunchPrice ? (
+              <>
+                <del aria-hidden="true" class="pricing__del">{price.formattedPrice}</del>{" "}
+                {price.formattedLaunchPrice}{" "}
+                <span class="pricing__term">
+                  launch price · one-time · a year of updates · keeps working
+                  after
+                </span>
+              </>
+            ) : (
+              <>
+                {price.formattedPrice}{" "}
+                <span class="pricing__term">
+                  one-time · a year of updates · keeps working after
+                </span>
+              </>
+            )
+          }
         </p>
         {
           checkoutUrl ? (

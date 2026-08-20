@@ -7,6 +7,7 @@ import { useCoalescedWrite } from "../../hooks/use-coalesced-write.ts";
 import { useWatchedRepos } from "../../hooks/use-subscribed.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
 import { api } from "../../lib/api.ts";
+import { openOrgApprovalDocs } from "../../lib/org-approval-docs.ts";
 import { queryClient, queryKeys } from "../../lib/query-client.ts";
 
 /**
@@ -145,6 +146,7 @@ function WatchReposLoaderContent({ onClose }: { onClose: () => void }) {
       error={writeError}
       hits={answered ? (searchResult?.hits ?? null) : null}
       onOpenChange={onOpenChange}
+      onOrgAccessHelp={openOrgApprovalDocs}
       onQueryChange={setQuery}
       onStopWatching={onStopWatching}
       onWatch={onWatch}

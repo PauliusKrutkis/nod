@@ -123,11 +123,31 @@
 }
 
 .qw-none {
-  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   padding: 8px;
   font-size: 12px;
   color: var(--faint);
   overflow-wrap: anywhere;
+}
+
+.qw-none-line {
+  margin: 0;
+}
+
+.qw-more {
+  padding: 0;
+  font-size: inherit;
+  color: var(--muted);
+  text-decoration: underline;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+.qw-more:hover {
+  color: var(--fg);
 }
 
 /* Two elements for one list, because the 224px window has to be the height
