@@ -10,7 +10,11 @@
    row with the time and the tool strip after it. Without min-width: 0 its
    min-content width is the whole token, so an author with no spaces in it
    pushes the timestamp and the tools out of the card instead of ellipsizing
-   — the row's siblings hold their size for the same reason. */
+   — the row's siblings hold their size for the same reason.
+
+   The body shows the text beam like the code it annotates: prose is copied
+   from, so the cursor says so, while the pointer stays on the card's real
+   controls. */
 
 .qf-comment {
   padding: 11px 14px;
@@ -48,4 +52,5 @@
 .qf-comment-body {
   font-size: 13px;
   color: var(--fg-bright);
+  cursor: text;
 }

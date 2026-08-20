@@ -5,8 +5,12 @@
 //! The second gate — whether the running build can put a release in place
 //! itself — moved to `install_format`, where its table lives beside the rest
 //! of the format detection.
+//!
+//! And the /price.json parse: the shapes the site actually serves (launch
+//! price present, null, absent) and the junk that must come back as an error
+//! instead of a panic.
 
-use super::{update_allowed, LicenseState};
+use super::{update_allowed, LicenseState, SitePricing};
 
 #[test]
 fn trial_gets_every_update_and_expired_gets_none() {
@@ -27,4 +31,35 @@ fn licensed_updates_stop_at_updates_until() {
     assert!(update_allowed(&licensed, Some("2027-08-02")));
     assert!(!update_allowed(&licensed, Some("2027-08-03")));
     assert!(update_allowed(&licensed, None));
+}
+
+#[test]
+fn site_pricing_parses_a_launch_price_and_ignores_extra_fields() {
+    let parsed: SitePricing = serde_json::from_str(
+        r#"{"price":59,"launchPrice":39,"currency":"USD","formattedPrice":"$59","source":"polar"}"#,
+    )
+    .unwrap();
+    assert_eq!(parsed.price, 59.0);
+    assert_eq!(parsed.launch_price, Some(39.0));
+    assert_eq!(parsed.currency, "USD");
+}
+
+#[test]
+fn site_pricing_reads_a_null_or_absent_launch_price_as_none() {
+    let null_launch: SitePricing =
+        serde_json::from_str(r#"{"price":59,"launchPrice":null,"currency":"USD"}"#).unwrap();
+    assert_eq!(null_launch.launch_price, None);
+    let absent_launch: SitePricing =
+        serde_json::from_str(r#"{"price":59,"currency":"USD"}"#).unwrap();
+    assert_eq!(absent_launch.launch_price, None);
+}
+
+#[test]
+fn site_pricing_rejects_junk_as_an_error() {
+    assert!(serde_json::from_str::<SitePricing>(r#"{"launchPrice":39,"currency":"USD"}"#).is_err());
+    assert!(
+        serde_json::from_str::<SitePricing>(r#"{"price":"fifty-nine","currency":"USD"}"#).is_err()
+    );
+    assert!(serde_json::from_str::<SitePricing>("[]").is_err());
+    assert!(serde_json::from_str::<SitePricing>("not json").is_err());
 }

@@ -27,6 +27,7 @@ const noop = () => {
 const shared = {
   hits: null,
   onOpenChange: noop,
+  onOrgAccessHelp: noop,
   onQueryChange: noop,
   onStopWatching: noop,
   onWatch: noop,

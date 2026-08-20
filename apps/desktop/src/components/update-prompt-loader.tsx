@@ -7,6 +7,7 @@ import {
   useSetLicenseState,
 } from "../hooks/use-license-state.ts";
 import { api } from "../lib/api.ts";
+import { useEffectivePrice } from "../lib/pricing.ts";
 import { queryKeys } from "../lib/query-client.ts";
 
 /**
@@ -30,7 +31,6 @@ import { queryKeys } from "../lib/query-client.ts";
 
 const RECHECK_MS = 4 * 60 * 60 * 1000;
 const FOCUS_STALE_MS = 30 * 60 * 1000;
-const PRICE = "$59";
 function openDownloads() {
   openUrl(DOWNLOADS_URL).catch(() => undefined);
 }
@@ -45,6 +45,7 @@ export function UpdatePromptLoader() {
   const license = useLicenseState();
   const setLicenseState = useSetLicenseState();
   const queryClient = useQueryClient();
+  const price = useEffectivePrice();
 
   const licenseKey = license
     ? `${license.status}:${license.status === "licensed" ? license.updatesUntil : ""}`
@@ -103,7 +104,7 @@ export function UpdatePromptLoader() {
       onDismiss={() => setDismissed(true)}
       onInstall={install}
       onOpenDownloads={openDownloads}
-      price={PRICE}
+      price={price}
       purchasing={purchasing}
       selfInstallable={update.selfInstallable}
       updateCommand={update.updateCommand}
