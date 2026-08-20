@@ -4,17 +4,11 @@
  * no error attached, so the app cannot detect the state and must never alert
  * on it — most short inboxes are simply short. The sentence therefore sits
  * where the confusion happens (the end of a short inbox, and the watch
- * dialog's empty search via the same docs URL), always and subdued, phrased
- * from the reader's question rather than as a diagnosis nobody can confirm.
+ * dialog's empty search via the same docs opener in lib/org-approval-docs),
+ * always and subdued, phrased from the reader's question rather than as a
+ * diagnosis nobody can confirm.
  */
-import { openExternal } from "../../lib/open-external.ts";
-
-export const ORG_APPROVAL_DOCS_URL =
-  "https://docs.github.com/organizations/managing-oauth-access-to-your-organizations-data/approving-oauth-apps-for-your-organization";
-
-export function openOrgApprovalDocs(): void {
-  openExternal(ORG_APPROVAL_DOCS_URL);
-}
+import { openOrgApprovalDocs } from "../../lib/org-approval-docs.ts";
 
 export function OrgAccessHint() {
   return (

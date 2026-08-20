@@ -17,6 +17,12 @@
  * visit and re-running the correction on each remount would boomerang a
  * deliberate visit to an empty tab back to whichever tab has content.
  *
+ * A list of SHORT_INBOX_MAX rows or fewer (never the archived view) ends
+ * with the org-approval hint: GitHub's OAuth restrictions remove an org's
+ * repos silently, with no error to gate on, so the hint is always-on and
+ * quiet rather than driven by a heuristic that does not exist. Most short
+ * inboxes are simply short; the hint is a sentence, never an alert.
+ *
  * What is left here is the wiring: the inbox and subscribed queries, the
  * archive ledger, tab visibility and the hotkey scope. The views it arranges
  * — inbox-tabs, inbox-zero, inbox-detail and the pr-list-item rows — are
@@ -81,11 +87,6 @@ const EMPTY: InboxData = {
   reviewRequested: { count: 0, prs: [] },
 };
 
-// Under this many rows the list gets the org-approval hint at its end: the
-// silent half of GitHub's OAuth restrictions removes repos with no error to
-// catch, so the hint is always-on and quiet rather than gated on a heuristic
-// that does not exist. Most short inboxes are simply short; the hint is a
-// sentence, never an alert.
 const SHORT_INBOX_MAX = 5;
 
 let autoTabSelected = false;
