@@ -59,7 +59,10 @@ async function polarJson(path: string, token: string): Promise<unknown> {
   return response.json();
 }
 
-function oneTimeCents(product: unknown): { cents: number; currency: string } {
+function fixedPriceCents(product: unknown): {
+  cents: number;
+  currency: string;
+} {
   if (!(isRecord(product) && Array.isArray(product.prices))) {
     throw new Error("product carried no prices array");
   }
@@ -123,7 +126,7 @@ async function resolveFromPolar(
   productId: string,
   discountId: string | undefined
 ): Promise<ResolvedPricing> {
-  const { cents, currency } = oneTimeCents(
+  const { cents, currency } = fixedPriceCents(
     await polarJson(`/products/${productId}`, token)
   );
   const price = cents / 100;

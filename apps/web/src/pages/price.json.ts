@@ -1,10 +1,9 @@
 /**
  * The price as a machine-readable surface, serialized at build time from the
  * same resolution the pages render (Polar when the build secrets are set,
- * its baked fallback constants otherwise — `source` says which). It
- * exists so a runtime consumer (the desktop purchase prompt, most likely)
- * can one day read the current price instead of shipping whatever number its
- * build was cut with. Nothing fetches it yet.
+ * its baked fallback constants otherwise — `source` says which). The desktop
+ * app's `fetch_site_pricing` command reads it at runtime, so installed builds
+ * quote the current price instead of whatever number they were compiled with.
  */
 
 import { resolvePricing } from "../lib/pricing";
