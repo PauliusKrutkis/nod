@@ -1,4 +1,3 @@
-import { formattedEffectivePrice } from "@nod/pricing";
 import { PurchasePrompt as PurchasePromptCard } from "@nod/ui/purchase-prompt";
 import { useState } from "react";
 import {
@@ -6,6 +5,7 @@ import {
   useSetLicenseState,
 } from "../hooks/use-license-state.ts";
 import { api } from "../lib/api.ts";
+import { useEffectivePrice } from "../lib/pricing.ts";
 
 /**
  * Container for the purchase card: the license subscription, the activation
@@ -28,6 +28,7 @@ export function PurchasePromptLoader() {
   const [error, setError] = useState<string | null>(null);
   const license = useLicenseState();
   const setLicenseState = useSetLicenseState();
+  const price = useEffectivePrice();
 
   if (dismissed) {
     return null;
@@ -50,7 +51,7 @@ export function PurchasePromptLoader() {
       error={error}
       onBuy={buy}
       onDismiss={() => setDismissed(true)}
-      price={formattedEffectivePrice}
+      price={price}
       status={license?.status ?? "unknown"}
     />
   );

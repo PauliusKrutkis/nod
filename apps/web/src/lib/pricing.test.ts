@@ -1,4 +1,3 @@
-import { formattedLaunchPrice, formattedPrice, pricing } from "@nod/pricing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const PRODUCT = {
@@ -114,11 +113,11 @@ describe("resolvePricing", () => {
   it("falls back to the baked constants when the env is not set", async () => {
     const resolvePricing = await loadResolver();
     await expect(resolvePricing()).resolves.toEqual({
-      price: pricing.price,
-      launchPrice: pricing.launchPrice,
-      currency: pricing.currency,
-      formattedPrice,
-      formattedLaunchPrice,
+      price: 59,
+      launchPrice: 39,
+      currency: "USD",
+      formattedPrice: "$59",
+      formattedLaunchPrice: "$39",
       source: "fallback",
     });
     expect(console.warn).toHaveBeenCalledOnce();

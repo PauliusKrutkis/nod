@@ -89,7 +89,10 @@ fn pr_link_reads_only_a_complete_pr_deep_link() {
         })
     );
     assert_eq!(super::pr_link(&parse("nod://pr/acme/rocket")), None);
-    assert_eq!(super::pr_link(&parse("nod://pr/acme/rocket/notanumber")), None);
+    assert_eq!(
+        super::pr_link(&parse("nod://pr/acme/rocket/notanumber")),
+        None
+    );
     assert_eq!(super::pr_link(&parse("nod://pr/acme/rocket/1/extra")), None);
     assert_eq!(super::pr_link(&parse("nod://purchase?token=abc")), None);
     assert_eq!(super::pr_link(&parse("https://pr/acme/rocket/1")), None);

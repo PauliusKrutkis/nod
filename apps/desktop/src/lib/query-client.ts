@@ -31,6 +31,7 @@ export const queryKeys = {
     ["oauthConfigured", provider] as const,
   prDetail: (owner: string, repo: string, number: number) =>
     ["pr", owner, repo, number] as const,
+  sitePricing: ["sitePricing"] as const,
   subscribed: ["subscribed"] as const,
   watchedRepos: ["watchedRepos"] as const,
 };

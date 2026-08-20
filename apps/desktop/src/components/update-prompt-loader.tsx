@@ -1,4 +1,3 @@
-import { formattedEffectivePrice } from "@nod/pricing";
 import { UpdatePrompt as UpdatePromptCard } from "@nod/ui/update-prompt";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -8,6 +7,7 @@ import {
   useSetLicenseState,
 } from "../hooks/use-license-state.ts";
 import { api } from "../lib/api.ts";
+import { useEffectivePrice } from "../lib/pricing.ts";
 import { queryKeys } from "../lib/query-client.ts";
 
 /**
@@ -45,6 +45,7 @@ export function UpdatePromptLoader() {
   const license = useLicenseState();
   const setLicenseState = useSetLicenseState();
   const queryClient = useQueryClient();
+  const price = useEffectivePrice();
 
   const licenseKey = license
     ? `${license.status}:${license.status === "licensed" ? license.updatesUntil : ""}`
@@ -103,7 +104,7 @@ export function UpdatePromptLoader() {
       onDismiss={() => setDismissed(true)}
       onInstall={install}
       onOpenDownloads={openDownloads}
-      price={formattedEffectivePrice}
+      price={price}
       purchasing={purchasing}
       selfInstallable={update.selfInstallable}
       updateCommand={update.updateCommand}

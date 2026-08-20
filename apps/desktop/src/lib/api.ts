@@ -27,6 +27,7 @@ import type {
   RepoHit,
   ReviewComment,
   ReviewEvent,
+  SitePricing,
   SkillInfo,
   SnapshotStatus,
   UpdateInfo,
@@ -151,6 +152,7 @@ export const api = {
   ) => invoke<FileBlob>("get_upload_blob", { filename, owner, repo, secret }),
 
   listReleases: () => invoke<ReleaseInfo[] | null>("list_releases"),
+  fetchSitePricing: () => invoke<SitePricing>("fetch_site_pricing"),
 
   getViewedMap: () => invoke<unknown>("get_viewed_map"),
   getWatchedRepos: () => invoke<string[]>("get_watched_repos"),

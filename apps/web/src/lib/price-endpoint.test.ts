@@ -1,4 +1,3 @@
-import { formattedLaunchPrice, formattedPrice, pricing } from "@nod/pricing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "../pages/price.json.ts";
 
@@ -13,11 +12,11 @@ describe("price.json", () => {
     const response = await GET();
     expect(response.headers.get("content-type")).toContain("application/json");
     expect(await response.json()).toEqual({
-      price: pricing.price,
-      launchPrice: pricing.launchPrice,
-      currency: pricing.currency,
-      formattedPrice,
-      formattedLaunchPrice,
+      price: 59,
+      launchPrice: 39,
+      currency: "USD",
+      formattedPrice: "$59",
+      formattedLaunchPrice: "$39",
       source: "fallback",
     });
   });

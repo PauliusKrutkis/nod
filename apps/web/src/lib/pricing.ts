@@ -5,8 +5,8 @@
  * Pages build secrets (absent locally); POLAR_DISCOUNT_ID is set only while
  * a launch promotion runs. Any gap — missing env, non-200, thrown fetch, a
  * response shaped differently than expected — falls back to the baked
- * @nod/pricing constants with one build-log warning, because a stale price
- * page beats a failed deploy.
+ * FALLBACK constants below with one build-log warning, because a stale
+ * price page beats a failed deploy.
  *
  * A discount that exists but is not currently redeemable (not started,
  * ended, or out of redemptions) is not an error: the standing price is
@@ -15,14 +15,21 @@
  * pair of Polar requests per build.
  */
 
-import {
-  formatPrice,
-  formattedLaunchPrice,
-  formattedPrice,
-  pricing,
-} from "@nod/pricing";
-
 const POLAR_API = "https://api.polar.sh/v1";
+
+const FALLBACK: {
+  price: number;
+  launchPrice: number | null;
+  currency: string;
+} = {
+  price: 59,
+  launchPrice: 39,
+  currency: "USD",
+};
+
+function formatPrice(amount: number): string {
+  return Number.isInteger(amount) ? `$${amount}` : `$${amount.toFixed(2)}`;
+}
 
 interface ResolvedPricing {
   price: number;
@@ -65,7 +72,7 @@ function oneTimeCents(product: unknown): { cents: number; currency: string } {
       const currency =
         typeof price.price_currency === "string"
           ? price.price_currency.toUpperCase()
-          : pricing.currency;
+          : FALLBACK.currency;
       return { cents: price.price_amount, currency };
     }
   }
@@ -143,13 +150,14 @@ async function resolveFromPolar(
 }
 
 function fallback(reason: string): ResolvedPricing {
-  console.warn(`pricing: using baked @nod/pricing constants (${reason})`);
+  console.warn(`pricing: using the baked fallback price (${reason})`);
   return {
-    price: pricing.price,
-    launchPrice: pricing.launchPrice,
-    currency: pricing.currency,
-    formattedPrice,
-    formattedLaunchPrice,
+    price: FALLBACK.price,
+    launchPrice: FALLBACK.launchPrice,
+    currency: FALLBACK.currency,
+    formattedPrice: formatPrice(FALLBACK.price),
+    formattedLaunchPrice:
+      FALLBACK.launchPrice === null ? null : formatPrice(FALLBACK.launchPrice),
     source: "fallback",
   };
 }

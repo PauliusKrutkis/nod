@@ -151,6 +151,7 @@ pub fn run() {
             update::install_update,
             update::get_app_version,
             update::list_releases,
+            update::fetch_site_pricing,
             license::get_license_state,
             activation::activate_license,
             activation::take_deep_link_pr,
