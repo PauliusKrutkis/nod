@@ -26,13 +26,17 @@
 //! the same case rather than trusting the UI.
 
 use std::ffi::{OsStr, OsString};
+use std::time::Duration;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::utils::platform::Target;
 use tauri::AppHandle;
 use tauri_plugin_updater::UpdaterExt;
 
 use crate::license::{self, LicenseState};
+
+const SITE_URL: &str = "https://nodreview.com";
+const PRICING_TIMEOUT: Duration = Duration::from_secs(4);
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -192,16 +196,47 @@ pub async fn list_releases() -> Result<Option<Vec<ReleaseInfo>>, String> {
     Ok(Some(releases))
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SitePricing {
+    pub price: f64,
+    pub launch_price: Option<f64>,
+    pub currency: String,
+}
+
+/// The current price from the site's /price.json, which the site resolves
+/// from Polar at build time — so the purchase card can quote a launch price
+/// instead of the number this build was compiled with. Extra fields in the
+/// payload are ignored; a payload missing the required ones is a serde error,
+/// not a panic. Errors are returned rather than swallowed because the
+/// frontend hook owns the fallback (its baked price) and its retry policy.
+#[tauri::command]
+pub async fn fetch_site_pricing() -> Result<SitePricing, String> {
+    let client = reqwest::Client::builder()
+        .user_agent("nod")
+        .timeout(PRICING_TIMEOUT)
+        .build()
+        .map_err(|e| e.to_string())?;
+    let resp = client
+        .get(format!("{SITE_URL}/price.json"))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(format!("price.json responded {}", resp.status()));
+    }
+    resp.json::<SitePricing>().await.map_err(|e| e.to_string())
+}
+
 /// Download + install the available update (verifying its signature against the
 /// configured public key), then relaunch into the new version. Surfaces real
 /// errors here because the user explicitly opted in by pressing "Install".
 #[tauri::command]
 pub async fn install_update(app: AppHandle) -> Result<(), String> {
     if !can_self_install(Target::current(), appimage_path(&app).as_deref()) {
-        return Err(
-            "Nod can't replace a .deb or .rpm install on its own. Download the new package from https://nodreview.com/downloads and install it over this one."
-                .to_string(),
-        );
+        return Err(format!(
+            "Nod can't replace a .deb or .rpm install on its own. Download the new package from {SITE_URL}/downloads and install it over this one."
+        ));
     }
     let updater = app.updater().map_err(|e| e.to_string())?;
     let update = updater

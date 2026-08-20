@@ -29,9 +29,6 @@ importers:
       '@fontsource/inter':
         specifier: ^5.2.8
         version: 5.2.8
-      '@nod/pricing':
-        specifier: workspace:*
-        version: link:../../packages/pricing
       '@nod/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -190,9 +187,6 @@ importers:
       '@noble/ed25519':
         specifier: ^3.1.0
         version: 3.1.0
-      '@nod/pricing':
-        specifier: workspace:*
-        version: link:../../packages/pricing
       '@nod/tokens':
         specifier: workspace:*
         version: link:../../packages/tokens
@@ -235,12 +229,6 @@ importers:
         version: 4.114.0(@cloudflare/workers-types@5.20260704.1)
 
   packages/ledger:
-    devDependencies:
-      vitest:
-        specifier: ^4.1.9
-        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.1.0)(jsdom@29.1.1)(vite@8.1.4(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
-
-  packages/pricing:
     devDependencies:
       vitest:
         specifier: ^4.1.9
