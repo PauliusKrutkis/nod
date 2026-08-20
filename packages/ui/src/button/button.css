@@ -5,11 +5,14 @@
    still a transform that differs between two captures of the same state.
 
    Depth is deliberately faint: one inset hairline and a drop tinted to the
-   page ground, on the filled variants only — ghost stays flat because it is
-   one. The press is a 1px sink with the shadow gone, applied instantly
-   rather than transitioned, so it reads as contact, not animation. Disabled
+   page ground, on primary and quiet only — ghost and danger stay flat. The
+   press is a 1px sink with the shadow gone, applied instantly rather than
+   transitioned, so it reads as contact, not animation; :active zeroes the
+   transition so the shadow and brightness land with the sink. Disabled
    drops the shadow with the color: a control that cannot be pressed should
-   not look raised. */
+   not look raised. The focus rule restates the ring shadow because the ring
+   is itself a box-shadow, and the hover and press shadows would otherwise
+   out-cascade it. */
 
 .q-btn {
   display: inline-flex;
@@ -36,6 +39,7 @@
 
 .q-btn:active:not(:disabled) {
   transform: translateY(1px);
+  transition-duration: 0s;
 }
 
 .q-btn-label {
@@ -128,6 +132,9 @@
 
 .q-btn.q-focus:focus-visible {
   border-radius: var(--r-lg);
+  box-shadow:
+    0 0 0 1.5px var(--bg),
+    0 0 0 3px var(--accent);
 }
 
 .q-btn-spin {
