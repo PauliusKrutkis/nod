@@ -271,7 +271,7 @@ test("any comment can be copied, including one you did not write", async ({
   await bobsComment.hover();
   const copy = bobsComment.getByRole("button", { name: "Copy comment text" });
   await copy.click();
-  await expect(bobsComment.getByText("Copied")).toBeVisible();
+  await expect(page.getByRole("tooltip")).toContainText("Copied");
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
     "Is this constant right?"
   );

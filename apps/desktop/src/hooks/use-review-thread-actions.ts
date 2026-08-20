@@ -3,6 +3,11 @@
  * on the active (hovered or q-focused) thread, plus the flash-and-land scroll
  * that walks q/w between threads. State arrives as refs and setters; the
  * request objects carry nonces so repeated actions on the same thread re-fire.
+ *
+ * The pending-comment actions all aim at the same target: the newest pending
+ * comment in the block under the cursor. That is the card whose tool strip
+ * shows the key hints, so every key acts on the one the reviewer can see them
+ * on, and `pendingAtCursor` is exported for the keys the screen owns.
  */
 import type React from "react";
 import type { ReviewListHandle } from "../components/review/review-list.tsx";
@@ -149,20 +154,28 @@ export function useReviewThreadActions(args: {
     );
   };
 
-  const discardPendingAtCursor = () => {
+  const commentsItemAtCursor = () => {
     const m = args.modelRef.current;
     const cur = args.cursorRef.current;
     if (!cur) {
-      return;
+      return null;
     }
     const navIdx = m.navIndexOf.get(
       navKey(cur.fileIndex, cur.anchor, "comments")
     );
     if (navIdx === undefined) {
-      return;
+      return null;
     }
     const item = m.items[m.nav[navIdx].itemIndex];
-    if (item?.kind !== "comments") {
+    return item?.kind === "comments" ? item : null;
+  };
+
+  const pendingAtCursor = () => commentsItemAtCursor()?.pending.at(-1) ?? null;
+
+  const discardPendingAtCursor = () => {
+    const cur = args.cursorRef.current;
+    const item = commentsItemAtCursor();
+    if (!(cur && item)) {
       return;
     }
     const newest = item.pending.at(-1);
@@ -224,6 +237,7 @@ export function useReviewThreadActions(args: {
     discardPendingAtCursor,
     editActiveThreadComment,
     goToComment,
+    pendingAtCursor,
     jumpToThread,
     replyToActiveThreadOrNextFile,
     resolveActiveThread,
