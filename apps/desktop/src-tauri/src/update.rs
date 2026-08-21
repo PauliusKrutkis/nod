@@ -21,11 +21,14 @@
 //! newer release the app cannot put in place. Those trees belong to the
 //! package manager: the plugin's Linux install path shells out to
 //! `pkexec dpkg -i` / `rpm -U` and fails with "Failed to install package"
-//! when no privilege prompt answers. `self_installable` carries that fact to
-//! the card so it can drop the install button, and `install_update` refuses
-//! the same case rather than trusting the UI.
+//! when no privilege prompt answers. What the install actually is comes from
+//! `install_format` — the same detection `nod --version` prints — and rides
+//! to the card as `self_installable` plus the format's own upgrade command,
+//! so instead of just dropping the install button the card can show the one
+//! command that works. `install_update` re-checks the gate rather than
+//! trusting the UI.
 
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsString;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
@@ -33,6 +36,7 @@ use tauri::utils::platform::Target;
 use tauri::AppHandle;
 use tauri_plugin_updater::UpdaterExt;
 
+use crate::install_format::{self, InstallFormat};
 use crate::license::{self, LicenseState};
 
 const SITE_URL: &str = "https://nodreview.com";
@@ -45,9 +49,16 @@ pub struct UpdateInfo {
     pub current_version: String,
     pub notes: Option<String>,
     pub eligible: bool,
-    /// False on a Linux `.deb`/`.rpm` install, where the card must show a
-    /// passive notice instead of an install button.
+    /// False on an install the app cannot replace itself — a Linux
+    /// `.deb`/`.rpm`/AUR package or an unmanaged copy — where the card must
+    /// show a notice instead of an install button.
     pub self_installable: bool,
+    /// The detected install format as prose ("a Debian package"), phrased to
+    /// follow "installed as".
+    pub installed_as: String,
+    /// The copy-pasteable upgrade command for package-managed installs,
+    /// `None` where the in-app updater or the downloads page owns updates.
+    pub update_command: Option<String>,
 }
 
 fn iso_date(date: Option<time::OffsetDateTime>) -> Option<String> {
@@ -84,45 +95,46 @@ fn appimage_path(_app: &AppHandle) -> Option<OsString> {
     None
 }
 
-/// Whether this build can put a downloaded release in place itself. macOS and
-/// Windows always can. On Linux only the AppImage can, and the signal for that
-/// is the `APPIMAGE` variable its runtime exports on every launch: it holds
-/// the path to the running image, which is the exact file the updater
-/// rewrites. Absent, there is nothing the app may overwrite, and the release
-/// has to come from the package manager instead.
-fn can_self_install(target: Target, appimage: Option<&OsStr>) -> bool {
-    match target {
-        Target::Linux => appimage.is_some_and(|path| !path.is_empty()),
-        _ => true,
-    }
+/// How this install got onto the machine, resolved through the shared
+/// `install_format` detection. The AppImage signal comes from the app's
+/// captured environment rather than a live env read, because Tauri snapshots
+/// `APPIMAGE` at startup and that copy survives whatever the process does to
+/// its environment afterwards.
+fn current_format(app: &AppHandle) -> InstallFormat {
+    let target = Target::current();
+    install_format::classify(
+        target,
+        appimage_path(app).as_deref(),
+        install_format::probe_package_owner(target),
+    )
 }
 
 /// Check the configured endpoint for a newer signed release. Returns `None`
-/// when already up to date — or when the updater isn't configured / the feed
-/// is unreachable, so a half-set-up scaffold never nags the user with errors.
+/// when already up to date, and a real error when the updater isn't
+/// configured or the feed is unreachable — the explicit "check for updates"
+/// action must be able to tell "you are current" from "the result is
+/// unknown". The passive launch-time poll swallows the error on its side, so
+/// a half-set-up scaffold still never nags the user.
 #[tauri::command]
 pub async fn check_for_update(app: AppHandle) -> Result<Option<UpdateInfo>, String> {
-    let updater = match app.updater() {
-        Ok(updater) => updater,
-        Err(_) => return Ok(None),
-    };
+    let updater = app.updater().map_err(|e| e.to_string())?;
     match updater.check().await {
         Ok(Some(update)) => {
             let state = license::get_license_state(app.clone());
             let release_date = iso_date(update.date);
+            let format = current_format(&app);
             Ok(Some(UpdateInfo {
                 version: update.version.clone(),
                 current_version: update.current_version.clone(),
                 notes: update.body.clone(),
                 eligible: update_allowed(&state, release_date.as_deref()),
-                self_installable: can_self_install(
-                    Target::current(),
-                    appimage_path(&app).as_deref(),
-                ),
+                self_installable: format.self_installable(),
+                installed_as: format.described().to_string(),
+                update_command: format.update_command().map(str::to_string),
             }))
         }
         Ok(None) => Ok(None),
-        Err(_) => Ok(None),
+        Err(e) => Err(e.to_string()),
     }
 }
 
@@ -233,9 +245,9 @@ pub async fn fetch_site_pricing() -> Result<SitePricing, String> {
 /// errors here because the user explicitly opted in by pressing "Install".
 #[tauri::command]
 pub async fn install_update(app: AppHandle) -> Result<(), String> {
-    if !can_self_install(Target::current(), appimage_path(&app).as_deref()) {
+    if !current_format(&app).self_installable() {
         return Err(format!(
-            "Nod can't replace a .deb or .rpm install on its own. Download the new package from {SITE_URL}/downloads and install it over this one."
+            "Nod can't replace this install on its own. Download the new build from {SITE_URL}/downloads and install it over this one."
         ));
     }
     let updater = app.updater().map_err(|e| e.to_string())?;

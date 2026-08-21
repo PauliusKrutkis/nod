@@ -12,7 +12,12 @@
    The file column is 300px, but never more than 60% of what it is given:
    the desktop window has a floor of 900px so that cap never binds there,
    while below it the column would otherwise swallow the frame whole and
-   push the pane it is announcing off screen entirely. */
+   push the pane it is announcing off screen entirely.
+
+   The .qrp-file family draws diff-shaped placeholders: a header band and
+   gutter-plus-code lines in the real diff's proportions (13px mono at 1.75
+   line height), so the frame already says "a diff is coming" and the real
+   rows land without a reflow. */
 
 .qrp-root {
   position: relative;
@@ -51,9 +56,22 @@
   padding: 4px 12px;
 }
 
+.qrp-side-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  height: 30px;
+  padding: 0 8px;
+}
+
+.qrp-side-glyph {
+  flex-shrink: 0;
+  width: 11px;
+  height: 11px;
+}
+
 .qrp-side-bar {
-  height: 17px;
-  margin: 10px 8px;
+  height: 12px;
 }
 
 .qrp-main {
@@ -134,35 +152,70 @@
   overflow: hidden;
 }
 
-.qrp-body-bar {
+.qrp-file {
+  margin-bottom: 20px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+
+.qrp-file-head {
+  display: flex;
+  align-items: center;
+  height: 43px;
+  padding: 0 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.qrp-file-name {
+  max-width: 340px;
   height: 12px;
-  margin: 11px 0;
+}
+
+.qrp-file-rows {
+  padding: 6px 0;
+}
+
+.qrp-row {
+  display: flex;
+  align-items: center;
+  height: 23px;
+}
+
+.qrp-row-gutter {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  width: 42px;
+  padding-right: 12px;
+}
+
+.qrp-row-num {
+  width: 16px;
+  height: 8px;
+}
+
+.qrp-row-code {
+  height: 10px;
+  margin-left: 14px;
 }
 
 .qrp-skel {
-  background: linear-gradient(
-    90deg,
-    var(--surface-2) 25%,
-    var(--surface-hi) 50%,
-    var(--surface-2) 75%
-  );
-  background-size: 200% 100%;
-  border-radius: var(--r-md);
-  animation: qrp-shimmer 1.4s ease-in-out infinite;
+  background: var(--surface-2);
+  border-radius: var(--r-sm);
+  animation: qrp-pulse 1.8s ease-in-out infinite;
 }
 
-@keyframes qrp-shimmer {
-  from {
-    background-position: 180% 0;
-  }
-  to {
-    background-position: -20% 0;
+@keyframes qrp-pulse {
+  50% {
+    opacity: 0.55;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .qrp-skel {
-    background: var(--surface-2);
     animation: none;
   }
 }

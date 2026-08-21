@@ -36,7 +36,7 @@ const PURCHASE_STEPS = [
         {
           price.formattedLaunchPrice ? (
             <>
-              <del class="purchase__del">{price.formattedPrice}</del>{" "}
+              <del aria-hidden="true" class="purchase__del">{price.formattedPrice}</del>{" "}
               {price.formattedLaunchPrice} launch price
             </>
           ) : (
@@ -95,7 +95,20 @@ const PURCHASE_STEPS = [
   }
 
   .purchase__del {
-    color: var(--muted);
+    position: relative;
+    color: var(--faint);
+    text-decoration: none;
+  }
+
+  .purchase__del::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 55%;
+    height: 0.08em;
+    width: 100%;
+    border-radius: 1px;
+    background: var(--faint);
   }
 
   .purchase__title {

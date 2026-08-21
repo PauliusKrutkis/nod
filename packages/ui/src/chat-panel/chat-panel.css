@@ -414,6 +414,17 @@
   border-top: 1px solid var(--line);
 }
 
+/* The model popover's seat: floated above the model button at the foot's
+   insets. The placement lives here because it is this footer's geometry —
+   the picker itself is just a card. */
+.qch-model-pop {
+  position: absolute;
+  right: 18px;
+  bottom: 46px;
+  left: 18px;
+  z-index: 10;
+}
+
 /* The composer is a token field: chips and the input share one box, so a
    region you attached reads as part of the message you are writing rather
    than as a banner above it. The box owns the border and the focus ring;

@@ -106,7 +106,7 @@ const price = await resolvePricing();
           {
             price.formattedLaunchPrice ? (
               <>
-                <del class="pricing__del">{price.formattedPrice}</del>{" "}
+                <del aria-hidden="true" class="pricing__del">{price.formattedPrice}</del>{" "}
                 {price.formattedLaunchPrice}{" "}
                 <span class="pricing__term">
                   launch price · one-time · a year of updates · keeps working

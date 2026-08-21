@@ -13,9 +13,8 @@ use crate::http::{
 };
 use crate::model::{
     ChangedFile, CiCheck, CiStatus, FileBlob, GitHubUser, InboxBucket, InboxData, IssueComment,
-    LastComment,
-    PullRequest, PullRequestDetail, RepoHit, ReviewComment, ReviewCommentInput, ReviewSummary,
-    MAX_ARCHIVE_BYTES, MAX_BLOB_BYTES,
+    LastComment, PullRequest, PullRequestDetail, RepoHit, ReviewComment, ReviewCommentInput,
+    ReviewSummary, MAX_ARCHIVE_BYTES, MAX_BLOB_BYTES,
 };
 
 const API: &str = "https://api.github.com";

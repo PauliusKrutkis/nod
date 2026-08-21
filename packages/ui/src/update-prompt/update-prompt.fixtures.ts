@@ -1,10 +1,11 @@
 /**
  * Every face of the card, and every way each of them can be mid-flight:
  * offered, installing, offered-but-unlicensed, waiting on the browser and
- * failed. The two packaged fixtures are the .deb/.rpm build, which has no
- * install button at all — and its lapsed pair, where the license CTA has to
- * stay primary while the copy still admits the swap is manual. There is
- * deliberately no "downloading, 43%" fixture — the install is a single
+ * failed. The packaged fixtures are the installs Nod cannot replace itself:
+ * a detected package manager shows its one upgrade command as a copyable
+ * row, an unmanaged copy falls back to the downloads page, and the lapsed
+ * pair keeps the license CTA primary while the copy still admits the swap
+ * is manual. There is deliberately no "downloading, 43%" fixture — the install is a single
  * backend command that ends in a relaunch and reports no progress, so a
  * progress bar here would be a picture of something the app does not know.
  *
@@ -23,6 +24,7 @@ const base = {
   currentVersion: "1.3.2",
   eligible: true,
   error: null,
+  installedAs: "a macOS app bundle",
   installing: false,
   notes: null,
   onBuyLicense: noop,
@@ -32,6 +34,7 @@ const base = {
   price: "$59",
   purchasing: false,
   selfInstallable: true,
+  updateCommand: null,
   version: "1.4.0",
 };
 
@@ -57,9 +60,37 @@ export const updatePromptEntry = defineEntry(UpdatePrompt, {
     provenance:
       "caught the version chip pushing straight through the card's right edge — it had no ellipsis floor",
   },
-  packaged: { props: { ...base, selfInstallable: false } },
+  packaged: {
+    props: {
+      ...base,
+      installedAs: "an unmanaged copy",
+      selfInstallable: false,
+    },
+  },
+  "packaged-apt": {
+    props: {
+      ...base,
+      installedAs: "a Debian package",
+      selfInstallable: false,
+      updateCommand: "sudo apt upgrade nod",
+    },
+  },
+  "packaged-aur": {
+    props: {
+      ...base,
+      installedAs: "an AUR package",
+      selfInstallable: false,
+      updateCommand: "yay -Syu nod-bin",
+    },
+  },
   "packaged-ineligible": {
-    props: { ...base, eligible: false, selfInstallable: false },
+    props: {
+      ...base,
+      eligible: false,
+      installedAs: "a Debian package",
+      selfInstallable: false,
+      updateCommand: "sudo apt upgrade nod",
+    },
   },
   "ready-to-restart": { props: base },
   "with-notes": {

@@ -22,13 +22,16 @@
  * disabling it would drop focus on the floor and leave the host's Tab ring
  * dead until something else claimed it.
  *
- * The list opens on typing or on an arrow key, never merely on focus. Focus
- * lands here the moment the dialog opens, so opening with it would drop a
- * panel over the footer unasked and, worse, swallow every Enter — the host
- * reads Enter to run whichever action Tab has armed, and a list that is always
- * open would answer it first. Blur closes it, and the option rows cancel the
- * mousedown that would otherwise move focus, so a click commits without the
- * blur racing it.
+ * The list opens on typing, on an arrow key, or on a click into the field —
+ * never merely on focus. Focus lands here the moment the dialog opens, so
+ * opening with it would drop a panel over the footer unasked and, worse,
+ * swallow every Enter — the host reads Enter to run whichever action Tab has
+ * armed, and a list that is always open would answer it first. A click is a
+ * different thing: it is the reader reaching for the chevron the field wears,
+ * and arrives only by deliberate aim, so it opens the way an arrow key does
+ * (and while the list is open, clicks stay caret moves rather than a toggle).
+ * Blur closes it, and the option rows cancel the mousedown that would
+ * otherwise move focus, so a click commits without the blur racing it.
  *
  * `initialOpen` and `initialQuery` seed first paint the way command-palette
  * seeds its filter: openness and the query are this component's own state, so
@@ -176,6 +179,13 @@ export function AiModelCombobox({
     setOpen(false);
   };
 
+  const onClick = () => {
+    if (!open) {
+      setSel(0);
+      setOpen(true);
+    }
+  };
+
   return (
     <div className="qmc">
       <div className="qmc-field">
@@ -191,6 +201,7 @@ export function AiModelCombobox({
           className="qmc-input"
           onBlur={onBlur}
           onChange={onChange}
+          onClick={onClick}
           onKeyDown={onKeyDown}
           placeholder={loading ? "Loading models…" : "Search or paste a model"}
           ref={ref}

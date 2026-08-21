@@ -7,13 +7,19 @@
  *
  * Every face renders through UpdateCard, which owns the chrome, the version,
  * the release notes, the error line and "Later", so the card has one shape to
- * change. The packaged face — `selfInstallable` false, a build that cannot
- * put a release in place itself, today a Linux .deb or .rpm — wins over both
- * others, because no license or restart makes that install possible and the
- * swap is manual. Its install button is gone rather than disabled: pressing
- * it could only fail, and a dead control invites the press. Outside the
- * update window the license CTA stays primary even there, since entitlement
- * is the blocker to clear first and the downloads page is no use before it.
+ * change. The packaged faces — `selfInstallable` false, a build that cannot
+ * put a release in place itself — win over both others, because no license or
+ * restart makes that install possible and the swap is manual. Their install
+ * button is gone rather than disabled: pressing it could only fail, and a
+ * dead control invites the press. When the host detected a package manager it
+ * passes `updateCommand`, and the face shows that one command as a
+ * click-to-copy row — copyable, never a button that runs it: executing a
+ * privileged package command is a far larger promise than this app makes
+ * anywhere else, and the obstacle was never the typing, it was not knowing
+ * which command. Without a command the face falls back to the downloads
+ * page. Outside the update window the license CTA stays primary even there,
+ * since entitlement is the blocker to clear first and neither the command
+ * nor the downloads page is any use before it.
  *
  * Whether a release is eligible, and whether this card should defer to the
  * purchase card entirely, are the host's calls — by the time props arrive the
@@ -24,16 +30,59 @@
  * would only hide what is about to happen.
  */
 import {
+  Check,
+  Copy,
   Download,
   ExternalLink,
   KeyRound,
   Package,
   RefreshCw,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Button } from "../button/button.tsx";
+import { cn } from "../cn/cn.ts";
 import "../notice-card/notice-card.css";
 import "./update-prompt.css";
+
+function CopyCommand({ command }: { command: string }) {
+  const [copied, setCopied] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    },
+    []
+  );
+
+  const onCopy = () => {
+    navigator.clipboard?.writeText(command).catch(() => undefined);
+    setCopied(true);
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+    timerRef.current = setTimeout(() => setCopied(false), 1200);
+  };
+
+  return (
+    <button
+      className={cn("qb-update-cmd", copied && "qb-update-cmd-copied")}
+      onClick={onCopy}
+      type="button"
+    >
+      <span className="q-mono qb-update-cmd-text">{command}</span>
+      <span className="qb-update-cmd-hint">
+        {copied ? (
+          <Check aria-hidden size={12} />
+        ) : (
+          <Copy aria-hidden size={12} />
+        )}
+        {copied ? "Copied" : "Copy"}
+      </span>
+    </button>
+  );
+}
 
 function UpdateCard({
   busy,
@@ -87,6 +136,7 @@ export function UpdatePrompt({
   currentVersion,
   eligible,
   error,
+  installedAs,
   installing,
   notes,
   onBuyLicense,
@@ -96,11 +146,13 @@ export function UpdatePrompt({
   price,
   purchasing,
   selfInstallable,
+  updateCommand,
   version,
 }: {
   currentVersion: string;
   eligible: boolean;
   error: string | null;
+  installedAs: string;
   installing: boolean;
   notes: string | null;
   onBuyLicense: () => void;
@@ -110,6 +162,7 @@ export function UpdatePrompt({
   price: string;
   purchasing: boolean;
   selfInstallable: boolean;
+  updateCommand: string | null;
   version: string;
 }) {
   const card = { busy: installing, error, notes, onDismiss, version };
@@ -126,6 +179,21 @@ export function UpdatePrompt({
   );
 
   if (!selfInstallable) {
+    if (eligible && updateCommand) {
+      return (
+        <UpdateCard
+          {...card}
+          icon={<Package aria-hidden size={16} />}
+          primary={null}
+        >
+          <p className="qb-update-text">
+            You're on {currentVersion}, installed as {installedAs}. Run this to
+            update:
+          </p>
+          <CopyCommand command={updateCommand} />
+        </UpdateCard>
+      );
+    }
     if (eligible) {
       return (
         <UpdateCard
@@ -143,8 +211,9 @@ export function UpdatePrompt({
           }
         >
           <p className="qb-update-text">
-            You're on {currentVersion}. Nod can't replace a .deb or .rpm install
-            on its own. Download the new package and install it over this one.
+            You're on {currentVersion}, installed as {installedAs}. Nod can't
+            replace this install on its own. Download the new build and install
+            it over this one.
           </p>
         </UpdateCard>
       );
@@ -156,9 +225,9 @@ export function UpdatePrompt({
         primary={licenseButton}
       >
         <p className="qb-update-text">
-          {version} is outside your update window, and Nod can't replace a .deb
-          or .rpm install on its own. A license unlocks another year of updates.
-          The package itself comes from the downloads page.
+          {version} is outside your update window, and Nod can't replace this
+          install on its own. A license unlocks another year of updates. The
+          build itself comes from your package manager or the downloads page.
         </p>
       </UpdateCard>
     );
