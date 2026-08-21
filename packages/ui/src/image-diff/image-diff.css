@@ -3,7 +3,14 @@
    the app's surface. Panes shrink below their content (min-width: 0) and the
    failure line wraps anywhere, because the strings that land in it are host
    error messages — long, unbreakable, and otherwise able to push their own
-   frame open. */
+   frame open.
+
+   The image itself is bounded by `max-width` and `max-height` alone, and the
+   `auto` pair above them is load-bearing: the pane writes the measured pixel
+   size onto the element as `width` and `height`, and against a fixed box each
+   limit clamps its own axis, so a 498×914 screenshot would keep all 498px of
+   its width while its height was cut to 480 and render flattened. Auto on
+   both axes lets the two limits resolve against the image's real ratio. */
 
 .qf-imgdiff {
   display: flex;
@@ -74,6 +81,8 @@
 }
 
 .qf-img-frame img {
+  width: auto;
+  height: auto;
   max-width: 100%;
   max-height: 480px;
   border-radius: var(--r-sm);
