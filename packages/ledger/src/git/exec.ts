@@ -7,7 +7,14 @@ const MAX_BUFFER = 64 * 1024 * 1024;
 
 export type GitRun = (
   args: readonly string[],
-  options?: { input?: string }
+  options?: {
+    input?: string;
+    /**
+     * "latin1" gives a byte-exact string (one char per byte) for output that
+     * must be sliced by byte counts, e.g. `cat-file --batch` headers.
+     */
+    encoding?: "utf8" | "latin1";
+  }
 ) => Promise<string>;
 
 /**
@@ -20,6 +27,7 @@ export const gitIn =
   async (args, options) => {
     const pending = execFileAsync("git", [...args], {
       cwd: repoDir,
+      encoding: options?.encoding ?? "utf8",
       maxBuffer: MAX_BUFFER,
       env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
     });

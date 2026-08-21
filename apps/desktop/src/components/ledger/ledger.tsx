@@ -34,7 +34,11 @@ import {
 } from "../../lib/ledger-session.ts";
 import { queryKeys } from "../../lib/query-client.ts";
 import { useAppStore } from "../../store/app-store.ts";
-import type { LedgerQueueItem } from "../../types.ts";
+import type {
+  LedgerQueueItem,
+  LedgerTopicApproval,
+  LedgerTopicStatus,
+} from "../../types.ts";
 import { LedgerSession } from "./ledger-session.tsx";
 
 const PATHS_KEY = "nod:repoPaths:v1";
@@ -133,6 +137,17 @@ export function Ledger() {
   });
   const queue = status.data?.queue ?? [];
   const { groups } = groupQueueByProvenance(queue);
+  const topics = status.data?.topics ?? [];
+  const openTopics = new Set(groups.map((g) => g.key));
+  const finished = topics.filter(
+    (t) =>
+      !openTopics.has(t.id) &&
+      (t.approvedAt !== null ||
+        (t.totalLines > 0 && t.reviewedLines >= t.totalLines))
+  );
+  const approvalOf = new Map(
+    topics.filter((t) => t.approvedAt !== null).map((t) => [t.id, t.approvedAt])
+  );
 
   const activeCount = view.kind === "queue" ? groups.length : repos.length;
 
@@ -308,7 +323,9 @@ export function Ledger() {
       </header>
 
       <QueueBody
+        approvalOf={approvalOf}
         error={status.error}
+        finished={finished}
         groups={groups}
         listRef={listRef}
         onOpen={openSession}
@@ -431,7 +448,9 @@ function PickerRow({
 }
 
 function QueueBody({
+  approvalOf,
   error,
+  finished,
   groups,
   listRef,
   onOpen,
@@ -439,7 +458,9 @@ function QueueBody({
   pending,
   selected,
 }: {
+  approvalOf: ReadonlyMap<string, LedgerTopicApproval | null>;
   error: unknown;
+  finished: LedgerTopicStatus[];
   groups: ProvenanceGroup[];
   listRef: React.RefObject<HTMLDivElement | null>;
   onOpen: (index: number) => void;
@@ -463,42 +484,79 @@ function QueueBody({
   }
   if (groups.length === 0) {
     return (
-      <div className="min-h-0 flex-1">
-        <InboxZero
-          hint="Every post-epoch line on tip carries a review."
-          title="Queue is empty"
-        />
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex-1">
+          <InboxZero
+            hint="Every post-epoch line on tip carries a review."
+            title="Queue is empty"
+          />
+        </div>
+        <FinishedStrip finished={finished} />
       </div>
     );
   }
   return (
-    <div
-      aria-label="Review sessions"
-      className="min-h-0 flex-1 overflow-y-auto py-2"
-      ref={listRef}
-      role="listbox"
-    >
-      {groups.map((group, i) => (
-        <GroupRow
-          group={group}
-          index={i}
-          key={group.key}
-          onOpen={onOpen}
-          onSelect={onSelect}
-          selected={i === selected}
-        />
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div
+        aria-label="Review sessions"
+        className="min-h-0 flex-1 overflow-y-auto py-2"
+        ref={listRef}
+        role="listbox"
+      >
+        {groups.map((group, i) => (
+          <GroupRow
+            approval={approvalOf.get(group.key) ?? null}
+            group={group}
+            index={i}
+            key={group.key}
+            onOpen={onOpen}
+            onSelect={onSelect}
+            selected={i === selected}
+          />
+        ))}
+      </div>
+      <FinishedStrip finished={finished} />
+    </div>
+  );
+}
+
+/**
+ * The topics with nothing left to read: approved, or region-signed to 100%.
+ * Presence matters more than detail — this is the ratchet made visible, the
+ * pile that grows as sessions close and shrinks when new commits reopen one.
+ */
+function FinishedStrip({ finished }: { finished: LedgerTopicStatus[] }) {
+  if (finished.length === 0) {
+    return null;
+  }
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-line border-t px-6 py-2 text-xs">
+      <span className="text-faint">signed off ({finished.length})</span>
+      {finished.map((topic) => (
+        <span className="text-muted" key={topic.id} title={topicTitle(topic)}>
+          {topic.id}
+        </span>
       ))}
     </div>
   );
 }
 
+function topicTitle(topic: LedgerTopicStatus): string {
+  const lines = `${topic.reviewedLines}/${topic.totalLines} lines`;
+  return topic.approvedAt
+    ? `approved by ${topic.approvedAt.actor.id} at ${shortSha(topic.approvedAt.sha)} · ${lines}`
+    : `every region signed · ${lines}`;
+}
+
 function GroupRow({
+  approval,
   group,
   index,
   onOpen,
   onSelect,
   selected,
 }: {
+  approval: LedgerTopicApproval | null;
   group: ProvenanceGroup;
   index: number;
   onOpen: (index: number) => void;
@@ -526,6 +584,14 @@ function GroupRow({
       type="button"
     >
       <span className="shrink-0 font-medium text-fg">{group.label}</span>
+      {approval !== null && (
+        <span
+          className="shrink-0 text-warning text-xs"
+          title={`approved by ${approval.actor.id}; these lines changed since`}
+        >
+          Δ since {shortSha(approval.sha)}
+        </span>
+      )}
       <span className="shrink-0 text-faint text-xs tabular-nums">
         {group.items.length} region{group.items.length === 1 ? "" : "s"} ·{" "}
         {group.fileCount} file{group.fileCount === 1 ? "" : "s"} ·{" "}

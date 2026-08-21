@@ -21,6 +21,13 @@
  * as DiffRow's `dimmed` boolean rather than a wrapper element, so the mode
  * costs no extra DOM in a virtualized list and stays a primitive prop the
  * memoization boundary above can compare.
+ *
+ * `capabilities` names which host affordances this surface offers, all
+ * defaulting on; absence means noop, never disabled chrome. The ledger
+ * session renders the same list without forge-blob expansion or staging —
+ * stage: false collapses the composer to a single post-now "Comment",
+ * because a batched review is a forge concept and a ledger comment is a
+ * fact that posts immediately.
  */
 
 import { AddCommentBox } from "@nod/ui/add-comment-box";
@@ -177,12 +184,12 @@ interface ReviewListProps {
   replyPending: boolean;
   baseSha: string;
   callbacks: ReviewListCallbacks;
-  /**
-   * Which host affordances this surface offers; all default on. The ledger
-   * session renders the same list without comments, forge-blob expansion,
-   * or viewed state — noop by absence, never by disabled chrome.
-   */
-  capabilities?: { comment?: boolean; expand?: boolean; viewed?: boolean };
+  capabilities?: {
+    comment?: boolean;
+    expand?: boolean;
+    stage?: boolean;
+    viewed?: boolean;
+  };
   changedSinceViewed: ReadonlySet<string>;
   copiedPathIndex: number | null;
   cursorKey: string | null;
@@ -581,6 +588,7 @@ function CommentAddBox({
   addPending,
   callbacks,
   askDraft,
+  stage,
 }: {
   item: ReviewCommentsItem;
   filename: string;
@@ -588,6 +596,7 @@ function CommentAddBox({
   addPending: boolean;
   callbacks: ReviewListCallbacks;
   askDraft: ReviewListProps["askDraft"];
+  stage: boolean;
 }) {
   const handleCancel = () => {
     callbacks.onCloseBox(item.fileIndex, item.anchor);
@@ -605,6 +614,10 @@ function CommentAddBox({
   };
 
   const handleSubmit = (body: string) => {
+    if (!stage) {
+      handleSecondary(body);
+      return;
+    }
     callbacks.onAddPending({
       body,
       line: target.line,
@@ -632,12 +645,12 @@ function CommentAddBox({
       extensions={[suggestionHighlight(filename), ...aiCompletion]}
       initialMarkdown={draftText}
       onCancel={handleCancel}
-      onSecondary={handleSecondary}
+      onSecondary={stage ? handleSecondary : undefined}
       onSubmit={handleSubmit}
       pending={addPending}
       placeholder="Add a review comment…"
       secondaryLabel="Comment now"
-      submitLabel="Add to review"
+      submitLabel={stage ? "Add to review" : "Comment"}
       suggestionText={
         target.side === "RIGHT"
           ? (item.rangeContent ?? item.rowContent ?? undefined)
@@ -661,6 +674,7 @@ function CommentsBlock({
   owner,
   repo,
   askDraft,
+  stage,
 }: {
   editingPending: string | null;
   item: ReviewCommentsItem;
@@ -675,6 +689,7 @@ function CommentsBlock({
   owner: string;
   repo: string;
   askDraft: ReviewListProps["askDraft"];
+  stage: boolean;
 }) {
   const activeAccount = useAppStore((s) =>
     s.accounts.find((a) => a.id === s.activeAccountId)
@@ -730,6 +745,7 @@ function CommentsBlock({
               callbacks={callbacks}
               filename={filename}
               item={item}
+              stage={stage}
               target={target}
             />
           </div>
@@ -906,6 +922,7 @@ function renderCommentsItem(
           : null
       }
       repo={p.repo}
+      stage={p.capabilities?.stage ?? true}
       toggleRequest={
         p.toggleRequest && p.toggleRequest.path === file.filename
           ? p.toggleRequest

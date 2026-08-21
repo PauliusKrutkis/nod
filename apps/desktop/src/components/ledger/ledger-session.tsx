@@ -1,10 +1,12 @@
 /**
  * A ledger session (docs/LEDGER.md §6 screen 2): one provenance group's
  * queued files rendered through the same diff surface as a PR review — the
- * session *is* the net diff since the last signature. PR-only affordances
- * are absent via the list's `capabilities` seam (no comments, no forge blob
- * expansion, no viewed state); the only verb here is `r`, which signs the
- * region under the cursor and shrinks the session.
+ * session *is* the net diff since the last signature. Forge-only affordances
+ * are absent via the list's `capabilities` seam (no blob expansion, no
+ * staging); the verbs are `r` (sign the region under the cursor), `c`
+ * (start a comment thread — a fact, posted immediately), `v`/`a` (viewed /
+ * approve). Threads render inline exactly like PR comments, positioned by
+ * their anchors on tip.
  *
  * The container owns the same cursor slice the review screen keeps —
  * mover refs, input mode, flash — because the surface underneath is the
@@ -31,6 +33,7 @@ import { cn } from "../../lib/cn.ts";
 import type { DiffRow } from "../../lib/diff.ts";
 import {
   initialAnchorFor,
+  ledgerCommentsToReview,
   regionAtCursor,
   sessionToChangedFiles,
 } from "../../lib/ledger-session.ts";
@@ -44,7 +47,7 @@ import {
 } from "../../lib/review-items.ts";
 import { fingerprintFile } from "../../lib/viewed-fingerprint.ts";
 import { useAppStore } from "../../store/app-store.ts";
-import type { PendingComment, ReviewComment } from "../../types.ts";
+import type { PendingComment } from "../../types.ts";
 import { FileSidebarLoader } from "../review/file-sidebar-loader.tsx";
 import { ReviewDiffPane } from "../review/review-diff-pane.tsx";
 import type {
@@ -52,17 +55,19 @@ import type {
   ReviewListHandle,
 } from "../review/review-list.tsx";
 
-const EMPTY_COMMENTS: ReadonlyMap<string, ReviewComment[]> = new Map();
 const EMPTY_PENDING: ReadonlyMap<string, PendingComment[]> = new Map();
-const EMPTY_BOXES: ReadonlyMap<string, number | null> = new Map();
 const EMPTY_ROWS: ReadonlyMap<number, readonly DiffRow[]> = new Map();
 const EMPTY_SET: ReadonlySet<string> = new Set();
-const EMPTY_COMMENT_LIST: ReviewComment[] = [];
 const EMPTY_PENDING_LIST: PendingComment[] = [];
 const EMPTY_OCC: never[] = [];
-const CAPABILITIES = { comment: false, expand: false, viewed: true };
+const CAPABILITIES = {
+  comment: true,
+  expand: false,
+  stage: false,
+  viewed: true,
+};
 const notImage = () => false;
-/** The session offers no comment/viewed affordances; their callbacks are inert. */
+/** Pending/staging affordances stay inert — facts post now or not at all. */
 const noop = () => undefined;
 const asyncNoop = () => Promise.resolve();
 
@@ -117,6 +122,14 @@ export function LedgerSession({
     () => sessionToChangedFiles(sessionFiles, tip),
     [sessionFiles, tip]
   );
+  const threadMaps = useMemo(
+    () => ledgerCommentsToReview(session.data?.comments ?? []),
+    [session.data]
+  );
+  const commentList = useMemo(
+    () => [...threadMaps.byFile.values()].flat(),
+    [threadMaps]
+  );
 
   // A file counts as viewed only while its content fingerprint still
   // matches — a new tip that changed the patch clears the mark, so the
@@ -141,6 +154,9 @@ export function LedgerSession({
   const [collapsed, setCollapsed] = useState<
     ReadonlyMap<number, ReadonlySet<number>>
   >(new Map());
+  const [openBoxes, setOpenBoxes] = useState<
+    ReadonlyMap<string, number | null>
+  >(new Map());
 
   const listRef = useRef<ReviewListHandle | null>(null);
   const cursorRef = useRef<CursorPos | null>(null);
@@ -158,14 +174,14 @@ export function LedgerSession({
       buildReviewItems({
         ask: null,
         collapsed,
-        commentsByFile: EMPTY_COMMENTS,
+        commentsByFile: threadMaps.byFile,
         expandedRows: EMPTY_ROWS,
         files,
         isImage: notImage,
-        openBoxes: EMPTY_BOXES,
+        openBoxes,
         pendingByFile: EMPTY_PENDING,
       }),
-    [collapsed, files]
+    [collapsed, files, openBoxes, threadMaps]
   );
   const modelRef = useLatest(model);
   const filesRef = useLatest(files);
@@ -258,6 +274,16 @@ export function LedgerSession({
     }
   };
 
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.ledger(repoPath),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["ledger-session", repoPath],
+      }),
+    ]);
+
   const approve = async () => {
     if (!allViewed || approving || signing) {
       return;
@@ -265,14 +291,7 @@ export function LedgerSession({
     setApproving(true);
     try {
       await api.ledgerApprove(repoPath, group.label);
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.ledger(repoPath),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ["ledger-session", repoPath],
-        }),
-      ]);
+      await refresh();
       setToast({
         message: `${group.label} at ${shortSha(tip)}`,
         title: "Topic approved",
@@ -291,14 +310,7 @@ export function LedgerSession({
     setSigning(true);
     try {
       await api.ledgerReview(repoPath, current.target);
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.ledger(repoPath),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ["ledger-session", repoPath],
-        }),
-      ]);
+      await refresh();
       setToast({ message: current.target, title: "Region signed" });
       onSigned(current.target);
     } catch (e) {
@@ -328,11 +340,41 @@ export function LedgerSession({
     }
   };
 
+  const openBoxAt = (fileIndex: number, anchor: string, startLine?: number) => {
+    setOpenBoxes((cur) =>
+      new Map(cur).set(fileAnchorKey(fileIndex, anchor), startLine ?? null)
+    );
+  };
+
   const callbacks: ReviewListCallbacks = {
-    onAddComment: asyncNoop,
+    onAddComment: async ({ path, line, side, body, startLine }) => {
+      if (side !== "RIGHT") {
+        setToast({
+          message: "Only code on tip can carry a thread.",
+          title: "Cannot comment here",
+        });
+        return;
+      }
+      try {
+        await api.ledgerComment(
+          repoPath,
+          `${path}:${startLine ?? line}-${line}`,
+          body
+        );
+        await refresh();
+      } catch (e) {
+        setToast({ message: String(e), title: "Comment failed" });
+      }
+    },
     onAddPending: noop,
     onPostPendingNow: asyncNoop,
-    onCloseBox: noop,
+    onCloseBox: (fileIndex, anchor) => {
+      setOpenBoxes((cur) => {
+        const next = new Map(cur);
+        next.delete(fileAnchorKey(fileIndex, anchor));
+        return next;
+      });
+    },
     onEditPending: noop,
     onPendingHover: noop,
     onUpdatePending: noop,
@@ -356,13 +398,38 @@ export function LedgerSession({
     onMouseMove: (x, y) => {
       isRealPointer(x, y, keyboardHoldRef, lastPointRef);
     },
-    onOpenBox: noop,
+    onOpenBox: openBoxAt,
     onPlusDragEnd: noop,
     onPlusDragOver: noop,
     onPlusDragStart: noop,
     onRemovePending: noop,
-    onReply: asyncNoop,
-    onResolveThread: noop,
+    onReply: async ({ inReplyTo, body }) => {
+      const parent = threadMaps.factIdOf.get(inReplyTo);
+      if (!parent) {
+        return;
+      }
+      try {
+        await api.ledgerComment(repoPath, "", body, parent);
+        await refresh();
+      } catch (e) {
+        setToast({ message: String(e), title: "Reply failed" });
+      }
+    },
+    onResolveThread: ({ threadId, resolved }) => {
+      if (!resolved) {
+        setToast({
+          message: "The fact log is append-only; resolution stands.",
+          title: "Cannot unresolve",
+        });
+        return;
+      }
+      api
+        .ledgerResolve(repoPath, threadId)
+        .then(refresh)
+        .catch((e) =>
+          setToast({ message: String(e), title: "Resolve failed" })
+        );
+    },
     onRowEnter: (fileIndex, anchor, x, y) => {
       if (!isRealPointer(x, y, keyboardHoldRef, lastPointRef)) {
         return;
@@ -438,6 +505,16 @@ export function LedgerSession({
       group: "Session",
       keys: "r",
       run: sign,
+    },
+    {
+      description: "Comment on the line under cursor",
+      group: "Session",
+      keys: "c",
+      run: () => {
+        if (cursor) {
+          openBoxAt(cursor.fileIndex, cursor.anchor);
+        }
+      },
     },
     {
       description: "Toggle file viewed",
@@ -582,7 +659,7 @@ export function LedgerSession({
           >
             <FileSidebarLoader
               changed={EMPTY_SET}
-              comments={EMPTY_COMMENT_LIST}
+              comments={commentList}
               files={files}
               onSelect={jumpToFile}
               pending={EMPTY_PENDING_LIST}
@@ -603,6 +680,9 @@ export function LedgerSession({
           {current
             ? `${current.target} · ${current.region.endLine - current.region.startLine + 1} lines`
             : ""}
+        </span>
+        <span>
+          <Kbd combo="c" /> comment
         </span>
         <span>
           <Kbd combo="v" /> viewed ({viewedSet.size}/{files.length})

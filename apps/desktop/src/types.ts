@@ -24,6 +24,13 @@
  * CiStatus.checks is optional because details cached by an older version
  * predate the per-check breakdown; an absent list reads the same as an empty
  * one, which is a host that reports only a rollup.
+ * LedgerComment positions a comment-thread fact on tip via its anchor:
+ * alive sits where the discussed content lives now, stale on its nearest
+ * surviving lines, gone (a null span) means the content was rewritten away.
+ * Replies carry the root fact's id in parent and inherit its position;
+ * resolved is derived from a standing resolution fact, roots only.
+ * LedgerSession.comments carries every thread positioned in one of the
+ * session's files.
  */
 
 export interface GitHubUser {
@@ -435,13 +442,13 @@ export interface LedgerQueueItem {
   topic: string;
 }
 
-interface LedgerTopicApproval {
+export interface LedgerTopicApproval {
   actor: LedgerActor;
   atTime: string;
   sha: string;
 }
 
-interface LedgerTopicStatus {
+export interface LedgerTopicStatus {
   /** Distinct human actors with a resolvable approval. */
   approvals: number;
   /** Null until the threshold is met. */
@@ -452,7 +459,22 @@ interface LedgerTopicStatus {
   totalLines: number;
 }
 
+export interface LedgerComment {
+  actor: { id: string; kind: "agent" | "human" };
+  anchorStatus: "alive" | "gone" | "stale";
+  atSha: string;
+  atTime: string;
+  body: string;
+  endLine: number | null;
+  id: string;
+  parent: string | null;
+  path: string;
+  resolved: boolean;
+  startLine: number | null;
+}
+
 export interface LedgerStatus {
+  comments: LedgerComment[];
   coverage: number;
   epoch: string;
   queue: LedgerQueueItem[];
@@ -481,6 +503,7 @@ export interface LedgerSessionFile {
 }
 
 export interface LedgerSession {
+  comments: LedgerComment[];
   sessions: LedgerSessionFile[];
   tip: string;
 }

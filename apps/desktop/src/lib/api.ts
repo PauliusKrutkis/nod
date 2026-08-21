@@ -163,6 +163,20 @@ export const api = {
 
   ledgerApprove: (repoPath: string, topic: string) =>
     invoke<void>("ledger_approve", { repoPath, topic }),
+  ledgerComment: (
+    repoPath: string,
+    target: string,
+    body: string,
+    parent?: string
+  ) =>
+    invoke<void>("ledger_comment", {
+      body,
+      parent: parent ?? null,
+      repoPath,
+      target,
+    }),
+  ledgerResolve: (repoPath: string, factId: string) =>
+    invoke<void>("ledger_resolve", { factId, repoPath }),
   ledgerReview: (repoPath: string, target: string) =>
     invoke<void>("ledger_review", { repoPath, target }),
   ledgerSession: (repoPath: string, targets: string[]) =>

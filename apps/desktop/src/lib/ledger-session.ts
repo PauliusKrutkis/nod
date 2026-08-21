@@ -10,9 +10,11 @@
  */
 import type {
   ChangedFile,
+  LedgerComment,
   LedgerQueueItem,
   LedgerSessionFile,
   LedgerSessionRegion,
+  ReviewComment,
 } from "../types.ts";
 import { parsePatch } from "./diff.ts";
 import type { CursorPos } from "./review-cursor.ts";
@@ -48,6 +50,49 @@ export function sessionToChangedFiles(
       status: "modified",
     };
   });
+}
+
+/**
+ * The list keys threads by numeric comment id, ledger facts by content hash.
+ * The first 13 hex chars (52 bits) stay inside Number's safe range and are
+ * as collision-proof as short shas; `factIdOf` translates back when a
+ * callback hands the numeric id to a ledger command.
+ */
+const numericId = (factId: string): number =>
+  Number.parseInt(factId.slice(0, 13), 16);
+
+export function ledgerCommentsToReview(comments: readonly LedgerComment[]): {
+  byFile: Map<string, ReviewComment[]>;
+  factIdOf: Map<number, string>;
+} {
+  const byFile = new Map<string, ReviewComment[]>();
+  const factIdOf = new Map<number, string>();
+  for (const comment of comments) {
+    const id = numericId(comment.id);
+    factIdOf.set(id, comment.id);
+    const stale =
+      comment.anchorStatus === "stale"
+        ? "\n\n*Commented on a previous version of this code.*"
+        : "";
+    const list = byFile.get(comment.path) ?? [];
+    byFile.set(comment.path, list);
+    list.push({
+      body: `${comment.body}${stale}`,
+      createdAt: comment.atTime,
+      diffHunk: "",
+      id,
+      inReplyToId: comment.parent === null ? null : numericId(comment.parent),
+      line: comment.endLine,
+      originalLine: comment.endLine,
+      path: comment.path,
+      resolved: comment.resolved,
+      side: "RIGHT",
+      threadId: comment.parent ?? comment.id,
+      user: comment.actor.id,
+      userAvatarUrl: "",
+    });
+  }
+  return { byFile, factIdOf };
 }
 
 const ANCHOR_LINE = /^(LEFT|RIGHT):(\d+)$/;

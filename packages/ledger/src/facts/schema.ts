@@ -18,6 +18,10 @@ export const VERDICTS = [
   "flagged",
   "assigned",
   "corrected",
+  /** A remark on a subject; `body` carries the text, `parent` threads. */
+  "commented",
+  /** Closes the thread rooted at `parent` (docs/LEDGER.md §15). */
+  "resolved",
 ] as const;
 
 export type Verdict = (typeof VERDICTS)[number];
