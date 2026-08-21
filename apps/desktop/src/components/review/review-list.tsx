@@ -21,6 +21,13 @@
  * as DiffRow's `dimmed` boolean rather than a wrapper element, so the mode
  * costs no extra DOM in a virtualized list and stays a primitive prop the
  * memoization boundary above can compare.
+ *
+ * `capabilities` names which host affordances this surface offers, all
+ * defaulting on; absence means noop, never disabled chrome. The ledger
+ * session renders the same list without forge-blob expansion or staging —
+ * stage: false collapses the composer to a single post-now "Comment",
+ * because a batched review is a forge concept and a ledger comment is a
+ * fact that posts immediately.
  */
 
 import { AddCommentBox } from "@nod/ui/add-comment-box";
@@ -177,13 +184,6 @@ interface ReviewListProps {
   replyPending: boolean;
   baseSha: string;
   callbacks: ReviewListCallbacks;
-  /**
-   * Which host affordances this surface offers; all default on. The ledger
-   * session renders the same list without forge-blob expansion or staging —
-   * `stage: false` collapses the composer to a single post-now action, since
-   * a batched "review" is a forge concept — noop by absence, never by
-   * disabled chrome.
-   */
   capabilities?: {
     comment?: boolean;
     expand?: boolean;

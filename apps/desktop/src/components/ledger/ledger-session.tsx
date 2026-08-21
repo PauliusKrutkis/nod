@@ -60,11 +60,6 @@ const EMPTY_ROWS: ReadonlyMap<number, readonly DiffRow[]> = new Map();
 const EMPTY_SET: ReadonlySet<string> = new Set();
 const EMPTY_PENDING_LIST: PendingComment[] = [];
 const EMPTY_OCC: never[] = [];
-/**
- * Comments are live — they post ledger facts immediately, so staging (a
- * forge-review concept) is off and the composer's one action is "Comment".
- * Forge blob expansion stays absent; there is no forge.
- */
 const CAPABILITIES = {
   comment: true,
   expand: false,

@@ -48,12 +48,43 @@ export const commentOnRegion = async (
   return id;
 };
 
-const rootFact = async (git: GitRun, id: string): Promise<Fact | null> => {
+interface ThreadRoot {
+  id: string;
+  fact: Fact;
+  facts: Fact[];
+}
+
+/**
+ * The thread root for `id`: the fact itself, or — when `id` names a reply —
+ * the root it hangs from. Derivation surfaces replies only directly under
+ * their root, so anything appended deeper would be a permanently invisible
+ * fact; re-rooting here makes reply/resolve safe to call with any fact id in
+ * the thread.
+ */
+const threadRoot = async (
+  git: GitRun,
+  id: string
+): Promise<ThreadRoot | null> => {
   const facts = await readFacts(git);
-  return facts.find((fact) => factId(fact) === id) ?? null;
+  const byId = new Map(facts.map((fact) => [factId(fact), fact]));
+  const seen = new Set<string>();
+  let rootId = id;
+  let fact = byId.get(rootId);
+  while (fact?.parent !== undefined && byId.has(fact.parent)) {
+    if (seen.has(rootId)) {
+      return null;
+    }
+    seen.add(rootId);
+    rootId = fact.parent;
+    fact = byId.get(rootId);
+  }
+  if (fact?.verdict !== "commented") {
+    return null;
+  }
+  return { fact, facts, id: rootId };
 };
 
-/** Append a reply into the thread rooted at `parent`; returns the fact id. */
+/** Append a reply into the thread holding `parent`; returns the fact id. */
 export const replyToComment = async (
   git: GitRun,
   tip: string,
@@ -62,25 +93,30 @@ export const replyToComment = async (
   atTime: string,
   body: string
 ): Promise<string | null> => {
-  const root = await rootFact(git, parent);
-  if (root?.verdict !== "commented") {
+  const root = await threadRoot(git, parent);
+  if (!root) {
     return null;
   }
   const fact: Fact = {
     v: 1,
     actor,
-    subject: root.subject,
+    subject: root.fact.subject,
     verdict: "commented",
     atSha: tip,
     atTime,
     body,
-    parent,
+    parent: root.id,
   };
   const [id] = await appendFacts(git, [fact]);
   return id;
 };
 
-/** Mark the thread rooted at `parent` resolved; returns the fact id. */
+/**
+ * Mark the thread holding `parent` resolved; returns the fact id. Idempotent:
+ * an already-resolved thread returns the standing resolution instead of
+ * appending a duplicate — resolve fires from a single keystroke, and the
+ * store never forgets.
+ */
 export const resolveComment = async (
   git: GitRun,
   tip: string,
@@ -88,18 +124,24 @@ export const resolveComment = async (
   actor: Actor,
   atTime: string
 ): Promise<string | null> => {
-  const root = await rootFact(git, parent);
-  if (root?.verdict !== "commented") {
+  const root = await threadRoot(git, parent);
+  if (!root) {
     return null;
+  }
+  const standing = root.facts.find(
+    (fact) => fact.verdict === "resolved" && fact.parent === root.id
+  );
+  if (standing) {
+    return factId(standing);
   }
   const fact: Fact = {
     v: 1,
     actor,
-    subject: root.subject,
+    subject: root.fact.subject,
     verdict: "resolved",
     atSha: tip,
     atTime,
-    parent,
+    parent: root.id,
   };
   const [id] = await appendFacts(git, [fact]);
   return id;

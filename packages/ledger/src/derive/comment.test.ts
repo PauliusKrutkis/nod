@@ -197,4 +197,55 @@ describe("comment facts", () => {
     );
     expect(missing).toBeNull();
   });
+
+  it("re-roots replies and resolutions aimed at a reply", async () => {
+    const { repo, epoch, tip } = await setup();
+    const root = await commentOnRegion(
+      repo.git,
+      tip,
+      { path: "src/debt.ts", startLine: 1, endLine: 1 },
+      ACTOR,
+      T0,
+      "root remark"
+    );
+    if (!root) {
+      throw new Error("root comment did not anchor");
+    }
+    const reply = await replyToComment(repo.git, tip, root, REPLIER, T1, "one");
+    if (!reply) {
+      throw new Error("reply was refused");
+    }
+    const nested = await replyToComment(repo.git, tip, reply, ACTOR, T2, "two");
+    await resolveComment(repo.git, tip, reply, ACTOR, T2);
+
+    const status = await deriveStatus(repo.git, { epoch });
+    const thread = status.comments.filter(
+      (c) => c.id === root || c.parent === root
+    );
+    expect(thread.map((c) => c.body)).toEqual(["root remark", "one", "two"]);
+    expect(thread.find((c) => c.id === nested)?.parent).toBe(root);
+    expect(thread[0].resolved).toBe(true);
+  });
+
+  it("resolving twice keeps a single resolution fact", async () => {
+    const { repo, epoch, tip } = await setup();
+    const root = await commentOnRegion(
+      repo.git,
+      tip,
+      { path: "src/debt.ts", startLine: 1, endLine: 1 },
+      ACTOR,
+      T0,
+      "resolve me"
+    );
+    if (!root) {
+      throw new Error("root comment did not anchor");
+    }
+    const first = await resolveComment(repo.git, tip, root, ACTOR, T1);
+    const second = await resolveComment(repo.git, tip, root, REPLIER, T2);
+    expect(second).toBe(first);
+
+    const status = await deriveStatus(repo.git, { epoch });
+    expect(status.comments).toHaveLength(1);
+    expect(status.comments[0].resolved).toBe(true);
+  });
 });

@@ -139,9 +139,6 @@ export function Ledger() {
   const { groups } = groupQueueByProvenance(queue);
   const topics = status.data?.topics ?? [];
   const openTopics = new Set(groups.map((g) => g.key));
-  // A topic is done when nothing of it is queued and either an approval
-  // stamps it or every line carries a region signature. "Finished" is a
-  // derived state, not a stored one — new commits re-open it as deltas.
   const finished = topics.filter(
     (t) =>
       !openTopics.has(t.id) &&

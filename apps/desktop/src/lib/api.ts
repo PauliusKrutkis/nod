@@ -163,7 +163,6 @@ export const api = {
 
   ledgerApprove: (repoPath: string, topic: string) =>
     invoke<void>("ledger_approve", { repoPath, topic }),
-  /** New thread on `target` (`path:start-end`), or a reply when `parent` is set. */
   ledgerComment: (
     repoPath: string,
     target: string,
