@@ -17,7 +17,11 @@
  * contract.
  *
  * Dimensions are read off the decoded image rather than passed in: the
- * caption can only claim a size the engine actually produced. A new src
+ * caption can only claim a size the engine actually produced. The same pair
+ * lands on the element as `width` and `height`, which is what the lint gate
+ * asks for, and the stylesheet then overrides both back to `auto` — without
+ * that override the frame's `max-width` and `max-height` each clamp one axis
+ * of a fixed box and a tall screenshot renders flattened. A new src
  * clears that measurement and the failure flag during render rather than
  * through a key on the pane: for a real diff src is a data: URL megabytes
  * long, and a key built from it costs a full string compare on every render
