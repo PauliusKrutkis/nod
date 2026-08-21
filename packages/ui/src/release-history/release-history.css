@@ -64,6 +64,52 @@
   position: relative;
   padding: 12px 0 4px 22px;
 }
+
+/* Loading rows are release entries with the ink drained: same spine, same
+   dot, bars where the tag, date and note lines will land. Widths are fixed,
+   never random — these cells are screenshot targets — and the pulse is
+   opacity only, held still under reduced motion. */
+
+.qrh-skel {
+  display: block;
+  height: 12px;
+  background: var(--surface-hi);
+  border-radius: var(--r-sm);
+  animation: qrh-skel-pulse 1.6s ease-in-out infinite;
+}
+
+.qrh-skel-date {
+  height: 10px;
+  margin-left: auto;
+}
+
+.qrh-skel-notes {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  margin-bottom: 2px;
+}
+
+.qrh-skel-line {
+  height: 10px;
+}
+
+@keyframes qrh-skel-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qrh-skel {
+    animation: none;
+  }
+}
 .qrh-item::before {
   position: absolute;
   top: 0;

@@ -2,7 +2,17 @@
    (#243's found defect). The .q-kbd override recolours the cap on a primary
    fill. Reduced motion stops the busy spinner rather than slowing it, for
    the reason spinner.css spells out: a slow rotation is still motion, and
-   still a transform that differs between two captures of the same state. */
+   still a transform that differs between two captures of the same state.
+
+   Depth is deliberately faint: one inset hairline and a drop tinted to the
+   page ground, on primary and quiet only — ghost and danger stay flat. The
+   press is a 1px sink with the shadow gone, applied instantly rather than
+   transitioned, so it reads as contact, not animation; :active zeroes the
+   transition so the shadow and brightness land with the sink. Disabled
+   drops the shadow with the color: a control that cannot be pressed should
+   not look raised. The focus rule restates the ring shadow because the ring
+   is itself a box-shadow, and the hover and press shadows would otherwise
+   out-cascade it. */
 
 .q-btn {
   display: inline-flex;
@@ -23,7 +33,13 @@
     background-color 120ms ease,
     border-color 120ms ease,
     color 120ms ease,
+    box-shadow 120ms ease,
     filter 120ms ease;
+}
+
+.q-btn:active:not(:disabled) {
+  transform: translateY(1px);
+  transition-duration: 0s;
 }
 
 .q-btn-label {
@@ -35,16 +51,28 @@
 .q-btn:disabled {
   cursor: not-allowed;
   opacity: 0.5;
+  box-shadow: none;
 }
 
 .q-btn-primary {
   color: var(--accent-ink);
   background: var(--accent);
   border-color: var(--accent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 1px 2px rgba(15, 15, 23, 0.4);
 }
 
 .q-btn-primary:hover:not(:disabled) {
-  filter: brightness(1.08);
+  filter: brightness(1.06);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 2px 5px rgba(15, 15, 23, 0.45);
+}
+
+.q-btn-primary:active:not(:disabled) {
+  filter: brightness(0.96);
+  box-shadow: inset 0 1px 2px rgba(15, 15, 23, 0.3);
 }
 
 .q-btn-primary .q-kbd {
@@ -58,11 +86,19 @@
   color: var(--fg);
   background: var(--surface);
   border-color: var(--line);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 1px 2px rgba(15, 15, 23, 0.35);
 }
 
 .q-btn-quiet:hover:not(:disabled) {
   background: var(--surface-hi);
   border-color: var(--line-2);
+}
+
+.q-btn-quiet:active:not(:disabled) {
+  background: var(--surface-2);
+  box-shadow: none;
 }
 
 .q-btn-ghost {
@@ -73,6 +109,10 @@
 .q-btn-ghost:hover:not(:disabled) {
   color: var(--fg);
   background: var(--surface-2);
+}
+
+.q-btn-ghost:active:not(:disabled) {
+  background: var(--surface-hi);
 }
 
 .q-btn-danger {
@@ -86,8 +126,15 @@
   border-color: var(--del);
 }
 
+.q-btn-danger:active:not(:disabled) {
+  background: rgba(255, 112, 136, 0.2);
+}
+
 .q-btn.q-focus:focus-visible {
   border-radius: var(--r-lg);
+  box-shadow:
+    0 0 0 1.5px var(--bg),
+    0 0 0 3px var(--accent);
 }
 
 .q-btn-spin {

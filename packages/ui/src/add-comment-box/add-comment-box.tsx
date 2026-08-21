@@ -26,7 +26,7 @@
  * push the footer wider than the panel it sits in.
  */
 import type { Extensions } from "@tiptap/core";
-import { CornerDownLeft, Layers, Send } from "lucide-react";
+import { Layers, Send } from "lucide-react";
 import { type Ref, useImperativeHandle, useRef, useState } from "react";
 import { Button } from "../button/button.tsx";
 import { cn } from "../cn/cn.ts";
@@ -191,14 +191,13 @@ export function AddCommentBox({
             Cancel
           </Button>
           <Button
-            aria-label={primaryLabel ?? "Save"}
-            className="qa-submit"
+            aria-label={primaryLabel}
             combo="mod+enter"
             disabled={!canSubmit}
             onClick={handlePrimaryClick}
             variant="primary"
           >
-            <CornerDownLeft aria-hidden size={14} />
+            {primaryLabel}
           </Button>
         </div>
       </div>
