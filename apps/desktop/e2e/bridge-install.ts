@@ -92,14 +92,21 @@ export interface AppOptions {
 interface UpdateFixture {
   currentVersion: string;
   eligible: boolean;
+  installedAs?: string;
   notes: string | null;
   selfInstallable?: boolean;
+  updateCommand?: string | null;
   version: string;
 }
 
 function updateDefaults(update: UpdateFixture | null | undefined) {
   return update
-    ? { ...update, selfInstallable: update.selfInstallable ?? true }
+    ? {
+        ...update,
+        installedAs: update.installedAs ?? "a macOS app bundle",
+        selfInstallable: update.selfInstallable ?? true,
+        updateCommand: update.updateCommand ?? null,
+      }
     : null;
 }
 
@@ -321,6 +328,7 @@ export function installBridge(cfg: BridgeConfig) {
       aiInfo = { baseUrl: null, configured: false, model: null };
       return null;
     },
+    fetch_site_pricing: () => null,
     get_ai_config: () => aiInfo,
     set_ai_config: (args) => {
       countCall("set_ai_config");
@@ -610,6 +618,7 @@ export function installBridge(cfg: BridgeConfig) {
       localStorage.setItem("e2e:lastReview", JSON.stringify(args));
       return null;
     },
+    take_deep_link_pr: () => null,
     update_issue_comment: (args) => {
       for (const c of cfg.detail.issueComments as Array<{
         id: number;

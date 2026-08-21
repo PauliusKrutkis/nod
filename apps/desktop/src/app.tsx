@@ -10,6 +10,7 @@ import { Inbox } from "./components/inbox/inbox.tsx";
 import { IssueTrackerSettings } from "./components/issue-tracker-settings.tsx";
 import { KeyboardHelp } from "./components/keyboard-help.tsx";
 import { Ledger } from "./components/ledger/ledger.tsx";
+import { LicenseDialogLoader } from "./components/license-dialog-loader.tsx";
 import { NotificationCenterLoader } from "./components/notification-center-loader.tsx";
 import { OfflineBarLoader } from "./components/offline-bar-loader.tsx";
 import { PurchasePromptLoader } from "./components/purchase-prompt-loader.tsx";
@@ -19,6 +20,7 @@ import { ReviewNotifier } from "./components/review-notifier.tsx";
 import { TokenGateFlow } from "./components/token-gate-flow.tsx";
 import { UpdatePromptLoader } from "./components/update-prompt-loader.tsx";
 import { WhatsNewLoader } from "./components/whats-new-loader.tsx";
+import { takeLaunchPrTarget, useDeepLinkPr } from "./hooks/use-deep-link-pr.ts";
 import { useGlobalBindings } from "./keyboard/use-global-bindings.ts";
 import { api } from "./lib/api.ts";
 import { applyZoom, loadZoom } from "./lib/zoom.ts";
@@ -48,6 +50,7 @@ export default function App() {
   const [cannedOpen, setCannedOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [licenseOpen, setLicenseOpen] = useState(false);
 
   const dismissToast = () => {
     setToast(null);
@@ -63,6 +66,12 @@ export default function App() {
   };
   const closeHistory = () => {
     setHistoryOpen(false);
+  };
+  const openLicense = () => {
+    setLicenseOpen(true);
+  };
+  const closeLicense = () => {
+    setLicenseOpen(false);
   };
   const closeNotifications = () => {
     setNotificationsOpen(false);
@@ -120,11 +129,20 @@ export default function App() {
   useEffect(() => {
     api
       .hasToken()
-      .then((has) =>
-        setRoute(
-          has ? (loadLastRoute() ?? { name: "inbox" }) : { name: "token" }
-        )
-      )
+      .then(async (has) => {
+        if (!has) {
+          setRoute({ name: "token" });
+          return;
+        }
+        const launch = await takeLaunchPrTarget();
+        if (launch) {
+          useAppStore
+            .getState()
+            .openReview(launch.owner, launch.repo, launch.number);
+          return;
+        }
+        setRoute(loadLastRoute() ?? { name: "inbox" });
+      })
       .catch(() => setRoute({ name: "token" }));
     api
       .listAccounts()
@@ -132,9 +150,12 @@ export default function App() {
       .catch(() => undefined);
   }, [setRoute, setAccounts]);
 
+  useDeepLinkPr();
+
   useGlobalBindings({
     openCanned: openCannedDialog,
     openHistory,
+    openLicense,
     openTracker,
     toggleNotifications,
   });
@@ -221,6 +242,7 @@ export default function App() {
       <CannedCommentsLoader onClose={closeCanned} open={cannedOpen} />
       <IssueTrackerSettings onClose={closeTracker} open={trackerOpen} />
       <AiSetupLoader onClose={closeAiSetup} open={aiSetupOpen} />
+      <LicenseDialogLoader onClose={closeLicense} open={licenseOpen} />
       <ReleaseHistoryLoader onClose={closeHistory} open={historyOpen} />
       <NotificationCenterLoader
         onClose={closeNotifications}

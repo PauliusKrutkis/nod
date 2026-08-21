@@ -3,10 +3,14 @@
  * toggle-viewed (`v`), opening the submit modal, and the post-submit
  * auto-advance that walks to the next review-requested PR (or the inbox when
  * none is left). Optimistic by design — the modal closes before the mutation
- * resolves; failures surface as a flash.
+ * resolves; failures surface as a flash. A submit that lands also snapshots
+ * the diff for the changes-since-your-review mode (delta-review.ts) — only a
+ * confirmed submission may become the mode's baseline.
  */
 import type React from "react";
 import { copyTextToClipboard } from "../lib/clipboard.ts";
+import { buildDeltaSnapshot } from "../lib/delta-review.ts";
+import { saveDeltaSnapshot } from "../lib/delta-snapshots.ts";
 import { queryClient, queryKeys } from "../lib/query-client.ts";
 import { nextUnviewedFileIndex } from "../lib/review-cursor.ts";
 import { useAppStore } from "../store/app-store.ts";
@@ -142,6 +146,14 @@ export function useReviewSubmitActions(args: {
           return;
         }
         args.clearPendingComments(args.keyValue);
+        saveDeltaSnapshot(
+          args.keyValue,
+          buildDeltaSnapshot(
+            args.files,
+            args.pr?.headSha ?? "",
+            new Date().toISOString()
+          )
+        );
       })
       .catch((e) => {
         args.setFlash(

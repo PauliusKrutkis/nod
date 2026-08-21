@@ -14,6 +14,12 @@
  * margin-left: auto, …), that layout must be re-applied to the wrapper itself
  * via anchorClassName — the child's own flex/margin rules no longer reach the
  * row once the child is no longer the row's direct flex item.
+ * A trigger stretched by that flex sizing centres the tip on the whole run,
+ * which for a short label means whitespace; anchorRef narrows the horizontal
+ * anchor to one element inside the trigger (the file band's basename), clamped
+ * to the trigger's own box so an ellipsized element anchors at the visible
+ * text's end rather than its clipped-off true end. The vertical placement
+ * stays the trigger's, and open/close wiring is untouched.
  * The trigger's handlers are method signatures on purpose: they are compared
  * bivariantly, so a child typed to a concrete element (a Button, an <input>)
  * is a legal trigger instead of failing on the event's target type.
@@ -22,6 +28,7 @@ import {
   cloneElement,
   type ReactElement,
   type ReactNode,
+  type RefObject,
   useEffect,
   useId,
   useLayoutEffect,
@@ -54,11 +61,13 @@ export function Tooltip({
   label,
   combo,
   anchorClassName,
+  anchorRef,
 }: {
   children: ReactElement<TriggerProps>;
   label: string;
   combo?: string;
   anchorClassName?: string;
+  anchorRef?: RefObject<HTMLElement | null>;
 }) {
   const id = useId();
   const triggerRef = useRef<HTMLSpanElement | null>(null);
@@ -92,8 +101,13 @@ export function Tooltip({
       return;
     }
     const anchor = trigger.getBoundingClientRect();
+    const inner = anchorRef?.current?.getBoundingClientRect();
+    const clampToAnchor = (x: number) =>
+      Math.min(Math.max(x, anchor.left), anchor.right);
+    const anchorLeft = inner ? clampToAnchor(inner.left) : anchor.left;
+    const anchorRight = inner ? clampToAnchor(inner.right) : anchor.right;
     const tipRect = tip.getBoundingClientRect();
-    const centered = anchor.left + anchor.width / 2 - tipRect.width / 2;
+    const centered = (anchorLeft + anchorRight) / 2 - tipRect.width / 2;
     const clampedLeft = Math.max(
       EDGE_GAP_PX,
       Math.min(centered, window.innerWidth - tipRect.width - EDGE_GAP_PX)
@@ -109,7 +123,7 @@ export function Tooltip({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open]);
+  }, [open, anchorRef]);
 
   const childProps = children.props;
   const trigger = cloneElement(children, {

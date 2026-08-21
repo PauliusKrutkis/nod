@@ -26,8 +26,10 @@ import {
   ChevronsUp,
   Copy,
   ExternalLink,
+  EyeOff,
   FileCode,
   FileSearch,
+  History,
   Inbox,
   Info,
   Link,
@@ -39,6 +41,7 @@ import {
   Pencil,
   Search,
   Send,
+  SendHorizontal,
   Sparkles,
   TextSearch,
   Trash2,
@@ -60,6 +63,8 @@ export function useReviewHotkeys(config: {
   commentOnPr: () => void;
   copyFilePath: () => void;
   copyLink: () => void;
+  copyPendingAtCursor: () => void;
+  postPendingAtCursor: () => void;
   cursorMoverRefs: Parameters<typeof buildCursorMover>[0];
   cycleFile: (dir: number) => void;
   editActiveThreadComment: () => void;
@@ -91,6 +96,8 @@ export function useReviewHotkeys(config: {
   toggleActiveThread: () => void;
   toggleChat: () => void;
   toggleChecks: () => void;
+  toggleDelta: () => void;
+  toggleHideResolved: () => void;
   toggleInfoPanel: () => void;
   toggleFullFile: () => void;
   toggleSidebar: () => void;
@@ -234,6 +241,25 @@ export function useReviewHotkeys(config: {
       run: config.editActiveThreadComment,
     },
     {
+      description: "Copy comment text",
+      group: "Comments",
+      icon: Copy,
+      keys: "shift+y",
+      run: config.copyPendingAtCursor,
+    },
+    {
+      description: "Post this comment now",
+      group: "Comments",
+      icon: SendHorizontal,
+      keys: "shift+p",
+      run: (e: KeyboardEvent) => {
+        if (e.repeat) {
+          return;
+        }
+        config.postPendingAtCursor();
+      },
+    },
+    {
       description: "Discard pending comment",
       group: "Comments",
       icon: Trash2,
@@ -251,6 +277,18 @@ export function useReviewHotkeys(config: {
       icon: ChevronsDownUp,
       keys: "z",
       run: config.toggleActiveThread,
+    },
+    {
+      description: "Hide / show resolved threads",
+      group: "Comments",
+      icon: EyeOff,
+      keys: "shift+z",
+      run: (e: KeyboardEvent) => {
+        if (e.repeat) {
+          return;
+        }
+        config.toggleHideResolved();
+      },
     },
     {
       description: "Mark viewed & next",
@@ -286,6 +324,18 @@ export function useReviewHotkeys(config: {
       icon: Send,
       keys: "s",
       run: config.openSubmit,
+    },
+    {
+      description: "Changes since your review",
+      group: "Review",
+      icon: History,
+      keys: "d",
+      run: (e: KeyboardEvent) => {
+        if (e.repeat) {
+          return;
+        }
+        config.toggleDelta();
+      },
     },
     {
       description: "Ask about code (AI)",

@@ -1,16 +1,14 @@
-/* A summoned menu, not a field: the popover floats above the button that
-   opened it, so the composer underneath keeps its place while you choose.
+/* A summoned menu, not a field: the host floats the popover above the button
+   that opened it, so the composer underneath keeps its place while you
+   choose. The card itself flows — where it lands is the host's geometry
+   (chat-panel's .qch-model-pop), not this component's, which is also what
+   lets the gallery render it whole instead of pinned to a frame edge.
    The search row is pinned and the list scrolls under it — a provider can
    return hundreds of ids, and the search is the only way through them.
    Ids are mono and ellipsize; a vendor-qualified id is longer than any
    panel width worth having. */
 
 .qmp {
-  position: absolute;
-  right: 18px;
-  bottom: 46px;
-  left: 18px;
-  z-index: 10;
   min-width: 240px;
   overflow: hidden;
   background: var(--surface);

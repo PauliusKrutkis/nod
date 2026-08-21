@@ -116,27 +116,36 @@ const REVIEWS: DrawerReview[] = [
 const INLINE: DrawerInlineComment[] = [
   {
     body: "This shared retry budget is per-window; nothing here says so.",
+    createdAt: "2025-06-03T09:40:00Z",
     id: 501,
     inReplyToId: null,
     line: 142,
     path: "apps/desktop/src/hooks/use-inbox-poll.ts",
     resolved: false,
+    user: "maya",
+    userAvatarUrl: "",
   },
   {
     body: "Good catch — documented in the header now.",
+    createdAt: "2025-06-03T10:05:00Z",
     id: 502,
     inReplyToId: 501,
     line: 142,
     path: "apps/desktop/src/hooks/use-inbox-poll.ts",
     resolved: false,
+    user: "kai",
+    userAvatarUrl: "",
   },
   {
     body: "The old cursor key never gets cleaned up.",
+    createdAt: "2025-06-02T17:55:00Z",
     id: 503,
     inReplyToId: null,
     line: null,
     path: "apps/desktop/src/store/app-store.ts",
     resolved: true,
+    user: "priya",
+    userAvatarUrl: "",
   },
 ];
 
@@ -265,11 +274,14 @@ export const prDrawerEntry = defineEntry(PrDrawer, {
       inlineComments: [
         {
           body: "<svg onload=alert(4)> in a snippet stays text.",
+          createdAt: "2025-06-03T12:00:00Z",
           id: 504,
           inReplyToId: null,
           line: 7,
           path: "<b>not/markup</b>.ts",
           resolved: false,
+          user: "<script>alert(3)</script>",
+          userAvatarUrl: "",
         },
       ],
       pr: {

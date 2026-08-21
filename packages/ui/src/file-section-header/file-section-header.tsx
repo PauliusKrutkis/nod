@@ -9,6 +9,9 @@
  * as well as shown. The directory is dimmed and the basename bold so a screen
  * of monorepo paths scans by the part that differs, and the whole thing
  * ellipsizes from the right rather than pushing the controls off the band.
+ * The full-path tip anchors on the basename rather than the button, because
+ * the button is stretched to the row and would centre the tip over the
+ * whitespace after a short path; the click target is still the whole button.
  *
  * `status` is a plain string, not a union — see file-status-glyph — and it is
  * read twice: once for the glyph, once for whether the previous path is worth
@@ -21,13 +24,18 @@
  * `viewable` follows the same convention for the viewed control — a host
  * with no viewed state (the ledger session) omits the button entirely.
  *
+ * `deltaBadge` is the host's mode announcement — the review screen's
+ * changes-since-your-review filter pins its label to every file header so the
+ * subset can never read as the whole diff. The band renders whatever label and
+ * tooltip it is handed; what the mode means stays the host's business.
+ *
  * `leadRef` marks the strip immediately above the band. The host measures the
  * hand-off between one sticky header and the next against it; nothing here
  * reads it.
  */
 
 import { Check, FoldVertical, UnfoldVertical } from "lucide-react";
-import type { Ref } from "react";
+import { type Ref, useRef } from "react";
 import { cn } from "../cn/cn.ts";
 import { FileStatusGlyph } from "../file-status-glyph/file-status-glyph.tsx";
 import { Tooltip } from "../tooltip/tooltip.tsx";
@@ -38,11 +46,13 @@ export interface FileSectionHeaderProps {
   additions: number;
   copied?: boolean;
   deletions: number;
+  deltaBadge?: { label: string; title: string } | null;
   expandable?: boolean;
   expanded?: boolean;
   expanding?: boolean;
   fileIndex: number;
   filename: string;
+  hiddenResolved?: number;
   leadRef?: Ref<HTMLSpanElement>;
   onCopyPath?: () => void;
   onToggleExpand?: () => void;
@@ -59,11 +69,13 @@ export function FileSectionHeader({
   additions,
   copied = false,
   deletions,
+  deltaBadge = null,
   expandable = false,
   expanded = false,
   expanding = false,
   fileIndex,
   filename,
+  hiddenResolved = 0,
   leadRef,
   onCopyPath,
   onToggleExpand,
@@ -77,6 +89,7 @@ export function FileSectionHeader({
   const slash = filename.lastIndexOf("/");
   const dir = slash === -1 ? "" : filename.slice(0, slash + 1);
   const basename = slash === -1 ? filename : filename.slice(slash + 1);
+  const baseRef = useRef<HTMLSpanElement | null>(null);
 
   return (
     <header
@@ -87,6 +100,7 @@ export function FileSectionHeader({
       <FileStatusGlyph status={status} />
       <Tooltip
         anchorClassName="qf-fsec-name-anchor"
+        anchorRef={baseRef}
         label={copied ? "Copied" : `${filename} · click to copy path`}
       >
         <button
@@ -98,7 +112,9 @@ export function FileSectionHeader({
             <span className="qf-filebar-prev">{previousFilename} → </span>
           )}
           <span className="qf-file-dir">{dir}</span>
-          <span className="qf-fsec-base">{basename}</span>
+          <span className="qf-fsec-base" ref={baseRef}>
+            {basename}
+          </span>
           {copied && (
             <span aria-live="polite" className="qf-fsec-copied">
               <Check aria-hidden size={11} /> copied
@@ -112,6 +128,20 @@ export function FileSectionHeader({
           title="Changed since you marked it viewed"
         >
           updated
+        </span>
+      )}
+      {hiddenResolved > 0 && (
+        <span
+          className="qf-hidden-resolved-chip"
+          title="Resolved threads are hidden · shift+z shows them"
+        >
+          {hiddenResolved}{" "}
+          <span className="qf-hidden-resolved-word">resolved</span> hidden
+        </span>
+      )}
+      {deltaBadge && (
+        <span className="qf-delta-chip" title={deltaBadge.title}>
+          {deltaBadge.label}
         </span>
       )}
       <span className="qf-filebar-stat">

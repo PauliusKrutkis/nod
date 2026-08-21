@@ -22,6 +22,11 @@
  * comment block but off the nav (not a cursor stop). At most one exists —
  * `askItem` points at it — and its content lives outside the model, in
  * use-ask-note.ts.
+ *
+ * A file in `deltaCollapsedFiles` (changes-since-review mode, delta-review.ts)
+ * renders as a single "delta-collapsed" item instead of its hunks: its rows
+ * leave the nav like any fold, and a full-file expansion overrides the fold —
+ * an explicit "show me everything" outranks the mode's tidying.
  */
 import type { ChangedFile, PendingComment, ReviewComment } from "../types.ts";
 import { type DiffHunk, type DiffRow, parsePatch, rowAnchor } from "./diff.ts";
@@ -318,6 +323,10 @@ export interface ReviewImageItem {
   fileIndex: number;
   kind: "image";
 }
+interface ReviewDeltaCollapsedItem {
+  fileIndex: number;
+  kind: "delta-collapsed";
+}
 export interface ReviewNoteItem {
   fileIndex: number;
   kind: "note";
@@ -335,7 +344,8 @@ export type ReviewItem =
   | ReviewCommentsItem
   | ReviewImageItem
   | ReviewNoteItem
-  | ReviewAskItem;
+  | ReviewAskItem
+  | ReviewDeltaCollapsedItem;
 
 export interface ReviewListModel {
   anchorItem: Map<string, number>;
@@ -357,6 +367,7 @@ export interface BuildReviewItemsInput {
   ask: { anchor: string; fileIndex: number } | null;
   collapsed: ReadonlyMap<number, ReadonlySet<number>>;
   commentsByFile: ReadonlyMap<string, ReviewComment[]>;
+  deltaCollapsedFiles?: ReadonlySet<number>;
   expandedRows: ReadonlyMap<number, readonly DiffRow[]>;
   files: readonly ChangedFile[];
   isImage: (file: ChangedFile) => boolean;
@@ -507,6 +518,16 @@ function appendExpandedRows(
   }
 }
 
+function deltaFolded(
+  deltaCollapsedFiles: ReadonlySet<number> | undefined,
+  expandedRows: ReadonlyMap<number, readonly DiffRow[]>,
+  fileIndex: number
+): boolean {
+  return (
+    deltaCollapsedFiles?.has(fileIndex) === true && !expandedRows.has(fileIndex)
+  );
+}
+
 export function buildReviewItems(
   input: BuildReviewItemsInput
 ): ReviewListModel {
@@ -515,6 +536,7 @@ export function buildReviewItems(
     files,
     isImage,
     collapsed,
+    deltaCollapsedFiles,
     expandedRows,
     openBoxes,
     commentsByFile,
@@ -532,6 +554,12 @@ export function buildReviewItems(
   files.forEach((file, fileIndex) => {
     groupFirstItem.push(items.length);
     const startCount = items.length;
+
+    if (deltaFolded(deltaCollapsedFiles, expandedRows, fileIndex)) {
+      items.push({ fileIndex, kind: "delta-collapsed" });
+      groupCounts.push(items.length - startCount);
+      return;
+    }
 
     const previewable = isImage(file);
     if (previewable) {
@@ -686,6 +714,31 @@ export function fileRenderMeta(
   }
   byFilename.set(filename, meta);
   return meta;
+}
+
+/**
+ * Drops resolved threads (root + replies) from the comment stream and counts
+ * what was dropped per file, so the file header can say "N resolved hidden"
+ * while the diff shows nothing. Unresolved threads always pass through — the
+ * toggle this feeds is only ever about resolved ones.
+ */
+export function withoutResolvedThreads(comments: readonly ReviewComment[]): {
+  comments: ReviewComment[];
+  hiddenByPath: Map<string, number>;
+} {
+  const resolvedRoots = new Set<number>();
+  const hiddenByPath = new Map<string, number>();
+  for (const c of comments) {
+    if (c.inReplyToId === null && c.resolved) {
+      resolvedRoots.add(c.id);
+      hiddenByPath.set(c.path, (hiddenByPath.get(c.path) ?? 0) + 1);
+    }
+  }
+  const visible = comments.filter((c) => {
+    const rootId = c.inReplyToId ?? c.id;
+    return !resolvedRoots.has(rootId);
+  });
+  return { comments: visible, hiddenByPath };
 }
 
 export function buildCommentsByFile(

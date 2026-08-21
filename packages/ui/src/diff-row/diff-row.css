@@ -13,7 +13,11 @@
    ancestors that are app surfaces, so a row specimen is always at rest.
 
    Four columns: old gutter, new gutter, marker, code. The gutters are
-   unselectable so copying a diff yields code, not line numbers. The "+" is
+   unselectable so copying a diff yields code, not line numbers, and they keep
+   the default cursor under the row's text beam — a line number showing a beam
+   or a pointer looks pressable and does nothing, and leaving it alone is what
+   stops the whole gutter reading as one button; the marker column is the same
+   kind of chrome. The "+" is
    positioned against the ROW rather than the gutter's one-line text box, so it
    stays vertically centred on tinted and on wrapped multi-line rows alike.
 
@@ -53,6 +57,7 @@
   font-size: 11px;
   color: var(--faint);
   text-align: right;
+  cursor: default;
   -webkit-user-select: none;
   user-select: none;
 }
@@ -60,6 +65,7 @@
 .qf-marker {
   color: var(--faint);
   text-align: center;
+  cursor: default;
   -webkit-user-select: none;
   user-select: none;
 }
@@ -103,6 +109,10 @@
 .qf-row-selected {
   background: var(--accent-soft);
   border-left-color: var(--accent-line);
+}
+
+.qf-row-dimmed {
+  opacity: 0.45;
 }
 
 .qf-row-selected .qf-gutter {

@@ -100,6 +100,7 @@ interface ReviewListCallbackArgs {
     anchor: string;
   } | null>;
   removePendingStore: (key: string, id: string) => void;
+  showDeltaFile: (fileIndex: number) => void;
   toggleExpand: (fileIndex: number) => void;
   reply: ReturnType<typeof useCommentMutations>["reply"];
   requestResolveThread: ReturnType<
@@ -356,6 +357,9 @@ export function useReviewListCallbacks(
     onCopyPath(fileIndex: number) {
       reviewListOnCopyPath(args, fileIndex);
     },
+    onDeltaExpand(fileIndex: number) {
+      args.showDeltaFile(fileIndex);
+    },
     async onDeleteComment(a: { commentId: number }) {
       await args.deleteReviewComment.mutateAsync(a);
     },
@@ -453,6 +457,7 @@ export function useReviewListCallbacks(
       onCloseBox: (...a) => r.current.onCloseBox(...a),
       onCopyPath: (...a) => r.current.onCopyPath(...a),
       onDeleteComment: (...a) => r.current.onDeleteComment(...a),
+      onDeltaExpand: (...a) => r.current.onDeltaExpand(...a),
       onEditComment: (...a) => r.current.onEditComment(...a),
       onMouseMove: (...a) => r.current.onMouseMove(...a),
       onOpenBox: (...a) => r.current.onOpenBox(...a),
