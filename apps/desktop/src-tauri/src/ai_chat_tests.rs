@@ -1003,6 +1003,24 @@ fn the_proposal_rule_puts_staging_before_the_write_up() {
 }
 
 #[test]
+fn the_comment_shape_travels_with_the_proposal_rules() {
+    // The shape rides only where staging exists: finding first (summaries
+    // show that line alone), a concrete why, and an applicable ```suggestion
+    // fence over prose whenever the fix is a local edit.
+    let prompt = chat_system_prompt(true, true, true, true);
+    assert!(prompt.contains("First line"), "got {prompt}");
+    assert!(prompt.contains("why it matters"), "got {prompt}");
+    assert!(prompt.contains("```suggestion"), "got {prompt}");
+    assert!(
+        prompt.contains("prefer a suggestion over describing the edit in prose"),
+        "got {prompt}"
+    );
+
+    let no_proposals = chat_system_prompt(true, true, false, true);
+    assert!(!no_proposals.contains("```suggestion"), "got {no_proposals}");
+}
+
+#[test]
 fn personal_skills_come_from_every_agent_folder_and_group() {
     let root = std::env::temp_dir().join(format!("nod-agents-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
