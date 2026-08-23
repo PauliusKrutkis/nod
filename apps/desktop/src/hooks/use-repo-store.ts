@@ -7,8 +7,10 @@ import type { RepoStoreStatus } from "../types.ts";
 const POLL_MS = 2000;
 
 /** States that end a poll: nothing further happens without a new ensure. */
-const REPO_STORE_SETTLED: ReadonlySet<RepoStoreStatus["state"]> =
-  new Set(["failed", "ready"]);
+const REPO_STORE_SETTLED: ReadonlySet<RepoStoreStatus["state"]> = new Set([
+  "failed",
+  "ready",
+]);
 
 /**
  * Readiness of the repo store — the app-owned clone — for one commit. Every
