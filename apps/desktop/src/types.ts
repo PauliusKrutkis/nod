@@ -267,6 +267,11 @@ export interface SnapshotStatus {
   detail: string;
 }
 
+export interface RepoStoreStatus {
+  state: "idle" | "cloning" | "fetching" | "ready" | "failed";
+  detail: string;
+}
+
 export interface GrepHit {
   line: number;
   path: string;

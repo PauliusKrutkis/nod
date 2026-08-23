@@ -11,6 +11,7 @@ use crate::model::{
     FileBlob, GitHubUser, InboxBucket, InboxData, PullRequestDetail, RepoHit, ReviewComment,
     ReviewCommentInput, MAX_BLOB_BYTES,
 };
+use crate::repo_store::read as repo_store_read;
 use crate::repo_store::service as repo_store_service;
 use crate::repo_store::store::RepoKey;
 use crate::snapshot::search as snapshot_search;
@@ -318,12 +319,12 @@ pub async fn submit_review(
         .await
 }
 
-/// Serves a file from the local snapshot when one exists for this exact ref,
-/// otherwise from the host. Resolution lives here rather than in the webview so
-/// every blob consumer — full-file expansion, image diffs — gets it without
-/// knowing snapshots exist, and so a miss is indistinguishable from today's
-/// behaviour. `ref` is a head SHA in practice; a branch name simply misses and
-/// falls through.
+/// Serves a file locally when this exact ref is available — from the repo
+/// store first, the snapshot second — otherwise from the host. Resolution
+/// lives here rather than in the webview so every blob consumer — full-file
+/// expansion, image diffs — gets it without knowing either local source
+/// exists, and so a miss is indistinguishable from today's behaviour. `ref`
+/// is a head SHA in practice; a branch name simply misses and falls through.
 ///
 /// The size cap is applied to local reads too: it exists because the blob is
 /// base64'd into the webview, which is just as true when the bytes came off
@@ -346,12 +347,47 @@ pub async fn get_file_blob(
         sha: r#ref.clone(),
     };
     if let Ok(root) = storage::cache_dir(&app) {
-        if let Some(resolved) = local_blob(&root, &key, &path) {
+        let repo_key = RepoKey {
+            host: account.host.clone(),
+            owner: owner.clone(),
+            repo: repo.clone(),
+        };
+        let store_path = path.clone();
+        let store_ref = r#ref.clone();
+        let resolved = tauri::async_runtime::spawn_blocking(move || {
+            store_blob(&root, &repo_key, &store_ref, &store_path)
+                .or_else(|| local_blob(&root, &key, &store_path))
+        })
+        .await
+        .map_err(|e| format!("local blob read failed: {e}"))?;
+        if let Some(resolved) = resolved {
             return resolved;
         }
     }
     let platform = accounts::platform_for(&account)?;
     platform.file_blob(&owner, &repo, &path, &r#ref).await
+}
+
+/// Reads a blob out of the repo store in the shape the host path returns,
+/// with the same miss and size semantics as the snapshot path below.
+fn store_blob(
+    root: &std::path::Path,
+    key: &RepoKey,
+    sha: &str,
+    path: &str,
+) -> Option<Result<FileBlob, String>> {
+    let size = repo_store_read::file_size(root, key, sha, path)?;
+    if size > MAX_BLOB_BYTES as u64 {
+        return Some(Err(format!(
+            "File is too large to preview ({} MB).",
+            size / (1024 * 1024)
+        )));
+    }
+    let bytes = repo_store_read::read_file(root, key, sha, path)?;
+    Some(Ok(FileBlob {
+        base64: STANDARD.encode(&bytes),
+        size: bytes.len() as u64,
+    }))
 }
 
 /// Reads a blob out of the snapshot in the shape the host path returns.
@@ -469,7 +505,13 @@ pub async fn list_repo_files(
     let key = snapshot_key(&app, owner, repo, sha).await?;
     let root = storage::cache_dir(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
-        snapshot_search::list_files(&root, &key, path_contains.as_deref())
+        let repo_key = RepoKey {
+            host: key.host.clone(),
+            owner: key.owner.clone(),
+            repo: key.repo.clone(),
+        };
+        repo_store_read::list_files(&root, &repo_key, &key.sha, path_contains.as_deref())
+            .or_else(|| snapshot_search::list_files(&root, &key, path_contains.as_deref()))
     })
     .await
     .map_err(|e| format!("file listing failed: {e}"))?
@@ -488,7 +530,13 @@ pub async fn search_repo_content(
     let key = snapshot_key(&app, owner, repo, sha).await?;
     let root = storage::cache_dir(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
-        snapshot_search::grep(&root, &key, &pattern, path_contains.as_deref())
+        let repo_key = RepoKey {
+            host: key.host.clone(),
+            owner: key.owner.clone(),
+            repo: key.repo.clone(),
+        };
+        repo_store_read::grep(&root, &repo_key, &key.sha, &pattern, path_contains.as_deref())
+            .or_else(|| snapshot_search::grep(&root, &key, &pattern, path_contains.as_deref()))
     })
     .await
     .map_err(|e| format!("search failed: {e}"))?

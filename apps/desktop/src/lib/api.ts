@@ -25,6 +25,7 @@ import type {
   ReleaseInfo,
   ReplayReport,
   RepoHit,
+  RepoStoreStatus,
   ReviewComment,
   ReviewEvent,
   SitePricing,
@@ -130,6 +131,9 @@ export const api = {
 
   ensureRepoSnapshot: (owner: string, repo: string, sha: string) =>
     invoke<SnapshotStatus>("ensure_repo_snapshot", { owner, repo, sha }),
+
+  ensureRepoStore: (owner: string, repo: string, sha: string) =>
+    invoke<RepoStoreStatus>("ensure_repo_store", { owner, repo, sha }),
 
   snapshotStatus: (owner: string, repo: string, sha: string) =>
     invoke<SnapshotStatus>("snapshot_status", { owner, repo, sha }),

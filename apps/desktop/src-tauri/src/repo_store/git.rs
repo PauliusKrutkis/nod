@@ -44,10 +44,20 @@ pub fn auth_for(account: &Account) -> GitAuth {
     }
 }
 
-/// Runs one git command to completion and returns its stdout. `cwd` is the
-/// git dir for commands against an existing store, `None` for `clone`, which
-/// carries its target as an argument.
+/// Runs one git command to completion and returns its stdout as text.
+/// `cwd` is the git dir for commands against an existing store, `None` for
+/// `clone`, which carries its target as an argument.
 pub fn run(cwd: Option<&Path>, args: &[&str], auth: Option<&GitAuth>) -> Result<String, String> {
+    run_bytes(cwd, args, auth).map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
+}
+
+/// Same as `run` for output that must stay bytes — blob contents include
+/// images, which a lossy UTF-8 pass would corrupt.
+pub fn run_bytes(
+    cwd: Option<&Path>,
+    args: &[&str],
+    auth: Option<&GitAuth>,
+) -> Result<Vec<u8>, String> {
     let mut command = Command::new("git");
     command.env("GIT_TERMINAL_PROMPT", "0");
     if let Some(auth) = auth {
@@ -78,7 +88,7 @@ pub fn run(cwd: Option<&Path>, args: &[&str], auth: Option<&GitAuth>) -> Result<
             detail.trim()
         ));
     }
-    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    Ok(output.stdout)
 }
 
 #[cfg(test)]
