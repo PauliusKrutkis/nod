@@ -135,6 +135,9 @@ export const api = {
   ensureRepoStore: (owner: string, repo: string, sha: string) =>
     invoke<RepoStoreStatus>("ensure_repo_store", { owner, repo, sha }),
 
+  repoStoreStatus: (owner: string, repo: string, sha: string) =>
+    invoke<RepoStoreStatus>("repo_store_status", { owner, repo, sha }),
+
   snapshotStatus: (owner: string, repo: string, sha: string) =>
     invoke<SnapshotStatus>("snapshot_status", { owner, repo, sha }),
 
