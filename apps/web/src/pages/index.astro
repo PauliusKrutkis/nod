@@ -28,7 +28,7 @@ const price = await resolvePricing();
   title="Nod · keyboard-first PR review"
   description="A keyboard-first, cache-first desktop app for reviewing GitHub and GitLab pull requests. Closer to triaging an inbox than navigating a website."
 >
-  <SiteNav cta={{ href: "/downloads", label: "Download" }} />
+  <SiteNav cta={{ href: "/downloads", label: "Download free" }} />
 
   <main>
     <section class="hero">
@@ -102,6 +102,7 @@ const price = await resolvePricing();
     <section class="pricing" aria-label="Pricing" id="pricing">
       <div class="wrap pricing__inner">
         <p class="eyebrow">Pricing</p>
+        <p class="pricing__free">Free to evaluate. Every feature, no time limit.</p>
         <p class="pricing__price">
           {
             price.formattedLaunchPrice ? (
@@ -130,8 +131,8 @@ const price = await resolvePricing();
             </a>
           ) : (
             <p class="pricing__note">
-              Purchasing opens soon. Until then, the free evaluation is the
-              full app.
+              Purchasing opens soon. Buying removes the purchase reminder and
+              keeps updates coming.
             </p>
           )
         }

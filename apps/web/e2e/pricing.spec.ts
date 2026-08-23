@@ -1,11 +1,14 @@
 /**
  * The pricing card must be honest about the current state of the world: the
  * price and its terms are always stated, but a buy button only exists when a
- * checkout URL was baked in at build time — the CI build has none, so the
- * card says purchasing isn't open yet and that the free evaluation is the
- * full app. A dead buy button on a live site would be worse than no button.
- * The evaluation pitch itself lives in the install band above, not in the
- * card — #265 moved it so the price stands alone.
+ * checkout URL was baked in at build time. The CI build has none, so the
+ * card says purchasing isn't open yet and what buying will add. A dead buy
+ * button on a live site would be worse than no button.
+ *
+ * The free line reads before the number. #265 moved the evaluation pitch to
+ * the install band so the price stands alone, but that sent a visitor who
+ * jumps straight to #pricing past "free" entirely; #374 put a lead line back
+ * and the geometry test below keeps it above the price.
  *
  * With no checkout it carries no purchase or download call to action at all:
  * the install band immediately above is the free path, and repeating it here
@@ -47,7 +50,24 @@ test("without a checkout the card states the terms and carries no call to action
     pricing.getByRole("link", { name: PURCHASE_CTA_PATTERN })
   ).toHaveCount(0);
   await expect(pricing).toContainText("Purchasing opens soon");
-  await expect(pricing).toContainText("free evaluation is the full app");
+  await expect(pricing).toContainText("removes the purchase reminder");
+});
+
+test("the free line reads before the price", async ({ page }) => {
+  await page.goto("/");
+
+  const pricing = page.locator("#pricing");
+  await expect(pricing.locator(".pricing__free")).toHaveText(
+    "Free to evaluate. Every feature, no time limit."
+  );
+
+  const freeTop = await pricing
+    .locator(".pricing__free")
+    .evaluate((line) => line.getBoundingClientRect().top);
+  const priceTop = await pricing
+    .locator(".pricing__price")
+    .evaluate((price) => price.getBoundingClientRect().top);
+  expect(freeTop).toBeLessThan(priceTop);
 });
 
 test("the team route is offered whether or not checkout is open", async ({
