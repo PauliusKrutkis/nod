@@ -185,6 +185,23 @@ fn grep_with_no_matches_is_empty_not_an_error() {
 }
 
 #[test]
+fn read_file_slice_numbers_lines_and_marks_continuation() {
+    let root = temp_root("slice");
+    let k = key("slice-repo");
+    let sha = fixture(&root, &k, "slice");
+
+    let slice = read_file_slice(&root, &k, &sha, "src/a.ts", 1, 1).expect("slice");
+    assert_eq!(
+        slice,
+        "1: export const alpha = 1;\n[truncated — file continues to line 2]"
+    );
+    let past_end = read_file_slice(&root, &k, &sha, "src/a.ts", 9, 12).expect("slice");
+    assert_eq!(past_end, "(file has only 2 lines)");
+    assert!(read_file_slice(&root, &k, &sha, "logo.png", 1, 10).is_none());
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn grep_respects_the_path_filter() {
     let root = temp_root("grep-filter");
     let k = key("grep-filter-repo");

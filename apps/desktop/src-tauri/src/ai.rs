@@ -11,6 +11,10 @@ use tauri::{AppHandle, Emitter};
 
 use crate::accounts;
 use crate::http::{fopt_u64, net_err};
+use crate::repo_store::read as repo_read;
+use crate::repo_store::read::{FileListing, GrepResult};
+use crate::repo_store::service as repo_store_service;
+use crate::repo_store::store::RepoKey;
 use crate::snapshot::search as snapshot_search;
 use crate::snapshot::store::{self as snapshot_store, SnapshotKey};
 use crate::storage;
@@ -495,7 +499,58 @@ pub(crate) fn ask_tools() -> Value {
     ])
 }
 
-fn format_listing(listing: snapshot_search::FileListing) -> String {
+fn repo_key(key: &SnapshotKey) -> RepoKey {
+    RepoKey {
+        host: key.host.clone(),
+        owner: key.owner.clone(),
+        repo: key.repo.clone(),
+    }
+}
+
+/// The local-source reads behind the tool loop and skills discovery: repo
+/// store first, snapshot fallback, one `None` for "nothing local". These are
+/// the only places the AI code knows two sources exist; everything else
+/// keeps threading `(root, SnapshotKey)`.
+pub(crate) fn local_list_files(
+    root: &std::path::Path,
+    key: &SnapshotKey,
+    path_contains: Option<&str>,
+) -> Option<FileListing> {
+    repo_read::list_files(root, &repo_key(key), &key.sha, path_contains)
+        .or_else(|| snapshot_search::list_files(root, key, path_contains))
+}
+
+fn local_grep(
+    root: &std::path::Path,
+    key: &SnapshotKey,
+    pattern: &str,
+    path_contains: Option<&str>,
+) -> Option<GrepResult> {
+    repo_read::grep(root, &repo_key(key), &key.sha, pattern, path_contains)
+        .or_else(|| snapshot_search::grep(root, key, pattern, path_contains))
+}
+
+fn local_read_slice(
+    root: &std::path::Path,
+    key: &SnapshotKey,
+    path: &str,
+    start: usize,
+    end: usize,
+) -> Option<String> {
+    repo_read::read_file_slice(root, &repo_key(key), &key.sha, path, start, end)
+        .or_else(|| snapshot_search::read_file_slice(root, key, path, start, end))
+}
+
+pub(crate) fn local_read_file(
+    root: &std::path::Path,
+    key: &SnapshotKey,
+    path: &str,
+) -> Option<Vec<u8>> {
+    repo_read::read_file(root, &repo_key(key), &key.sha, path)
+        .or_else(|| snapshot_store::read_file(root, key, path))
+}
+
+fn format_listing(listing: FileListing) -> String {
     let mut out = listing.files.join("\n");
     if listing.truncated {
         out.push_str("\n[truncated — more files exist; narrow with path_contains]");
@@ -507,7 +562,7 @@ fn format_listing(listing: snapshot_search::FileListing) -> String {
     }
 }
 
-fn format_grep(result: snapshot_search::GrepResult) -> String {
+fn format_grep(result: GrepResult) -> String {
     if result.hits.is_empty() {
         return "(no matches)".to_string();
     }
@@ -522,7 +577,7 @@ fn format_grep(result: snapshot_search::GrepResult) -> String {
     out.join("\n")
 }
 
-/// Runs one tool call against the local snapshot. Always returns text — an
+/// Runs one tool call against the local sources. Always returns text — an
 /// unknown tool or bad arguments become an error string the model can read
 /// and correct, never a failed request.
 pub(crate) fn execute_tool(
@@ -534,11 +589,11 @@ pub(crate) fn execute_tool(
     let args: Value = serde_json::from_str(arguments).unwrap_or(Value::Null);
     let path_contains = args.get("path_contains").and_then(Value::as_str);
     match name {
-        "list_files" => snapshot_search::list_files(root, key, path_contains)
+        "list_files" => local_list_files(root, key, path_contains)
             .map(format_listing)
             .unwrap_or_else(|| "error: repository snapshot is not available".to_string()),
         "grep_repo" => match args.get("pattern").and_then(Value::as_str) {
-            Some(pattern) => snapshot_search::grep(root, key, pattern, path_contains)
+            Some(pattern) => local_grep(root, key, pattern, path_contains)
                 .map(format_grep)
                 .unwrap_or_else(|| "error: repository snapshot is not available".to_string()),
             None => "error: grep_repo requires a string 'pattern'".to_string(),
@@ -554,8 +609,8 @@ pub(crate) fn execute_tool(
                     .get("end_line")
                     .and_then(Value::as_u64)
                     .map(|e| e as usize)
-                    .unwrap_or(start + snapshot_search::MAX_READ_LINES - 1);
-                snapshot_search::read_file_slice(root, key, path, start, end).unwrap_or_else(|| {
+                    .unwrap_or(start + repo_read::MAX_READ_LINES - 1);
+                local_read_slice(root, key, path, start, end).unwrap_or_else(|| {
                     "error: file not found, binary, or too large — check the path with list_files"
                         .to_string()
                 })
@@ -566,8 +621,10 @@ pub(crate) fn execute_tool(
     }
 }
 
-/// The snapshot the ask can ground itself in — present only when the context
-/// names a commit and layer 1 has finished extracting it.
+/// The local source the ask can ground itself in — present only when the
+/// context names a commit and either the repo store has it or the snapshot
+/// finished extracting it. The name and key shape predate the store; both
+/// retire with the snapshot module.
 pub(crate) async fn ready_snapshot(
     app: &AppHandle,
     context: &AskContext,
@@ -584,7 +641,15 @@ pub(crate) async fn ready_snapshot(
         sha,
     };
     let root = storage::cache_dir(app).ok()?;
-    if !snapshot_store::is_ready(&root, &key) {
+    let probe_root = root.clone();
+    let probe_key = key.clone();
+    let ready = tauri::async_runtime::spawn_blocking(move || {
+        repo_store_service::has_commit(&probe_root, &repo_key(&probe_key), &probe_key.sha)
+            || snapshot_store::is_ready(&probe_root, &probe_key)
+    })
+    .await
+    .unwrap_or(false);
+    if !ready {
         return None;
     }
     Some((root, key))
