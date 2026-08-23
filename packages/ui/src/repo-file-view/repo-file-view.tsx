@@ -33,7 +33,9 @@ export type HighlightFileLine = (
 
 /** Lines kept on either side of the hit; beyond them the clip rows take
  *  over. One thousand each way reads as "the whole file" for almost every
- *  real source file while keeping the worst-case DOM bounded. */
+ *  real source file while keeping the worst-case DOM bounded. Overridable
+ *  so a fixture can prove the clipping without rendering two thousand rows
+ *  — the gallery's shot frame never stabilizes under that many. */
 const WINDOW_RADIUS = 1000;
 
 function escapeHtml(s: string): string {
@@ -65,6 +67,7 @@ export function RepoFileView({
   line,
   query,
   highlightLine = markQuery,
+  windowRadius = WINDOW_RADIUS,
 }: {
   filename: string;
   /** The file's full lines, or null while the host is still fetching. */
@@ -73,6 +76,7 @@ export function RepoFileView({
   line: number;
   query: string;
   highlightLine?: HighlightFileLine;
+  windowRadius?: number;
 }) {
   const hitRef = useRef<HTMLElement>(null);
   const loaded = lines !== null && lines.length > 0;
@@ -92,8 +96,8 @@ export function RepoFileView({
     );
   }
 
-  const first = Math.max(1, line - WINDOW_RADIUS);
-  const last = Math.min(lines.length, line + WINDOW_RADIUS);
+  const first = Math.max(1, line - windowRadius);
+  const last = Math.min(lines.length, line + windowRadius);
 
   return (
     <div className="qrfv">

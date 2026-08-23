@@ -27,8 +27,11 @@ const FILE_LINES: string[] = [
   "}",
 ];
 
+/** Long enough to clip at both ends of a small fixture window — the shot
+ *  frame cannot stabilize under the real two-thousand-row window, so the
+ *  fixture proves the clipping, not the default radius. */
 const LONG_FILE: string[] = Array.from(
-  { length: 2600 },
+  { length: 60 },
   (_, i) => `const filler${i + 1} = ${i + 1}; // retryLimit shadows nothing`
 );
 
@@ -52,9 +55,10 @@ export const repoFileViewEntry = defineEntry(RepoFileView, {
   "clipped-both-ends": {
     props: {
       filename: "src/generated/fixtures.ts",
-      line: 1300,
+      line: 30,
       lines: LONG_FILE,
-      query: "filler1300",
+      query: "filler30",
+      windowRadius: 8,
     },
   },
   loading: {
