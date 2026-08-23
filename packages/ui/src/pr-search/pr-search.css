@@ -107,3 +107,14 @@
   color: var(--faint);
   border-top: 1px solid var(--line);
 }
+
+/* Wrapper the file view fills while it replaces the result list. Focused
+   programmatically so esc and native scroll keys land on it; the package's
+   outline reset already keeps the ring off, and the dialog frame says
+   where you are. */
+.qsp-view {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}

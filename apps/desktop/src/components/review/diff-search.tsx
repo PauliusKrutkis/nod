@@ -153,6 +153,10 @@ export function DiffSearch({
   });
 
   const peekLines = blob.data ? blobLines(blob.data.base64) : null;
+  const filePreview =
+    peekPath !== null && peekLines !== null
+      ? { lines: peekLines, path: peekPath }
+      : null;
 
   const repo: RepoSearchState = buildRepoState({
     files: searchFiles,
@@ -188,6 +192,7 @@ export function DiffSearch({
 
   return (
     <PrSearch
+      filePreview={filePreview}
       files={searchFiles}
       highlightLine={highlightLineWithMatch}
       mode={mode ?? "files"}
