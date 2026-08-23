@@ -12,6 +12,7 @@ mod license;
 mod model;
 mod offline;
 mod platform;
+mod repo_store;
 #[allow(dead_code)]
 mod snapshot;
 mod storage;
@@ -139,6 +140,8 @@ pub fn run() {
             commands::submit_review,
             commands::ensure_repo_snapshot,
             commands::snapshot_status,
+            commands::ensure_repo_store,
+            commands::repo_store_status,
             commands::list_repo_files,
             commands::search_repo_content,
             commands::get_viewed_map,
