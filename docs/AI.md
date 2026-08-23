@@ -306,8 +306,11 @@ about 100ms; Sonnet 4.5 routes to `anthropic` and accepts it. An invented
 is the request shape rather than the account — a real limit does not
 discriminate by parameter, and does not answer in 100ms.
 
-So the thinking level is now dropped and retried once when a route refuses
-it, and the answer says it ran without one. `reasoning: {effort}` and
+So the thinking level is dropped and retried once when a route refuses it —
+and the model is marked as refusing levels only when that retry *succeeds*,
+because the refusal alone is indistinguishable from a real limit; a 429 with
+no level left to drop instead earns one delayed retry before the error
+reaches the transcript. `reasoning: {effort}` and
 `thinking: {budget_tokens}` are both *accepted* on that route and produce no
 reasoning tokens at all, so translating the parameter would buy a control
 that silently does nothing — worse than one that honestly says it was

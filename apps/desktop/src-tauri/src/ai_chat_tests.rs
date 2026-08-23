@@ -2,10 +2,11 @@ use super::{
     build_chat_turn, builtin_skill_body, builtin_skills, chat_system_prompt, chat_tools,
     clip_title, discover_personal_skills, discover_skills, empty_answer, execute_read_diff,
     execute_skill_tool, format_ranges, frontmatter_description, history_messages, merge_skills,
-    note_if_toolless, note_if_truncated, parse_proposal, read_personal_skill, read_skill_body,
-    resolve_skill_body, retry_without_tools, route_refused, safe_source, skill_instructions,
-    skill_name_from_path, tool_note, validate_proposal, ChatCancels, ChatDelta, ChatDiffFile,
-    ChatPart, ChatProposal, ChatRegion, ChatToolNote, ChatTurn, CommentableSide, SkillInfo,
+    note_if_toolless, note_if_truncated, parse_proposal, rate_limited, read_personal_skill,
+    read_skill_body, resolve_skill_body, retry_without_tools, route_refused, safe_source,
+    skill_instructions, skill_name_from_path, tool_note, validate_proposal, ChatCancels, ChatDelta,
+    ChatDiffFile, ChatPart, ChatProposal, ChatRegion, ChatToolNote, ChatTurn, CommentableSide,
+    SkillInfo,
 };
 use crate::ai::AskContext;
 use crate::snapshot::store::{partial_dir, promote, SnapshotKey};
@@ -891,6 +892,22 @@ fn a_route_that_refuses_the_request_shape_is_told_apart_by_status() {
         );
     }
     assert!(!route_refused("could not reach the AI provider"));
+}
+
+#[test]
+fn only_a_429_earns_the_delayed_second_chance() {
+    assert!(rate_limited(
+        "AI provider error (429): All providers are rate limited"
+    ));
+    // A refused request shape is permanent: waiting cannot fix a 400/422,
+    // and retrying a dead upstream or a bad key just doubles the failure.
+    for status in [400, 401, 403, 422, 500, 503] {
+        assert!(
+            !rate_limited(&format!("AI provider error ({status}): nope")),
+            "should not wait on {status}"
+        );
+    }
+    assert!(!rate_limited("could not reach the AI provider"));
 }
 
 #[test]

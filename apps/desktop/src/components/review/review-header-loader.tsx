@@ -30,6 +30,7 @@ import type {
 } from "../../types.ts";
 
 export function ReviewHeaderLoader({
+  aiState,
   detail,
   onOpenSubmit,
   onToggleRightPanel,
@@ -41,6 +42,7 @@ export function ReviewHeaderLoader({
   sidebarCompact,
   sidebarOpen,
 }: {
+  aiState: "working" | "done" | null;
   detail: PullRequestDetail;
   onOpenSubmit: () => void;
   onToggleRightPanel: () => void;
@@ -84,6 +86,7 @@ export function ReviewHeaderLoader({
 
   return (
     <ReviewHeader
+      aiState={aiState}
       approved={approved}
       changesRequested={changesRequested}
       ciState={detail.ciStatus?.state}

@@ -84,13 +84,17 @@ pub struct ChatProposal {
     pub body: String,
 }
 
-/// Sent once, the first time a model's route refuses a thinking level.
+/// Sent once, the first time dropping a thinking level demonstrably fixed a
+/// model's request — refused with the level, answered without it.
 ///
 /// Whether a model accepts one cannot be known before asking: the provider's
 /// model list carries no capability field, and the platform it runs on does
 /// not predict it either — probed 2026-08-19, Claude Sonnet 5 refuses while
-/// Gemini 3 Flash, on the same Vertex platform, accepts. So the first refusal
-/// is the answer, and the webview keeps it against the model id.
+/// Gemini 3 Flash, on the same Vertex platform, accepts. And the refusal is
+/// a 429 indistinguishable from a genuine rate limit, so the refusal alone
+/// proves nothing: only the retry succeeding does. Emitting on that success
+/// is what keeps a rate-limited minute from permanently marking a model as
+/// effort-refusing.
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct ChatEffortUnsupported {
@@ -1252,11 +1256,21 @@ fn empty_answer(message: &Value) -> String {
 /// draws the identical 429, which is what proves it is the request shape and
 /// not the account.
 fn route_refused(error: &str) -> bool {
-    let status = error
+    matches!(provider_status(error), Some(400 | 422 | 429))
+}
+
+fn provider_status(error: &str) -> Option<u16> {
+    error
         .strip_prefix("AI provider error (")
         .and_then(|rest| rest.split(')').next())
-        .and_then(|code| code.parse::<u16>().ok());
-    matches!(status, Some(400 | 422 | 429))
+        .and_then(|code| code.parse::<u16>().ok())
+}
+
+/// Whether a failure could be the pool actually being exhausted. Only a 429
+/// qualifies: it clears in seconds when it is real, which is why it earns
+/// one delayed retry — a 4xx about the request's shape never does.
+fn rate_limited(error: &str) -> bool {
+    provider_status(error) == Some(429)
 }
 
 /// Whether a failed first round is worth retrying with the tools taken off.
@@ -1406,8 +1420,14 @@ pub async fn ai_chat(
     let mut tools_enabled = snapshot.is_some() || proposals || has_diffs;
     let mut tools_dropped = false;
     // The reviewer's thinking level. Dropped at most once per turn: a second
-    // failure is the provider's, not ours.
+    // failure is the provider's, not ours. The drop is only *learned* against
+    // the model once a later round succeeds — see ChatEffortUnsupported.
     let mut effort_sent = effort.clone();
+    let mut effort_dropped = false;
+    // One delayed second chance for a genuine rate limit. Spent only when
+    // there is no parameter left to blame: with a thinking level in flight
+    // the 429 is ambiguous and dropping the level is tried first.
+    let mut rate_limit_retry = true;
     let mut rounds = 0;
     // Set once, after a round that produced neither text nor a tool call.
     let mut forced_text = false;
@@ -1500,7 +1520,23 @@ pub async fn ai_chat(
         )
         .await
         {
-            Ok(message) => message,
+            Ok(message) => {
+                if effort_dropped {
+                    // Refused with the level, answered without it — that is
+                    // the proof a bare 429 could not give. The webview keeps
+                    // it against the model and stops offering a level, so the
+                    // wasted first attempt happens once per model.
+                    effort_dropped = false;
+                    let _ = app.emit(
+                        "ai-chat-effort-unsupported",
+                        ChatEffortUnsupported {
+                            chat_id: chat_id.clone(),
+                            model: model.clone(),
+                        },
+                    );
+                }
+                message
+            }
             Err(error) if error == ai::CANCELLED => {
                 state.clear(&chat_id);
                 return Err(error);
@@ -1510,16 +1546,17 @@ pub async fn ai_chat(
             // route actually named beats dropping the repo access it did not.
             Err(error) if effort_sent.is_some() && route_refused(&error) => {
                 effort_sent = None;
-                // The webview remembers this against the model and stops
-                // offering a thinking level for it, so the wasted first
-                // attempt happens once per model rather than once per turn.
-                let _ = app.emit(
-                    "ai-chat-effort-unsupported",
-                    ChatEffortUnsupported {
-                        chat_id: chat_id.clone(),
-                        model: model.clone(),
-                    },
-                );
+                effort_dropped = true;
+                continue;
+            }
+            Err(error) if rate_limit_retry && rate_limited(&error) => {
+                rate_limit_retry = false;
+                // A success after this wait proves nothing about the dropped
+                // thinking level — the wait may have been the fix — so the
+                // pending lesson is cancelled rather than mislearned.
+                effort_dropped = false;
+                crate::http::log("chat: 429 with nothing left to drop; retrying in 2s");
+                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
                 continue;
             }
             Err(error) if tools_enabled && rounds == 0 && retry_without_tools(&error) => {
