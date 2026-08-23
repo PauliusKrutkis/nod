@@ -13,8 +13,6 @@ mod model;
 mod offline;
 mod platform;
 mod repo_store;
-#[allow(dead_code)]
-mod snapshot;
 mod storage;
 mod update;
 
@@ -138,8 +136,6 @@ pub fn run() {
             commands::update_issue_comment,
             commands::delete_issue_comment,
             commands::submit_review,
-            commands::ensure_repo_snapshot,
-            commands::snapshot_status,
             commands::ensure_repo_store,
             commands::repo_store_status,
             commands::list_repo_files,

@@ -3,35 +3,30 @@ use super::{
     execute_tool, extract_error_message, info_of, message_answer, normalize_base_url, parse_models,
     resolve_api_key, AiConfig, AskContext, CompleteContext, StreamPiece, StreamedMessage,
 };
-use crate::snapshot::store::{partial_dir, promote, SnapshotKey};
+use crate::repo_store::store::CommitKey;
+use crate::repo_store::testkit::seeded_store;
 use serde_json::json;
 use std::path::PathBuf;
 
-fn tool_snapshot(label: &str) -> (PathBuf, SnapshotKey) {
+fn tool_store(label: &str) -> (PathBuf, CommitKey) {
     let root = std::env::temp_dir().join(format!("nod-ai-{label}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).expect("temp root");
-    let key = SnapshotKey {
-        host: "https://github.com".to_string(),
-        owner: "acme".to_string(),
-        repo: "widget-app".to_string(),
-        sha: "a1b2c3".to_string(),
-    };
-    for (path, contents) in [
-        ("src/auth.rs", "fn login() {}\nfn logout() {}\n"),
-        ("README.md", "hello\n"),
-    ] {
-        let target = partial_dir(&root, &key).join(path);
-        std::fs::create_dir_all(target.parent().expect("parent")).expect("staging");
-        std::fs::write(&target, contents).expect("write");
-    }
-    promote(&root, &key).expect("promote");
+    let key = seeded_store(
+        &root,
+        "acme",
+        "widget-app",
+        &[
+            ("src/auth.rs", b"fn login() {}\nfn logout() {}\n" as &[u8]),
+            ("README.md", b"hello\n"),
+        ],
+    );
     (root, key)
 }
 
 #[test]
-fn execute_tool_runs_each_tool_against_the_snapshot() {
-    let (root, key) = tool_snapshot("tools");
+fn execute_tool_runs_each_tool_against_the_store() {
+    let (root, key) = tool_store("tools");
 
     let listing = execute_tool(&root, &key, "list_files", r#"{"path_contains":"src/"}"#);
     assert_eq!(listing, "src/auth.rs");
@@ -52,7 +47,7 @@ fn execute_tool_runs_each_tool_against_the_snapshot() {
 
 #[test]
 fn execute_tool_turns_mistakes_into_readable_errors() {
-    let (root, key) = tool_snapshot("mistakes");
+    let (root, key) = tool_store("mistakes");
 
     assert!(execute_tool(&root, &key, "grep_repo", "{}").starts_with("error:"));
     assert!(execute_tool(&root, &key, "read_file", r#"{"path":"nope.rs"}"#).starts_with("error:"));

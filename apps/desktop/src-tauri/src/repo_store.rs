@@ -19,3 +19,5 @@ pub(crate) mod git;
 pub(crate) mod read;
 pub(crate) mod service;
 pub(crate) mod store;
+#[cfg(test)]
+pub(crate) mod testkit;

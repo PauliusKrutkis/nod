@@ -30,7 +30,6 @@ import type {
   ReviewEvent,
   SitePricing,
   SkillInfo,
-  SnapshotStatus,
   UpdateInfo,
   ViewedMap,
 } from "../types.ts";
@@ -129,17 +128,11 @@ export const api = {
   getCurrentUser: () => invoke<GitHubUser>("get_current_user"),
   getLicenseState: () => invoke<LicenseState>("get_license_state"),
 
-  ensureRepoSnapshot: (owner: string, repo: string, sha: string) =>
-    invoke<SnapshotStatus>("ensure_repo_snapshot", { owner, repo, sha }),
-
   ensureRepoStore: (owner: string, repo: string, sha: string) =>
     invoke<RepoStoreStatus>("ensure_repo_store", { owner, repo, sha }),
 
   repoStoreStatus: (owner: string, repo: string, sha: string) =>
     invoke<RepoStoreStatus>("repo_store_status", { owner, repo, sha }),
-
-  snapshotStatus: (owner: string, repo: string, sha: string) =>
-    invoke<SnapshotStatus>("snapshot_status", { owner, repo, sha }),
 
   getFileBlob: (owner: string, repo: string, path: string, ref: string) =>
     invoke<FileBlob>("get_file_blob", { owner, path, ref, repo }),

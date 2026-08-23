@@ -85,6 +85,19 @@ fn promote_refuses_a_staging_dir_that_is_not_a_git_dir() {
 }
 
 #[test]
+fn remove_deletes_store_and_staging() {
+    let root = temp_root("remove");
+    let k = key("acme", "widget-app");
+    std::fs::create_dir_all(git_dir(&root, &k)).expect("store");
+    std::fs::create_dir_all(partial_dir(&root, &k)).expect("staging");
+
+    remove(&root, &k);
+    assert!(!git_dir(&root, &k).exists());
+    assert!(!partial_dir(&root, &k).exists());
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn promote_moves_staging_into_place() {
     let root = temp_root("promote");
     let k = key("acme", "widget-app");

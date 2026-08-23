@@ -24,7 +24,7 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::ai::{self, AskContext};
-use crate::snapshot::store::SnapshotKey;
+use crate::repo_store::store::CommitKey;
 
 #[derive(Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -380,7 +380,7 @@ fn skill_name_from_path(path: &str) -> Option<&str> {
 
 /// Every `SKILL.md` at the head SHA, as (name, path). `.claude/skills` is
 /// walked first so its entry is the one that survives a name clash.
-fn skill_paths(root: &std::path::Path, key: &SnapshotKey) -> Vec<(String, String)> {
+fn skill_paths(root: &std::path::Path, key: &CommitKey) -> Vec<(String, String)> {
     let mut out: Vec<(String, String)> = Vec::new();
     for prefix in SKILL_ROOTS {
         let Some(listing) = ai::local_list_files(root, key, Some(prefix)) else {
@@ -462,7 +462,7 @@ fn skill_text(bytes: &[u8]) -> String {
     text
 }
 
-fn read_skill_body(root: &std::path::Path, key: &SnapshotKey, name: &str) -> Option<String> {
+fn read_skill_body(root: &std::path::Path, key: &CommitKey, name: &str) -> Option<String> {
     if !safe_skill_name(name) {
         return None;
     }
@@ -623,7 +623,7 @@ fn merge_skills(repo: Vec<SkillInfo>, personal: Vec<SkillInfo>) -> Vec<SkillInfo
 }
 
 fn resolve_skill_body(
-    snapshot: Option<&(std::path::PathBuf, SnapshotKey)>,
+    snapshot: Option<&(std::path::PathBuf, CommitKey)>,
     personal: &[std::path::PathBuf],
     name: &str,
 ) -> Option<String> {
@@ -633,7 +633,7 @@ fn resolve_skill_body(
         .or_else(|| builtin_skill_body(name))
 }
 
-fn discover_skills(root: &std::path::Path, key: &SnapshotKey) -> Vec<SkillInfo> {
+fn discover_skills(root: &std::path::Path, key: &CommitKey) -> Vec<SkillInfo> {
     let mut out: Vec<SkillInfo> = skill_paths(root, key)
         .into_iter()
         .map(|(name, _)| SkillInfo {
@@ -797,7 +797,7 @@ async fn fetch_public_skill(source: &str, name: &str) -> String {
 }
 
 fn execute_skill_tool(
-    snapshot: Option<&(std::path::PathBuf, SnapshotKey)>,
+    snapshot: Option<&(std::path::PathBuf, CommitKey)>,
     personal: &[std::path::PathBuf],
     name: &str,
     arguments: &str,
@@ -940,7 +940,7 @@ pub async fn list_chat_skills(
         ..AskContext::default()
     };
     let personal = personal_skills_dirs(&app);
-    let snapshot = ai::ready_snapshot(&app, &context).await;
+    let snapshot = ai::ready_source(&app, &context).await;
     tauri::async_runtime::spawn_blocking(move || {
         let repo_skills = snapshot
             .as_ref()
@@ -1362,7 +1362,7 @@ pub async fn ai_chat(
         .or(config.model)
         .ok_or_else(|| "Choose a model in AI settings first".to_string())?;
     state.clear(&chat_id);
-    let snapshot = ai::ready_snapshot(&app, &context).await;
+    let snapshot = ai::ready_source(&app, &context).await;
     let personal_skills = personal_skills_dirs(&app);
     let mut skill_bodies: Vec<String> = Vec::new();
     for name in &skills {

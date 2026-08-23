@@ -13,10 +13,8 @@ use crate::model::{
 };
 use crate::repo_store::read as repo_store_read;
 use crate::repo_store::service as repo_store_service;
+use crate::repo_store::store as repo_store_store;
 use crate::repo_store::store::RepoKey;
-use crate::snapshot::search as snapshot_search;
-use crate::snapshot::service as snapshot_service;
-use crate::snapshot::store::{self as snapshot_store, SnapshotKey};
 use crate::storage;
 
 fn inbox_cache_name(account_id: &str) -> String {
@@ -103,6 +101,10 @@ pub async fn get_watched_repos(app: AppHandle) -> Result<Vec<String>, String> {
     Ok(storage::read_json::<Vec<String>>(&app, &watched_name(&account.id))?.unwrap_or_default())
 }
 
+/// Saves the watched list and deletes the repo store of anything unwatched:
+/// history for a repo nobody watches is pure disk cost, and watching again
+/// just clones again. Deletion runs off-thread so the save never waits on
+/// removing what can be gigabytes.
 #[tauri::command]
 pub async fn set_watched_repos(app: AppHandle, repos: Vec<String>) -> Result<(), String> {
     let account = accounts::active_account(&app).await?;
@@ -111,7 +113,31 @@ pub async fn set_watched_repos(app: AppHandle, repos: Vec<String>) -> Result<(),
         .map(|r| r.trim().trim_matches('/').to_string())
         .filter(|r| r.contains('/') && !r.is_empty())
         .collect();
-    storage::write_json(&app, &watched_name(&account.id), &cleaned)
+    let before =
+        storage::read_json::<Vec<String>>(&app, &watched_name(&account.id))?.unwrap_or_default();
+    storage::write_json(&app, &watched_name(&account.id), &cleaned)?;
+
+    let Ok(root) = storage::cache_dir(&app) else {
+        return Ok(());
+    };
+    let dropped: Vec<RepoKey> = before
+        .iter()
+        .filter(|repo| !cleaned.contains(repo))
+        .filter_map(|repo| repo.split_once('/'))
+        .map(|(owner, name)| RepoKey {
+            host: account.host.clone(),
+            owner: owner.to_string(),
+            repo: name.to_string(),
+        })
+        .collect();
+    if !dropped.is_empty() {
+        tauri::async_runtime::spawn_blocking(move || {
+            for key in &dropped {
+                repo_store_store::remove(&root, key);
+            }
+        });
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -319,12 +345,12 @@ pub async fn submit_review(
         .await
 }
 
-/// Serves a file locally when this exact ref is available — from the repo
-/// store first, the snapshot second — otherwise from the host. Resolution
-/// lives here rather than in the webview so every blob consumer — full-file
-/// expansion, image diffs — gets it without knowing either local source
-/// exists, and so a miss is indistinguishable from today's behaviour. `ref`
-/// is a head SHA in practice; a branch name simply misses and falls through.
+/// Serves a file from the repo store when it has this exact ref, otherwise
+/// from the host. Resolution lives here rather than in the webview so every
+/// blob consumer — full-file expansion, image diffs — gets it without
+/// knowing the local source exists, and so a miss is indistinguishable from
+/// a plain network read. `ref` is a head SHA in practice; a branch name
+/// simply misses and falls through.
 ///
 /// The size cap is applied to local reads too: it exists because the blob is
 /// base64'd into the webview, which is just as true when the bytes came off
@@ -340,12 +366,6 @@ pub async fn get_file_blob(
     r#ref: String,
 ) -> Result<FileBlob, String> {
     let account = accounts::active_account(&app).await?;
-    let key = SnapshotKey {
-        host: account.host.clone(),
-        owner: owner.clone(),
-        repo: repo.clone(),
-        sha: r#ref.clone(),
-    };
     if let Ok(root) = storage::cache_dir(&app) {
         let repo_key = RepoKey {
             host: account.host.clone(),
@@ -356,7 +376,6 @@ pub async fn get_file_blob(
         let store_ref = r#ref.clone();
         let resolved = tauri::async_runtime::spawn_blocking(move || {
             store_blob(&root, &repo_key, &store_ref, &store_path)
-                .or_else(|| local_blob(&root, &key, &store_path))
         })
         .await
         .map_err(|e| format!("local blob read failed: {e}"))?;
@@ -368,8 +387,10 @@ pub async fn get_file_blob(
     platform.file_blob(&owner, &repo, &path, &r#ref).await
 }
 
-/// Reads a blob out of the repo store in the shape the host path returns,
-/// with the same miss and size semantics as the snapshot path below.
+/// Reads a blob out of the repo store in the shape the host path returns.
+/// `None` means the store has nothing for this ref and the caller should
+/// fetch over the network; `Some(Err)` is an oversized hit, answered from
+/// tree metadata instead of a read that could only end the same way.
 fn store_blob(
     root: &std::path::Path,
     key: &RepoKey,
@@ -390,67 +411,6 @@ fn store_blob(
     }))
 }
 
-/// Reads a blob out of the snapshot in the shape the host path returns.
-/// `None` means the snapshot has nothing for this key and the caller should
-/// fetch over the network; `Some(Err)` is an oversized hit, answered from
-/// local metadata instead of a download that could only end the same way.
-fn local_blob(
-    root: &std::path::Path,
-    key: &SnapshotKey,
-    path: &str,
-) -> Option<Result<FileBlob, String>> {
-    let size = snapshot_store::file_size(root, key, path)?;
-    if size > MAX_BLOB_BYTES as u64 {
-        return Some(Err(format!(
-            "File is too large to preview ({} MB).",
-            size / (1024 * 1024)
-        )));
-    }
-    let bytes = snapshot_store::read_file(root, key, path)?;
-    Some(Ok(FileBlob {
-        base64: STANDARD.encode(&bytes),
-        size: bytes.len() as u64,
-    }))
-}
-
-async fn snapshot_key(
-    app: &AppHandle,
-    owner: String,
-    repo: String,
-    sha: String,
-) -> Result<SnapshotKey, String> {
-    let account = accounts::active_account(app).await?;
-    Ok(SnapshotKey {
-        host: account.host,
-        owner,
-        repo,
-        sha,
-    })
-}
-
-#[tauri::command]
-pub async fn ensure_repo_snapshot(
-    app: AppHandle,
-    owner: String,
-    repo: String,
-    sha: String,
-) -> Result<snapshot_service::SnapshotStatus, String> {
-    let key = snapshot_key(&app, owner, repo, sha).await?;
-    Ok(snapshot_service::ensure(&app, key))
-}
-
-#[tauri::command]
-pub async fn snapshot_status(
-    app: AppHandle,
-    owner: String,
-    repo: String,
-    sha: String,
-) -> Result<snapshot_service::SnapshotStatus, String> {
-    let key = snapshot_key(&app, owner, repo, sha).await?;
-    let root = storage::cache_dir(&app)?;
-    Ok(snapshot_service::status(&root, &key))
-}
-
 async fn repo_key(app: &AppHandle, owner: String, repo: String) -> Result<RepoKey, String> {
     let account = accounts::active_account(app).await?;
     Ok(RepoKey {
@@ -460,10 +420,8 @@ async fn repo_key(app: &AppHandle, owner: String, repo: String) -> Result<RepoKe
     })
 }
 
-/// Starts cloning/fetching the repo store toward `sha` (repo_store, the
-/// clone tier replacing snapshots) unless it is already there or under way.
-/// Fire-and-forget like `ensure_repo_snapshot`; callers poll
-/// `repo_store_status`.
+/// Starts cloning/fetching the repo store toward `sha` unless it is already
+/// there or under way. Fire-and-forget; callers poll `repo_store_status`.
 #[tauri::command]
 pub async fn ensure_repo_store(
     app: AppHandle,
@@ -476,7 +434,7 @@ pub async fn ensure_repo_store(
 }
 
 /// Answering readiness spawns `git rev-parse`, so the check hops to a
-/// blocking thread like the snapshot-search commands below.
+/// blocking thread like the search commands below.
 #[tauri::command]
 pub async fn repo_store_status(
     app: AppHandle,
@@ -491,9 +449,9 @@ pub async fn repo_store_status(
         .map_err(|e| format!("repo store status failed: {e}"))
 }
 
-/// Both snapshot-search commands hop to a blocking thread: a whole-repo walk
-/// over a large snapshot is hundreds of milliseconds of filesystem work, and
-/// the review screen's hot-path invokes share this async runtime.
+/// Both search commands hop to a blocking thread: they spawn git against a
+/// possibly large tree, and the review screen's hot-path invokes share this
+/// async runtime.
 #[tauri::command]
 pub async fn list_repo_files(
     app: AppHandle,
@@ -501,21 +459,15 @@ pub async fn list_repo_files(
     repo: String,
     sha: String,
     path_contains: Option<String>,
-) -> Result<snapshot_search::FileListing, String> {
-    let key = snapshot_key(&app, owner, repo, sha).await?;
+) -> Result<repo_store_read::FileListing, String> {
+    let key = repo_key(&app, owner, repo).await?;
     let root = storage::cache_dir(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
-        let repo_key = RepoKey {
-            host: key.host.clone(),
-            owner: key.owner.clone(),
-            repo: key.repo.clone(),
-        };
-        repo_store_read::list_files(&root, &repo_key, &key.sha, path_contains.as_deref())
-            .or_else(|| snapshot_search::list_files(&root, &key, path_contains.as_deref()))
+        repo_store_read::list_files(&root, &key, &sha, path_contains.as_deref())
     })
     .await
     .map_err(|e| format!("file listing failed: {e}"))?
-    .ok_or_else(|| "snapshot not ready".to_string())
+    .ok_or_else(|| "repository not ready".to_string())
 }
 
 #[tauri::command]
@@ -526,21 +478,15 @@ pub async fn search_repo_content(
     sha: String,
     pattern: String,
     path_contains: Option<String>,
-) -> Result<snapshot_search::GrepResult, String> {
-    let key = snapshot_key(&app, owner, repo, sha).await?;
+) -> Result<repo_store_read::GrepResult, String> {
+    let key = repo_key(&app, owner, repo).await?;
     let root = storage::cache_dir(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
-        let repo_key = RepoKey {
-            host: key.host.clone(),
-            owner: key.owner.clone(),
-            repo: key.repo.clone(),
-        };
-        repo_store_read::grep(&root, &repo_key, &key.sha, &pattern, path_contains.as_deref())
-            .or_else(|| snapshot_search::grep(&root, &key, &pattern, path_contains.as_deref()))
+        repo_store_read::grep(&root, &key, &sha, &pattern, path_contains.as_deref())
     })
     .await
     .map_err(|e| format!("search failed: {e}"))?
-    .ok_or_else(|| "snapshot not ready".to_string())
+    .ok_or_else(|| "repository not ready".to_string())
 }
 
 #[tauri::command]
