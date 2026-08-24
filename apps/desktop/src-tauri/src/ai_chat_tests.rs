@@ -8,7 +8,8 @@ use super::{
     ChatPart, ChatProposal, ChatRegion, ChatToolNote, ChatTurn, CommentableSide, SkillInfo,
 };
 use crate::ai::AskContext;
-use crate::snapshot::store::{partial_dir, promote, SnapshotKey};
+use crate::repo_store::store::CommitKey;
+use crate::repo_store::testkit::seeded_store;
 use serde_json::json;
 use std::path::PathBuf;
 
@@ -407,45 +408,39 @@ fn skill_instructions_strip_the_frontmatter() {
     );
 }
 
-fn skills_snapshot(label: &str) -> (PathBuf, SnapshotKey) {
+fn skills_store(label: &str) -> (PathBuf, CommitKey) {
     let root = std::env::temp_dir().join(format!("nod-chat-{label}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).expect("temp root");
-    let key = SnapshotKey {
-        host: "https://github.com".to_string(),
-        owner: "acme".to_string(),
-        repo: "widget-app".to_string(),
-        sha: "a1b2c3".to_string(),
-    };
-    for (path, contents) in [
-        (".claude/skills/pr-validity/SKILL.md", SKILL_MD),
-        (
-            ".claude/skills/security-pass/SKILL.md",
-            "No frontmatter, straight to auditing.",
-        ),
-        (".claude/skills/pr-validity/reference.md", "not a skill"),
-        // A repo that keeps skills outside .claude, grouped and not
-        (
-            "skills/gallery-notes/SKILL.md",
-            "---\ndescription: Write the gallery notes\n---\nBody.",
-        ),
-        (
-            "skills/engineering/code-review/SKILL.md",
-            "---\ndescription: Review like a senior\n---\nBody.",
-        ),
-        ("src/lib.rs", "fn main() {}\n"),
-    ] {
-        let target = partial_dir(&root, &key).join(path);
-        std::fs::create_dir_all(target.parent().expect("parent")).expect("staging");
-        std::fs::write(&target, contents).expect("write");
-    }
-    promote(&root, &key).expect("promote");
+    let key = seeded_store(
+        &root,
+        "acme",
+        "widget-app",
+        &[
+            (".claude/skills/pr-validity/SKILL.md", SKILL_MD.as_bytes()),
+            (
+                ".claude/skills/security-pass/SKILL.md",
+                b"No frontmatter, straight to auditing.",
+            ),
+            (".claude/skills/pr-validity/reference.md", b"not a skill"),
+            // A repo that keeps skills outside .claude, grouped and not
+            (
+                "skills/gallery-notes/SKILL.md",
+                b"---\ndescription: Write the gallery notes\n---\nBody.",
+            ),
+            (
+                "skills/engineering/code-review/SKILL.md",
+                b"---\ndescription: Review like a senior\n---\nBody.",
+            ),
+            ("src/lib.rs", b"fn main() {}\n"),
+        ],
+    );
     (root, key)
 }
 
 #[test]
 fn discovery_lists_manifest_skills_sorted_with_descriptions() {
-    let (root, key) = skills_snapshot("discover");
+    let (root, key) = skills_store("discover");
     assert_eq!(
         discover_skills(&root, &key),
         vec![
@@ -476,7 +471,7 @@ fn discovery_lists_manifest_skills_sorted_with_descriptions() {
 
 #[test]
 fn skill_tools_list_and_read_and_answer_mistakes_readably() {
-    let (root, key) = skills_snapshot("tools");
+    let (root, key) = skills_store("tools");
 
     let listing = execute_skill_tool(Some(&(root.clone(), key.clone())), &[], "list_skills", "{}");
     assert_eq!(
@@ -803,7 +798,7 @@ fn find_skill_tells_the_model_to_search_wide_and_show_before_saving() {
 
 #[test]
 fn skills_outside_dot_claude_are_reachable_too() {
-    let (root, key) = skills_snapshot("outside");
+    let (root, key) = skills_store("outside");
     let found = discover_skills(&root, &key);
     let names: Vec<&str> = found.iter().map(|s| s.name.as_str()).collect();
     assert_eq!(

@@ -1,6 +1,7 @@
-use super::{cache_path_segment, detail_cache_name, local_blob};
+use super::{cache_path_segment, detail_cache_name, store_blob};
 use crate::model::MAX_BLOB_BYTES;
-use crate::snapshot::store::{partial_dir, promote, SnapshotKey};
+use crate::repo_store::store::CommitKey;
+use crate::repo_store::testkit::seeded_store;
 use std::path::{Path, PathBuf};
 
 fn temp_root(label: &str) -> PathBuf {
@@ -10,18 +11,12 @@ fn temp_root(label: &str) -> PathBuf {
     path
 }
 
-fn snapshot_with(root: &Path, path: &str, contents: &[u8]) -> SnapshotKey {
-    let key = SnapshotKey {
-        host: "https://github.com".to_string(),
-        owner: "acme".to_string(),
-        repo: "widget-app".to_string(),
-        sha: "a1b2c3".to_string(),
-    };
-    let target = partial_dir(root, &key).join(path);
-    std::fs::create_dir_all(target.parent().expect("parent")).expect("staging");
-    std::fs::write(&target, contents).expect("write");
-    promote(root, &key).expect("promote");
-    key
+fn store_with(root: &Path, path: &str, contents: &[u8]) -> CommitKey {
+    seeded_store(root, "acme", "widget-app", &[(path, contents)])
+}
+
+fn blob(root: &Path, key: &CommitKey, path: &str) -> Option<Result<crate::model::FileBlob, String>> {
+    store_blob(root, &key.repo_key(), &key.sha, path)
 }
 
 #[test]
@@ -43,12 +38,12 @@ fn cache_path_segment_replaces_slashes_and_backslashes() {
 }
 
 #[test]
-fn local_blob_matches_the_shape_the_host_path_returns() {
+fn store_blob_matches_the_shape_the_host_path_returns() {
     let root = temp_root("hit");
-    let key = snapshot_with(&root, "src/lib/api.ts", b"export const x = 1;");
+    let key = store_with(&root, "src/lib/api.ts", b"export const x = 1;");
 
-    let blob = local_blob(&root, &key, "src/lib/api.ts")
-        .expect("snapshot hit")
+    let blob = blob(&root, &key, "src/lib/api.ts")
+        .expect("store hit")
         .expect("under the cap");
 
     assert_eq!(blob.size, 19);
@@ -57,27 +52,27 @@ fn local_blob_matches_the_shape_the_host_path_returns() {
 }
 
 #[test]
-fn local_blob_misses_fall_through_to_the_network() {
+fn store_blob_misses_fall_through_to_the_network() {
     let root = temp_root("miss");
-    let key = snapshot_with(&root, "src/present.ts", b"x");
+    let key = store_with(&root, "src/present.ts", b"x");
 
-    assert!(local_blob(&root, &key, "src/absent.ts").is_none());
+    assert!(blob(&root, &key, "src/absent.ts").is_none());
 
-    let other_sha = SnapshotKey {
-        sha: "different".to_string(),
+    let other_sha = CommitKey {
+        sha: "0123456789abcdef0123456789abcdef01234567".to_string(),
         ..key
     };
-    assert!(local_blob(&root, &other_sha, "src/present.ts").is_none());
+    assert!(blob(&root, &other_sha, "src/present.ts").is_none());
     let _ = std::fs::remove_dir_all(&root);
 }
 
 #[test]
-fn local_blob_oversized_hits_error_instead_of_falling_through() {
+fn store_blob_oversized_hits_error_instead_of_falling_through() {
     let root = temp_root("oversized");
     let big = vec![0u8; MAX_BLOB_BYTES + 1];
-    let key = snapshot_with(&root, "big.bin", &big);
+    let key = store_with(&root, "big.bin", &big);
 
-    let resolved = local_blob(&root, &key, "big.bin").expect("snapshot hit");
+    let resolved = blob(&root, &key, "big.bin").expect("store hit");
 
     let Err(err) = resolved else {
         panic!("expected the over-cap error");
@@ -87,13 +82,13 @@ fn local_blob_oversized_hits_error_instead_of_falling_through() {
 }
 
 #[test]
-fn local_blob_preserves_binary_content_exactly() {
+fn store_blob_preserves_binary_content_exactly() {
     let root = temp_root("binary");
     let png = [0x89u8, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0xFF];
-    let key = snapshot_with(&root, "logo.png", &png);
+    let key = store_with(&root, "logo.png", &png);
 
-    let blob = local_blob(&root, &key, "logo.png")
-        .expect("snapshot hit")
+    let blob = blob(&root, &key, "logo.png")
+        .expect("store hit")
         .expect("under the cap");
 
     assert_eq!(blob.size, 10);

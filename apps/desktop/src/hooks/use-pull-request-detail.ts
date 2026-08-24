@@ -11,25 +11,26 @@ import type { PullRequestDetail } from "../types.ts";
  */
 const PR_DETAIL_STALE_MS = 60_000;
 
-const SNAPSHOT_TRIGGER_DELAY_MS = 800;
+const STORE_TRIGGER_DELAY_MS = 800;
 
 /**
  * Full PR detail (metadata + files + review comments). Seeds from the on-disk
  * cache so opening a PR is instant, then refetches in the background.
  *
- * Opening a PR also kicks off a repo snapshot at its head SHA (BACKLOG §9).
- * The result is never awaited or rendered, and failures are ignored by design —
- * a missing snapshot just means blobs come from the host, exactly as before.
- * Rust owns readiness and dedupes concurrent requests for a SHA, so re-firing
- * on remount or after a background refetch costs one IPC call.
+ * Opening a PR also kicks off the repo store for its head SHA — the
+ * app-owned clone fetches the commit, cloning first if this is the repo's
+ * first visit. The result is never awaited or rendered, and failures are
+ * ignored by design — no local store just means blobs come from the host.
+ * Rust owns readiness and dedupes concurrent requests, so re-firing on
+ * remount or after a background refetch costs one IPC call.
  *
  * The trigger is delayed rather than fired on data arrival. "Fire-and-forget"
  * is not free: issued during the commit that opens the PR, even one IPC call
  * competes with the first paint of a large diff and measurably slowed warm
  * opens (197ms → 276ms against a 300ms budget). Waiting costs nothing real —
- * the download takes seconds, so starting it a beat later does not move when
- * the snapshot becomes ready. Same reasoning as the blob prefetch delay in
- * use-file-expansion.ts.
+ * the clone or fetch takes seconds, so starting it a beat later does not
+ * move when the store becomes ready. Same reasoning as the blob prefetch
+ * delay in use-file-expansion.ts.
  */
 export function usePullRequestDetail(
   owner: string,
@@ -68,8 +69,8 @@ export function usePullRequestDetail(
       return;
     }
     const timer = setTimeout(() => {
-      api.ensureRepoSnapshot(owner, repo, headSha).catch(() => undefined);
-    }, SNAPSHOT_TRIGGER_DELAY_MS);
+      api.ensureRepoStore(owner, repo, headSha).catch(() => undefined);
+    }, STORE_TRIGGER_DELAY_MS);
     return () => clearTimeout(timer);
   }, [owner, repo, headSha]);
 

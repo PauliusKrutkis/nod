@@ -51,8 +51,8 @@ export interface AppOptions {
   aiModels?: { id: string; contextLength: number | null }[];
   aiModelsError?: string;
   chatSkills?: { name: string; description: string; source: string }[];
-  snapshotState?: "ready" | "downloading" | "failed" | "skipped";
-  snapshotDetail?: string;
+  storeState?: "ready" | "cloning" | "fetching" | "failed" | "idle";
+  storeDetail?: string;
   repoGrep?: {
     hits: { line: number; path: string; text: string }[];
     truncated: boolean;
@@ -119,8 +119,8 @@ function aiDefaults(opts: AppOptions) {
     aiChatScript: opts.aiChatScript ?? [],
     aiCompletion: opts.aiCompletion ?? "",
     chatSkills: opts.chatSkills ?? [],
-    snapshotState: opts.snapshotState ?? "ready",
-    snapshotDetail: opts.snapshotDetail ?? "",
+    storeState: opts.storeState ?? "ready",
+    storeDetail: opts.storeDetail ?? "",
     repoGrep: opts.repoGrep ?? { hits: [], truncated: false },
     aiInfo: opts.aiInfo ?? { baseUrl: null, configured: false, model: null },
     aiModelsError: opts.aiModelsError ?? null,
@@ -202,11 +202,11 @@ export function installBridge(cfg: BridgeConfig) {
     arr ? arr[Math.min(n, arr.length - 1)] : fallback;
 
   let aiInfo = cfg.aiInfo;
-  let snapshotState = cfg.snapshotState;
+  let storeState = cfg.storeState;
   (
-    window as unknown as { __setSnapshotState: (s: string) => void }
-  ).__setSnapshotState = (next: string) => {
-    snapshotState = next as typeof snapshotState;
+    window as unknown as { __setStoreState: (s: string) => void }
+  ).__setStoreState = (next: string) => {
+    storeState = next as typeof storeState;
   };
   let online = !cfg.offline;
   let queueSeq = 0;
@@ -457,21 +457,21 @@ export function installBridge(cfg: BridgeConfig) {
       localStorage.setItem("e2e:lastCommentDelete", JSON.stringify(args));
       return null;
     },
-    snapshot_status: () => ({
-      detail: cfg.snapshotDetail,
-      state: snapshotState,
+    repo_store_status: () => ({
+      detail: cfg.storeDetail,
+      state: storeState,
     }),
-    ensure_repo_snapshot: (args) => {
+    ensure_repo_store: (args) => {
       const seen = JSON.parse(
-        localStorage.getItem("e2e:snapshotEnsures") ?? "[]"
+        localStorage.getItem("e2e:storeEnsures") ?? "[]"
       ) as unknown[];
       seen.push(args);
-      localStorage.setItem("e2e:snapshotEnsures", JSON.stringify(seen));
-      return { detail: cfg.snapshotDetail, state: snapshotState };
+      localStorage.setItem("e2e:storeEnsures", JSON.stringify(seen));
+      return { detail: cfg.storeDetail, state: storeState };
     },
     search_repo_content: (args) => {
-      if (snapshotState !== "ready") {
-        throw new Error("snapshot not ready");
+      if (storeState !== "ready") {
+        throw new Error("repository not ready");
       }
       const pattern = String(args.pattern ?? "");
       return {

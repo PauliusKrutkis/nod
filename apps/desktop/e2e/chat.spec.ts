@@ -808,10 +808,10 @@ test("the diff rides the request so read_diff has hunks to serve", async ({
   ).toBe(true);
 });
 
-test("a snapshot still downloading is said out loud in the composer", async ({
+test("a store still cloning is said out loud in the composer", async ({
   page,
 }) => {
-  await setupApp(page, { ...CONFIGURED, snapshotState: "downloading" });
+  await setupApp(page, { ...CONFIGURED, storeState: "cloning" });
   await openReview(page);
   await page.keyboard.press("ControlOrMeta+l");
   await expect(
@@ -838,7 +838,7 @@ test("/ offers find-skill even when the repo has none of its own", async ({
   await expect(chatPanel(page).getByText("find-skill")).toBeVisible();
 });
 
-test("skills found only after the snapshot lands still reach the picker", async ({
+test("skills found only after the store lands still reach the picker", async ({
   page,
 }) => {
   await setupApp(page, {
@@ -846,14 +846,14 @@ test("skills found only after the snapshot lands still reach the picker", async 
     chatSkills: [
       { description: "Repo conventions", name: "pr-validity", source: "repo" },
     ],
-    snapshotState: "downloading",
+    storeState: "cloning",
   });
   await openReview(page);
   await page.keyboard.press("ControlOrMeta+l");
   await page.evaluate(() => {
     (
-      window as unknown as { __setSnapshotState: (s: string) => void }
-    ).__setSnapshotState("ready");
+      window as unknown as { __setStoreState: (s: string) => void }
+    ).__setStoreState("ready");
   });
   await expect
     .poll(async () => {

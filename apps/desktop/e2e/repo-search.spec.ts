@@ -6,7 +6,7 @@ import { expect, test } from "./test.ts";
  * mod+r widens it to the whole revision, and the pane states which scope is
  * live. Hits whose exact line is on the new side of the diff carry an "in this
  * PR" chip and lead the list; a hit outside the diff peeks inline instead of
- * navigating, so the review never loses its place. A snapshot that is still
+ * navigating, so the review never loses its place. A store that is still
  * downloading shows the preparing notice, and one the backend refused reports
  * that refusal rather than preparing forever.
  *
@@ -35,7 +35,7 @@ test("a second mod+r widens code search to the whole repo", async ({
 }) => {
   await setupApp(page, {
     repoGrep: { hits: [RETRY_HIT], truncated: false },
-    snapshotState: "ready",
+    storeState: "ready",
   });
   await openReview(page);
 
@@ -50,7 +50,7 @@ test("a second mod+r widens code search to the whole repo", async ({
 test("an in-PR hit is chipped and leads the repo results", async ({ page }) => {
   await setupApp(page, {
     repoGrep: { hits: [VENDOR_HIT, RETRY_HIT], truncated: false },
-    snapshotState: "ready",
+    storeState: "ready",
   });
   await openReview(page);
 
@@ -76,7 +76,7 @@ test("a repo-only hit peeks inline instead of leaving the review", async ({
       ).join("\n"),
     },
     repoGrep: { hits: [VENDOR_HIT], truncated: false },
-    snapshotState: "ready",
+    storeState: "ready",
   });
   await openReview(page);
 
@@ -89,10 +89,8 @@ test("a repo-only hit peeks inline instead of leaving the review", async ({
   await expect(page.locator("dialog.qsp-panel")).toBeVisible();
 });
 
-test("a downloading snapshot says the repo is being prepared", async ({
-  page,
-}) => {
-  await setupApp(page, { snapshotState: "downloading" });
+test("a cloning store says the repo is being prepared", async ({ page }) => {
+  await setupApp(page, { storeState: "cloning" });
   await openReview(page);
 
   await page.keyboard.press("ControlOrMeta+r");
@@ -105,10 +103,13 @@ test("a downloading snapshot says the repo is being prepared", async ({
   ).toBeVisible();
 });
 
-test("a refused snapshot names the refusal instead of preparing forever", async ({
+test("a failed store names the failure instead of preparing forever", async ({
   page,
 }) => {
-  await setupApp(page, { snapshotState: "skipped" });
+  await setupApp(page, {
+    storeDetail: "git clone failed: no route to host",
+    storeState: "failed",
+  });
   await openReview(page);
 
   await page.keyboard.press("ControlOrMeta+r");
@@ -116,6 +117,6 @@ test("a refused snapshot names the refusal instead of preparing forever", async 
 
   await expect(page.getByText("Repo search is unavailable.")).toBeVisible();
   await expect(
-    page.getByText("This repository is too large for a local snapshot.")
+    page.getByText("git clone failed: no route to host", { exact: true })
   ).toBeVisible();
 });
