@@ -24,8 +24,7 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::ai::{self, AskContext};
-use crate::snapshot::search as snapshot_search;
-use crate::snapshot::store::{self as snapshot_store, SnapshotKey};
+use crate::snapshot::store::SnapshotKey;
 
 #[derive(Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -379,12 +378,12 @@ fn skill_name_from_path(path: &str) -> Option<&str> {
     (!name.is_empty()).then_some(name)
 }
 
-/// Every `SKILL.md` in the snapshot, as (name, path). `.claude/skills` is
+/// Every `SKILL.md` at the head SHA, as (name, path). `.claude/skills` is
 /// walked first so its entry is the one that survives a name clash.
 fn skill_paths(root: &std::path::Path, key: &SnapshotKey) -> Vec<(String, String)> {
     let mut out: Vec<(String, String)> = Vec::new();
     for prefix in SKILL_ROOTS {
-        let Some(listing) = snapshot_search::list_files(root, key, Some(prefix)) else {
+        let Some(listing) = ai::local_list_files(root, key, Some(prefix)) else {
             continue;
         };
         for path in listing.files {
@@ -472,7 +471,7 @@ fn read_skill_body(root: &std::path::Path, key: &SnapshotKey, name: &str) -> Opt
     let direct = SKILL_ROOTS
         .iter()
         .map(|prefix| format!("{prefix}{name}/SKILL.md"))
-        .find_map(|path| snapshot_store::read_file(root, key, &path));
+        .find_map(|path| ai::local_read_file(root, key, &path));
     let bytes = match direct {
         Some(bytes) => bytes,
         None => {
@@ -480,7 +479,7 @@ fn read_skill_body(root: &std::path::Path, key: &SnapshotKey, name: &str) -> Opt
                 .into_iter()
                 .find(|(found, _)| found == name)
                 .map(|(_, path)| path)?;
-            snapshot_store::read_file(root, key, &path)?
+            ai::local_read_file(root, key, &path)?
         }
     };
     Some(skill_text(&bytes))

@@ -25,7 +25,10 @@ use super::store::{self, RepoKey};
 
 pub const MAX_LISTED_FILES: usize = 2000;
 pub const MAX_GREP_HITS: usize = 200;
+pub const MAX_READ_LINES: usize = 400;
+const MAX_READ_FILE_BYTES: u64 = 1024 * 1024;
 const MAX_HIT_TEXT_CHARS: usize = 240;
+const BINARY_SNIFF_BYTES: usize = 4096;
 
 const SYMLINK_MODE: &str = "120000";
 
@@ -123,6 +126,62 @@ pub fn read_file(root: &Path, key: &RepoKey, sha: &str, path: &str) -> Option<Ve
         None,
     )
     .ok()
+}
+
+fn looks_binary(contents: &[u8]) -> bool {
+    contents
+        .iter()
+        .take(BINARY_SNIFF_BYTES)
+        .any(|&byte| byte == 0)
+}
+
+/// A numbered slice of one blob at this commit, shaped for the AI tool loop
+/// exactly as the snapshot version was: `N: text` lines, 1-based inclusive
+/// bounds, clamped ends, an explicit truncation marker. `None` mirrors the
+/// other entry points — commit not local, path missing, symlink, binary, or
+/// over the per-file cap.
+pub fn read_file_slice(
+    root: &Path,
+    key: &RepoKey,
+    sha: &str,
+    path: &str,
+    start: usize,
+    end: usize,
+) -> Option<String> {
+    let dir = ready_dir(root, key, sha)?;
+    let found = entry(&dir, sha, path)?;
+    if found.size? > MAX_READ_FILE_BYTES {
+        return None;
+    }
+    let contents = git::run_bytes(
+        Some(&dir),
+        &["cat-file", "blob", &format!("{sha}:{path}")],
+        None,
+    )
+    .ok()?;
+    if looks_binary(&contents) {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&contents);
+    let first = start.max(1);
+    let last = end.max(first).min(first + MAX_READ_LINES - 1);
+    let mut out: Vec<String> = Vec::new();
+    let mut total_lines = 0;
+    for (index, line) in text.lines().enumerate() {
+        total_lines = index + 1;
+        if total_lines >= first && total_lines <= last {
+            out.push(format!("{total_lines}: {}", clipped(line)));
+        }
+    }
+    if out.is_empty() {
+        return Some(format!("(file has only {total_lines} lines)"));
+    }
+    if last < total_lines && out.len() == last - first + 1 {
+        out.push(format!(
+            "[truncated — file continues to line {total_lines}]"
+        ));
+    }
+    Some(out.join("\n"))
 }
 
 fn passes_filter(path: &str, path_contains: Option<&str>) -> bool {
