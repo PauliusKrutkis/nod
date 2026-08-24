@@ -74,7 +74,8 @@ import { Button } from "@nod/ui/button";
 import { catalog } from "@nod/ui/catalog";
 import { isSequence, sequenceElement } from "@nod/ui/fixtures";
 import { Kbd } from "@nod/ui/kbd";
-import { useEffect, useState } from "react";
+import { isView } from "@nod/ui/manifest";
+import { Fragment, useEffect, useState } from "react";
 import { PENDING } from "./coverage.ts";
 import {
   cellAnchor,
@@ -104,9 +105,35 @@ import "./gallery.css";
 const THEME_LABELS = { day: "Daylight", quiet: "Quiet" } as const;
 const MODE_LABELS = { matrix: "Matrix", specimen: "Specimen" } as const;
 
-const componentNames = Object.keys(catalog);
+const catalogNames = Object.keys(catalog);
+const viewNames = catalogNames.filter((name) => isView(catalog[name]));
+const partNames = catalogNames.filter((name) => !isView(catalog[name]));
+const componentNames = [...viewNames, ...partNames];
 const cataloguedNames = new Set(componentNames);
-const allNames = [...componentNames, ...PENDING];
+
+/**
+ * Rail order, and therefore the order every key walk follows: surfaces
+ * first, then the parts they are built from, then names with no fixtures
+ * yet. Exported because the tests that assert walking order must not
+ * re-derive it — two definitions of "next" is how a rail and its keyboard
+ * drift apart.
+ */
+export const allNames = [...componentNames, ...PENDING];
+
+type RailSection = "parts" | "pending" | "views";
+
+const SECTION_LABELS: Record<RailSection, string> = {
+  parts: "Components",
+  pending: "Not catalogued",
+  views: "Views",
+};
+
+function sectionOf(name: string): RailSection {
+  if (!cataloguedNames.has(name)) {
+    return "pending";
+  }
+  return isView(catalog[name]) ? "views" : "parts";
+}
 
 const fixturesOf = (component: string): readonly string[] =>
   Object.keys(catalog[component]?.fixtures ?? {});
@@ -448,12 +475,11 @@ function handleZoomKey(
   return false;
 }
 
-/** The component rail: find field, the catalogue with its per-component note
- *  count, and the "N of M catalogued" footer. */
+/** The rail: find field, then the catalogue in tiers — views (whole
+ *  surfaces) above the parts they are built from — each item carrying its
+ *  open-note count, over a footer counting both tiers. */
 function GalleryRail({
-  allNames,
   cataloguedNames,
-  componentNames,
   filter,
   findSel,
   onFindChange,
@@ -463,9 +489,7 @@ function GalleryRail({
   selected,
   visibleNames,
 }: {
-  allNames: readonly string[];
   cataloguedNames: ReadonlySet<string>;
-  componentNames: readonly string[];
   filter: string;
   findSel: number;
   onFindChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -496,33 +520,44 @@ function GalleryRail({
           const catalogued = cataloguedNames.has(name);
           const isSelected = name === selected;
           const isFindCandidate = filter !== "" && index === findSel;
+          const section = sectionOf(name);
+          // A heading opens each run rather than wrapping it: the find index
+          // and the key walk both address one flat list, and nesting the
+          // items inside per-section containers would put a stale index
+          // between them.
+          const opensSection =
+            index === 0 || sectionOf(visibleNames[index - 1] ?? "") !== section;
           return (
-            <button
-              className={[
-                "qg-rail-item",
-                catalogued ? "" : "qg-bare",
-                isSelected ? "qg-sel" : "",
-                isFindCandidate ? "qg-cand" : "",
-              ].join(" ")}
-              key={name}
-              onClick={() => onSelect(name)}
-              ref={railRevealRef(isFindCandidate, isSelected)}
-              type="button"
-            >
-              <i className="qg-dot" />
-              <span className="qg-name">{name}</span>
-              {openNotesOf(name) > 0 ? (
-                <span className="qg-mark">{openNotesOf(name)}</span>
+            <Fragment key={name}>
+              {opensSection ? (
+                <p className="qg-rail-group">{SECTION_LABELS[section]}</p>
               ) : null}
-              <span className="qg-count">
-                {catalogued ? fixturesOf(name).length : "—"}
-              </span>
-            </button>
+              <button
+                className={[
+                  "qg-rail-item",
+                  catalogued ? "" : "qg-bare",
+                  isSelected ? "qg-sel" : "",
+                  isFindCandidate ? "qg-cand" : "",
+                ].join(" ")}
+                onClick={() => onSelect(name)}
+                ref={railRevealRef(isFindCandidate, isSelected)}
+                type="button"
+              >
+                <i className="qg-dot" />
+                <span className="qg-name">{name}</span>
+                {openNotesOf(name) > 0 ? (
+                  <span className="qg-mark">{openNotesOf(name)}</span>
+                ) : null}
+                <span className="qg-count">
+                  {catalogued ? fixturesOf(name).length : "—"}
+                </span>
+              </button>
+            </Fragment>
           );
         })}
       </nav>
       <div className="qg-rail-foot">
-        {componentNames.length} of {allNames.length} catalogued
+        {viewNames.length} views · {partNames.length} components
       </div>
     </aside>
   );
@@ -787,9 +822,7 @@ export function Gallery() {
       ].join(" ")}
     >
       <GalleryRail
-        allNames={allNames}
         cataloguedNames={cataloguedNames}
-        componentNames={componentNames}
         filter={filter}
         findSel={findSel}
         onFindChange={onFindChange}

@@ -12,7 +12,7 @@ import { catalog } from "@nod/ui/catalog";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PENDING } from "./coverage.ts";
-import { Gallery } from "./gallery.tsx";
+import { allNames, Gallery } from "./gallery.tsx";
 import { captureName, formatGalleryHash, parseGalleryHash } from "./route.ts";
 
 afterEach(cleanup);
@@ -37,7 +37,10 @@ beforeEach(() => {
 });
 
 const componentNames = Object.keys(catalog);
-const first = componentNames[0];
+// The rail's own order — views before parts — which is what the gallery
+// lands on and what every key walk follows. Deriving it here again is how a
+// rail and its keyboard quietly disagree.
+const first = allNames[0];
 const firstFixtures = Object.keys(catalog[first].fixtures);
 const firstPending = PENDING[0];
 
@@ -166,7 +169,7 @@ describe("gallery", () => {
     render(<Gallery />);
     expect(reveals.at(-1)).toBe(first);
     fireEvent.keyDown(window, { key: "j" });
-    expect(reveals.at(-1)).toBe([...componentNames, ...PENDING][1]);
+    expect(reveals.at(-1)).toBe(allNames[1]);
   });
 
   it("reveals the selection when find's Enter restores the full list", () => {
@@ -286,7 +289,7 @@ describe("gallery", () => {
   });
 
   it("switches components with Tab and the arrows", () => {
-    const [, second, third] = componentNames;
+    const [, second, third] = allNames;
     render(<Gallery />);
     fireEvent.keyDown(window, { key: "Tab" });
     expect(window.location.hash).toContain(`/${second}/`);

@@ -11,7 +11,10 @@
  * component.
  */
 export const GALLERY_THEMES = ["quiet", "day"] as const;
-export const GALLERY_WIDTHS = [280, 420, 720, 0] as const;
+/** 280/420 are the app's sidebar and panel widths; 900/1400 are the window's
+ *  own minimum and default (tauri.conf.json), which is what a whole surface
+ *  has to be judged at; 0 is fluid. */
+export const GALLERY_WIDTHS = [280, 420, 720, 900, 1400, 0] as const;
 export const GALLERY_MODES = ["specimen", "matrix"] as const;
 
 type GalleryTheme = (typeof GALLERY_THEMES)[number];
