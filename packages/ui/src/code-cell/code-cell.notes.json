@@ -1,0 +1,12 @@
+{
+  "decided": [],
+  "open": [
+    {
+      "added": "2026-08-24",
+      "cell": "code-cell/raw-markup/quiet/1400",
+      "id": "n1",
+      "note": "maybe view is enough for this? kind of hard to see how it will look in pr view",
+      "scope": "component"
+    }
+  ]
+}

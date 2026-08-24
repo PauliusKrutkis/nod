@@ -1,0 +1,12 @@
+{
+  "decided": [],
+  "open": [
+    {
+      "added": "2026-08-24",
+      "cell": "image-diff/added-only/quiet/1400",
+      "id": "n1",
+      "note": "maybe make this into a view?",
+      "scope": "component"
+    }
+  ]
+}

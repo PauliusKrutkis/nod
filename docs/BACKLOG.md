@@ -294,7 +294,7 @@ Complex: browser API differences, permissions, Slack in-app browser edge cases.
 | **`c`** / **`shift+c`** | Comment on the cursor line / on the PR |
 | **`x`** / **`shift+e`** / **`z`** | Resolve · edit your comment · expand/collapse thread |
 | **`shift+d`** | Discard the pending comment at the cursor |
-| **`i`** / **`shift+i`** | Toggle info panel / widen it |
+| **`mod+i`** | Toggle info panel |
 | **`o`** / **`y`** / **`mod+shift+c`** | Open on host · copy PR link · copy file path |
 | **`s`** | Submit review |
 | **`mod+t`** / **`mod+r`** / **`mod+f`** | Find a file · search code · find in diff |

@@ -1,0 +1,12 @@
+{
+  "decided": [],
+  "open": [
+    {
+      "added": "2026-08-24",
+      "cell": "repo-file-view/hit-first-line/quiet/fluid",
+      "id": "n1",
+      "note": "maybe we need a view for this? kind of lost what this is used for?",
+      "scope": "component"
+    }
+  ]
+}

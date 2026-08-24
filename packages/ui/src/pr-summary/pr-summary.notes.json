@@ -1,0 +1,12 @@
+{
+  "decided": [],
+  "open": [
+    {
+      "added": "2026-08-24",
+      "cell": "pr-summary/ci-failing/quiet/fluid",
+      "id": "n1",
+      "note": "ci pill is no longer needed? we have a tab for that",
+      "scope": "component"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 /**
  * Host wiring for the review screen's right panel: the right-dock shell
- * (tabs, widen/close, the docked-or-overlay seating) around the catalogued
+ * (tabs, close, the docked-or-overlay seating) around the catalogued
  * PR drawer content in frameless mode. The dock owns the chrome and the
  * focus traffic; the drawer content keeps everything it always did — the
  * merged conversation, the thread index, the draft-never-lost composer.

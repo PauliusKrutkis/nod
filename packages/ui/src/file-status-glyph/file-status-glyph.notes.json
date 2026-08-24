@@ -1,0 +1,12 @@
+{
+  "decided": [],
+  "open": [
+    {
+      "added": "2026-08-24",
+      "cell": "file-status-glyph/added/quiet/1400",
+      "id": "n1",
+      "note": "maybe view is enough for this?",
+      "scope": "component"
+    }
+  ]
+}

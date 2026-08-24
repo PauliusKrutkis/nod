@@ -38,7 +38,7 @@
  * editor the footer and in-place edits use, and defaults to the package's
  * own AddCommentBox; the slot exists for hosts that wrap the editor (extra
  * extensions, upload wiring). Every imperative reach — mutations, openers,
- * close/widen, jump-to-thread — arrives on the `callbacks` object, so no
+ * close, jump-to-thread — arrives on the `callbacks` object, so no
  * Tauri touches this side. `ownLogin` decides which comments are yours and
  * `trackerBase` linkifies ticket ids, both store reads the host keeps.
  *
@@ -56,7 +56,6 @@
  * somewhere Esc can act on.
  */
 
-import { PanelRightClose, PanelRightOpen } from "lucide-react";
 import {
   type ReactNode,
   type Ref,
@@ -140,8 +139,6 @@ export interface PrDrawerCallbacks {
   onShowChecks?: () => void;
   onOpenPr: () => void;
   onOpenTicket: (url: string) => void;
-  /** Only the drawer's own (non-frameless) head shows the widen button. */
-  onToggleWide?: () => void;
 }
 
 export interface DrawerComposerHandle {
@@ -179,8 +176,6 @@ export interface PrDrawerProps {
   renderMarkdown?: (body: string) => ReactNode;
   reviews: DrawerReview[];
   trackerBase?: string;
-  /** Only the drawer's own (non-frameless) seating reads this. */
-  wide?: boolean;
 }
 
 type TimelineEntry = DrawerTimelineEntry<DrawerComment, DrawerReview>;
@@ -217,7 +212,6 @@ export function PrDrawer({
   renderMarkdown,
   reviews,
   trackerBase,
-  wide = false,
 }: PrDrawerProps) {
   const body = pr.body.trim();
   const callbacksRef = useLatest(callbacks);
@@ -323,21 +317,6 @@ export function PrDrawer({
     <div className="qf-drawer-head">
       <span className="qf-drawer-title">Pull request</span>
       <div className="qf-drawer-head-actions">
-        <Tooltip combo="shift+i" label={`${wide ? "Narrow" : "Widen"} panel`}>
-          <button
-            aria-label={wide ? "Narrow panel" : "Widen panel"}
-            aria-pressed={wide}
-            className="qf-drawer-wide-btn q-focus"
-            onClick={callbacks.onToggleWide}
-            type="button"
-          >
-            {wide ? (
-              <PanelRightClose aria-hidden size={15} />
-            ) : (
-              <PanelRightOpen aria-hidden size={15} />
-            )}
-          </button>
-        </Tooltip>
         <Tooltip combo="esc" label="Close">
           <button
             aria-label="Close"
@@ -450,7 +429,6 @@ export function PrDrawer({
         className={cn(
           "qf-drawer",
           open && "qf-drawer-open",
-          wide && "qf-drawer-wide",
           embedded && "qf-drawer-embedded"
         )}
         inert={!open}

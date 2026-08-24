@@ -1,0 +1,12 @@
+{
+  "decided": [],
+  "open": [
+    {
+      "added": "2026-08-24",
+      "cell": "token-gate/signing-in/quiet/fluid",
+      "id": "n1",
+      "note": "maybe this should a view?",
+      "scope": "component"
+    }
+  ]
+}

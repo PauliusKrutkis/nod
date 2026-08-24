@@ -1,0 +1,12 @@
+{
+  "decided": [],
+  "open": [
+    {
+      "added": "2026-08-24",
+      "cell": "ci-pill/failure/quiet/1400",
+      "id": "n1",
+      "note": "is this still used? maybe ci tab is enoguh?",
+      "scope": "component"
+    }
+  ]
+}

@@ -120,19 +120,31 @@ const cataloguedNames = new Set(componentNames);
  */
 export const allNames = [...componentNames, ...PENDING];
 
-type RailSection = "parts" | "pending" | "views";
+type RailTier = "components" | "views";
 
-const SECTION_LABELS: Record<RailSection, string> = {
-  parts: "Components",
-  pending: "Not catalogued",
+const TIER_LABELS: Record<RailTier, string> = {
+  components: "Components",
   views: "Views",
 };
 
-function sectionOf(name: string): RailSection {
-  if (!cataloguedNames.has(name)) {
-    return "pending";
-  }
-  return isView(catalog[name]) ? "views" : "parts";
+/** The two rail tabs. Names with no fixtures yet are components that have
+ *  not been built, so they sit under Components rather than earning a third
+ *  tab for a state that is temporary by definition. */
+export const tierNames: Record<RailTier, readonly string[]> = {
+  components: [...partNames, ...PENDING],
+  views: viewNames,
+};
+
+/**
+ * Which tab a name belongs to — and therefore which tab is open, because the
+ * active tab is derived from the selection rather than stored beside it. One
+ * source of truth means a deep link to a view opens the Views tab for free,
+ * and no gesture can leave the tab disagreeing with the stage.
+ */
+function tierOf(name: string): RailTier {
+  return cataloguedNames.has(name) && isView(catalog[name])
+    ? "views"
+    : "components";
 }
 
 const fixturesOf = (component: string): readonly string[] =>
@@ -376,19 +388,47 @@ function routePatchForKey(
   route: GalleryRoute
 ): Partial<GalleryRoute> | null {
   switch (key) {
+    // Walking stays inside the open tab: j/k is how you read a tier, and
+    // silently crossing into the other one is how you lose your place.
     case "j":
     case "ArrowDown":
-      return { component: cycle(allNames, route.component, 1) };
+      return {
+        component: cycle(
+          tierNames[tierOf(route.component)],
+          route.component,
+          1
+        ),
+      };
     case "k":
     case "ArrowUp":
-      return { component: cycle(allNames, route.component, -1) };
+      return {
+        component: cycle(
+          tierNames[tierOf(route.component)],
+          route.component,
+          -1
+        ),
+      };
     case "Tab":
-      return { component: cycle(allNames, route.component, dir) };
+      return {
+        component: cycle(
+          tierNames[tierOf(route.component)],
+          route.component,
+          dir
+        ),
+      };
     case "f": {
       const fixtures = fixturesOf(route.component);
       return fixtures.length > 0
         ? { fixture: cycle(fixtures, route.fixture, dir) }
         : null;
+    }
+    // Flips the rail's tab. It lands on the other tier's first name because
+    // the tab is the selection's tier read back — there is no tab state of
+    // its own to move.
+    case "v": {
+      const other =
+        tierOf(route.component) === "views" ? "components" : "views";
+      return { component: tierNames[other][0] ?? route.component };
     }
     case "t":
       return { theme: cycle(GALLERY_THEMES, route.theme, dir) };
@@ -475,10 +515,11 @@ function handleZoomKey(
   return false;
 }
 
-/** The rail: find field, then the catalogue in tiers — views (whole
- *  surfaces) above the parts they are built from — each item carrying its
- *  open-note count, over a footer counting both tiers. */
+/** The rail: find field, two tabs — views (whole surfaces) and the
+ *  components they are built from — and the open tab's catalogue, each item
+ *  carrying its open-note count. */
 function GalleryRail({
+  activeTier,
   cataloguedNames,
   filter,
   findSel,
@@ -489,6 +530,7 @@ function GalleryRail({
   selected,
   visibleNames,
 }: {
+  activeTier: RailTier;
   cataloguedNames: ReadonlySet<string>;
   filter: string;
   findSel: number;
@@ -515,23 +557,33 @@ function GalleryRail({
           value={filter}
         />
       </div>
-      <nav aria-label="Components" className="qg-rail-list">
+      <div className="qg-rail-tabs" role="tablist">
+        {(Object.keys(TIER_LABELS) as RailTier[]).map((tier) => (
+          <button
+            aria-selected={tier === activeTier}
+            className={["qg-rail-tab", tier === activeTier ? "qg-on" : ""].join(
+              " "
+            )}
+            key={tier}
+            // Selecting the tier's first name is what opens the tab, since
+            // the tab is that selection's tier read back.
+            onClick={() => onSelect(tierNames[tier][0] ?? "")}
+            role="tab"
+            type="button"
+          >
+            {TIER_LABELS[tier]}
+            <span className="qg-rail-tab-n">{tierNames[tier].length}</span>
+          </button>
+        ))}
+        <Kbd combo="v" />
+      </div>
+      <nav aria-label={TIER_LABELS[activeTier]} className="qg-rail-list">
         {visibleNames.map((name, index) => {
           const catalogued = cataloguedNames.has(name);
           const isSelected = name === selected;
           const isFindCandidate = filter !== "" && index === findSel;
-          const section = sectionOf(name);
-          // A heading opens each run rather than wrapping it: the find index
-          // and the key walk both address one flat list, and nesting the
-          // items inside per-section containers would put a stale index
-          // between them.
-          const opensSection =
-            index === 0 || sectionOf(visibleNames[index - 1] ?? "") !== section;
           return (
             <Fragment key={name}>
-              {opensSection ? (
-                <p className="qg-rail-group">{SECTION_LABELS[section]}</p>
-              ) : null}
               <button
                 className={[
                   "qg-rail-item",
@@ -557,7 +609,7 @@ function GalleryRail({
         })}
       </nav>
       <div className="qg-rail-foot">
-        {viewNames.length} views · {partNames.length} components
+        {componentNames.length} of {allNames.length} catalogued
       </div>
     </aside>
   );
@@ -745,9 +797,18 @@ export function Gallery() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [route, notesOpen]);
 
-  const visibleNames = allNames.filter((name) =>
-    name.includes(filter.trim().toLowerCase())
-  );
+  const activeTier = tierOf(route.component);
+  const needle = filter.trim().toLowerCase();
+  const matching = (tier: RailTier) =>
+    tierNames[tier].filter((name) => name.includes(needle));
+  const here = matching(activeTier);
+  // A search that matches nothing in the open tab falls through to the other
+  // one rather than dead-ending: picking a result selects it, and the tab
+  // follows the selection, so the fall-through is also the way across.
+  const visibleNames =
+    here.length > 0
+      ? here
+      : matching(activeTier === "views" ? "components" : "views");
 
   const select = (component: string) => {
     setRoute((r) => normalize({ ...r, component }));
@@ -822,6 +883,7 @@ export function Gallery() {
       ].join(" ")}
     >
       <GalleryRail
+        activeTier={activeTier}
         cataloguedNames={cataloguedNames}
         filter={filter}
         findSel={findSel}

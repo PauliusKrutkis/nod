@@ -1,0 +1,12 @@
+{
+  "decided": [],
+  "open": [
+    {
+      "added": "2026-08-24",
+      "cell": "highlight-indices/out-of-range/quiet/1400",
+      "id": "n1",
+      "note": "maybe make this into a view?",
+      "scope": "component"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "decided": [],
+  "open": [
+    {
+      "added": "2026-08-24",
+      "cell": "find-bar/case-sensitive/quiet/1400",
+      "id": "n1",
+      "note": "maybe make it into a view?",
+      "scope": "component"
+    }
+  ]
+}

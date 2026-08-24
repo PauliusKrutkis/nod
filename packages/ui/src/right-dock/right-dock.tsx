@@ -1,6 +1,6 @@
 /**
  * The review screen's right-side panel shell: the chrome that used to belong
- * to the pr-drawer (head, widen/close, scrim, focus traffic) pulled out so
+ * to the pr-drawer (head, close, scrim, focus traffic) pulled out so
  * more than one surface can live behind it. Tabs name the surfaces; the
  * active one renders as children, and a single tab renders as the familiar
  * static title instead of a strip — the dock with only "Pull request" in it

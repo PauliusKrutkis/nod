@@ -461,6 +461,19 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "zero-count",
     ],
   },
+  "inbox-view": {
+    view: true,
+    fixtures: [
+      "archived",
+      "crowd-40",
+      "empty",
+      "markup-as-text",
+      "no-detail",
+      "overflow",
+      "typical",
+      "unicode",
+    ],
+  },
   "inbox-zero": {
     fixtures: [
       "all-clear",
@@ -585,6 +598,9 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "staged-review",
       "unicode",
     ],
+  },
+  "org-access-hint": {
+    fixtures: ["overflow", "typical"],
   },
   "overview-ruler": {
     fixtures: [
