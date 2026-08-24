@@ -5,6 +5,8 @@
    flex-basis auto, not 0%: a 0% basis collapses column children in
    WKWebView, which the app ships on. */
 .qiv {
+  container-type: inline-size;
+  container-name: qiv;
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
@@ -33,8 +35,14 @@
 
 /* The app's minimum window is 900px wide (tauri.conf.json). At that width
    the reading pane cannot hold its 380px and stay honest, so the list takes
-   the whole width and the pane waits for room. */
-@media (width <= 900px) {
+   the whole width and the pane waits for room.
+
+   A container query, not a viewport one, for the reason review-header.css
+   already gives: the pane has to answer to its own width, which is what
+   makes it true under webview zoom (900px at 1.5x behaves like ~600px) and
+   what lets a gallery cell at 900 actually show the fold instead of a
+   squeezed two-column grid. */
+@container qiv (width <= 900px) {
   .qiv-body {
     grid-template-columns: 1fr;
   }

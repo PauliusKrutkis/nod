@@ -20,7 +20,7 @@
  * can really be at, not a hypothetical.
  */
 
-import type { ReactNode, RefObject } from "react";
+import type { MouseEvent, ReactNode, RefObject } from "react";
 import { type InboxTab, InboxTabs } from "../inbox-tabs/inbox-tabs.tsx";
 import {
   PRListItem,
@@ -29,6 +29,10 @@ import {
 import "./inbox-view.css";
 
 export interface InboxViewRow {
+  /** Stable identity for the row. The inbox spans repositories, so the PR
+   *  number is not unique across the list — two repos both having a #12 is
+   *  ordinary, and keying on it would reuse the wrong row on any reorder. */
+  key: string;
   pr: PullRequestRow;
   selected: boolean;
   unread: boolean;
@@ -65,9 +69,10 @@ export function InboxView({
   onOpenRow: (index: number) => void;
   onHoverRow?: (index: number) => void;
   listLabel: string;
-  listMode?: string;
+  listMode?: "keyboard" | "mouse";
   listRef?: RefObject<HTMLDivElement | null>;
-  onListMouseMove?: (e: React.MouseEvent<HTMLDivElement>) => void;
+  onListMouseMove?: (e: MouseEvent<HTMLDivElement>) => void;
+  /** Contents of the archived banner; the view supplies the band itself. */
   banner?: ReactNode;
   hint?: ReactNode;
   detail?: ReactNode;
@@ -82,7 +87,7 @@ export function InboxView({
         onSelect={tabs.onSelect}
         onToggleArchived={tabs.onToggleArchived}
         onWatch={tabs.onWatch}
-        tabs={[...tabs.items]}
+        tabs={tabs.items}
       />
       {body ?? (
         <div className="qiv-body">
@@ -94,9 +99,11 @@ export function InboxView({
             ref={listRef}
             role="listbox"
           >
-            {banner}
+            {banner === null ? null : (
+              <div className="qiv-banner">{banner}</div>
+            )}
             {rows.map((row, index) => (
-              <div data-index={index} key={row.pr.number}>
+              <div data-index={index} key={row.key}>
                 <PRListItem
                   onHover={onHoverRow ? () => onHoverRow(index) : undefined}
                   onOpen={() => onOpenRow(index)}

@@ -53,7 +53,12 @@ function pr(overrides: Partial<PullRequestRow>): PullRequestRow {
 function row(
   over: Partial<InboxViewRow> & { pr: PullRequestRow }
 ): InboxViewRow {
-  return { selected: false, unread: false, ...over };
+  return {
+    key: `${over.pr.repo}#${over.pr.number}`,
+    selected: false,
+    unread: false,
+    ...over,
+  };
 }
 
 const ROWS: InboxViewRow[] = [

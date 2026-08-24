@@ -600,7 +600,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
     ],
   },
   "org-access-hint": {
-    fixtures: ["overflow", "typical"],
+    fixtures: ["typical"],
   },
   "overview-ruler": {
     fixtures: [

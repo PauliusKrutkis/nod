@@ -534,7 +534,7 @@ function PrSearchContent({
       </div>
 
       {viewingHit ? (
-        // biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/noNoninteractiveElementInteractions lint/a11y/noNoninteractiveTabindex: focused programmatically so esc lands here first and the scroll container gets native arrow/page keys; it is never a tab stop.
+        // biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/noNoninteractiveElementInteractions: focused programmatically so esc lands here first and the scroll container gets native arrow/page keys; it is never a tab stop.
         <div
           className="qsp-view"
           onKeyDown={handleViewKeyDown}

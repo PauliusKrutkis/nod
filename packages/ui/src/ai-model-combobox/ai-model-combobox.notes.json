@@ -3,6 +3,10 @@
     {
       "note": "maybe view is enough for this?",
       "why": "It already is: the combobox only appears inside ai-setup-dialog, which is a view, so its cells now show it at the width the dialog really opens at. The isolated cells stay for the data cases a view cannot stage — 120 models, a filtered list, a free-text entry."
+    },
+    {
+      "note": "the input moves on click?",
+      "why": "Not the component — the gallery frame. .qg-frame centres its specimen vertically, so a list that grows in flow re-centres the cell and the input appears to jump. The app never does this: ai-setup-dialog is .q-dialog-top, anchored at top: 14vh, so the panel grows downward and the field stays put. Floating the list was tried and reverted: .qai-body is a scroll container, so an absolutely positioned list is clipped rather than overlaid, it would have had to shrink from 224px to about five rows for a list the file header calls 'not a short list', and arrowing through options would scroll the dialog body instead."
     }
   ],
   "open": []

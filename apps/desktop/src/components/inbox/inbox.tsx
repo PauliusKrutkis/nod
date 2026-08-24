@@ -462,12 +462,12 @@ function InboxSurface({
     <InboxView
       banner={
         showArchived ? (
-          <div className="qiv-banner">
+          <>
             <ArchiveRestore size={13} />
             <span>
               Archived · <Kbd combo="e" /> restores, <Kbd combo="u" /> returns
             </span>
-          </div>
+          </>
         ) : null
       }
       body={body}
@@ -488,6 +488,7 @@ function InboxSurface({
       onListMouseMove={handleListMouseMove}
       onOpenRow={onOpenAt}
       rows={filtered.map((pr, index) => ({
+        key: keyFor(pr),
         pr,
         selected: index === selectedIndex,
         unread: isUnread(keyFor(pr), pr.updatedAt),

@@ -68,7 +68,7 @@ export function InboxTabs({
   onSelect: (key: string) => void;
   onToggleArchived: () => void;
   onWatch: () => void;
-  tabs: InboxTab[];
+  tabs: readonly InboxTab[];
 }) {
   return (
     <div className="qi-tabs">
