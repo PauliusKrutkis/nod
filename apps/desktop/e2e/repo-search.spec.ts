@@ -89,6 +89,41 @@ test("a repo-only hit peeks inline instead of leaving the review", async ({
   await expect(page.locator("dialog.qsp-panel")).toBeVisible();
 });
 
+test("enter on a repo-only hit opens the whole file in place, esc steps back", async ({
+  page,
+}) => {
+  await setupApp(page, {
+    fileBlobs: {
+      "src/vendor/backoff.ts": Array.from(
+        { length: 12 },
+        (_, i) => `line ${i + 1}`
+      ).join("\n"),
+    },
+    repoGrep: { hits: [VENDOR_HIT], truncated: false },
+    storeState: "ready",
+  });
+  await openReview(page);
+
+  await page.keyboard.press("ControlOrMeta+r");
+  await page.keyboard.press("ControlOrMeta+r");
+  await page.keyboard.type("retryLimit");
+  await expect(page.locator('[role="option"]')).toHaveCount(1);
+
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".qrfv-body")).toBeVisible();
+  await expect(page.locator(".qrfv-path")).toHaveText("src/vendor/backoff.ts");
+  await expect(page.locator(".qrfv-line-hit")).toContainText("line 7");
+  await expect(page.getByText("line 12")).toBeVisible();
+  await expect(page.getByText("back to results")).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".qrfv-body")).toHaveCount(0);
+  await expect(page.locator('[role="option"]')).toHaveCount(1);
+
+  await page.keyboard.press("Escape");
+  await expect(page.locator("dialog.qsp-panel")).toHaveCount(0);
+});
+
 test("a cloning store says the repo is being prepared", async ({ page }) => {
   await setupApp(page, { storeState: "cloning" });
   await openReview(page);

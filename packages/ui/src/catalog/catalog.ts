@@ -44,6 +44,7 @@ import { prSearchEntry } from "../pr-search/pr-search.fixtures.ts";
 import { prSummaryEntry } from "../pr-summary/pr-summary.fixtures.ts";
 import { purchasePromptEntry } from "../purchase-prompt/purchase-prompt.fixtures.ts";
 import { releaseHistoryEntry } from "../release-history/release-history.fixtures.ts";
+import { repoFileViewEntry } from "../repo-file-view/repo-file-view.fixtures.ts";
 import { reviewHeaderEntry } from "../review-header/review-header.fixtures.ts";
 import { reviewScreenPendingEntry } from "../review-screen-pending/review-screen-pending.fixtures.ts";
 import { reviewToastEntry } from "../review-toast/review-toast.fixtures.ts";
@@ -107,6 +108,7 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   "pr-summary": prSummaryEntry,
   "purchase-prompt": purchasePromptEntry,
   "release-history": releaseHistoryEntry,
+  "repo-file-view": repoFileViewEntry,
   "review-header": reviewHeaderEntry,
   "review-screen-pending": reviewScreenPendingEntry,
   "review-toast": reviewToastEntry,

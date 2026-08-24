@@ -640,6 +640,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "unicode",
     ],
   },
+
   "pr-summary": {
     fixtures: [
       "ancient",
@@ -679,6 +680,18 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "unicode",
     ],
   },
+  "repo-file-view": {
+    fixtures: [
+      "clipped-both-ends",
+      "hit-first-line",
+      "hit-mid-file",
+      "loading",
+      "markup-as-text",
+      "overflow",
+      "unicode",
+    ],
+  },
+
   "review-header": {
     fixtures: [
       "ai-reply-ready",

@@ -60,6 +60,7 @@
     "./pr-summary": "./src/pr-summary/pr-summary.tsx",
     "./purchase-prompt": "./src/purchase-prompt/purchase-prompt.tsx",
     "./release-history": "./src/release-history/release-history.tsx",
+    "./repo-file-view": "./src/repo-file-view/repo-file-view.tsx",
     "./review-header": "./src/review-header/review-header.tsx",
     "./review-screen-pending": "./src/review-screen-pending/review-screen-pending.tsx",
     "./review-toast": "./src/review-toast/review-toast.tsx",

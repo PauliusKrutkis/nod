@@ -32,9 +32,12 @@
  * owns the fetch and hands results back through `repo`, each hit already
  * tagged with the diff anchor it maps to, so an in-PR hit jumps exactly like
  * a diff hit while a repo-only hit peeks inline instead — the pane never
- * navigates away from the review. The toggle reuses the key that opened code
- * search (`mod+r`): widening is a repeat of the gesture, not a new binding in
- * a nearly full key space. Peek context arrives asynchronously — the pane
+ * navigates away from the review. Enter on a repo-only hit grows the peek
+ * into the whole file (repo-file-view) inside the same dialog, fed by the
+ * host's `filePreview` — the blob it already fetched for the peek — and esc
+ * steps back to the results before it closes anything. The toggle reuses
+ * the key that opened code search (`mod+r`): widening is a repeat of the
+ * gesture, not a new binding in a nearly full key space. Peek context arrives asynchronously — the pane
  * asks via `onNeedRepoContext` and renders whatever the host attaches on the
  * next pass; the effect that fires the request exists because selection can
  * land on a context-less row without a fresh user gesture (results arriving
@@ -56,6 +59,7 @@ import { fuzzyMatch } from "../fuzzy/fuzzy.ts";
 import { highlightHtmlToNodes } from "../highlight-html/highlight-html.ts";
 import { HighlightIndices } from "../highlight-indices/highlight-indices.tsx";
 import { Kbd } from "../kbd/kbd.tsx";
+import { RepoFileView } from "../repo-file-view/repo-file-view.tsx";
 import { useModalDialog } from "../use-modal-dialog/use-modal-dialog.ts";
 import "../search-pane/search-pane.css";
 import "./pr-search.css";
@@ -273,6 +277,7 @@ export function PrSearch({
   onQueryChange,
   onSelectRepoHit,
   onNeedRepoContext,
+  filePreview = null,
 }: {
   open: boolean;
   mode: PrSearchMode;
@@ -289,12 +294,16 @@ export function PrSearch({
   onQueryChange?: (query: string) => void;
   onSelectRepoHit?: (hit: RepoSearchHit) => void;
   onNeedRepoContext?: (hit: RepoSearchHit) => void;
+  /** The peeked file's full lines, for the repo-only file view. Keyed by
+   *  path so a stale blob never renders under another hit's name. */
+  filePreview?: { path: string; lines: readonly string[] } | null;
 }) {
   if (!open) {
     return null;
   }
   return (
     <PrSearchContent
+      filePreview={filePreview}
       files={files}
       highlightLine={highlightLine}
       initialQuery={initialQuery}
@@ -329,6 +338,7 @@ function PrSearchContent({
   onQueryChange,
   onSelectRepoHit,
   onNeedRepoContext,
+  filePreview,
 }: {
   mode: PrSearchMode;
   onOpenChange: (v: boolean) => void;
@@ -344,20 +354,30 @@ function PrSearchContent({
   onQueryChange?: (query: string) => void;
   onSelectRepoHit?: (hit: RepoSearchHit) => void;
   onNeedRepoContext?: (hit: RepoSearchHit) => void;
+  filePreview: { path: string; lines: readonly string[] } | null;
 }) {
   const listId = useId();
+  const [query, setQuery] = useState(initialQuery);
+  const [sel, setSel] = useState(0);
+  const [viewing, setViewing] = useState(false);
+  // Dismissal is layered like the app's other surfaces: while the file view
+  // is up, every close gesture — esc anywhere in the dialog, a backdrop
+  // click — steps back to the results; only the next one closes the pane.
   const close = () => {
-    onOpenChange(false);
+    if (viewing) {
+      closeView();
+    } else {
+      onOpenChange(false);
+    }
   };
   const { dialogRef, onDialogCancel, onDialogClose } = useModalDialog(
     close,
     undefined,
     { modal: !inline }
   );
-  const [query, setQuery] = useState(initialQuery);
-  const [sel, setSel] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const viewRef = useRef<HTMLDivElement>(null);
 
   const q = query.trim().toLowerCase();
   const repoScope = mode === "text" && scope === "repo" && repo !== undefined;
@@ -393,7 +413,20 @@ function PrSearchContent({
       return;
     }
     setSel(0);
+    setViewing(false);
     onScopeChange(scope === "repo" ? "pr" : "repo");
+  };
+
+  const openView = () => {
+    setViewing(true);
+    // The view owns the keyboard while it is up: focus makes esc land here
+    // first and gives the scroll container native arrow/page keys.
+    requestAnimationFrame(() => viewRef.current?.focus());
+  };
+
+  const closeView = () => {
+    setViewing(false);
+    requestAnimationFrame(() => inputRef.current?.focus());
   };
 
   const choose = (it: Item) =>
@@ -403,14 +436,33 @@ function PrSearchContent({
       onSelectFile,
       onSelectLine,
       onSelectRepoHit,
+      openView,
     });
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) =>
-    onPaneKeyDown(e, { choose, close, items, sel, setSel, toggleScope });
+    onPaneKeyDown(e, {
+      choose,
+      close,
+      closeView,
+      items,
+      sel,
+      setSel,
+      toggleScope,
+      viewing,
+    });
+
+  const handleViewKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      closeView();
+    }
+  };
 
   const handleQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setQuery(e.target.value);
     setSel(0);
+    setViewing(false);
     onQueryChange?.(e.target.value);
   };
 
@@ -446,8 +498,9 @@ function PrSearchContent({
   const selected = items[sel];
   let enterLabel = mode === "files" ? "open file" : "go to line";
   if (selected?.kind === "repo" && selected.hit.anchor === null) {
-    enterLabel = "peek in place";
+    enterLabel = "open file";
   }
+  const viewingHit = viewing && selected?.kind === "repo" ? selected.hit : null;
 
   return (
     <dialog
@@ -480,45 +533,100 @@ function PrSearchContent({
         <Kbd combo="esc" />
       </div>
 
-      <ResultList
-        displayQ={displayQ}
-        highlightLine={highlightLine}
-        items={items}
-        listId={listId}
-        listRef={listRef}
-        notice={notice}
-        onRowClick={handleRowClick}
-        onRowMouseMove={handleRowMouseMove}
-        sel={sel}
-        showTruncated={Boolean(
-          repoScope && repo?.truncated && items.length > 0
-        )}
-      />
+      {viewingHit ? (
+        // biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/noNoninteractiveElementInteractions lint/a11y/noNoninteractiveTabindex: focused programmatically so esc lands here first and the scroll container gets native arrow/page keys; it is never a tab stop.
+        <div
+          className="qsp-view"
+          onKeyDown={handleViewKeyDown}
+          ref={viewRef}
+          tabIndex={-1}
+        >
+          <RepoFileView
+            filename={viewingHit.path}
+            highlightLine={highlightLine}
+            line={viewingHit.line}
+            lines={
+              filePreview?.path === viewingHit.path ? filePreview.lines : null
+            }
+            query={displayQ}
+          />
+        </div>
+      ) : (
+        <ResultList
+          displayQ={displayQ}
+          highlightLine={highlightLine}
+          items={items}
+          listId={listId}
+          listRef={listRef}
+          notice={notice}
+          onRowClick={handleRowClick}
+          onRowMouseMove={handleRowMouseMove}
+          sel={sel}
+          showTruncated={Boolean(
+            repoScope && repo?.truncated && items.length > 0
+          )}
+        />
+      )}
 
-      <div className="qsp-foot">
-        <span>
-          <Kbd combo="up" />
-          <Kbd combo="down" /> navigate
-        </span>
-        <span>
-          <CornerDownLeft aria-hidden size={11} /> {enterLabel}
-        </span>
-        {canToggleScope ? (
-          <button
-            className="qsp-foot-scope qsp-scope-btn"
-            onClick={toggleScope}
-            type="button"
-          >
-            {repoScope ? "whole repo" : "code in this PR"}
-            <Kbd combo="mod+r" />
-          </button>
-        ) : (
-          <span className="qsp-foot-scope">
-            {mode === "files" ? "files in this PR" : "code in this PR"}
-          </span>
-        )}
-      </div>
+      <PaneFoot
+        canToggleScope={canToggleScope}
+        enterLabel={enterLabel}
+        mode={mode}
+        repoScope={repoScope}
+        toggleScope={toggleScope}
+        viewing={viewingHit !== null}
+      />
     </dialog>
+  );
+}
+
+function PaneFoot({
+  canToggleScope,
+  enterLabel,
+  mode,
+  repoScope,
+  toggleScope,
+  viewing,
+}: {
+  canToggleScope: boolean;
+  enterLabel: string;
+  mode: PrSearchMode;
+  repoScope: boolean;
+  toggleScope: () => void;
+  viewing: boolean;
+}) {
+  return (
+    <div className="qsp-foot">
+      {viewing ? (
+        <span>
+          <Kbd combo="esc" /> back to results
+        </span>
+      ) : (
+        <>
+          <span>
+            <Kbd combo="up" />
+            <Kbd combo="down" /> navigate
+          </span>
+          <span>
+            <CornerDownLeft aria-hidden size={11} /> {enterLabel}
+          </span>
+        </>
+      )}
+      {canToggleScope ? (
+        <button
+          className="qsp-foot-scope qsp-scope-btn"
+          onClick={toggleScope}
+          type="button"
+        >
+          {repoScope ? "whole repo" : "code in this PR"}
+          <Kbd combo="mod+r" />
+        </button>
+      ) : (
+        <span className="qsp-foot-scope">
+          {mode === "files" ? "files in this PR" : "code in this PR"}
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -593,6 +701,7 @@ function chooseItem(
     onSelectFile: (index: number) => void;
     onSelectLine: (index: number, anchor: string) => void;
     onSelectRepoHit?: (hit: RepoSearchHit) => void;
+    openView: () => void;
   }
 ) {
   if (it.kind === "repo") {
@@ -600,7 +709,11 @@ function chooseItem(
       handlers.onSelectRepoHit?.(it.hit);
       handlers.close();
     } else {
+      // The host is already fetching this blob for the peek; asking again
+      // is what guarantees the view has lines coming when the peek request
+      // never fired (a click straight onto the row).
       handlers.onNeedRepoContext?.(it.hit);
+      handlers.openView();
     }
     return;
   }
@@ -617,13 +730,28 @@ function onPaneKeyDown(
   pane: {
     choose: (it: Item) => void;
     close: () => void;
+    closeView: () => void;
     items: Item[];
     sel: number;
     setSel: (update: (s: number) => number) => void;
     toggleScope: () => void;
+    viewing: boolean;
   }
 ) {
-  const { choose, close, items, sel, setSel, toggleScope } = pane;
+  const { choose, close, closeView, items, sel, setSel, toggleScope, viewing } =
+    pane;
+  // While the file view is up the list is not on screen: selection keys go
+  // dead rather than moving an invisible cursor, and esc backs out one
+  // level instead of closing the pane.
+  if (viewing) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closeView();
+    } else if (["ArrowDown", "ArrowUp", "Enter", "Tab"].includes(e.key)) {
+      e.preventDefault();
+    }
+    return;
+  }
   if (e.key === "ArrowDown") {
     e.preventDefault();
     setSel((s) => Math.min(s + 1, items.length - 1));
