@@ -289,7 +289,7 @@ Complex: browser API differences, permissions, Slack in-app browser edge cases.
 | **`Tab`** / **`shift+Tab`** | Cycle files forward / back |
 | **`e`** / **`v`** | Mark viewed + next · toggle file viewed |
 | **`shift+v`** | Expand full file ↔ diff only |
-| **`b`** | Toggle file tree |
+| **`mod+b`** | Toggle file tree |
 | **`q`** / **`w`** | Next / prev comment thread |
 | **`c`** / **`shift+c`** | Comment on the cursor line / on the PR |
 | **`x`** / **`shift+e`** / **`z`** | Resolve · edit your comment · expand/collapse thread |
