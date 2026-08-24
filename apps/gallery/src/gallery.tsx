@@ -130,8 +130,12 @@ export const allNames = [...componentNames, ...PENDING];
 
 type RailTier = "components" | "hidden" | "views";
 
+/** "Parts", not "Components": it is the word the tier system already uses
+ *  everywhere else (fixtures.ts, TESTING.md, the capture rule), it is the
+ *  actual opposite of a view, and it is short enough that three tabs and
+ *  their counts fit the rail — "Components" alone overran it by 16px. */
 const TIER_LABELS: Record<RailTier, string> = {
-  components: "Components",
+  components: "Parts",
   hidden: "Hidden",
   views: "Views",
 };

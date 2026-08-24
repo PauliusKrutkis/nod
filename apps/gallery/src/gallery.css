@@ -120,11 +120,15 @@
 
 .qg-rail-tab {
   display: flex;
-  flex: 1;
+  flex: 1 1 auto;
   gap: 6px;
+  /* Never let the row push past the rail: a tab gives up its own width
+     first, and the count is what goes rather than the label. */
+  min-width: 0;
+  overflow: hidden;
   align-items: center;
   justify-content: center;
-  padding: 5px 8px;
+  padding: 5px 6px;
   font-size: 11px;
   color: var(--muted);
   cursor: pointer;
@@ -144,6 +148,7 @@
 }
 
 .qg-rail-tab-n {
+  flex-shrink: 1;
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--faint);

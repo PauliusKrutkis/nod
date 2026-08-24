@@ -44,7 +44,7 @@ beforeEach(() => {
 });
 
 const componentNames = Object.keys(catalog);
-const COMPONENTS_TAB = /^Components/;
+const COMPONENTS_TAB = /^Parts/;
 const HIDDEN_TAB = /^Hidden/;
 const SHEET = "Keyboard shortcuts";
 // The rail's own order — views before parts — which is what the gallery
