@@ -27,7 +27,7 @@ export function buildChatDiffs(files: readonly ChangedFile[]): ChatDiff[] {
     if (total + patch.length > MAX_TOTAL_CHARS) {
       out.push({
         patch:
-          "[omitted — the whole diff is too large to attach; read this file with the snapshot tools]",
+          "[omitted — the whole diff is too large to attach; read this file with the repository tools]",
         path: file.filename,
       });
       continue;

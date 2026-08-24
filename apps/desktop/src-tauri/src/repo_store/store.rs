@@ -20,14 +20,34 @@ use std::path::{Path, PathBuf};
 const REPOS_DIR: &str = "repos";
 const PARTIAL_SUFFIX: &str = ".partial";
 
-/// Identifies one repository on one host. Unlike `SnapshotKey` there is no
-/// SHA: the store holds the repo's history, and per-SHA readiness is a
-/// question for git (`service::has_commit`), not the filesystem.
+/// Identifies one repository on one host. There is deliberately no SHA: the
+/// store holds the repo's history, and per-SHA readiness is a question for
+/// git (`service::has_commit`), not the filesystem.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RepoKey {
     pub host: String,
     pub owner: String,
     pub repo: String,
+}
+
+/// One commit of one repository — what every SHA-addressed consumer (the AI
+/// tool loop, skills discovery) threads through its call chain.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CommitKey {
+    pub host: String,
+    pub owner: String,
+    pub repo: String,
+    pub sha: String,
+}
+
+impl CommitKey {
+    pub fn repo_key(&self) -> RepoKey {
+        RepoKey {
+            host: self.host.clone(),
+            owner: self.owner.clone(),
+            repo: self.repo.clone(),
+        }
+    }
 }
 
 fn segment(value: &str) -> String {
@@ -86,6 +106,13 @@ pub fn promote(root: &Path, key: &RepoKey) -> Result<(), String> {
 
 pub fn discard_partial(root: &Path, key: &RepoKey) {
     let _ = fs::remove_dir_all(partial_dir(root, key));
+}
+
+/// Deletes a repo's store entirely — the unwatch path. History for a repo
+/// nobody watches is pure disk cost; watching again just clones again.
+pub fn remove(root: &Path, key: &RepoKey) {
+    let _ = fs::remove_dir_all(git_dir(root, key));
+    discard_partial(root, key);
 }
 
 #[cfg(test)]

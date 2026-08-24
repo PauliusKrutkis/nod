@@ -14,9 +14,7 @@ use crate::http::{fopt_u64, net_err};
 use crate::repo_store::read as repo_read;
 use crate::repo_store::read::{FileListing, GrepResult};
 use crate::repo_store::service as repo_store_service;
-use crate::repo_store::store::RepoKey;
-use crate::snapshot::search as snapshot_search;
-use crate::snapshot::store::{self as snapshot_store, SnapshotKey};
+use crate::repo_store::store::CommitKey;
 use crate::storage;
 
 const AI_FILE: &str = "ai.json";
@@ -252,7 +250,7 @@ If the provided context is not enough to answer, say exactly what is missing.";
 
 const ASK_TOOLS_SYSTEM_PROMPT: &str =
     "You are the code assistant inside Nod, a pull-request review app. \
-You have tools over a local snapshot of the repository at the PR's head commit: \
+You have tools over a local copy of the repository at the PR's head commit: \
 list_files, read_file (numbered lines), and grep_repo (literal, case-sensitive). \
 Use them to ground answers in real code instead of guessing — look up definitions, \
 callers, and context beyond the diff. Cite code as path:line. Be concise. \
@@ -499,55 +497,42 @@ pub(crate) fn ask_tools() -> Value {
     ])
 }
 
-fn repo_key(key: &SnapshotKey) -> RepoKey {
-    RepoKey {
-        host: key.host.clone(),
-        owner: key.owner.clone(),
-        repo: key.repo.clone(),
-    }
-}
-
-/// The local-source reads behind the tool loop and skills discovery: repo
-/// store first, snapshot fallback, one `None` for "nothing local". These are
-/// the only places the AI code knows two sources exist; everything else
-/// keeps threading `(root, SnapshotKey)`.
+/// The repo-store reads behind the tool loop and skills discovery, taking
+/// the `CommitKey` the AI code threads. These wrappers are the only place
+/// the AI code knows where local content comes from.
 pub(crate) fn local_list_files(
     root: &std::path::Path,
-    key: &SnapshotKey,
+    key: &CommitKey,
     path_contains: Option<&str>,
 ) -> Option<FileListing> {
-    repo_read::list_files(root, &repo_key(key), &key.sha, path_contains)
-        .or_else(|| snapshot_search::list_files(root, key, path_contains))
+    repo_read::list_files(root, &key.repo_key(), &key.sha, path_contains)
 }
 
 fn local_grep(
     root: &std::path::Path,
-    key: &SnapshotKey,
+    key: &CommitKey,
     pattern: &str,
     path_contains: Option<&str>,
 ) -> Option<GrepResult> {
-    repo_read::grep(root, &repo_key(key), &key.sha, pattern, path_contains)
-        .or_else(|| snapshot_search::grep(root, key, pattern, path_contains))
+    repo_read::grep(root, &key.repo_key(), &key.sha, pattern, path_contains)
 }
 
 fn local_read_slice(
     root: &std::path::Path,
-    key: &SnapshotKey,
+    key: &CommitKey,
     path: &str,
     start: usize,
     end: usize,
 ) -> Option<String> {
-    repo_read::read_file_slice(root, &repo_key(key), &key.sha, path, start, end)
-        .or_else(|| snapshot_search::read_file_slice(root, key, path, start, end))
+    repo_read::read_file_slice(root, &key.repo_key(), &key.sha, path, start, end)
 }
 
 pub(crate) fn local_read_file(
     root: &std::path::Path,
-    key: &SnapshotKey,
+    key: &CommitKey,
     path: &str,
 ) -> Option<Vec<u8>> {
-    repo_read::read_file(root, &repo_key(key), &key.sha, path)
-        .or_else(|| snapshot_store::read_file(root, key, path))
+    repo_read::read_file(root, &key.repo_key(), &key.sha, path)
 }
 
 fn format_listing(listing: FileListing) -> String {
@@ -577,12 +562,12 @@ fn format_grep(result: GrepResult) -> String {
     out.join("\n")
 }
 
-/// Runs one tool call against the local sources. Always returns text — an
+/// Runs one tool call against the repo store. Always returns text — an
 /// unknown tool or bad arguments become an error string the model can read
 /// and correct, never a failed request.
 pub(crate) fn execute_tool(
     root: &std::path::Path,
-    key: &SnapshotKey,
+    key: &CommitKey,
     name: &str,
     arguments: &str,
 ) -> String {
@@ -591,11 +576,11 @@ pub(crate) fn execute_tool(
     match name {
         "list_files" => local_list_files(root, key, path_contains)
             .map(format_listing)
-            .unwrap_or_else(|| "error: repository snapshot is not available".to_string()),
+            .unwrap_or_else(|| "error: the repository is not available locally".to_string()),
         "grep_repo" => match args.get("pattern").and_then(Value::as_str) {
             Some(pattern) => local_grep(root, key, pattern, path_contains)
                 .map(format_grep)
-                .unwrap_or_else(|| "error: repository snapshot is not available".to_string()),
+                .unwrap_or_else(|| "error: the repository is not available locally".to_string()),
             None => "error: grep_repo requires a string 'pattern'".to_string(),
         },
         "read_file" => match args.get("path").and_then(Value::as_str) {
@@ -621,20 +606,19 @@ pub(crate) fn execute_tool(
     }
 }
 
-/// The local source the ask can ground itself in — present only when the
-/// context names a commit and either the repo store has it or the snapshot
-/// finished extracting it. The name and key shape predate the store; both
-/// retire with the snapshot module.
-pub(crate) async fn ready_snapshot(
+/// The local content the ask can ground itself in — present only when the
+/// context names a commit and the repo store has it. The commit probe spawns
+/// git, so it hops to a blocking thread.
+pub(crate) async fn ready_source(
     app: &AppHandle,
     context: &AskContext,
-) -> Option<(std::path::PathBuf, SnapshotKey)> {
+) -> Option<(std::path::PathBuf, CommitKey)> {
     let (owner, repo, sha) = match (&context.owner, &context.repo, &context.head_sha) {
         (Some(o), Some(r), Some(s)) => (o.clone(), r.clone(), s.clone()),
         _ => return None,
     };
     let account = accounts::active_account(app).await.ok()?;
-    let key = SnapshotKey {
+    let key = CommitKey {
         host: account.host,
         owner,
         repo,
@@ -644,8 +628,7 @@ pub(crate) async fn ready_snapshot(
     let probe_root = root.clone();
     let probe_key = key.clone();
     let ready = tauri::async_runtime::spawn_blocking(move || {
-        repo_store_service::has_commit(&probe_root, &repo_key(&probe_key), &probe_key.sha)
-            || snapshot_store::is_ready(&probe_root, &probe_key)
+        repo_store_service::has_commit(&probe_root, &probe_key.repo_key(), &probe_key.sha)
     })
     .await
     .unwrap_or(false);
@@ -657,7 +640,7 @@ pub(crate) async fn ready_snapshot(
 
 pub(crate) fn tool_result_messages(
     root: std::path::PathBuf,
-    key: SnapshotKey,
+    key: CommitKey,
     calls: Vec<Value>,
 ) -> Vec<Value> {
     calls
@@ -816,7 +799,7 @@ pub async fn ai_ask(
     let model = config
         .model
         .ok_or_else(|| "Choose a model in AI settings first".to_string())?;
-    let snapshot = ready_snapshot(&app, &context).await;
+    let snapshot = ready_source(&app, &context).await;
     let system = if snapshot.is_some() {
         ASK_TOOLS_SYSTEM_PROMPT
     } else {
