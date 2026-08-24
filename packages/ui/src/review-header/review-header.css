@@ -313,6 +313,36 @@
   background: var(--warn);
 }
 
+/* The chat's headless state, opposite corner to the CI dot. Working pulses
+   so a glance separates "still writing" from the steady "finished unseen";
+   the pulse is paint-only and dropped under reduced motion. */
+.qf-ai-dot {
+  position: absolute;
+  bottom: -3px;
+  left: -3px;
+  width: 9px;
+  height: 9px;
+  background: var(--accent);
+  border-radius: var(--r-pill);
+  box-shadow: 0 0 0 2px var(--bg);
+}
+
+.qf-ai-dot-working {
+  animation: qf-ai-dot-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes qf-ai-dot-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qf-ai-dot-working {
+    animation: none;
+  }
+}
+
 .qf-submit {
   display: inline-flex;
   flex-shrink: 0;

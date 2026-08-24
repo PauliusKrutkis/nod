@@ -79,14 +79,18 @@ const EMPTY_PENDING: PendingComment[] = [];
 const EMPTY_SKILLS: SkillInfo[] = [];
 const EMPTY_THREADS: ChatThread[] = [];
 
-/** A thread's display name: its opening message, tightly trimmed. */
-/** A thread's display name: whatever its opening message actually was.
- *  Prose first; failing that the skills it invoked (a skill on its own is a
- *  complete message, and "/pr-validity" names that thread better than any
- *  summary would); failing that the code it attached. Nothing is generated —
- *  a label is not worth a model call, and a thread named by its own first
- *  line is one the reviewer can recognise. */
+/** A thread's display name: the model's title once the first exchange has
+ *  produced one (`nameThreadOnce` writes it), otherwise derived from the
+ *  opening message — prose first; failing that the skills it invoked (a
+ *  skill on its own is a complete message, and "/pr-validity" names that
+ *  thread better than any summary would); failing that the code it
+ *  attached. The derivation is not just a pre-title placeholder: naming is
+ *  fire-and-forget and can fail, so every thread must read recognisably
+ *  without it. */
 function threadTitle(thread: ChatThread): string {
+  if (thread.title) {
+    return thread.title;
+  }
   const first = thread.turns.find((t) => t.kind === "user");
   if (first?.kind !== "user") {
     return "New chat";
@@ -676,6 +680,14 @@ export function useReviewChat(args: {
     },
     [keyValue, chatPendingRef]
   );
+
+  // Mirrored into the store so the header can show a working dot while the
+  // dock is closed; cleared on unmount because a PR switch cancels the turn.
+  const busy = chat.isPending;
+  useEffect(() => {
+    useAppStore.getState().setChatBusy(keyValue, busy);
+    return () => useAppStore.getState().setChatBusy(keyValue, false);
+  }, [keyValue, busy]);
 
   /** Asks the model for a thread name, once, off the first exchange.
    *

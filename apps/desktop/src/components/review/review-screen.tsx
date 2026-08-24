@@ -22,6 +22,7 @@ import {
   useAskNote,
   useAskNoteWiring,
 } from "../../hooks/use-ask-note.ts";
+import { useChatAttention } from "../../hooks/use-chat-attention.ts";
 import { useCodeDragRange } from "../../hooks/use-code-drag-range.ts";
 import { useCommentMutations } from "../../hooks/use-comments.ts";
 import {
@@ -446,6 +447,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
   const keyboardHoldRef = useRef(false);
 
   const goInbox = useAppStore((s) => s.goInbox);
+  const aiState = useChatAttention(keyValue, rightOpen, rightTab);
   const toggleViewed = useAppStore((s) => s.toggleViewed);
   const reconcileViewed = useAppStore((s) => s.reconcileViewed);
 
@@ -1283,6 +1285,7 @@ function ReviewScreenInner({ routeKey }: { routeKey: string }) {
 
       <main className="qf-main flex min-w-0 flex-1 flex-col">
         <ReviewHeaderLoader
+          aiState={aiState}
           detail={detail}
           onOpenSubmit={openSubmit}
           onToggleRightPanel={onToggleRightPanel}
