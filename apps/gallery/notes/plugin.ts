@@ -10,6 +10,11 @@
  *
  * Every response is the component's full note file, so the client never
  * reconstructs state the disk already decided.
+ *
+ * The two-segment paths are told apart by method rather than by shape:
+ * `POST /<component>/hidden` sets the rail flag and `DELETE /<component>/<id>`
+ * resolves a note. Note ids are generated as n1, n2, … so nothing addressable
+ * by the delete route is ever named "hidden".
  */
 import type { Plugin } from "vite";
 import {
@@ -17,6 +22,7 @@ import {
   NOTE_SCOPES,
   type NoteScope,
   resolveNote,
+  withHidden,
 } from "../src/notes.ts";
 import { isCatalogued, listNotes, readNotes, writeNotes } from "./store.ts";
 
@@ -27,6 +33,12 @@ interface DraftBody {
   scope?: unknown;
   cell?: unknown;
 }
+
+interface HiddenBody {
+  hidden?: unknown;
+}
+
+const HIDDEN_SEGMENT = "hidden";
 
 export function galleryNotes(): Plugin {
   return {
@@ -82,6 +94,13 @@ async function handle(
   if (method === "POST" && segments.length === 1) {
     return await create(component, req);
   }
+  if (
+    method === "POST" &&
+    segments.length === 2 &&
+    segments[1] === HIDDEN_SEGMENT
+  ) {
+    return await setHidden(component, req);
+  }
   if (method === "DELETE" && segments.length === 2) {
     const file = resolveNote(readNotes(component), segments[1] as string);
     writeNotes(component, file);
@@ -107,6 +126,22 @@ async function create(
       ? (body.scope as NoteScope)
       : "component",
   });
+  writeNotes(component, file);
+  return { payload: file, status: 200 };
+}
+
+async function setHidden(
+  component: string,
+  req: NodeJS.ReadableStream
+): Promise<Reply> {
+  const body = (await readBody(req)) as HiddenBody;
+  if (typeof body.hidden !== "boolean") {
+    return {
+      payload: { error: "Hiding needs hidden: true or hidden: false." },
+      status: 400,
+    };
+  }
+  const file = withHidden(readNotes(component), body.hidden);
   writeNotes(component, file);
   return { payload: file, status: 200 };
 }

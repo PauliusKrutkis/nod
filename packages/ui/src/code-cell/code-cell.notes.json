@@ -1,0 +1,9 @@
+{
+  "decided": [
+    {
+      "note": "maybe view is enough for this? kind of hard to see how it will look in pr view",
+      "why": "Kept — and the note names exactly why the view is needed. CodeCell is the paint unit the find and occurrence math key on, so its isolated cells are the contract; 'hard to see how it will look in the PR view' is an argument for extracting the review screen, which is the next view, not for dropping these cells."
+    }
+  ],
+  "open": []
+}

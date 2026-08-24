@@ -1,12 +1,9 @@
 {
-  "decided": [],
-  "open": [
+  "decided": [
     {
-      "added": "2026-08-20",
-      "cell": "spinner/overflow/quiet/fluid",
-      "id": "n1",
       "note": "where is this used? feels like we should have proper loading state designs, skeleton or otherwise, no implementation, just list out the areas and propose changes to how we display",
-      "scope": "component"
+      "why": "Answered as a written proposal rather than a change: docs/BACKLOG.md now carries the loading-state inventory (eleven spinner sites, two independently-written skeletons with no shared primitive) and the proposed order — extract a skeleton primitive, then skeletons for the inbox list, the ledger queue and session, and the boot route; keep Spinner for control-sized waits only; give waits over about two seconds the chat's elapsed-time treatment."
     }
-  ]
+  ],
+  "open": []
 }

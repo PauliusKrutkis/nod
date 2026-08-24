@@ -1,0 +1,9 @@
+{
+  "decided": [
+    {
+      "note": "maybe make this into a view?",
+      "why": "Kept until the review screen is a view. Its cases are side-presence combinations (added only, removed only, both) that a screen shows one of at a time."
+    }
+  ],
+  "open": []
+}

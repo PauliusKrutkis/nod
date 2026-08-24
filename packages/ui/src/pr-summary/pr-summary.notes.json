@@ -1,0 +1,9 @@
+{
+  "decided": [
+    {
+      "note": "ci pill is no longer needed? we have a tab for that",
+      "why": "Kept — see ci-pill. Removing the pill would leave the Info tab with no CI verdict while the dock shows one pane at a time, and would blind the rollup-only case entirely."
+    }
+  ],
+  "open": []
+}

@@ -29,6 +29,7 @@ import { hunkRowEntry } from "../hunk-row/hunk-row.fixtures.ts";
 import { imageDiffEntry } from "../image-diff/image-diff.fixtures.ts";
 import { inboxDetailEntry } from "../inbox-detail/inbox-detail.fixtures.ts";
 import { inboxTabsEntry } from "../inbox-tabs/inbox-tabs.fixtures.ts";
+import { inboxViewEntry } from "../inbox-view/inbox-view.fixtures.ts";
 import { inboxZeroEntry } from "../inbox-zero/inbox-zero.fixtures.ts";
 import { issueTrackerDialogEntry } from "../issue-tracker-dialog/issue-tracker-dialog.fixtures.ts";
 import { kbdEntry } from "../kbd/kbd.fixtures.ts";
@@ -37,6 +38,7 @@ import { markdownEntry } from "../markdown/markdown.fixtures.ts";
 import { modelPickerEntry } from "../model-picker/model-picker.fixtures.ts";
 import { notificationCenterEntry } from "../notification-center/notification-center.fixtures.ts";
 import { offlineBarEntry } from "../offline-bar/offline-bar.fixtures.ts";
+import { orgAccessHintEntry } from "../org-access-hint/org-access-hint.fixtures.ts";
 import { overviewRulerEntry } from "../overview-ruler/overview-ruler.fixtures.ts";
 import { prDrawerEntry } from "../pr-drawer/pr-drawer.fixtures.ts";
 import { prListItemEntry } from "../pr-list-item/pr-list-item.fixtures.ts";
@@ -93,6 +95,7 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   "image-diff": imageDiffEntry,
   "inbox-detail": inboxDetailEntry,
   "inbox-tabs": inboxTabsEntry,
+  "inbox-view": inboxViewEntry,
   "inbox-zero": inboxZeroEntry,
   "issue-tracker-dialog": issueTrackerDialogEntry,
   kbd: kbdEntry,
@@ -101,6 +104,7 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   "model-picker": modelPickerEntry,
   "notification-center": notificationCenterEntry,
   "offline-bar": offlineBarEntry,
+  "org-access-hint": orgAccessHintEntry,
   "overview-ruler": overviewRulerEntry,
   "pr-drawer": prDrawerEntry,
   "pr-list-item": prListItemEntry,

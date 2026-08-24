@@ -105,6 +105,20 @@ WebKitGTK, and chromium-only checks have hidden engine-shaped regressions
 before. jsdom cannot see truncation, overflow, or z-order; this suite is
 where those regressions fail.
 
+Cells are captured at the width the thing is true at, which is why the
+catalog splits in two. A **part** lives in a fixed column, so it shoots at
+the 420px panel width, and stress-named fixtures (`overflow`, `crowd`,
+`chord`) also at the 280px sidebar width. A **view** — a screen, or a
+dialog, which owns the window while it is up — shoots at the window's own
+numbers instead: 1400 (the default in `tauri.conf.json`) and, for the same
+stress-named fixtures, 900 (its declared minimum). Views are where
+cross-component drift shows up at all: spacing rhythm across a row, two
+radii meeting, a token one surface uses where its neighbour uses another.
+`isView` in `@nod/ui/manifest` derives the tier — a dialog is a view by
+construction, so only screens declare `view: true`. View cells carry a
+wider Playwright viewport, scoped to their describe so part baselines
+cannot shift.
+
 Baselines are platform-suffixed and only comparable within one platform:
 
 - Locally: `pnpm --filter @nod/gallery shots` compares against your

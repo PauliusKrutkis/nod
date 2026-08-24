@@ -11,10 +11,12 @@ import {
   cellAnchor,
   emptyNotes,
   isEmptyNotes,
+  isHidden,
   nextNoteId,
   notesFileName,
   parseNotes,
   resolveNote,
+  withHidden,
 } from "./notes.ts";
 
 const draft = {
@@ -64,6 +66,35 @@ describe("parseNotes", () => {
   });
 });
 
+describe("the hidden flag", () => {
+  it("reads a hand-written hidden: true", () => {
+    expect(isHidden(parseNotes({ hidden: true, open: [] }))).toBe(true);
+  });
+
+  it("treats anything that is not the boolean true as visible", () => {
+    expect(isHidden(parseNotes({ hidden: "yes" }))).toBe(false);
+    expect(isHidden(parseNotes({ hidden: 1 }))).toBe(false);
+    expect(isHidden(parseNotes({ hidden: "false" }))).toBe(false);
+    expect(isHidden(parseNotes({ hidden: false }))).toBe(false);
+    expect(isHidden(emptyNotes())).toBe(false);
+    expect(isHidden(undefined)).toBe(false);
+  });
+
+  it("keeps notes and decisions across a hide and an unhide", () => {
+    const file = addNote(emptyNotes(), draft);
+    const hidden = withHidden(file, true);
+    expect(hidden.open).toEqual(file.open);
+    expect(parseNotes(JSON.parse(JSON.stringify(hidden)))).toEqual(hidden);
+    expect(withHidden(hidden, false)).toEqual(file);
+  });
+
+  it("writes no flag at all when a component is visible", () => {
+    expect(
+      Object.hasOwn(withHidden(parseNotes({ hidden: true }), false), "hidden")
+    ).toBe(false);
+  });
+});
+
 describe("cellAnchor", () => {
   it("drops the view mode, which changes how you look and not what at", () => {
     expect(
@@ -98,6 +129,15 @@ describe("file lifecycle", () => {
   it("keeps a file alive on decisions alone", () => {
     const decided = { decided: [{ note: "x", why: "y" }], open: [] };
     expect(isEmptyNotes(decided)).toBe(false);
+  });
+
+  it("keeps a file alive on the hidden flag alone, or the rail forgets", () => {
+    expect(isEmptyNotes(withHidden(emptyNotes(), true))).toBe(false);
+  });
+
+  it("is empty once a noteless file is unhidden, so it goes away", () => {
+    const hidden = withHidden(emptyNotes(), true);
+    expect(isEmptyNotes(withHidden(hidden, false))).toBe(true);
   });
 
   it("names the file next to the component's fixtures", () => {

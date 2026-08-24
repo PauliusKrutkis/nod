@@ -1,0 +1,9 @@
+{
+  "decided": [
+    {
+      "note": "maybe view is enough for this?",
+      "why": "Kept until the review screen is a view. Its containing surface is not extracted yet, and its cells are the data cases a screen cannot stage — intraline marks, an unbreakable line, a hunk band. Revisit once the review-screen view exists."
+    }
+  ],
+  "open": []
+}

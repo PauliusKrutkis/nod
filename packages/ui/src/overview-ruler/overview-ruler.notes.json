@@ -1,0 +1,9 @@
+{
+  "decided": [
+    {
+      "note": "maybe view is enough for this?",
+      "why": "Kept until the review screen is a view. The ruler's cases are tick distributions across a whole file — a view would show one distribution, and the edge cases are exactly the ones that break it."
+    }
+  ],
+  "open": []
+}

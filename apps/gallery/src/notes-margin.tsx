@@ -27,7 +27,8 @@
  * toggle is a chord here (mod+S) and a bare `s` outside — a single letter in
  * a textarea belongs to the text. mod+Enter submits, Escape closes.
  */
-import { Kbd } from "@nod/ui/kbd";
+import { useEdgeResize } from "@nod/ui/use-edge-resize";
+import { useRef } from "react";
 import {
   NOTE_SCOPES,
   type Note,
@@ -47,6 +48,8 @@ interface NotesMarginProps {
   onSubmit: () => void;
   onClose: () => void;
   onRemove: (id: string) => void;
+  onResize: (width: number) => void;
+  width: number;
 }
 
 const SCOPE_LABELS: Record<NoteScope, string> = {
@@ -66,11 +69,28 @@ export function NotesMargin({
   onSubmit,
   onClose,
   onRemove,
+  onResize,
+  width,
 }: NotesMarginProps) {
   const otherScope = scope === "component" ? "cell" : "component";
+  const panelRef = useRef<HTMLElement>(null);
+  // The same drag the review screen's columns use, so the gallery's panels
+  // feel like the app's rather than like a second implementation.
+  const startResize = useEdgeResize({
+    edge: "left",
+    maxFraction: 0.5,
+    min: 240,
+    onResize,
+    panelRef,
+  });
 
   return (
-    <aside className="qg-margin">
+    <aside className="qg-margin" ref={panelRef} style={{ width }}>
+      <div
+        aria-hidden
+        className="qg-margin-resize"
+        onPointerDown={startResize}
+      />
       <div className="qg-margin-head">
         <span className="qg-margin-title">Notes</span>
         <span className="qg-margin-on">{component}</span>
@@ -157,11 +177,6 @@ export function NotesMargin({
         <div className="qg-compose-hint">
           <span className="qg-compose-cell" title={cell}>
             {cell}
-          </span>
-          <span className="qg-compose-keys">
-            <Kbd combo="mod+enter" /> leave
-            <Kbd combo="mod+s" /> scope
-            <Kbd combo="esc" /> close
           </span>
         </div>
       </form>

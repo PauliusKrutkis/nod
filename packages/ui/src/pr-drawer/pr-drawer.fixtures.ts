@@ -49,7 +49,6 @@ const CALLBACKS: PrDrawerCallbacks = {
   onOpenCiUrl: noop,
   onOpenPr: noop,
   onOpenTicket: noop,
-  onToggleWide: noop,
 };
 
 const DESCRIPTION = [
@@ -178,7 +177,6 @@ const base = (over: Partial<PrDrawerProps>): PrDrawerProps => ({
   },
   reviews: REVIEWS,
   trackerBase: "https://nod.atlassian.net/browse/",
-  wide: false,
   ...over,
 });
 

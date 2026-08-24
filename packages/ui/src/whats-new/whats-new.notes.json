@@ -1,0 +1,9 @@
+{
+  "decided": [
+    {
+      "note": "maybe this should be a view?",
+      "why": "Kept as a part, same as update-prompt: it is a .qb-update card in the 340px toast stack with role=status, not a surface you navigate to."
+    }
+  ],
+  "open": []
+}

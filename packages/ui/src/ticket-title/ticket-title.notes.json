@@ -1,0 +1,9 @@
+{
+  "decided": [
+    {
+      "note": "maybe view is enough for this?",
+      "why": "Kept. It renders in both the review header and inbox-detail — so the inbox view already shows it in place — while its own cells carry the parsing cases (no ticket, an odd key, overflow) that neither host would stage."
+    }
+  ],
+  "open": []
+}

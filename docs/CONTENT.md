@@ -113,6 +113,13 @@ review app whose headline feature is "re-review only what changed since you
 last looked." Adjacent enough that being second to publish the idea costs
 something. Worth moving on.
 
+Confirmed live on 2026-08-23 by scraping Reddit for review-pain threads:
+r/github "How do people usually handle reviewing very large PRs" (May 2026)
+is the ledger problem stated verbatim, reviews across multiple sessions and
+losing track of what was already read; r/ClaudeCode and r/ExperiencedDevs
+both carry 2026 threads about spending longer reviewing AI code than writing
+it. The demand side of this post is asking for it in public.
+
 **Source:** `docs/LEDGER.md`, `packages/ledger`.
 
 **Home:** HN (Show HN with the CLI), r/ExperiencedDevs (discussion framing
@@ -253,11 +260,74 @@ is not: people paste the error string into a search box.
 
 ---
 
+## 11. Cache-first, not local-first
+
+**Hook:** open a PR in under 300 ms, switch files in under 16 ms, read on a
+train. And it is deliberately not local-first: the host owns the data, and
+pretending otherwise is how sync bugs are born.
+
+**Why it lands:** local-first is a live conversation with a strong community
+and almost no published cases of stopping halfway on purpose. The argument is
+the post: a PR client's source of truth is GitHub, so a CRDT-grade sync
+engine would own state it has no authority over. What the app actually needs
+is a cache with honest semantics: paint everything from the local copy
+instantly, reconcile in the background, and let writes ride the optimistic
+path from idea 5. The perf budget numbers make it concrete, and `nod://`
+links hydrating cache-first before the network answers is the demo.
+
+Unlike most of this list, the product benefit is visible in the post itself:
+the reader who clicks through sees the speed the architecture buys. This is
+the craft post most likely to convert a reader into a user without ever
+pitching them.
+
+**Source:** `docs/ARCHITECTURE.md` § Caching, `docs/DESIGN.md` perf budgets,
+the `nod://` hydration work.
+
+**Home:** HN, lobste.rs, r/localfirst (as the friendly dissent), daily.dev.
+
+---
+
+## 12. The AI feature has no cloud on purpose
+
+**Hook:** ask-about-code sends your diff to your provider, from your machine,
+on your key. There is no middle server because a review tool that proxies
+your private diffs has changed what it is.
+
+**Why it lands:** every AI review product on the market is a cloud that reads
+your code, and the 2026 threads about AI-generated PRs are full of people
+uneasy about exactly that. The position is simple to state and rare to hold:
+a $59 desktop app should not quietly become a data processor, so the app
+ships the integration without shipping a service. BYOK is the whole
+architecture: the webview never sees the key (idea 6), the Rust side talks to
+the provider directly, and nothing is resold on top of the license.
+
+The admissions carry it: BYOK onboarding is objectively worse (get a key,
+paste it), capability differences between providers are a real tax (idea 10's
+matrix), and there is no margin to subsidize anyone's tokens. Those costs are
+the price of the trust boundary staying where it already was.
+
+**Why it attracts users:** it is the differentiator post. Craft posts earn
+reach; this one gives the reader who already wants AI-assisted review a
+reason to pick this app over the clouds, without the post being a pitch.
+
+**Source:** `docs/AI.md`, `ai_chat.rs`, the FAQ's bring-your-own-key answer.
+
+**Home:** HN, r/LocalLLaMA, r/ExperiencedDevs (discussion framing, no link),
+daily.dev.
+
+---
+
 ## Sequencing
 
 2 shipped on 2026-08-14. Then 1, the strongest pure-craft post, then 4, while
 the competitive window is open. 10 sits beside 2 as the other post someone
 finds by pasting an error into a search box.
+
+For attracting users rather than readers, 12 then 11: 12 meets the
+AI-review anxiety that is live in 2026 threads right now, and 11 is the
+craft post whose payoff is the product's visible speed. Both stay honest to
+the footnote rule; they just pick topics where the footnote is the answer
+to the reader's actual question.
 
 One post per week or so, each to a single primary home. Cross-posting the same
 text to five subs the same day is the thing that gets a domain filtered.

@@ -15,6 +15,16 @@
  * layer rather than inside any frame, so the gallery manages their open state
  * and the screenshot suite captures the viewport instead of the frame.
  *
+ * `view` marks a whole surface rather than a part: a screen, or a dialog that
+ * owns the window while it is up. The distinction is not size, it is the
+ * width at which the thing is TRUE — a part is honest at the panel width it
+ * occupies (420px, 280px in the sidebar), while a surface judged there is a
+ * lie, because the app opens at 1400x900 and never goes below 900 (see
+ * tauri.conf.json). So views capture at the window's own widths, list under
+ * their own heading in the gallery, and are where cross-component drift —
+ * spacing rhythm, two radii meeting, a token used inconsistently by
+ * neighbours — is visible at all.
+ *
  * A sequence fixture renders a RUN of specimens as stacked siblings in one
  * cell, for components whose bugs live between rows rather than inside one
  * (a diff is add/del pairs, context runs, a hunk band mid-file — never a
@@ -57,12 +67,13 @@ export interface CatalogEntry<P> {
   component: ComponentType<P>;
   fixtures: Record<string, Fixture<P>>;
   dialog?: boolean;
+  view?: boolean;
 }
 
 export function defineEntry<P>(
   component: ComponentType<P>,
   fixtures: Record<string, Fixture<P>>,
-  options: { dialog?: boolean } = {}
+  options: { dialog?: boolean; view?: boolean } = {}
 ): CatalogEntry<P> {
   return { component, fixtures, ...options };
 }

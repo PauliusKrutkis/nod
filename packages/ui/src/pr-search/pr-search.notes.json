@@ -1,0 +1,9 @@
+{
+  "decided": [
+    {
+      "note": "there is no code highlighing?",
+      "why": "By design. Fixtures deliberately supply no highlighter, so the pane falls back to escaped text with the query marked — that default is what lets a cell render with no highlight.js in the package. The app passes the real highlighter (highlightLineWithMatch), and the syntax colors you would expect are visible in the app and in this entry's own 1400 cells now that it is captured at the width it opens at."
+    }
+  ],
+  "open": []
+}

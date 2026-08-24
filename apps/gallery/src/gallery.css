@@ -53,7 +53,7 @@
 }
 
 .qg-rail {
-  width: 232px;
+  position: relative;
   flex: none;
   display: flex;
   flex-direction: column;
@@ -107,6 +107,55 @@
   flex: 1;
   overflow-y: auto;
   padding: 2px 6px 10px;
+}
+
+/* The rail's two tiers. A tab carries its own count, so the size of each
+   tier is readable without opening it. */
+.qg-rail-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 6px 6px;
+  border-bottom: 1px solid var(--line);
+}
+
+.qg-rail-tab {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 6px;
+  /* Never let the row push past the rail: a tab gives up its own width
+     first, and the count is what goes rather than the label. */
+  min-width: 0;
+  overflow: hidden;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 6px;
+  font-size: 11px;
+  color: var(--muted);
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: var(--r-md);
+}
+
+.qg-rail-tab:hover {
+  color: var(--fg);
+  background: var(--surface);
+}
+
+.qg-rail-tab.qg-on {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.qg-rail-tab-n {
+  flex-shrink: 1;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--faint);
+}
+
+.qg-rail-tab.qg-on .qg-rail-tab-n {
+  color: var(--accent);
 }
 
 .qg-rail-item {
@@ -564,9 +613,14 @@
   margin: 0;
 }
 
+/* The route readout, and nothing else: the keys live in the ? sheet.
+   Whatever this band says is baked into the baselines of every specimen
+   taller than the viewport — those are captured by scrolling and stitching,
+   and the strip is painted across the seam. So editing this text moves
+   screenshots in components nobody touched, which is a refresh rather than
+   a regression, but check the diff images before believing that. */
 .qg-helpbar {
   display: flex;
-  gap: 16px;
   align-items: center;
   border-top: 1px solid var(--line);
   padding: 7px 18px;
@@ -643,12 +697,38 @@ dialog.q-dialog-top:modal {
   color: var(--warn);
 }
 
+/* Both grips are the review screen's: same width, same cursor, same wash on
+   hover, so a drag here feels like a drag there. */
+.qg-rail-resize,
+.qg-margin-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 7px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.qg-rail-resize {
+  right: -3px;
+}
+
+.qg-margin-resize {
+  left: -3px;
+}
+
+.qg-rail-resize:hover,
+.qg-margin-resize:hover {
+  background: var(--accent-soft);
+}
+
 .qg-margin {
+  position: relative;
   --accent: var(--warn);
   --mark-soft: color-mix(in srgb, var(--warn) 14%, transparent);
   --mark-line: color-mix(in srgb, var(--warn) 40%, transparent);
 
-  width: 300px;
   flex: none;
   display: flex;
   flex-direction: column;
@@ -846,18 +926,4 @@ dialog.q-dialog-top:modal {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.qg-compose-keys {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.qg-compose-keys .q-kbd-combo {
-  margin-left: 6px;
-}
-
-.qg-compose-keys .q-kbd-combo:first-child {
-  margin-left: 0;
 }

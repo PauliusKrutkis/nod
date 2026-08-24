@@ -294,7 +294,7 @@ Complex: browser API differences, permissions, Slack in-app browser edge cases.
 | **`c`** / **`shift+c`** | Comment on the cursor line / on the PR |
 | **`x`** / **`shift+e`** / **`z`** | Resolve · edit your comment · expand/collapse thread |
 | **`shift+d`** | Discard the pending comment at the cursor |
-| **`i`** / **`shift+i`** | Toggle info panel / widen it |
+| **`mod+i`** | Toggle info panel |
 | **`o`** / **`y`** / **`mod+shift+c`** | Open on host · copy PR link · copy file path |
 | **`s`** | Submit review |
 | **`mod+t`** / **`mod+r`** / **`mod+f`** | Find a file · search code · find in diff |
@@ -1722,6 +1722,60 @@ each carries an unresolved design question of its own, noted below.
       *Explicitly not doing:* moving the deploy into GitHub Actions with a path
       filter. More control, but it migrates a working pipeline to buy a
       setting we can flip.
+
+## Loading states — inventory and proposal (2026-08-24)
+
+From a gallery note on `spinner`: "where is this used? feels like we should
+have proper loading state designs". Inventory first, because the answer is
+not "more spinners" or "fewer".
+
+**Eleven spinner sites.** Boot route, inbox first fetch, ledger status,
+ledger session diff, markdown upload blob, image-diff blob, three inside
+token-gate buttons, the ask note's time-to-first-token, and the watch
+dialog's save strip.
+
+**Two skeletons, written independently, with no shared primitive.**
+`review-screen-pending` (`.qrp-skel`, 1.8s pulse) and `release-history`
+(`.qrh-skel`, 1.6s pulse) encode the same three rules — fixed bar widths
+because they are screenshot targets, opacity-only animation, nothing under
+reduced motion — in two files. A third skeleton would be a third copy.
+
+**The inconsistencies worth fixing:**
+
+- The longest waits get the least design. "Waiting for the browser…" runs
+  for minutes as static text and the repo-ready download is a static
+  sentence, while a sub-second inbox fetch gets a full-screen animated
+  disc.
+- Two surfaces derive from git for seconds each (ledger status, ledger
+  session) and show a spinner, while the session already renders the very
+  diff pane `review-screen-pending` was built to pre-paint.
+- `Button` has a first-class `busy` prop, and token-gate hand-rolls a
+  16px `Spinner` inside a `Button` that already carries a 12px one — the
+  label vanishes, so the control changes width mid-click.
+- The same AI wait has two designs: `ask-note` shows a bare spinner,
+  `chat-panel` shows `Working… 4s` with an expandable activity trail.
+- Three surfaces load one model list three ways (a placeholder, a
+  placeholder plus an empty-list sentence, and a hint paragraph).
+- `.qw-scan` is the only animation in the package with no
+  `prefers-reduced-motion` guard.
+
+**Proposed order:**
+
+1. Extract `packages/ui/src/skeleton/` — a bar plus the pulse keyframe and
+   the reduced-motion rule — and move both existing skeletons onto it, so
+   the third and fourth are cheap.
+2. Skeletons where the shape is already known: the inbox list (fixed-metric
+   rows, and the tabs above it already refuse to blank their counts because
+   that would read as loading), the ledger queue, the ledger session (it can
+   reuse the review shell verbatim), and the boot route (paint the
+   destination's chrome, which `loadLastRoute` already knows).
+3. Reserve the box for inline media — markdown uploads and image diffs know
+   their dimensions, so the paragraph should stop reflowing when the asset
+   lands.
+4. Keep `Spinner` for control-sized waits only, and prefer `Button busy`
+   over an inline spinner (fixes token-gate).
+5. Give every wait over ~2s the chat's elapsed-time treatment, so a long
+   wait stops looking hung.
 
 ## Feature ideas (2026-08-05)
 

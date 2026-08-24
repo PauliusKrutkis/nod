@@ -85,4 +85,4 @@ export const CONTAINERS: Record<string, string> = {
     "the connectivity poll, the replay mutation with its offline-to-online latch, and the discard/place-again/copy commands; its card is offline-bar, catalogued in @nod/ui",
 };
 
-export const PENDING: string[] = ["org-access-hint"];
+export const PENDING: string[] = [];

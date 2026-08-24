@@ -35,6 +35,9 @@ describe("manifest parity", () => {
     expect(Boolean(catalogManifest[name].dialog)).toBe(
       Boolean(catalog[name].dialog)
     );
+    expect(Boolean(catalogManifest[name].view)).toBe(
+      Boolean(catalog[name].view)
+    );
   });
 });
 

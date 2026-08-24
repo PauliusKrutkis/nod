@@ -1,0 +1,9 @@
+{
+  "decided": [
+    {
+      "note": "maybe view is enough for this?",
+      "why": "Kept until the review screen is a view. Its cells are overflow and counter cases that a composed screen would only ever show one of."
+    }
+  ],
+  "open": []
+}

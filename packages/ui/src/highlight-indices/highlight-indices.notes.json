@@ -1,0 +1,9 @@
+{
+  "decided": [
+    {
+      "note": "maybe make this into a view?",
+      "why": "It already is: highlight-indices renders inside pr-search and search-pane, both views, so the tier shows it in context. Its own cells stay for the index cases that have no natural host — out-of-range and empty matches."
+    }
+  ],
+  "open": []
+}

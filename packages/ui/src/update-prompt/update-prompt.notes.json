@@ -1,0 +1,9 @@
+{
+  "decided": [
+    {
+      "note": "maybe this should be a view?",
+      "why": "Kept as a part. The update card renders in the toast stack (.qb-stack, a fixed 340px column), so 420 is already generous for it — it never owns the window, and a view capture at 1400 would photograph a 340px card in an empty frame."
+    }
+  ],
+  "open": []
+}

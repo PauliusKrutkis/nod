@@ -1,0 +1,9 @@
+{
+  "decided": [
+    {
+      "note": "maybe we need a view for this? kind of lost what this is used for?",
+      "why": "It is used by pr-search, which is a view — its cells at 1400 now show this in place, which also answers what it is for. Kept isolated as well because its clipping and loading cases need a file too long to stage from the search pane."
+    }
+  ],
+  "open": []
+}

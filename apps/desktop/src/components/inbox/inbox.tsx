@@ -31,10 +31,10 @@
  */
 
 import { InboxDetail } from "@nod/ui/inbox-detail";
-import { InboxTabs } from "@nod/ui/inbox-tabs";
+import { InboxView } from "@nod/ui/inbox-view";
 import { InboxZero } from "@nod/ui/inbox-zero";
 import { Kbd } from "@nod/ui/kbd";
-import { PRListItem } from "@nod/ui/pr-list-item";
+import { OrgAccessHint } from "@nod/ui/org-access-hint";
 import { Spinner } from "@nod/ui/spinner";
 import {
   Archive,
@@ -53,11 +53,11 @@ import { prefetchPullRequest } from "../../hooks/use-pull-request-detail.ts";
 import { useSubscribed } from "../../hooks/use-subscribed.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
 import { openExternal } from "../../lib/open-external.ts";
+import { openOrgApprovalDocs } from "../../lib/org-approval-docs.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type { InboxData, InboxTabKey, PullRequest } from "../../types.ts";
 import { prKey } from "../../types.ts";
 import { Markdown } from "../markdown-loader.tsx";
-import { OrgAccessHint } from "./org-access-hint.tsx";
 import { WatchReposLoader } from "./watch-repos-loader.tsx";
 
 const TABS: { key: InboxTabKey; label: string; hint: string }[] = [
@@ -356,44 +356,153 @@ export function Inbox() {
   }, [paneVisible, setInboxPaneVisible]);
   useEffect(() => () => setInboxPaneVisible(false), [setInboxPaneVisible]);
 
+  const body = inboxBody({
+    activeTab,
+    onOpenWatch: openWatchDialog,
+    onRetry: handleRetry,
+    showArchived,
+    tab,
+    view: inboxMainView(
+      isLoading,
+      isError,
+      data !== null,
+      filtered.length,
+      error
+    ),
+  });
+
   return (
     <div className="flex h-full flex-col">
-      <InboxTabs
-        activeKey={tab}
-        archivedActive={showArchived}
-        archivedCount={archivedList.length}
-        onSelect={selectTabByKey}
-        onToggleArchived={toggleArchived}
-        onWatch={openWatchDialog}
-        tabs={visibleTabs.map((t) => ({ ...t, count: visibleCounts[t.key] }))}
-      />
-
-      <InboxMainContent
+      <InboxSurface
         activeTab={activeTab}
+        archivedCount={archivedList.length}
+        body={body}
         filtered={filtered}
         isUnread={isUnread}
         listMode={listMode}
         listRef={listRef}
         onOpenAt={open}
         onOpenWatch={openWatchDialog}
-        onRetry={handleRetry}
         onSelectPr={setSelectedKey}
+        onSelectTab={selectTabByKey}
         onSetListMode={setListMode}
+        onToggleArchived={toggleArchived}
         selectedIndex={selectedIndex}
         selectedPR={selectedPR}
         showArchived={showArchived}
         tab={tab}
-        view={inboxMainView(
-          isLoading,
-          isError,
-          data !== null,
-          filtered.length,
-          error
-        )}
+        tabItems={visibleTabs.map((t) => ({
+          ...t,
+          count: visibleCounts[t.key],
+        }))}
       />
 
       <WatchReposLoader onClose={closeWatchDialog} open={watchOpen} />
     </div>
+  );
+}
+
+/** Everything the inbox screen hands @nod/ui's InboxView: the rows as data,
+ *  and the three regions that need a renderer only this side owns. */
+function InboxSurface({
+  activeTab,
+  archivedCount,
+  body,
+  filtered,
+  isUnread,
+  listMode,
+  listRef,
+  onOpenAt,
+  onOpenWatch,
+  onSelectPr,
+  onSelectTab,
+  onSetListMode,
+  onToggleArchived,
+  selectedIndex,
+  selectedPR,
+  showArchived,
+  tab,
+  tabItems,
+}: {
+  activeTab: (typeof TABS)[number];
+  archivedCount: number;
+  body: React.ReactNode;
+  filtered: PullRequest[];
+  isUnread: (key: string, updatedAt: string) => boolean;
+  listMode: "keyboard" | "mouse";
+  listRef: React.RefObject<HTMLDivElement | null>;
+  onOpenAt: (index: number) => void;
+  onOpenWatch: () => void;
+  onSelectPr: (key: string | null) => void;
+  onSelectTab: (key: string) => void;
+  onSetListMode: (mode: "keyboard" | "mouse") => void;
+  onToggleArchived: () => void;
+  selectedIndex: number;
+  selectedPR: PullRequest | undefined;
+  showArchived: boolean;
+  tab: InboxTabKey;
+  tabItems: { count: number; hint: string; key: string; label: string }[];
+}) {
+  const handleListMouseMove = () => {
+    if (listMode !== "mouse") {
+      onSetListMode("mouse");
+    }
+  };
+
+  const handleHoverRow = (index: number) => {
+    const pr = filtered[index];
+    if (!pr) {
+      return;
+    }
+    onSelectPr(keyFor(pr));
+    prefetchPullRequest(pr.owner, pr.name, pr.number);
+  };
+
+  return (
+    <InboxView
+      banner={
+        showArchived ? (
+          <>
+            <ArchiveRestore size={13} />
+            <span>
+              Archived · <Kbd combo="e" /> restores, <Kbd combo="u" /> returns
+            </span>
+          </>
+        ) : null
+      }
+      body={body}
+      detail={
+        selectedPR === undefined ? null : (
+          <InboxDetailPane archived={showArchived} pr={selectedPR} />
+        )
+      }
+      hint={
+        showArchived || filtered.length > SHORT_INBOX_MAX ? null : (
+          <OrgAccessHint onOrgAccessHelp={openOrgApprovalDocs} />
+        )
+      }
+      listLabel={activeTab.label}
+      listMode={listMode}
+      listRef={listRef}
+      onHoverRow={handleHoverRow}
+      onListMouseMove={handleListMouseMove}
+      onOpenRow={onOpenAt}
+      rows={filtered.map((pr, index) => ({
+        key: keyFor(pr),
+        pr,
+        selected: index === selectedIndex,
+        unread: isUnread(keyFor(pr), pr.updatedAt),
+      }))}
+      tabs={{
+        activeKey: tab,
+        archivedActive: showArchived,
+        archivedCount,
+        items: tabItems,
+        onSelect: onSelectTab,
+        onToggleArchived,
+        onWatch: onOpenWatch,
+      }}
+    />
   );
 }
 
@@ -525,21 +634,14 @@ function inboxMainView(
   return { kind: "list" };
 }
 
-function InboxMainContent({
+/** What replaces both of the view's columns when there is no list to show.
+ *  `null` means there is one, and the view renders it. */
+function inboxBody({
   view,
-  filtered,
   tab,
   activeTab,
   onOpenWatch,
   onRetry,
-  listRef,
-  listMode,
-  onSetListMode,
-  selectedIndex,
-  selectedPR,
-  onSelectPr,
-  onOpenAt,
-  isUnread,
   showArchived,
 }: {
   view:
@@ -547,21 +649,12 @@ function InboxMainContent({
     | { kind: "error"; error: unknown }
     | { kind: "empty" }
     | { kind: "list" };
-  filtered: PullRequest[];
   tab: InboxTabKey;
   activeTab: (typeof TABS)[number];
   onOpenWatch: () => void;
   onRetry: () => void;
-  listRef: React.RefObject<HTMLDivElement | null>;
-  listMode: "keyboard" | "mouse";
-  onSetListMode: (mode: "keyboard" | "mouse") => void;
-  selectedIndex: number;
-  selectedPR: PullRequest | undefined;
-  onSelectPr: (key: string | null) => void;
-  onOpenAt: (index: number) => void;
-  isUnread: (key: string, updatedAt: string) => boolean;
   showArchived: boolean;
-}) {
+}): React.ReactNode {
   if (view.kind === "loading") {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -622,136 +715,7 @@ function InboxMainContent({
     );
   }
 
-  return (
-    <InboxListPane
-      activeTab={activeTab}
-      filtered={filtered}
-      isUnread={isUnread}
-      listMode={listMode}
-      listRef={listRef}
-      onOpenAt={onOpenAt}
-      onSelectPr={onSelectPr}
-      onSetListMode={onSetListMode}
-      selectedIndex={selectedIndex}
-      selectedPR={selectedPR}
-      showArchived={showArchived}
-    />
-  );
-}
-
-function InboxListPane({
-  activeTab,
-  filtered,
-  listRef,
-  listMode,
-  onSetListMode,
-  selectedIndex,
-  selectedPR,
-  onSelectPr,
-  onOpenAt,
-  isUnread,
-  showArchived,
-}: {
-  activeTab: (typeof TABS)[number];
-  filtered: PullRequest[];
-  listRef: React.RefObject<HTMLDivElement | null>;
-  listMode: "keyboard" | "mouse";
-  onSetListMode: (mode: "keyboard" | "mouse") => void;
-  selectedIndex: number;
-  selectedPR: PullRequest | undefined;
-  onSelectPr: (key: string | null) => void;
-  onOpenAt: (index: number) => void;
-  isUnread: (key: string, updatedAt: string) => boolean;
-  showArchived: boolean;
-}) {
-  const handleListMouseMove = () => {
-    if (listMode !== "mouse") {
-      onSetListMode("mouse");
-    }
-  };
-
-  const handleSelectPr = (pr: PullRequest) => {
-    onSelectPr(keyFor(pr));
-  };
-
-  return (
-    <div className="grid min-h-0 flex-1 grid-cols-[1fr_380px] max-[900px]:grid-cols-1">
-      <div
-        aria-label={activeTab.label}
-        className="q-inbox-list min-h-0 overflow-y-auto border-line border-r py-3"
-        data-mode={listMode}
-        onMouseMove={handleListMouseMove}
-        ref={listRef}
-        role="listbox"
-      >
-        {showArchived && (
-          <div className="qi-archived-banner">
-            <ArchiveRestore size={13} />
-            <span>
-              Archived · <Kbd combo="e" /> restores, <Kbd combo="u" /> returns
-            </span>
-          </div>
-        )}
-        {filtered.map((pr, i) => (
-          <InboxPrRow
-            index={i}
-            key={pr.id}
-            onOpenAt={onOpenAt}
-            onSelectPr={handleSelectPr}
-            pr={pr}
-            selected={i === selectedIndex}
-            unread={isUnread(keyFor(pr), pr.updatedAt)}
-          />
-        ))}
-        {!showArchived && filtered.length <= SHORT_INBOX_MAX && (
-          <OrgAccessHint />
-        )}
-      </div>
-
-      {selectedPR === undefined ? null : (
-        <div className="hidden min-[900px]:contents">
-          <InboxDetailPane archived={showArchived} pr={selectedPR} />
-        </div>
-      )}
-    </div>
-  );
-}
-
-function InboxPrRow({
-  pr,
-  index,
-  selected,
-  onSelectPr,
-  onOpenAt,
-  unread,
-}: {
-  pr: PullRequest;
-  index: number;
-  selected: boolean;
-  onSelectPr: (pr: PullRequest) => void;
-  onOpenAt: (index: number) => void;
-  unread: boolean;
-}) {
-  const handleHover = () => {
-    onSelectPr(pr);
-    prefetchPullRequest(pr.owner, pr.name, pr.number);
-  };
-
-  const handleOpen = () => {
-    onOpenAt(index);
-  };
-
-  return (
-    <div data-index={index}>
-      <PRListItem
-        onHover={handleHover}
-        onOpen={handleOpen}
-        pr={pr}
-        selected={selected}
-        unread={unread}
-      />
-    </div>
-  );
+  return null;
 }
 
 function InboxDetailPane({

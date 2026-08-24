@@ -54,6 +54,17 @@ export async function postNote(
   });
 }
 
+export async function setHidden(
+  component: string,
+  hidden: boolean
+): Promise<NotesResult> {
+  return await send(`${ROUTE}/${component}/hidden`, {
+    body: JSON.stringify({ hidden }),
+    headers: { "Content-Type": "application/json" },
+    method: "POST",
+  });
+}
+
 export async function removeNote(
   component: string,
   id: string

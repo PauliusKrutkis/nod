@@ -1,10 +1,26 @@
 /**
  * One screenshot per catalog cell, enumerated from the same fixtures export
  * the gallery and the derived unit tests consume — adding a fixture adds a
- * screenshot with no new test code. Every cell shoots at the 420px panel
- * width in both themes; fixtures whose names promise layout stress
- * (overflow, crowd, chord) also shoot at the 280px sidebar width, because
- * data bugs are usually data × width bugs.
+ * screenshot with no new test code.
+ *
+ * Two tiers, because a part and a surface are true at different widths.
+ * A part shoots at the 420px panel width in both themes, and fixtures whose
+ * names promise layout stress (overflow, crowd, chord) also shoot at the
+ * 280px sidebar width, because data bugs are usually data × width bugs. A
+ * view — a whole screen or a dialog that owns the window — shoots at the
+ * window's own widths instead: 1400 (the default in tauri.conf.json) and
+ * 900 (its declared minimum), which is the only place cross-component
+ * drift and responsive breakage are visible at all. Both widths for every
+ * view fixture, since a surface that survives the default and folds at the
+ * minimum is the exact bug this tier exists to catch.
+ *
+ * View cells carry their own viewport: the frame is laid out beside the
+ * rail with 38px of well padding either side, so a 1400px frame does not
+ * fit the 1280px viewport the part cells use. The wider viewport is scoped
+ * to the view describe rather than raised globally — part frames are
+ * width-fitted and would very likely render identically, but "very likely"
+ * against 2700 committed baselines is not a bet worth taking for cells
+ * that gain nothing from the room.
  *
  * The snapshot filename is captureName(route) — exactly the string the
  * gallery prints under the frame, so a red diff names the cell to open.
@@ -38,7 +54,7 @@
  * document.fonts.ready — by the time a frame exists, the fixtures have
  * already been formatted.
  */
-import { catalogManifest } from "@nod/ui/manifest";
+import { catalogManifest, isView } from "@nod/ui/manifest";
 import { expect, test } from "@playwright/test";
 import {
   captureName,
@@ -50,10 +66,33 @@ import {
 const NARROW_WORTHY = /overflow|crowd|chord/;
 const CAPTURE_INSTANT = new Date("2026-01-01T00:00:00Z");
 
+/** Room for a 1400px frame plus the rail and the well's padding. */
+const VIEW_VIEWPORT = { height: 1000, width: 1800 };
+
 const cells: GalleryRoute[] = [];
+const viewCells: GalleryRoute[] = [];
 for (const [component, entry] of Object.entries(catalogManifest)) {
   for (const fixture of entry.fixtures) {
     for (const theme of GALLERY_THEMES) {
+      if (isView(entry)) {
+        viewCells.push({
+          component,
+          fixture,
+          mode: "specimen",
+          theme,
+          width: 1400,
+        });
+        if (NARROW_WORTHY.test(fixture)) {
+          viewCells.push({
+            component,
+            fixture,
+            mode: "specimen",
+            theme,
+            width: 900,
+          });
+        }
+        continue;
+      }
       cells.push({ component, fixture, mode: "specimen", theme, width: 420 });
       if (NARROW_WORTHY.test(fixture)) {
         cells.push({ component, fixture, mode: "specimen", theme, width: 280 });
@@ -62,7 +101,7 @@ for (const [component, entry] of Object.entries(catalogManifest)) {
   }
 }
 
-for (const cell of cells) {
+function shoot(cell: GalleryRoute) {
   test(captureName(cell), async ({ page }) => {
     await page.clock.setFixedTime(CAPTURE_INSTANT);
     await page.goto(`/?capture${formatGalleryHash(cell)}`);
@@ -86,3 +125,14 @@ for (const cell of cells) {
     );
   });
 }
+
+for (const cell of cells) {
+  shoot(cell);
+}
+
+test.describe("views", () => {
+  test.use({ viewport: VIEW_VIEWPORT });
+  for (const cell of viewCells) {
+    shoot(cell);
+  }
+});

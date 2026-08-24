@@ -8,6 +8,25 @@
 export interface ManifestEntry {
   fixtures: string[];
   dialog?: boolean;
+  /** A screen: a surface that owns the whole window. See `isView`. */
+  view?: boolean;
+}
+
+/**
+ * Whether an entry is a surface rather than a part — the split the gallery
+ * lists under separate headings and the capture harness sizes differently.
+ *
+ * A dialog is a view by construction: while it is up it owns the window,
+ * and its own CSS decides its width (pr-search asks for min(920px, 72vw)).
+ * Sizing one to a 420px panel does not photograph it small, it forces it
+ * into a shape the app never renders — which is why this is derived rather
+ * than declared twelve times.
+ *
+ * Structural param so both the manifest's entries and the catalog's answer
+ * it; they are separate types that happen to carry the same two flags.
+ */
+export function isView(entry: { dialog?: boolean; view?: boolean }): boolean {
+  return Boolean(entry.view || entry.dialog);
 }
 
 export const catalogManifest: Record<string, ManifestEntry> = {
@@ -442,6 +461,19 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "zero-count",
     ],
   },
+  "inbox-view": {
+    view: true,
+    fixtures: [
+      "archived",
+      "crowd-40",
+      "empty",
+      "markup-as-text",
+      "no-detail",
+      "overflow",
+      "typical",
+      "unicode",
+    ],
+  },
   "inbox-zero": {
     fixtures: [
       "all-clear",
@@ -566,6 +598,9 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "staged-review",
       "unicode",
     ],
+  },
+  "org-access-hint": {
+    fixtures: ["typical"],
   },
   "overview-ruler": {
     fixtures: [
@@ -710,6 +745,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
     ],
   },
   "review-screen-pending": {
+    view: true,
     fixtures: [
       "cached",
       "cold",
@@ -818,6 +854,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
     ],
   },
   "token-gate": {
+    view: true,
     fixtures: [
       "add-account",
       "auth-error",

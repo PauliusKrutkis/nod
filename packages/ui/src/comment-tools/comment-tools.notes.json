@@ -1,0 +1,9 @@
+{
+  "decided": [
+    {
+      "note": "maybe view is enough for this?",
+      "why": "Kept, same reason as comment-item: its cells are state combinations, not a place."
+    }
+  ],
+  "open": []
+}

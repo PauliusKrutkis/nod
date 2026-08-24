@@ -1,0 +1,9 @@
+{
+  "decided": [
+    {
+      "note": "maybe make it into a view?",
+      "why": "Kept as a part. The find bar is a strip inside the review screen, not a surface that owns the window, so it will appear in the review-screen view rather than becoming one."
+    }
+  ],
+  "open": []
+}

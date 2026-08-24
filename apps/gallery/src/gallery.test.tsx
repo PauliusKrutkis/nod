@@ -3,16 +3,23 @@
  * hash names the visible cell (deep links land, interactions write back),
  * keys drive it without a pointer, the matrix renders one frame per
  * fixture × theme, every frame mounts its specimen on the mat, and the
- * ?capture query flag lands as qg-capture on the root. What the specimens
+ * ?capture query flag lands as qg-capture on the root, the ? sheet opens on
+ * the same key the desktop uses and prints the real bindings. What the specimens
  * look like is the screenshot suite's job, not this file's. The
  * retrofit-notice test only runs while something is PENDING: an empty
  * ratchet has no uncatalogued specimen to show.
  */
 import { catalog } from "@nod/ui/catalog";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PENDING } from "./coverage.ts";
-import { Gallery } from "./gallery.tsx";
+import { allNames, Gallery, tierNames } from "./gallery.tsx";
 import { captureName, formatGalleryHash, parseGalleryHash } from "./route.ts";
 
 afterEach(cleanup);
@@ -37,7 +44,13 @@ beforeEach(() => {
 });
 
 const componentNames = Object.keys(catalog);
-const first = componentNames[0];
+const COMPONENTS_TAB = /^Parts/;
+const HIDDEN_TAB = /^Hidden/;
+const SHEET = "Keyboard shortcuts";
+// The rail's own order — views before parts — which is what the gallery
+// lands on and what every key walk follows. Deriving it here again is how a
+// rail and its keyboard quietly disagree.
+const first = allNames[0];
 const firstFixtures = Object.keys(catalog[first].fixtures);
 const firstPending = PENDING[0];
 
@@ -78,13 +91,109 @@ describe("route", () => {
 });
 
 describe("gallery", () => {
-  it("lists every catalogued component in the rail", () => {
+  it("lists each tier under its own tab, and every name in one of them", () => {
     render(<Gallery />);
-    for (const name of componentNames) {
+    // The rail opens on the selection's tier, and the selection starts at
+    // the first name in rail order — a view.
+    for (const name of tierNames.views) {
       expect(
         screen.getByRole("button", { name: new RegExp(`^${name}`) })
       ).toBeDefined();
     }
+
+    fireEvent.click(screen.getByRole("tab", { name: COMPONENTS_TAB }));
+    for (const name of tierNames.components) {
+      expect(
+        screen.getByRole("button", { name: new RegExp(`^${name}`) })
+      ).toBeDefined();
+    }
+    expect(tierNames.views.length + tierNames.components.length).toBe(
+      allNames.length
+    );
+  });
+
+  it("opens the tab the selection belongs to, not one the user must find", () => {
+    const part = tierNames.components[0];
+    window.location.hash = `#/gallery/${part}`;
+    render(<Gallery />);
+    expect(
+      screen
+        .getByRole("tab", { name: COMPONENTS_TAB })
+        .getAttribute("aria-selected")
+    ).toBe("true");
+  });
+
+  it("lists a hidden entry under Hidden, and nowhere else", async () => {
+    const hiddenName = tierNames.components[0];
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      json: () =>
+        Promise.resolve({
+          [hiddenName]: { decided: [], hidden: true, open: [] },
+        }),
+      ok: true,
+    } as Response);
+
+    render(<Gallery />);
+    // The rail reads notes off the dev server, so the tab only appears once
+    // that answer has landed.
+    const hiddenTab = await screen.findByRole("tab", { name: HIDDEN_TAB });
+    expect(hiddenTab).toBeDefined();
+
+    fireEvent.click(screen.getByRole("tab", { name: COMPONENTS_TAB }));
+    expect(
+      screen.queryByRole("button", { name: new RegExp(`^${hiddenName}`) })
+    ).toBeNull();
+
+    fireEvent.click(hiddenTab);
+    expect(
+      screen.getByRole("button", { name: new RegExp(`^${hiddenName}`) })
+    ).toBeDefined();
+  });
+
+  it("toggles the notes margin on mod+c", () => {
+    const { container } = render(<Gallery />);
+    expect(container.querySelector(".qg-margin")).toBeNull();
+    fireEvent.keyDown(window, { key: "c", metaKey: true });
+    expect(container.querySelector(".qg-margin")).not.toBeNull();
+    fireEvent.keyDown(window, { key: "c", metaKey: true });
+    expect(container.querySelector(".qg-margin")).toBeNull();
+  });
+
+  it("leaves mod+c to Copy when there is something to copy", () => {
+    const { container } = render(<Gallery />);
+    const find = screen.getByLabelText("Find a component");
+    // In a field: the panel must not steal the copy the caret is in.
+    fireEvent.keyDown(find, { key: "c", metaKey: true });
+    expect(container.querySelector(".qg-margin")).toBeNull();
+
+    // With a selection anywhere: same.
+    vi.spyOn(window, "getSelection").mockReturnValue({
+      toString: () => "a selected word",
+    } as unknown as Selection);
+    fireEvent.keyDown(window, { key: "c", metaKey: true });
+    expect(container.querySelector(".qg-margin")).toBeNull();
+  });
+
+  it("flips the rail's tab on v", () => {
+    render(<Gallery />);
+    expect(window.location.hash).toContain(`/${tierNames.views[0]}/`);
+    fireEvent.keyDown(window, { key: "v" });
+    expect(window.location.hash).toContain(`/${tierNames.components[0]}/`);
+    fireEvent.keyDown(window, { key: "v" });
+    expect(window.location.hash).toContain(`/${tierNames.views[0]}/`);
+  });
+
+  it("falls a fruitless search through to the other tier", () => {
+    render(<Gallery />);
+    const find = screen.getByLabelText("Find a component");
+    // A component name, typed while the Views tab is open: rather than an
+    // empty rail, the matches from the other tier are offered.
+    fireEvent.change(find, { target: { value: tierNames.components[0] } });
+    expect(
+      screen.getByRole("button", {
+        name: new RegExp(`^${tierNames.components[0]}`),
+      })
+    ).toBeDefined();
   });
 
   it("lands on a deep link and prints its capture name", () => {
@@ -166,7 +275,7 @@ describe("gallery", () => {
     render(<Gallery />);
     expect(reveals.at(-1)).toBe(first);
     fireEvent.keyDown(window, { key: "j" });
-    expect(reveals.at(-1)).toBe([...componentNames, ...PENDING][1]);
+    expect(reveals.at(-1)).toBe(allNames[1]);
   });
 
   it("reveals the selection when find's Enter restores the full list", () => {
@@ -184,7 +293,7 @@ describe("gallery", () => {
   it("find walks matches with the arrows", () => {
     const { container } = render(<Gallery />);
     const find = screen.getByLabelText("Find a component");
-    fireEvent.change(find, { target: { value: "b" } });
+    fireEvent.change(find, { target: { value: "dialog" } });
     const third = container.querySelectorAll(".qg-rail-item .qg-name")[2];
     expect(third).toBeDefined();
     fireEvent.keyDown(find, { key: "ArrowDown" });
@@ -244,6 +353,20 @@ describe("gallery", () => {
     expect(container.querySelector(".qg-xray")).toBeNull();
   });
 
+  it("opens the shortcut sheet on ?, never from the find field", () => {
+    render(<Gallery />);
+    const find = screen.getByLabelText("Find a component");
+    fireEvent.keyDown(find, { key: "?" });
+    expect(screen.queryByRole("dialog", { name: SHEET })).toBeNull();
+
+    fireEvent.keyDown(window, { key: "?" });
+    const sheet = screen.getByRole("dialog", { name: SHEET });
+    const row = within(sheet)
+      .getByText("Switch between Views and Components")
+      .closest(".qh-row");
+    expect(row?.querySelector(".q-kbd")?.textContent).toBe("V");
+  });
+
   it("x-ray outlines the mat's child, never the corner ticks", () => {
     const { container } = render(<Gallery />);
     fireEvent.keyDown(window, { key: "x" });
@@ -286,7 +409,7 @@ describe("gallery", () => {
   });
 
   it("switches components with Tab and the arrows", () => {
-    const [, second, third] = componentNames;
+    const [, second, third] = allNames;
     render(<Gallery />);
     fireEvent.keyDown(window, { key: "Tab" });
     expect(window.location.hash).toContain(`/${second}/`);

@@ -384,7 +384,7 @@ test("scrollbar thumb is invisible at rest and themed while scrolling", async ({
   await setupApp(page, { inbox: tall });
   await expect(page.getByRole("option").first()).toBeVisible();
 
-  const list = page.locator(".q-inbox-list");
+  const list = page.locator(".qiv-list");
   const thumbColor = () =>
     list.evaluate(
       (el) => getComputedStyle(el, "::-webkit-scrollbar-thumb").backgroundColor

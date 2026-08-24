@@ -24,7 +24,7 @@
  * arrows switch component, f fixture, t theme, w width, m view (shift
  * reverses the cycling keys), x the component-boundary outline, c the notes
  * margin (mod+S scope, mod+Enter leave, Escape close), / find (arrows walk
- * matches, Enter jumps), mod +/-/0 zoom.
+ * matches, Enter jumps), mod +/-/0 zoom, ? the shortcut sheet.
  * Specimens only keep focus when clicked into: stray autofocus is blurred
  * back to the gallery
  * so the keys keep working, and Escape hands focus back from a specimen
@@ -52,11 +52,15 @@
  * the margin opens, because the other writer is an agent clearing what it
  * just fixed and the tab is usually still open behind it.
  *
- * The `c` hint lives on the topbar toggle and deliberately NOT in the
- * helpbar: a tall cell's stitched webkit capture bakes in the fixed helpbar
- * band, so one more key there rewrites every tall baseline on both
- * platforms. Anything that only chrome needs to say belongs above the stage,
- * where ?capture can suppress it.
+ * Every key is written down once, in the same ? sheet the desktop app opens
+ * (help-overlay from @nod/ui, handed a static section list because the
+ * gallery has no keyboard registry to flatten). The bar under the stage is
+ * left with the route readout alone: a tall cell's stitched webkit capture
+ * bakes that band in, so a hint parked there rewrites every tall baseline on
+ * both platforms the day it changes. The `c` hint stays on the topbar
+ * toggle for the same reason — anything only the chrome needs to say belongs
+ * above the stage, where ?capture can suppress it. The sheet itself is a
+ * modal, so it never renders under ?capture at all.
  *
  * `c` opens and focuses the composer rather than toggling, because the key
  * you press to write a note should leave you writing; it preventDefaults for
@@ -73,12 +77,16 @@
 import { Button } from "@nod/ui/button";
 import { catalog } from "@nod/ui/catalog";
 import { isSequence, sequenceElement } from "@nod/ui/fixtures";
-import { Kbd } from "@nod/ui/kbd";
-import { useEffect, useState } from "react";
+import { HelpOverlay, type HelpSection } from "@nod/ui/help-overlay";
+import { isView } from "@nod/ui/manifest";
+import { useEdgeResize } from "@nod/ui/use-edge-resize";
+import { useLatest } from "@nod/ui/use-latest";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { PENDING } from "./coverage.ts";
 import {
   cellAnchor,
   emptyNotes,
+  isHidden,
   type NoteScope,
   type NotesFile,
 } from "./notes.ts";
@@ -87,6 +95,7 @@ import {
   type NotesByComponent,
   postNote,
   removeNote,
+  setHidden,
 } from "./notes-client.ts";
 import { NotesMargin } from "./notes-margin.tsx";
 import {
@@ -104,9 +113,78 @@ import "./gallery.css";
 const THEME_LABELS = { day: "Daylight", quiet: "Quiet" } as const;
 const MODE_LABELS = { matrix: "Matrix", specimen: "Specimen" } as const;
 
-const componentNames = Object.keys(catalog);
+const catalogNames = Object.keys(catalog);
+const viewNames = catalogNames.filter((name) => isView(catalog[name]));
+const partNames = catalogNames.filter((name) => !isView(catalog[name]));
+const componentNames = [...viewNames, ...partNames];
 const cataloguedNames = new Set(componentNames);
-const allNames = [...componentNames, ...PENDING];
+
+/**
+ * Rail order, and therefore the order every key walk follows: surfaces
+ * first, then the parts they are built from, then names with no fixtures
+ * yet. Exported because the tests that assert walking order must not
+ * re-derive it — two definitions of "next" is how a rail and its keyboard
+ * drift apart.
+ */
+export const allNames = [...componentNames, ...PENDING];
+
+type RailTier = "components" | "hidden" | "views";
+
+/** "Parts", not "Components": it is the word the tier system already uses
+ *  everywhere else (fixtures.ts, TESTING.md, the capture rule), it is the
+ *  actual opposite of a view, and it is short enough that three tabs and
+ *  their counts fit the rail — "Components" alone overran it by 16px. */
+const TIER_LABELS: Record<RailTier, string> = {
+  components: "Parts",
+  hidden: "Hidden",
+  views: "Views",
+};
+
+/** The rail's standing partition, before anything is hidden. Names with no
+ *  fixtures yet are components that have not been built, so they sit under
+ *  Components rather than earning a tab for a state that is temporary by
+ *  definition. Exported so the tests do not re-derive rail order. */
+export const tierNames: Record<"components" | "views", readonly string[]> = {
+  components: [...partNames, ...PENDING],
+  views: viewNames,
+};
+
+/**
+ * The tiers as the rail shows them for one set of hidden names. A hidden
+ * entry leaves its own tab for Hidden, which is the only place it can be
+ * brought back from.
+ *
+ * Hiding is a listing choice and nothing else: the catalog still holds the
+ * entry, the capture suite still shoots its cells, and the coverage ratchet
+ * still counts it. That is what keeps the flag safe to use on anything
+ * merely noisy — you are tidying a rail, not dropping coverage.
+ */
+function railTiers(
+  hidden: ReadonlySet<string>
+): Record<RailTier, readonly string[]> {
+  const shown = (names: readonly string[]) =>
+    names.filter((name) => !hidden.has(name));
+  return {
+    components: shown(tierNames.components),
+    hidden: allNames.filter((name) => hidden.has(name)),
+    views: shown(tierNames.views),
+  };
+}
+
+/**
+ * Which tab a name belongs to — and therefore which tab is open, because the
+ * active tab is derived from the selection rather than stored beside it. One
+ * source of truth means a deep link to a view opens the Views tab for free,
+ * and no gesture can leave the tab disagreeing with the stage.
+ */
+function tierOf(name: string, hidden: ReadonlySet<string>): RailTier {
+  if (hidden.has(name)) {
+    return "hidden";
+  }
+  return cataloguedNames.has(name) && isView(catalog[name])
+    ? "views"
+    : "components";
+}
 
 const fixturesOf = (component: string): readonly string[] =>
   Object.keys(catalog[component]?.fixtures ?? {});
@@ -299,6 +377,29 @@ function applyGalleryZoom(factor: number) {
   document.documentElement.style.setProperty("--qg-zoom", String(factor));
 }
 
+const RAIL_WIDTH_KEY = "nod:galleryRailWidth:v1";
+const NOTES_WIDTH_KEY = "nod:galleryNotesWidth:v1";
+
+/** Both panels are dragged with the same hook the review screen's columns
+ *  use, so they persist the same way: written on release, read on mount,
+ *  and any junk in storage falls back to the design width. */
+function loadPanelWidth(key: string, fallback: number): number {
+  try {
+    const v = Number(localStorage.getItem(key));
+    return Number.isFinite(v) && v >= 160 && v <= 900 ? v : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function persistPanelWidth(key: string, width: number): void {
+  try {
+    localStorage.setItem(key, String(width));
+  } catch {
+    /* storage unavailable — the width lasts the session */
+  }
+}
+
 function loadGalleryZoom(): number {
   try {
     const v = Number(localStorage.getItem(ZOOM_KEY));
@@ -306,6 +407,84 @@ function loadGalleryZoom(): number {
   } catch {
     return 1;
   }
+}
+
+/**
+ * What the ? sheet lists. The desktop flattens its live keyboard registry
+ * into this shape; the gallery has no registry, so the sections are written
+ * out once at module scope — beside the handlers they describe, and never
+ * rebuilt per render. Navigate leads because it is the section a stranger
+ * needs first, and it is the only one marked active for the same reason.
+ */
+const HELP_SECTIONS: readonly HelpSection[] = [
+  {
+    active: true,
+    bindings: [
+      { combo: "j", description: "Next component" },
+      { combo: "k", description: "Previous component" },
+      { combo: "down", description: "Next component" },
+      { combo: "up", description: "Previous component" },
+      { combo: "tab", description: "Next component" },
+      { combo: "shift+tab", description: "Previous component" },
+      { combo: "v", description: "Switch between Views and Components" },
+      { combo: "h", description: "Hide this entry, or bring it back" },
+      { combo: "/", description: "Find a component" },
+      { combo: "?", description: "Show this sheet" },
+    ],
+    note: "Walks the open tab only",
+    scope: "Navigate",
+  },
+  {
+    bindings: [
+      { combo: "f", description: "Next fixture" },
+      { combo: "t", description: "Next theme" },
+      { combo: "w", description: "Next width" },
+      { combo: "m", description: "Switch specimen and matrix view" },
+      { combo: "x", description: "Toggle the component outline" },
+      { combo: "esc", description: "Hand focus back from a specimen" },
+    ],
+    note: "Shift reverses any cycling key",
+    scope: "Stage",
+  },
+  {
+    bindings: [
+      { combo: "mod+=", description: "Zoom in" },
+      { combo: "mod+-", description: "Zoom out" },
+      { combo: "mod+0", description: "Reset zoom" },
+    ],
+    scope: "Zoom",
+  },
+  {
+    bindings: [
+      { combo: "mod+c", description: "Open or close the notes margin" },
+      { combo: "mod+enter", description: "Leave the note" },
+      { combo: "mod+s", description: "Switch the note's scope" },
+      { combo: "esc", description: "Close the notes margin" },
+    ],
+    note: "Dev server only, and hiding is stored beside the notes",
+    scope: "Notes",
+  },
+];
+
+/**
+ * Whether mod+c means Copy rather than the notes panel. It does whenever
+ * the focus is in a field or anything is selected, which is the only way
+ * the panel can borrow the most universal shortcut on the keyboard without
+ * stealing it: writing a note and copying a word out of it has to keep
+ * working, and so does copying a fixture name or the hash under the frame.
+ */
+function wantsCopy(event: KeyboardEvent): boolean {
+  const target = event.target;
+  if (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement
+  ) {
+    return true;
+  }
+  if (target instanceof HTMLElement && target.isContentEditable) {
+    return true;
+  }
+  return (window.getSelection()?.toString() ?? "") !== "";
 }
 
 function ignoreGalleryKeys(event: KeyboardEvent): boolean {
@@ -346,22 +525,46 @@ function releaseSpecimenFocus(): boolean {
 function routePatchForKey(
   key: string,
   dir: 1 | -1,
-  route: GalleryRoute
+  route: GalleryRoute,
+  tiers: Record<RailTier, readonly string[]>,
+  activeTier: RailTier
 ): Partial<GalleryRoute> | null {
+  const openTier = tiers[activeTier];
   switch (key) {
+    // Walking stays inside the open tab: j/k is how you read a tier, and
+    // silently crossing into the other one is how you lose your place.
     case "j":
     case "ArrowDown":
-      return { component: cycle(allNames, route.component, 1) };
+      return {
+        component: cycle(openTier, route.component, 1),
+      };
     case "k":
     case "ArrowUp":
-      return { component: cycle(allNames, route.component, -1) };
+      return {
+        component: cycle(openTier, route.component, -1),
+      };
     case "Tab":
-      return { component: cycle(allNames, route.component, dir) };
+      return {
+        component: cycle(openTier, route.component, dir),
+      };
     case "f": {
       const fixtures = fixturesOf(route.component);
       return fixtures.length > 0
         ? { fixture: cycle(fixtures, route.fixture, dir) }
         : null;
+    }
+    // Flips the rail's tab. It lands on the other tier's first name because
+    // the tab is the selection's tier read back — there is no tab state of
+    // its own to move.
+    case "v": {
+      // Walks the tabs the rail is actually showing, so Hidden joins the
+      // cycle exactly when it exists. Shift walks back.
+      const order: RailTier[] =
+        tiers.hidden.length > 0
+          ? ["views", "components", "hidden"]
+          : ["views", "components"];
+      const next = cycle(order, activeTier, dir);
+      return { component: tiers[next][0] ?? route.component };
     }
     case "t":
       return { theme: cycle(GALLERY_THEMES, route.theme, dir) };
@@ -378,15 +581,41 @@ interface GalleryKeyActions {
   setRoute: React.Dispatch<React.SetStateAction<GalleryRoute>>;
   setXray: React.Dispatch<React.SetStateAction<boolean>>;
   setZoom: React.Dispatch<React.SetStateAction<number>>;
+  setHelpOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setNotesOpen: React.Dispatch<React.SetStateAction<boolean>>;
   notesOpen: boolean;
+  tiers: Record<RailTier, readonly string[]>;
+  activeTier: RailTier;
+  onToggleHidden: () => void;
 }
 
 function handleGalleryKey(
   event: KeyboardEvent,
   route: GalleryRoute,
-  { setRoute, setXray, setZoom, setNotesOpen, notesOpen }: GalleryKeyActions
+  {
+    setRoute,
+    setXray,
+    setZoom,
+    setHelpOpen,
+    setNotesOpen,
+    notesOpen,
+    tiers,
+    activeTier,
+    onToggleHidden,
+  }: GalleryKeyActions
 ): void {
+  // Before the modifier guard, like zoom: mod+c toggles the notes panel, and
+  // bare c belongs to whatever is being typed into. Copy wins the key
+  // whenever there is anything to copy — see wantsCopy.
+  if (
+    (event.metaKey || event.ctrlKey) &&
+    event.key.toLowerCase() === "c" &&
+    !wantsCopy(event)
+  ) {
+    event.preventDefault();
+    setNotesOpen((open) => !open);
+    return;
+  }
   if (
     (event.metaKey || event.ctrlKey) &&
     !event.altKey &&
@@ -410,17 +639,31 @@ function handleGalleryKey(
     setNotesOpen(false);
     return;
   }
-  if (key === "c") {
-    event.preventDefault();
-    setNotesOpen(true);
-    return;
-  }
+
   if (key === "/") {
     event.preventDefault();
     document.querySelector<HTMLInputElement>(".qg-find input")?.focus();
     return;
   }
-  const patch = routePatchForKey(key, event.shiftKey ? -1 : 1, route);
+  // Same key the desktop app answers to. Closing is the sheet's own business:
+  // it is a modal, so Escape reaches its cancel handler and never this one.
+  if (key === "?") {
+    event.preventDefault();
+    setHelpOpen(true);
+    return;
+  }
+  if (key === "h") {
+    event.preventDefault();
+    onToggleHidden();
+    return;
+  }
+  const patch = routePatchForKey(
+    key,
+    event.shiftKey ? -1 : 1,
+    route,
+    tiers,
+    activeTier
+  );
   if (patch) {
     if (key === "Tab") {
       event.preventDefault();
@@ -448,12 +691,15 @@ function handleZoomKey(
   return false;
 }
 
-/** The component rail: find field, the catalogue with its per-component note
- *  count, and the "N of M catalogued" footer. */
+/** The rail: find field, two tabs — views (whole surfaces) and the
+ *  components they are built from — and the open tab's catalogue, each item
+ *  carrying its open-note count. */
 function GalleryRail({
-  allNames,
+  activeTier,
+  onResize,
+  tiers,
+  width,
   cataloguedNames,
-  componentNames,
   filter,
   findSel,
   onFindChange,
@@ -463,9 +709,11 @@ function GalleryRail({
   selected,
   visibleNames,
 }: {
-  allNames: readonly string[];
+  activeTier: RailTier;
+  onResize: (width: number) => void;
+  tiers: Record<RailTier, readonly string[]>;
+  width: number;
   cataloguedNames: ReadonlySet<string>;
-  componentNames: readonly string[];
   filter: string;
   findSel: number;
   onFindChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -475,8 +723,18 @@ function GalleryRail({
   selected: string;
   visibleNames: readonly string[];
 }) {
+  const railRef = useRef<HTMLElement>(null);
+  const startResize = useEdgeResize({
+    edge: "right",
+    maxFraction: 0.4,
+    min: 180,
+    onResize,
+    panelRef: railRef,
+  });
+
   return (
-    <aside className="qg-rail">
+    <aside className="qg-rail" ref={railRef} style={{ width }}>
+      <div aria-hidden className="qg-rail-resize" onPointerDown={startResize} />
       <div className="qg-rail-head">
         <span className="qg-brand">Nod</span>
         <span className="qg-env">gallery · dev</span>
@@ -491,33 +749,58 @@ function GalleryRail({
           value={filter}
         />
       </div>
-      <nav aria-label="Components" className="qg-rail-list">
+      <div className="qg-rail-tabs" role="tablist">
+        {(Object.keys(TIER_LABELS) as RailTier[])
+          // Hidden appears only once something is in it: an empty tab for a
+          // feature nobody used is chrome that never pays for itself.
+          .filter((tier) => tier !== "hidden" || tiers.hidden.length > 0)
+          .map((tier) => (
+            <button
+              aria-selected={tier === activeTier}
+              className={[
+                "qg-rail-tab",
+                tier === activeTier ? "qg-on" : "",
+              ].join(" ")}
+              key={tier}
+              // Selecting the tier's first name is what opens the tab, since
+              // the tab is that selection's tier read back.
+              onClick={() => onSelect(tiers[tier][0] ?? "")}
+              role="tab"
+              type="button"
+            >
+              {TIER_LABELS[tier]}
+              <span className="qg-rail-tab-n">{tiers[tier].length}</span>
+            </button>
+          ))}
+      </div>
+      <nav aria-label={TIER_LABELS[activeTier]} className="qg-rail-list">
         {visibleNames.map((name, index) => {
           const catalogued = cataloguedNames.has(name);
           const isSelected = name === selected;
           const isFindCandidate = filter !== "" && index === findSel;
           return (
-            <button
-              className={[
-                "qg-rail-item",
-                catalogued ? "" : "qg-bare",
-                isSelected ? "qg-sel" : "",
-                isFindCandidate ? "qg-cand" : "",
-              ].join(" ")}
-              key={name}
-              onClick={() => onSelect(name)}
-              ref={railRevealRef(isFindCandidate, isSelected)}
-              type="button"
-            >
-              <i className="qg-dot" />
-              <span className="qg-name">{name}</span>
-              {openNotesOf(name) > 0 ? (
-                <span className="qg-mark">{openNotesOf(name)}</span>
-              ) : null}
-              <span className="qg-count">
-                {catalogued ? fixturesOf(name).length : "—"}
-              </span>
-            </button>
+            <Fragment key={name}>
+              <button
+                className={[
+                  "qg-rail-item",
+                  catalogued ? "" : "qg-bare",
+                  isSelected ? "qg-sel" : "",
+                  isFindCandidate ? "qg-cand" : "",
+                ].join(" ")}
+                onClick={() => onSelect(name)}
+                ref={railRevealRef(isFindCandidate, isSelected)}
+                type="button"
+              >
+                <i className="qg-dot" />
+                <span className="qg-name">{name}</span>
+                {openNotesOf(name) > 0 ? (
+                  <span className="qg-mark">{openNotesOf(name)}</span>
+                ) : null}
+                <span className="qg-count">
+                  {catalogued ? fixturesOf(name).length : "—"}
+                </span>
+              </button>
+            </Fragment>
           );
         })}
       </nav>
@@ -555,7 +838,6 @@ function StageControls({
             {name}
           </button>
         ))}
-        <Kbd combo="f" />
       </div>
       <div className="qg-ctl">
         <span className="qg-ctl-label">theme</span>
@@ -573,7 +855,6 @@ function StageControls({
             </button>
           ))}
         </div>
-        <Kbd combo="t" />
       </div>
       <div className="qg-ctl">
         <span className="qg-ctl-label">width</span>
@@ -591,7 +872,6 @@ function StageControls({
             </button>
           ))}
         </div>
-        <Kbd combo="w" />
       </div>
       <div className="qg-ctl">
         <span className="qg-ctl-label">view</span>
@@ -609,7 +889,6 @@ function StageControls({
             </button>
           ))}
         </div>
-        <Kbd combo="m" />
       </div>
     </div>
   );
@@ -624,8 +903,15 @@ export function Gallery() {
   const [zoom, setZoom] = useState(loadGalleryZoom);
   const [xray, setXray] = useState(false);
   const [capture] = useState(isCaptureRun);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [notes, setNotes] = useState<NotesByComponent>({});
   const [notesOpen, setNotesOpen] = useState(false);
+  const [railWidth, setRailWidth] = useState(() =>
+    loadPanelWidth(RAIL_WIDTH_KEY, 232)
+  );
+  const [notesWidth, setNotesWidth] = useState(() =>
+    loadPanelWidth(NOTES_WIDTH_KEY, 300)
+  );
   const [notesError, setNotesError] = useState("");
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const [noteScope, setNoteScope] = useState<NoteScope>("component");
@@ -696,29 +982,16 @@ export function Gallery() {
     history.replaceState(null, "", formatGalleryHash(route));
   }, [route]);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      handleGalleryKey(event, route, {
-        notesOpen,
-        setNotesOpen,
-        setRoute,
-        setXray,
-        setZoom,
-      });
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [route, notesOpen]);
-
-  const visibleNames = allNames.filter((name) =>
-    name.includes(filter.trim().toLowerCase())
+  // Hidden lives in the notes files, so the tiers are runtime data, not a
+  // module constant: what the rail lists depends on what the dev server
+  // last read off disk.
+  const hiddenNames = new Set(
+    Object.entries(notes)
+      .filter(([, file]) => isHidden(file))
+      .map(([component]) => component)
   );
-
-  const select = (component: string) => {
-    setRoute((r) => normalize({ ...r, component }));
-  };
-
-  const openNotesOf = (component: string) => notes[component]?.open.length ?? 0;
+  const tiers = railTiers(hiddenNames);
+  const activeTier = tierOf(route.component, hiddenNames);
 
   const applyNotes = (result: { error: string; file: NotesFile }) => {
     setNotesError(result.error);
@@ -726,6 +999,56 @@ export function Gallery() {
       setNotes((all) => ({ ...all, [route.component]: result.file }));
     }
   };
+
+  /** Hiding is a write to the component's own notes file, so the rail's
+   *  contents survive a reload and travel with the repo. */
+  const toggleHidden = () => {
+    setHidden(route.component, !hiddenNames.has(route.component)).then(
+      applyNotes
+    );
+  };
+
+  // The listener is bound once per route, so the tier state it reads has to
+  // arrive by ref — re-subscribing on every render to keep three derived
+  // values fresh would be the more expensive way to be correct.
+  const keyState = useLatest({ activeTier, tiers, toggleHidden });
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      handleGalleryKey(event, route, {
+        activeTier: keyState.current.activeTier,
+        notesOpen,
+        onToggleHidden: keyState.current.toggleHidden,
+        setHelpOpen,
+        setNotesOpen,
+        setRoute,
+        setXray,
+        setZoom,
+        tiers: keyState.current.tiers,
+      });
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [route, notesOpen, keyState]);
+
+  const needle = filter.trim().toLowerCase();
+  const matching = (tier: RailTier) =>
+    tiers[tier].filter((name) => name.includes(needle));
+  const here = matching(activeTier);
+  // A search that matches nothing in the open tab falls through to the other
+  // one rather than dead-ending: picking a result selects it, and the tab
+  // follows the selection, so the fall-through is also the way across.
+  // Hidden is deliberately not in that fall-through — a hidden entry should
+  // stay out of the way until you go looking for it.
+  const visibleNames =
+    here.length > 0
+      ? here
+      : matching(activeTier === "views" ? "components" : "views");
+
+  const select = (component: string) => {
+    setRoute((r) => normalize({ ...r, component }));
+  };
+
+  const openNotesOf = (component: string) => notes[component]?.open.length ?? 0;
 
   const onSubmitNote = () => {
     const note = (noteDrafts[route.component] ?? "").trim();
@@ -787,17 +1110,22 @@ export function Gallery() {
       ].join(" ")}
     >
       <GalleryRail
-        allNames={allNames}
+        activeTier={activeTier}
         cataloguedNames={cataloguedNames}
-        componentNames={componentNames}
         filter={filter}
         findSel={findSel}
         onFindChange={onFindChange}
         onFindKeyDown={onFindKeyDown}
+        onResize={(w) => {
+          setRailWidth(w);
+          persistPanelWidth(RAIL_WIDTH_KEY, w);
+        }}
         onSelect={select}
         openNotesOf={openNotesOf}
         selected={route.component}
+        tiers={tiers}
         visibleNames={visibleNames}
+        width={railWidth}
       />
 
       <div className="qg-main">
@@ -818,7 +1146,6 @@ export function Gallery() {
                 type="button"
               >
                 {noteToggleLabel(openNotesOf(route.component))}
-                <Kbd combo="c" />
               </button>
             )}
           </div>
@@ -836,14 +1163,6 @@ export function Gallery() {
         </main>
 
         <footer className="qg-helpbar">
-          <span>j/k · tab · arrows component</span>
-          <span>f fixture</span>
-          <span>t theme</span>
-          <span>w width</span>
-          <span>m view</span>
-          <span>x outline</span>
-          <span>/ find</span>
-          <span>mod ± zoom</span>
           <span className="qg-hash">{formatGalleryHash(route)}</span>
         </footer>
       </div>
@@ -862,11 +1181,24 @@ export function Gallery() {
             setNoteDrafts((drafts) => ({ ...drafts, [route.component]: text }));
           }}
           onRemove={onRemoveNote}
+          onResize={(w) => {
+            setNotesWidth(w);
+            persistPanelWidth(NOTES_WIDTH_KEY, w);
+          }}
           onScopeChange={setNoteScope}
           onSubmit={onSubmitNote}
           scope={noteScope}
+          width={notesWidth}
         />
       ) : null}
+
+      {capture ? null : (
+        <HelpOverlay
+          onOpenChange={setHelpOpen}
+          open={helpOpen}
+          sections={HELP_SECTIONS}
+        />
+      )}
     </div>
   );
 }

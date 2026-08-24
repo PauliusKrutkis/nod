@@ -1,0 +1,14 @@
+{
+  "decided": [
+    {
+      "note": "is this still used? maybe ci tab is enoguh?",
+      "why": "Kept — the premise does not hold. The Checks tab only exists when ci.checks has rows; for rollup-only hosts and PRs cached before the per-check breakdown there is no tab at all and the pill is the only CI signal. It is also the tab's entry point (pr-summary routes its click to onShowChecks), which two e2e tests assert."
+    },
+    {
+      "note": "let's remove isolated component",
+      "why": "Superseded by the owner: hidden from the rail. Hiding is the whole mechanism here — the catalog cannot drop an entry (catalog.test.tsx requires every component file to be catalogued with fixtures, and these are used everywhere), so the flag takes it out of the rail while its cells, its captures and the coverage ratchet stay exactly as they were. Unhide from the Hidden tab, or with h."
+    }
+  ],
+  "open": [],
+  "hidden": true
+}

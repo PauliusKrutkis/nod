@@ -1,0 +1,14 @@
+{
+  "decided": [
+    {
+      "note": "maybe view is enough for this?",
+      "why": "Kept. Avatar has six-plus hosts (rows, detail, header, comments, summary, toasts), so isolation is where its contract lives once rather than per surface, and its real cases — no image, a CJK name, an unbreakable handle — are data a composed view cannot stage."
+    },
+    {
+      "note": "no need, let's remove",
+      "why": "Superseded by the owner: hidden from the rail. Hiding is the whole mechanism here — the catalog cannot drop an entry (catalog.test.tsx requires every component file to be catalogued with fixtures, and these are used everywhere), so the flag takes it out of the rail while its cells, its captures and the coverage ratchet stay exactly as they were. Unhide from the Hidden tab, or with h."
+    }
+  ],
+  "open": [],
+  "hidden": true
+}

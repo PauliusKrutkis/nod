@@ -1,0 +1,9 @@
+{
+  "decided": [
+    {
+      "note": "maybe view is enough for this?",
+      "why": "Kept. It lives in the review header, a part of the review screen, and its cells are roster sizes (none, one, a crowd of twelve) that one composed screen cannot show at once."
+    }
+  ],
+  "open": []
+}

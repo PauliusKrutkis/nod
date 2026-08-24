@@ -1,0 +1,14 @@
+{
+  "decided": [
+    {
+      "note": "maybe view is enough for this?",
+      "why": "Kept. Its host is chat-panel, which is a part (it sits in the 420px dock, where 420 is honest), so there is no view to fold it into; its cells are list-shape cases."
+    },
+    {
+      "note": "let's remove isolated component",
+      "why": "Superseded by the owner: hidden from the rail. Hiding is the whole mechanism here — the catalog cannot drop an entry (catalog.test.tsx requires every component file to be catalogued with fixtures, and these are used everywhere), so the flag takes it out of the rail while its cells, its captures and the coverage ratchet stay exactly as they were. Unhide from the Hidden tab, or with h."
+    }
+  ],
+  "open": [],
+  "hidden": true
+}
