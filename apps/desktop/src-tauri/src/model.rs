@@ -2,12 +2,6 @@
 //! Consumed by every platform implementation — providers map their payloads
 //! onto these, so the webview stays host-agnostic.
 //!
-//! `MAX_ARCHIVE_BYTES` caps a downloaded repo archive, which is buffered in
-//! memory before extraction, so it bounds peak memory as much as it bounds
-//! disk. `MAX_REPO_SIZE_KB` keeps larger repos on the on-demand blob path
-//! entirely — the snapshot must degrade, never block or thrash the cache
-//! (BACKLOG §9).
-//!
 //! `PullRequest::viewer_did_author` and `viewer_last_review_at` are relative to
 //! the signed-in account, so they are only meaningful on a payload that account
 //! fetched. Both default when a provider cannot answer them — GitLab leaves
@@ -209,18 +203,6 @@ pub struct InboxData {
 /// Hard cap on blob size shipped to the webview — images beyond this are
 /// better opened on the host than base64-encoded into the UI.
 pub const MAX_BLOB_BYTES: usize = 20 * 1024 * 1024;
-
-pub const MAX_ARCHIVE_BYTES: usize = 256 * 1024 * 1024;
-
-/// The forges report a repository's size including its whole history, while
-/// what a snapshot downloads is one commit's working tree — usually a
-/// fraction of it. A repo that commits binary artefacts (screenshot
-/// baselines, fixtures) blows past a history-shaped cap while its tarball
-/// stays small, and the cost of guessing wrong is the AI chat silently
-/// losing every repo-wide tool. The cap stays, because an unbounded download
-/// is worse, but it is set against the archive ceiling rather than against
-/// what a tidy repo's history weighs.
-pub const MAX_REPO_SIZE_KB: u64 = 250 * 1024;
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]

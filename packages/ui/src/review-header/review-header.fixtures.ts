@@ -75,6 +75,7 @@ export const reviewHeaderEntry = defineEntry(ReviewHeader, {
   everything: {
     props: {
       ...handlers,
+      aiState: "working",
       approved: reviewers.slice(0, 2),
       changesRequested: reviewers.slice(2),
       ciState: "pending",
@@ -83,6 +84,14 @@ export const reviewHeaderEntry = defineEntry(ReviewHeader, {
       pr: pr({ draft: true }),
       showSidebarToggle: true,
       trackerBase: "https://tracker.test/browse/",
+    },
+  },
+  "ai-reply-ready": {
+    props: {
+      ...handlers,
+      aiState: "done",
+      ciState: "failure",
+      pr: pr({}),
     },
   },
   "huge-counts": {

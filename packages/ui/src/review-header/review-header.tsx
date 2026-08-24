@@ -68,7 +68,15 @@ export interface HeaderPullRequest {
  *  header is wrapped in. */
 const NO_REVIEWERS: readonly Reviewer[] = [];
 
+/** Appended to the info button's label so the dot is announced, not just
+ *  painted. */
+const AI_SUFFIX = {
+  done: " · AI reply ready",
+  working: " · AI is answering",
+} as const;
+
 export function ReviewHeader({
+  aiState = null,
   approved = NO_REVIEWERS,
   changesRequested = NO_REVIEWERS,
   ciState,
@@ -87,6 +95,10 @@ export function ReviewHeader({
   stack = null,
   trackerBase,
 }: {
+  /** The chat's headless state, shown on the info button so a reviewer who
+   *  closed the dock still sees an answer being written and one that
+   *  finished unseen. */
+  aiState?: "working" | "done" | null;
   approved?: readonly Reviewer[];
   changesRequested?: readonly Reviewer[];
   ciState?: string;
@@ -106,14 +118,17 @@ export function ReviewHeader({
   trackerBase?: string;
 }) {
   const ciDot = ciDotClass(ciState);
-  const infoTitle = ciDot
-    ? `PR info & checks · ${ciDotLabel(ciState)}`
-    : "PR description & conversation";
+  const aiSuffix = aiState ? AI_SUFFIX[aiState] : "";
+  const infoTitle = `${
+    ciDot
+      ? `PR info & checks · ${ciDotLabel(ciState)}`
+      : "PR description & conversation"
+  }${aiSuffix}`;
 
   return (
     <header className="qf-header">
       {showSidebarToggle && (
-        <Tooltip combo="b" label="Show files">
+        <Tooltip combo="mod+b" label="Show files">
           <button
             aria-label="Show files"
             aria-pressed={sidebarOpen}
@@ -184,6 +199,12 @@ export function ReviewHeader({
             type="button"
           >
             i{ciDot && <span aria-hidden className={cn("qf-ci-dot", ciDot)} />}
+            {aiState && (
+              <span
+                aria-hidden
+                className={cn("qf-ai-dot", `qf-ai-dot-${aiState}`)}
+              />
+            )}
             {convoCount > 0 && (
               <span className="qf-info-count">{convoCount}</span>
             )}

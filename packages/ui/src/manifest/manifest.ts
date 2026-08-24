@@ -694,6 +694,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
 
   "review-header": {
     fixtures: [
+      "ai-reply-ready",
       "ci-failure",
       "ci-none",
       "ci-unknown",

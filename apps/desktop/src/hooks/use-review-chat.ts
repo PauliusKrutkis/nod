@@ -29,7 +29,7 @@ import type { ChatComposerHandle } from "@nod/ui/chat-composer";
 import type { ChatPanelTurn, ChatSuggestionsState } from "@nod/ui/chat-panel";
 import { matchCanned } from "@nod/ui/match-canned";
 import { useLatest } from "@nod/ui/use-latest";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { listen } from "@tauri-apps/api/event";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
@@ -49,6 +49,7 @@ import {
   prKey,
   type SkillInfo,
 } from "../types.ts";
+import { useRepoStore } from "./use-repo-store.ts";
 
 interface LiveTurn {
   activity: string[];
@@ -78,14 +79,18 @@ const EMPTY_PENDING: PendingComment[] = [];
 const EMPTY_SKILLS: SkillInfo[] = [];
 const EMPTY_THREADS: ChatThread[] = [];
 
-/** A thread's display name: its opening message, tightly trimmed. */
-/** A thread's display name: whatever its opening message actually was.
- *  Prose first; failing that the skills it invoked (a skill on its own is a
- *  complete message, and "/pr-validity" names that thread better than any
- *  summary would); failing that the code it attached. Nothing is generated —
- *  a label is not worth a model call, and a thread named by its own first
- *  line is one the reviewer can recognise. */
+/** A thread's display name: the model's title once the first exchange has
+ *  produced one (`nameThreadOnce` writes it), otherwise derived from the
+ *  opening message — prose first; failing that the skills it invoked (a
+ *  skill on its own is a complete message, and "/pr-validity" names that
+ *  thread better than any summary would); failing that the code it
+ *  attached. The derivation is not just a pre-title placeholder: naming is
+ *  fire-and-forget and can fail, so every thread must read recognisably
+ *  without it. */
 function threadTitle(thread: ChatThread): string {
+  if (thread.title) {
+    return thread.title;
+  }
   const first = thread.turns.find((t) => t.kind === "user");
   if (first?.kind !== "user") {
     return "New chat";
@@ -275,55 +280,34 @@ function chatContext(
   };
 }
 
-/** The repo snapshot behind the chat: its state, a kick to fetch it when it
- *  is missing, and the sentence the panel shows about what the model can
- *  currently read. Answering "why can't it see my repo?" is the whole job. */
-function useChatSnapshot(args: { active: boolean; pr: PullRequest }): {
+/** The repo store behind the chat: its state and the sentence the panel
+ *  shows about what the model can currently read. Answering "why can't it
+ *  see my repo?" is the whole job; the lifecycle itself lives in the shared
+ *  useRepoStore hook. */
+function useChatRepoStore(args: { active: boolean; pr: PullRequest }): {
   note: string | null;
   state: string | undefined;
 } {
-  const snapshot = useQuery({
-    enabled: args.active,
-    queryFn: () =>
-      api.snapshotStatus(args.pr.owner, args.pr.name, args.pr.headSha),
-    queryKey: ["snapshotStatus", prKey(args.pr), args.pr.headSha],
-    refetchInterval: (query) =>
-      query.state.data?.state === "downloading" ? 2000 : false,
+  const { status } = useRepoStore({
+    active: args.active,
+    owner: args.pr.owner,
+    repo: args.pr.name,
+    sha: args.pr.headSha,
   });
-  const snapshotState = snapshot.data?.state;
-  const queryClient = useQueryClient();
-  const statusKey = ["snapshotStatus", prKey(args.pr), args.pr.headSha];
-
-  const ensure = useMutation({
-    mutationFn: () =>
-      api.ensureRepoSnapshot(args.pr.owner, args.pr.name, args.pr.headSha),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: statusKey }),
-  });
-
-  const kickRef = useLatest(ensure.mutate);
-  const idleRef = useLatest(ensure.isIdle);
-  useEffect(() => {
-    if (
-      args.active &&
-      idleRef.current &&
-      (snapshotState === "idle" || snapshotState === "failed")
-    ) {
-      kickRef.current();
-    }
-  }, [args.active, snapshotState, idleRef, kickRef]);
+  const state = status?.state;
 
   let contextNote: string | null = null;
-  if (snapshotState === "downloading" || snapshotState === "idle") {
+  if (state === "cloning" || state === "fetching" || state === "idle") {
     contextNote =
       "Fetching the repository so the chat can read beyond the diff. The diff itself is already available.";
-  } else if (snapshotState === "failed" || snapshotState === "skipped") {
-    const why = snapshot.data?.detail;
+  } else if (state === "failed") {
+    const why = status?.detail;
     contextNote = `Reading this pull request's diff only. Repo-wide search and file reads are off.${
-      why ? ` The snapshot failed: ${why}` : ""
+      why ? ` The repo fetch failed: ${why}` : ""
     }`;
   }
 
-  return { note: contextNote, state: snapshotState };
+  return { note: contextNote, state };
 }
 
 function emptyHint(loading: boolean): string {
@@ -504,13 +488,13 @@ export function useReviewChat(args: {
   const liveRef = useLatest(live);
   const settledByStop = useRef(new Set<string>());
 
-  const { note: contextNote, state: snapshotState } = useChatSnapshot(args);
+  const { note: contextNote, state: storeState } = useChatRepoStore(args);
 
   const skills = useQuery({
     enabled: args.active,
     queryFn: () =>
       api.listChatSkills(args.pr.owner, args.pr.name, args.pr.headSha),
-    queryKey: ["chatSkills", keyValue, args.pr.headSha, snapshotState ?? ""],
+    queryKey: ["chatSkills", keyValue, args.pr.headSha, storeState ?? ""],
     staleTime: Number.POSITIVE_INFINITY,
   });
   const skillNames = (skills.data ?? []).map((s) => s.name);
@@ -696,6 +680,14 @@ export function useReviewChat(args: {
     },
     [keyValue, chatPendingRef]
   );
+
+  // Mirrored into the store so the header can show a working dot while the
+  // dock is closed; cleared on unmount because a PR switch cancels the turn.
+  const busy = chat.isPending;
+  useEffect(() => {
+    useAppStore.getState().setChatBusy(keyValue, busy);
+    return () => useAppStore.getState().setChatBusy(keyValue, false);
+  }, [keyValue, busy]);
 
   /** Asks the model for a thread name, once, off the first exchange.
    *

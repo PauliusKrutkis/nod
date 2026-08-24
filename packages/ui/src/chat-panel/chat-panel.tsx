@@ -370,6 +370,15 @@ function CopyAnswer({ text }: { text: string }) {
   );
 }
 
+/** A staged row shows only the finding. Bodies are shaped first-line-first
+ *  (the shape the prompt demands), the row is one ellipsized line anyway,
+ *  and the pending card in the diff carries the full markdown — so the rest
+ *  of the body here is noise that jams "why" and a suggestion fence into
+ *  one unreadable strip. */
+function stagedSummary(body: string): string {
+  const line = body.split("\n").find((l) => l.trim() !== "") ?? "";
+  return line.trim();
+}
 function AssistantTurn({
   elapsedMs,
   pinned,
@@ -418,7 +427,9 @@ function AssistantTurn({
                 type="button"
               >
                 <span className="qch-staged-where">{item.label}</span>
-                <span className="qch-staged-body">{item.body}</span>
+                <span className="qch-staged-body">
+                  {stagedSummary(item.body)}
+                </span>
               </button>
               <button
                 aria-label={`Discard the comment on ${item.label}`}

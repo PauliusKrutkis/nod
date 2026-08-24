@@ -9,13 +9,12 @@
  * and they are built only while the pane is open (`mode === null` is closed),
  * since parsing every patch of a large PR is wasted work the rest of the time.
  *
- * Repo scope is fetched here and handed to the pane as data, and owns its
- * snapshot: widening the scope fires `ensureRepoSnapshot` (idempotent in the
- * backend) and polls it until the snapshot settles, so the download starts
+ * Repo scope is fetched here and handed to the pane as data. Widening the
+ * scope activates the shared useRepoStore hook, so the clone/fetch starts
  * before the first keystroke and never depends on another surface having
- * wanted the same snapshot. A settled failure or a too-large refusal
- * surfaces as the pane's failed state with the backend's reason; the grep
- * only runs once the snapshot is ready. Peek context decodes one blob per
+ * wanted the same commit. A settled failure surfaces as the pane's failed
+ * state with the backend's reason; the grep only runs once the store is
+ * ready. Peek context decodes one blob per
  * requested path (immutable at a sha, so it caches indefinitely) and slices
  * a few lines around each hit in that file. Scope, query and peek reset when
  * the pane closes: reopening always starts back at the PR, widening is a
@@ -35,20 +34,15 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { useDebouncedValue } from "../../hooks/use-debounced-value.ts";
+import { useRepoStore } from "../../hooks/use-repo-store.ts";
 import { api } from "../../lib/api.ts";
 import { type DiffRow, parsePatch } from "../../lib/diff.ts";
 import { highlightLineWithMatch } from "../../lib/highlight.ts";
-import {
-  blobLines,
-  buildRepoState,
-  isSnapshotNotReady,
-  SNAPSHOT_SETTLED,
-} from "../../lib/repo-search.ts";
+import { blobLines, buildRepoState } from "../../lib/repo-search.ts";
 import type { ChangedFile } from "../../types.ts";
 
 const PEEK_RADIUS = 4;
 const MIN_REPO_QUERY = 2;
-const SNAPSHOT_POLL_MS = 1500;
 
 function rowAnchor(row: DiffRow): string | null {
   if (row.type === "del") {
@@ -101,43 +95,19 @@ export function DiffSearch({
 
   const searchFiles = open ? toSearchFiles(files) : [];
 
-  const snapshot = useQuery({
-    enabled: repoActive,
-    queryFn: () => api.ensureRepoSnapshot(pr.owner, pr.name, pr.headSha),
-    queryKey: ["repoSnapshot", pr.owner, pr.name, pr.headSha],
-    refetchInterval: (query) => {
-      const state = query.state.data?.state;
-      return state !== undefined && SNAPSHOT_SETTLED.has(state)
-        ? false
-        : SNAPSHOT_POLL_MS;
-    },
-    retry: false,
+  const store = useRepoStore({
+    active: repoActive,
+    owner: pr.owner,
+    repo: pr.name,
+    sha: pr.headSha,
   });
-  const snapshotReady = snapshot.data?.state === "ready";
 
   const grep = useQuery({
-    enabled: repoActive && snapshotReady && pattern.length >= MIN_REPO_QUERY,
+    enabled: repoActive && store.ready && pattern.length >= MIN_REPO_QUERY,
     placeholderData: keepPreviousData,
-    queryFn: async () => {
-      try {
-        return await api.searchRepoContent(
-          pr.owner,
-          pr.name,
-          pr.headSha,
-          pattern
-        );
-      } catch (error) {
-        if (isSnapshotNotReady(error)) {
-          api
-            .ensureRepoSnapshot(pr.owner, pr.name, pr.headSha)
-            .catch(() => undefined);
-        }
-        throw error;
-      }
-    },
+    queryFn: () =>
+      api.searchRepoContent(pr.owner, pr.name, pr.headSha, pattern),
     queryKey: ["repoGrep", pr.owner, pr.name, pr.headSha, pattern],
-    refetchInterval: (query) =>
-      isSnapshotNotReady(query.state.error) ? SNAPSHOT_POLL_MS : false,
     retry: false,
   });
 
@@ -166,8 +136,8 @@ export function DiffSearch({
     peekLines,
     peekPath,
     peekRadius: PEEK_RADIUS,
-    snapshot: snapshot.data,
-    snapshotError: snapshot.isError ? snapshot.error : null,
+    store: store.status,
+    storeError: store.error,
     truncated: grep.data?.truncated ?? false,
   });
 

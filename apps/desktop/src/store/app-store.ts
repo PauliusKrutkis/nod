@@ -281,6 +281,11 @@ interface AppState {
     threadId: string,
     turn: ChatTurnRecord
   ) => void;
+  /** Whether a chat turn is in flight, keyed by PR. Ephemeral — it exists
+   *  so surfaces outside the chat panel (the header's info button) can show
+   *  an answer being written while the dock is closed. */
+  chatBusy: Record<string, boolean>;
+  setChatBusy: (prKey: string, busy: boolean) => void;
   chatChips: ChatRegion[];
   chatHistory: Record<string, ChatThread[]>;
   nameChatThread: (prKey: string, threadId: string, title: string) => void;
@@ -433,6 +438,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     };
     set({ chatHistory: map });
     saveChats(map);
+  },
+  chatBusy: {},
+  setChatBusy: (prKey, busy) => {
+    if ((get().chatBusy[prKey] ?? false) === busy) {
+      return;
+    }
+    set({ chatBusy: { ...get().chatBusy, [prKey]: busy } });
   },
   chatChips: [],
   chatHistory: loadChats(),

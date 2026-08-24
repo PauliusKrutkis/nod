@@ -52,9 +52,11 @@ that keeps getting re-asked. Anything not listed was implementation detail;
   the Rust backend; the frontend receives token-free info structs and requests
   are made from Rust. This is why there is an `ai_complete` command rather than
   a `fetch` in React.
-- **No git operations.** Repo context comes from a tarball per head SHA,
-  extracted into the cache and evicted by age — never a clone. See
-  [§9](#9-repo-snapshot--sync-layers-decided-2026-07-12); layer 1 has shipped.
+- **The app owns the repo clone.** Repo context comes from one bare,
+  blob-filtered clone per watched repo (`repo_store`), fetched with the
+  account token — the user never supplies a path. Superseded the tarball
+  snapshots 2026-08-23; see
+  [§9](#9-repo-store--local-repo-content-re-decided-2026-08-23-tarball-layers-decided-2026-07-12).
 - **react-virtuoso owns windowing.** It replaced ~400 lines of hand-rolled
   virtual list. CodeMirror 6 per file was considered and ruled out: purpose-built
   but a much deeper integration for marginal gain.
@@ -148,7 +150,7 @@ that keeps getting re-asked. Anything not listed was implementation detail;
 | Simple **"Open in Nod"** extension | §11a Stage 2 | After daily-use users |
 | Link **interception** + native messaging | §11a Stage 3 | Only if users ask |
 | Universal Links / wrapper domain | §11a | Unlikely needed if extension suffices |
-| **Repo snapshot layers 2–3** | §9 | Layer 2 surface unbuilt; layer 3 gated |
+| **Repo store layer 3** | §9 | Layer 2 shipped (repo-scope search); layer 3 gated |
 | New icon · streaks · celebration · Conversation mode | various | Post-MVP |
 
 **Ship rule, still standing:** if five developers use it for a week and
@@ -287,7 +289,7 @@ Complex: browser API differences, permissions, Slack in-app browser edge cases.
 | **`Tab`** / **`shift+Tab`** | Cycle files forward / back |
 | **`e`** / **`v`** | Mark viewed + next · toggle file viewed |
 | **`shift+v`** | Expand full file ↔ diff only |
-| **`b`** | Toggle file tree |
+| **`mod+b`** | Toggle file tree |
 | **`q`** / **`w`** | Next / prev comment thread |
 | **`c`** / **`shift+c`** | Comment on the cursor line / on the PR |
 | **`x`** / **`shift+e`** / **`z`** | Resolve · edit your comment · expand/collapse thread |
@@ -401,39 +403,36 @@ inline by design). These are cleanups, not new scope.
 
 ---
 
-## 9. Repo snapshot — sync layers (decided 2026-07-12)
+## 9. Repo store — local repo content (re-decided 2026-08-23; tarball layers decided 2026-07-12)
 
-Extend cache-first from "PR metadata + diffs" to **the file tree at head SHA**.
-Not a new direction — the existing thesis applied deeper. Tarball download
-(one API call, `GET /repos/{owner}/{repo}/tarball/{sha}`), extracted into the
-cache keyed by commit SHA like everything else. **No git operations** — the
-README promise holds. Converts every future context feature from a project
-(fetch + cache + loading state) into a local file read.
+Extend cache-first from "PR metadata + diffs" to **the repository itself**.
+Layer 1 v1 was a tarball snapshot per head SHA (no git operations, one HTTP
+GET); it shipped, carried the AI tools and repo search, and was **replaced
+2026-08-23 by the repo store** (`repo_store` module): one app-owned bare
+clone per watched repo under the cache dir, `--filter=blob:limit=10m`,
+fetched with the account token through an env-only credential helper. What
+changed the ruling: the ledger (docs/LEDGER.md) genuinely needs history —
+the escape hatch in the original decision — and its sidecar brings
+git-spawning to the app anyway. What the store buys over the tarball: delta
+fetches instead of a full re-download per push, **no repo size refusal**
+(oversized blobs stay on the server until read), history for blame and the
+ledger, and a real checkout materialisable for a future LSP. Reads stay
+SHA-addressed (`cat-file`/`ls-tree`/`git grep` at the commit, never a
+working tree), so consumers kept the snapshot's exact semantics. Trade
+accepted: system `git` on PATH is now required for local repo features —
+reads degrade to the network path without it.
 
-Three layers, three separate decision points — only layer 3 is a real bet:
-
-- [ ] 🟡 **Layer 2 — consumption**: whole-repo search (ripgrep-style in Rust,
-      ms over the extracted tree) · hunk-context expansion (P11 PR 2) reading
-      local files. Each small, each shippable independently. New pushes
-      re-download the full tarball (no deltas) — fine at PR cadence.
-      *Status 2026-08-16 — engine and registration exist, the surface does
-      not.* The AI tool loop (#176) implements `list_files`, `read_file` and
-      `grep_repo` over the snapshot, and `list_repo_files` /
-      `search_repo_content` are registered in `invoke_handler` (`lib.rs`) —
-      an earlier note here claiming they weren't is stale. But nothing in the
-      webview calls them, so no user-facing repo search exists and the free
-      lunch is still unclaimed. What is left is UI, nothing else.
+- [x] **Layer 2 — consumption**: repo-scope search shipped in the PR search
+      pane (`diff-search.tsx` + `lib/repo-search.ts`); the AI tool loop
+      serves `list_files` / `read_file` / `grep_repo`; blob reads are
+      local-first through `get_file_blob`. All store-served now.
 - [ ] ⏸ **Layer 3 — symbol index** (tree-sitter): go-to-definition from the
       diff (peek popover → full-file modal at line), find references for a
-      changed symbol. ~50–100k lines/sec/core to parse, index cached per SHA,
-      incremental via file-hash diff against the previous snapshot. **Only
-      build if beta users live in `shift+v` / repo search** — the sync
-      decision does not commit to this. Explicitly navigation, not AI: no
-      embeddings, no LLM anywhere.
-
-Ruled out: real git clone (shallow/partial) — efficient deltas + blame, but
-breaks "no git operations", needs gitoxide/libgit2 + token-in-transport +
-repo-dir management. Revisit only if a feature genuinely needs history.
+      changed symbol. Index cached per SHA over store reads. **Only build if
+      beta users live in `shift+v` / repo search** — unchanged gate. The
+      LSP-grade upgrade (a language server over a detached worktree at the
+      SHA) becomes possible with the store, but tree-sitter tags stay the
+      v1 design (#249, which should target the store).
 
 ---
 
@@ -2183,7 +2182,7 @@ and `a` opens a surface the composer already almost is.
       steps to the next textual occurrence. The ask is the semantic version:
       click a token, land on where it is *defined*; click the definition, get a
       peek listing where it is *used*, with snippets. **This is
-      [§9 layer 3](#9-repo-snapshot--sync-layers-decided-2026-07-12) arriving
+      [§9 layer 3](#9-repo-store--local-repo-content-re-decided-2026-08-23-tarball-layers-decided-2026-07-12) arriving
       as a user request rather than a hypothesis** — that item already specs
       "go-to-definition from the diff (peek popover → full-file modal at line),
       find references for a changed symbol" and gates it on "only build if beta
@@ -2199,16 +2198,17 @@ and `a` opens a surface the composer already almost is.
       1. **tree-sitter tag queries (`tags.scm`)** — ships with most grammars
          and yields definitions and references by name. Search-based rather
          than semantic, so it will sometimes offer you two `handleClick`s and
-         make you pick. Runs in milliseconds over the already-extracted
-         snapshot and needs nothing installed on the user's machine.
+         make you pick. Runs in milliseconds over repo-store reads at the head SHA and
+         needs nothing installed beyond the git the store already requires.
          **This is the stack GitHub's own code navigation runs on**, and its
          imprecision is evidently tolerable at that scale.
       2. **A precomputed SCIP / LSIF index** — exact, but produced by CI *in
          the repo being reviewed*, so it exists only for projects that opted
          in. Fine as an enhancement when present; a non-starter as the primary
          path.
-      3. **Real language servers** (rust-analyzer, tsserver) driven over the
-         snapshot — exact, and zero per-language work for us. But it needs the
+      3. **Real language servers** (rust-analyzer, tsserver) driven over a
+         worktree the store can materialise at the SHA — exact, and zero
+         per-language work for us. But it needs the
          toolchain present on the user's machine, spends minutes and gigabytes
          indexing a large repo, and puts a process supervisor in the Rust
          backend. That contradicts "instant", and it would make Nod the first

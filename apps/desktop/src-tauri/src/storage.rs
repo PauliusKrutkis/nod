@@ -5,8 +5,8 @@
 //!
 //! Two roots, deliberately: the **config dir** holds state the user would miss
 //! if it vanished (accounts, token, viewed marks) and stays all-JSON; the
-//! **cache dir** holds large regenerable data (repo snapshots — see
-//! `snapshot::store`) that is safe to delete at any time.
+//! **cache dir** holds large regenerable data (repo stores — see
+//! `repo_store::store`) that is safe to delete at any time.
 
 use std::fs;
 use std::path::PathBuf;
@@ -29,7 +29,7 @@ pub fn config_dir(app: &AppHandle) -> Result<PathBuf, String> {
 
 /// Returns the app cache directory, creating it if necessary. Everything under
 /// it is regenerable from the host, so it can be wiped without data loss —
-/// which is why snapshots live here and not next to `accounts.json`.
+/// which is why repo stores live here and not next to `accounts.json`.
 #[allow(dead_code)]
 pub fn cache_dir(app: &AppHandle) -> Result<PathBuf, String> {
     let dir = app

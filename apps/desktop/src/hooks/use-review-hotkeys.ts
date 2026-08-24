@@ -315,7 +315,7 @@ export function useReviewHotkeys(config: {
       description: "Toggle file tree",
       group: "Files",
       icon: PanelLeft,
-      keys: "b",
+      keys: "mod+b",
       run: config.toggleSidebar,
     },
     {

@@ -2,13 +2,15 @@ use super::{
     build_chat_turn, builtin_skill_body, builtin_skills, chat_system_prompt, chat_tools,
     clip_title, discover_personal_skills, discover_skills, empty_answer, execute_read_diff,
     execute_skill_tool, format_ranges, frontmatter_description, history_messages, merge_skills,
-    note_if_toolless, note_if_truncated, parse_proposal, read_personal_skill, read_skill_body,
-    resolve_skill_body, retry_without_tools, route_refused, safe_source, skill_instructions,
-    skill_name_from_path, tool_note, validate_proposal, ChatCancels, ChatDelta, ChatDiffFile,
-    ChatPart, ChatProposal, ChatRegion, ChatToolNote, ChatTurn, CommentableSide, SkillInfo,
+    note_if_toolless, note_if_truncated, parse_proposal, rate_limited, read_personal_skill,
+    read_skill_body, resolve_skill_body, retry_without_tools, route_refused, safe_source,
+    skill_instructions, skill_name_from_path, tool_note, validate_proposal, ChatCancels, ChatDelta,
+    ChatDiffFile, ChatPart, ChatProposal, ChatRegion, ChatToolNote, ChatTurn, CommentableSide,
+    SkillInfo,
 };
 use crate::ai::AskContext;
-use crate::snapshot::store::{partial_dir, promote, SnapshotKey};
+use crate::repo_store::store::CommitKey;
+use crate::repo_store::testkit::seeded_store;
 use serde_json::json;
 use std::path::PathBuf;
 
@@ -407,45 +409,39 @@ fn skill_instructions_strip_the_frontmatter() {
     );
 }
 
-fn skills_snapshot(label: &str) -> (PathBuf, SnapshotKey) {
+fn skills_store(label: &str) -> (PathBuf, CommitKey) {
     let root = std::env::temp_dir().join(format!("nod-chat-{label}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).expect("temp root");
-    let key = SnapshotKey {
-        host: "https://github.com".to_string(),
-        owner: "acme".to_string(),
-        repo: "widget-app".to_string(),
-        sha: "a1b2c3".to_string(),
-    };
-    for (path, contents) in [
-        (".claude/skills/pr-validity/SKILL.md", SKILL_MD),
-        (
-            ".claude/skills/security-pass/SKILL.md",
-            "No frontmatter, straight to auditing.",
-        ),
-        (".claude/skills/pr-validity/reference.md", "not a skill"),
-        // A repo that keeps skills outside .claude, grouped and not
-        (
-            "skills/gallery-notes/SKILL.md",
-            "---\ndescription: Write the gallery notes\n---\nBody.",
-        ),
-        (
-            "skills/engineering/code-review/SKILL.md",
-            "---\ndescription: Review like a senior\n---\nBody.",
-        ),
-        ("src/lib.rs", "fn main() {}\n"),
-    ] {
-        let target = partial_dir(&root, &key).join(path);
-        std::fs::create_dir_all(target.parent().expect("parent")).expect("staging");
-        std::fs::write(&target, contents).expect("write");
-    }
-    promote(&root, &key).expect("promote");
+    let key = seeded_store(
+        &root,
+        "acme",
+        "widget-app",
+        &[
+            (".claude/skills/pr-validity/SKILL.md", SKILL_MD.as_bytes()),
+            (
+                ".claude/skills/security-pass/SKILL.md",
+                b"No frontmatter, straight to auditing.",
+            ),
+            (".claude/skills/pr-validity/reference.md", b"not a skill"),
+            // A repo that keeps skills outside .claude, grouped and not
+            (
+                "skills/gallery-notes/SKILL.md",
+                b"---\ndescription: Write the gallery notes\n---\nBody.",
+            ),
+            (
+                "skills/engineering/code-review/SKILL.md",
+                b"---\ndescription: Review like a senior\n---\nBody.",
+            ),
+            ("src/lib.rs", b"fn main() {}\n"),
+        ],
+    );
     (root, key)
 }
 
 #[test]
 fn discovery_lists_manifest_skills_sorted_with_descriptions() {
-    let (root, key) = skills_snapshot("discover");
+    let (root, key) = skills_store("discover");
     assert_eq!(
         discover_skills(&root, &key),
         vec![
@@ -476,7 +472,7 @@ fn discovery_lists_manifest_skills_sorted_with_descriptions() {
 
 #[test]
 fn skill_tools_list_and_read_and_answer_mistakes_readably() {
-    let (root, key) = skills_snapshot("tools");
+    let (root, key) = skills_store("tools");
 
     let listing = execute_skill_tool(Some(&(root.clone(), key.clone())), &[], "list_skills", "{}");
     assert_eq!(
@@ -803,7 +799,7 @@ fn find_skill_tells_the_model_to_search_wide_and_show_before_saving() {
 
 #[test]
 fn skills_outside_dot_claude_are_reachable_too() {
-    let (root, key) = skills_snapshot("outside");
+    let (root, key) = skills_store("outside");
     let found = discover_skills(&root, &key);
     let names: Vec<&str> = found.iter().map(|s| s.name.as_str()).collect();
     assert_eq!(
@@ -891,6 +887,22 @@ fn a_route_that_refuses_the_request_shape_is_told_apart_by_status() {
         );
     }
     assert!(!route_refused("could not reach the AI provider"));
+}
+
+#[test]
+fn only_a_429_earns_the_delayed_second_chance() {
+    assert!(rate_limited(
+        "AI provider error (429): All providers are rate limited"
+    ));
+    // A refused request shape is permanent: waiting cannot fix a 400/422,
+    // and retrying a dead upstream or a bad key just doubles the failure.
+    for status in [400, 401, 403, 422, 500, 503] {
+        assert!(
+            !rate_limited(&format!("AI provider error ({status}): nope")),
+            "should not wait on {status}"
+        );
+    }
+    assert!(!rate_limited("could not reach the AI provider"));
 }
 
 #[test]
@@ -1000,6 +1012,24 @@ fn the_proposal_rule_puts_staging_before_the_write_up() {
         !no_proposals.contains("propose_comment"),
         "got {no_proposals}"
     );
+}
+
+#[test]
+fn the_comment_shape_travels_with_the_proposal_rules() {
+    // The shape rides only where staging exists: finding first (summaries
+    // show that line alone), a concrete why, and an applicable ```suggestion
+    // fence over prose whenever the fix is a local edit.
+    let prompt = chat_system_prompt(true, true, true, true);
+    assert!(prompt.contains("First line"), "got {prompt}");
+    assert!(prompt.contains("why it matters"), "got {prompt}");
+    assert!(prompt.contains("```suggestion"), "got {prompt}");
+    assert!(
+        prompt.contains("prefer a suggestion over describing the edit in prose"),
+        "got {prompt}"
+    );
+
+    let no_proposals = chat_system_prompt(true, true, false, true);
+    assert!(!no_proposals.contains("```suggestion"), "got {no_proposals}");
 }
 
 #[test]

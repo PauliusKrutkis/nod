@@ -9,12 +9,12 @@ use serde_json::{json, Value};
 
 use crate::http::{
     fbool, fopt_str, fopt_u64, fstr, fu64, get_all_pages, get_json, log, net_err, now_millis, nstr,
-    org_restriction_error, read_body, read_capped,
+    org_restriction_error, read_body,
 };
 use crate::model::{
     ChangedFile, CiCheck, CiStatus, FileBlob, GitHubUser, InboxBucket, InboxData, IssueComment,
     LastComment, PullRequest, PullRequestDetail, RepoHit, ReviewComment, ReviewCommentInput,
-    ReviewSummary, MAX_ARCHIVE_BYTES, MAX_BLOB_BYTES,
+    ReviewSummary, MAX_BLOB_BYTES,
 };
 
 const API: &str = "https://api.github.com";
@@ -335,102 +335,13 @@ fn comment_from(v: &Value) -> ReviewComment {
 /// The GitHub platform implementation.
 pub struct GitHubPlatform {
     client: reqwest::Client,
-    token: String,
 }
 
 impl GitHubPlatform {
     pub fn new(token: &str) -> Result<Self, String> {
         Ok(Self {
             client: build_client(token)?,
-            token: token.to_string(),
         })
-    }
-
-    /// Repository size as GitHub reports it, in KB. Used to skip snapshotting
-    /// repos too large to be worth downloading.
-    pub async fn repo_size_kb(&self, owner: &str, repo: &str) -> Result<u64, String> {
-        let v = get_json(&self.client, &format!("{API}/repos/{owner}/{repo}")).await?;
-        Ok(fu64(&v, "size"))
-    }
-
-    /// Downloads the gzipped tarball of `sha`.
-    ///
-    /// The tarball endpoint answers `302` with a short-lived signed URL on
-    /// `codeload.github.com`. The redirect is followed by hand, with an
-    /// unauthenticated client, so the token cannot reach that host: reqwest
-    /// does strip `Authorization` across origins today, but a silent change in
-    /// that behaviour would leak a credential, and this is not a behaviour to
-    /// inherit implicitly.
-    ///
-    /// Both halves fail for their own reasons and the message says which:
-    /// a `404` from the API means the commit lives in a fork or the account
-    /// cannot see the repo, while the signed URL can expire or be refused
-    /// for a commit GitHub will happily redirect for. codeload also
-    /// throttles bursts — several PRs prefetching snapshots at once answer
-    /// 429/503 and then succeed moments later — so a retryable status gets
-    /// one second chance, not a loop: a host that is really down should say
-    /// so quickly.
-    pub async fn archive(&self, owner: &str, repo: &str, sha: &str) -> Result<Vec<u8>, String> {
-        let redirector = reqwest::Client::builder()
-            .redirect(reqwest::redirect::Policy::none())
-            .build()
-            .map_err(|e| format!("could not build http client: {e}"))?;
-
-        let resp = redirector
-            .get(format!("{API}/repos/{owner}/{repo}/tarball/{sha}"))
-            .header(reqwest::header::USER_AGENT, "nod")
-            .header(
-                reqwest::header::AUTHORIZATION,
-                format!("Bearer {}", self.token),
-            )
-            .send()
-            .await
-            .map_err(net_err)?;
-
-        let status = resp.status();
-        if status.is_success() {
-            return read_capped(resp, MAX_ARCHIVE_BYTES, "repo archive").await;
-        }
-        if status == reqwest::StatusCode::NOT_FOUND {
-            return Err(format!(
-                "GitHub has no archive for {owner}/{repo} at {sha}. The commit may live in a fork, or this account may not have access."
-            ));
-        }
-        if !status.is_redirection() {
-            return Err(format!("repo archive failed ({})", status.as_u16()));
-        }
-        let location = resp
-            .headers()
-            .get(reqwest::header::LOCATION)
-            .and_then(|v| v.to_str().ok())
-            .ok_or_else(|| "repo archive redirect had no location".to_string())?
-            .to_string();
-
-        let signed = reqwest::Client::builder()
-            .build()
-            .map_err(|e| format!("could not build http client: {e}"))?;
-        let mut resp = signed
-            .get(&location)
-            .header(reqwest::header::USER_AGENT, "nod")
-            .send()
-            .await
-            .map_err(net_err)?;
-        if matches!(resp.status().as_u16(), 429 | 500..=599) {
-            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-            resp = signed
-                .get(&location)
-                .header(reqwest::header::USER_AGENT, "nod")
-                .send()
-                .await
-                .map_err(net_err)?;
-        }
-        if !resp.status().is_success() {
-            return Err(format!(
-                "the signed archive URL for {owner}/{repo} at {sha} failed ({})",
-                resp.status().as_u16()
-            ));
-        }
-        read_capped(resp, MAX_ARCHIVE_BYTES, "repo archive").await
     }
 
     async fn graphql(&self, query: &str) -> Result<Value, String> {
