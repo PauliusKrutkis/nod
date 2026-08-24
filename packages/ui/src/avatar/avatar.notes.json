@@ -5,5 +5,13 @@
       "why": "Kept. Avatar has six-plus hosts (rows, detail, header, comments, summary, toasts), so isolation is where its contract lives once rather than per surface, and its real cases — no image, a CJK name, an unbreakable handle — are data a composed view cannot stage."
     }
   ],
-  "open": []
+  "open": [
+    {
+      "added": "2026-08-24",
+      "cell": "avatar/whitespace-name/quiet/420",
+      "id": "n1",
+      "note": "no need, let's remove",
+      "scope": "component"
+    }
+  ]
 }

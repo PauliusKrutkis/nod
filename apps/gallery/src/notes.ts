@@ -19,6 +19,17 @@
  * re-proposed. Resolved notes are deleted rather than flagged: git holds the
  * history, and a resolved pile would cost the agent context on every read.
  *
+ * `hidden` parks a component out of the gallery rail — deprecated, superseded,
+ * or just noise someone does not want to scroll past. It rides in the note
+ * file because it is the same kind of judgement: durable, per-component, and
+ * reviewable in the diff that made it. Its safety comes from how narrow it is:
+ * hiding changes what the rail lists and nothing else. The catalog still
+ * counts the component, the screenshot suite still captures it, and the
+ * coverage ratchet still measures it, so nothing can be quietly dropped from
+ * the checks by hiding it. Absent means visible, and only the literal `true`
+ * hides — a hand-typed `"false"` reads as visible rather than flipping to its
+ * opposite.
+ *
  * parseNotes is deliberately forgiving because these files are meant to be
  * hand-editable: anything unreadable degrades to an empty file instead of
  * throwing, so one malformed note cannot take the gallery down.
@@ -45,6 +56,7 @@ interface Decision {
 export interface NotesFile {
   open: Note[];
   decided: Decision[];
+  hidden?: boolean;
 }
 
 export interface NoteDraft {
@@ -86,8 +98,29 @@ export function resolveNote(file: NotesFile, id: string): NotesFile {
   return { ...file, open: file.open.filter((note) => note.id !== id) };
 }
 
+export function isHidden(file: NotesFile | undefined): boolean {
+  return file?.hidden === true;
+}
+
+/**
+ * Hiding is stored as the flag's presence, so a visible component's file never
+ * carries a line saying so and unhiding leaves nothing behind.
+ */
+export function withHidden(file: NotesFile, hidden: boolean): NotesFile {
+  if (hidden) {
+    return { ...file, hidden: true };
+  }
+  const { hidden: _visible, ...rest } = file;
+  return rest;
+}
+
+/**
+ * Empty means the file has nothing worth keeping on disk. A hidden component
+ * counts as content even with no notes: the flag is the file's whole reason to
+ * exist, and deleting it would unhide the component on the next write.
+ */
 export function isEmptyNotes(file: NotesFile): boolean {
-  return file.open.length === 0 && file.decided.length === 0;
+  return file.open.length === 0 && file.decided.length === 0 && !isHidden(file);
 }
 
 /**
@@ -109,10 +142,13 @@ export function parseNotes(raw: unknown): NotesFile {
     return emptyNotes();
   }
   const source = raw as Partial<Record<keyof NotesFile, unknown>>;
-  return {
-    decided: asArray(source.decided).flatMap(parseDecision),
-    open: asArray(source.open).flatMap(parseNote),
-  };
+  return withHidden(
+    {
+      decided: asArray(source.decided).flatMap(parseDecision),
+      open: asArray(source.open).flatMap(parseNote),
+    },
+    source.hidden === true
+  );
 }
 
 function asArray(value: unknown): unknown[] {

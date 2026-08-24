@@ -7,6 +7,9 @@
  * A component with no notes has no file. Writing an empty note set deletes
  * it, so `git status` after a batch fix shows the notes disappearing with the
  * change that answered them, and the tree carries no empty scaffolding.
+ * "Empty" is isEmptyNotes' single definition of the word, which counts the
+ * hidden flag as content: a hidden component with no notes keeps its file,
+ * because deleting it would put the component back in the rail.
  *
  * Only catalogued components have a folder to hold a file. Notes on a pending
  * component are refused at this layer rather than invented somewhere else:
@@ -81,8 +84,8 @@ export function writeNotes(component: string, file: NotesFile): void {
 }
 
 /**
- * Every component carrying notes, in name order, skipping the ones whose file
- * is absent — which is most of them.
+ * Every component carrying notes or the hidden flag, in name order, skipping
+ * the ones whose file is absent — which is most of them.
  */
 export function listNotes(): ComponentNotes[] {
   const components: string[] = [];

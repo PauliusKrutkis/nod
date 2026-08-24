@@ -608,8 +608,13 @@
   margin: 0;
 }
 
-/* The route readout, and nothing else: the keys live in the ? sheet. */
+/* The route readout, and nothing else: the keys live in the ? sheet. The
+   flex box stays even with one child — this band's height is baked into
+   every stitched capture of a specimen taller than the viewport, so
+   changing its geometry moves baselines in components nobody touched. */
 .qg-helpbar {
+  display: flex;
+  align-items: center;
   border-top: 1px solid var(--line);
   padding: 7px 18px;
   font-family: var(--font-mono);
@@ -618,8 +623,7 @@
 }
 
 .qg-hash {
-  display: block;
-  text-align: right;
+  margin-left: auto;
 }
 
 dialog.q-dialog:modal {

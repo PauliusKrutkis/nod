@@ -356,21 +356,6 @@ export function Inbox() {
   }, [paneVisible, setInboxPaneVisible]);
   useEffect(() => () => setInboxPaneVisible(false), [setInboxPaneVisible]);
 
-  const handleListMouseMove = () => {
-    if (listMode !== "mouse") {
-      setListMode("mouse");
-    }
-  };
-
-  const handleHoverRow = (index: number) => {
-    const pr = filtered[index];
-    if (!pr) {
-      return;
-    }
-    setSelectedKey(keyFor(pr));
-    prefetchPullRequest(pr.owner, pr.name, pr.number);
-  };
-
   const body = inboxBody({
     activeTab,
     onOpenWatch: openWatchDialog,
@@ -388,55 +373,135 @@ export function Inbox() {
 
   return (
     <div className="flex h-full flex-col">
-      <InboxView
-        banner={
-          showArchived ? (
-            <div className="qiv-banner">
-              <ArchiveRestore size={13} />
-              <span>
-                Archived · <Kbd combo="e" /> restores, <Kbd combo="u" /> returns
-              </span>
-            </div>
-          ) : null
-        }
+      <InboxSurface
+        activeTab={activeTab}
+        archivedCount={archivedList.length}
         body={body}
-        detail={
-          selectedPR === undefined ? null : (
-            <InboxDetailPane archived={showArchived} pr={selectedPR} />
-          )
-        }
-        hint={
-          showArchived || filtered.length > SHORT_INBOX_MAX ? null : (
-            <OrgAccessHint onOrgAccessHelp={openOrgApprovalDocs} />
-          )
-        }
-        listLabel={activeTab.label}
+        filtered={filtered}
+        isUnread={isUnread}
         listMode={listMode}
         listRef={listRef}
-        onHoverRow={handleHoverRow}
-        onListMouseMove={handleListMouseMove}
-        onOpenRow={open}
-        rows={filtered.map((pr, index) => ({
-          pr,
-          selected: index === selectedIndex,
-          unread: isUnread(keyFor(pr), pr.updatedAt),
+        onOpenAt={open}
+        onOpenWatch={openWatchDialog}
+        onSelectPr={setSelectedKey}
+        onSelectTab={selectTabByKey}
+        onSetListMode={setListMode}
+        onToggleArchived={toggleArchived}
+        selectedIndex={selectedIndex}
+        selectedPR={selectedPR}
+        showArchived={showArchived}
+        tab={tab}
+        tabItems={visibleTabs.map((t) => ({
+          ...t,
+          count: visibleCounts[t.key],
         }))}
-        tabs={{
-          activeKey: tab,
-          archivedActive: showArchived,
-          archivedCount: archivedList.length,
-          items: visibleTabs.map((t) => ({
-            ...t,
-            count: visibleCounts[t.key],
-          })),
-          onSelect: selectTabByKey,
-          onToggleArchived: toggleArchived,
-          onWatch: openWatchDialog,
-        }}
       />
 
       <WatchReposLoader onClose={closeWatchDialog} open={watchOpen} />
     </div>
+  );
+}
+
+/** Everything the inbox screen hands @nod/ui's InboxView: the rows as data,
+ *  and the three regions that need a renderer only this side owns. */
+function InboxSurface({
+  activeTab,
+  archivedCount,
+  body,
+  filtered,
+  isUnread,
+  listMode,
+  listRef,
+  onOpenAt,
+  onOpenWatch,
+  onSelectPr,
+  onSelectTab,
+  onSetListMode,
+  onToggleArchived,
+  selectedIndex,
+  selectedPR,
+  showArchived,
+  tab,
+  tabItems,
+}: {
+  activeTab: (typeof TABS)[number];
+  archivedCount: number;
+  body: React.ReactNode;
+  filtered: PullRequest[];
+  isUnread: (key: string, updatedAt: string) => boolean;
+  listMode: "keyboard" | "mouse";
+  listRef: React.RefObject<HTMLDivElement | null>;
+  onOpenAt: (index: number) => void;
+  onOpenWatch: () => void;
+  onSelectPr: (key: string | null) => void;
+  onSelectTab: (key: string) => void;
+  onSetListMode: (mode: "keyboard" | "mouse") => void;
+  onToggleArchived: () => void;
+  selectedIndex: number;
+  selectedPR: PullRequest | undefined;
+  showArchived: boolean;
+  tab: InboxTabKey;
+  tabItems: { count: number; hint: string; key: string; label: string }[];
+}) {
+  const handleListMouseMove = () => {
+    if (listMode !== "mouse") {
+      onSetListMode("mouse");
+    }
+  };
+
+  const handleHoverRow = (index: number) => {
+    const pr = filtered[index];
+    if (!pr) {
+      return;
+    }
+    onSelectPr(keyFor(pr));
+    prefetchPullRequest(pr.owner, pr.name, pr.number);
+  };
+
+  return (
+    <InboxView
+      banner={
+        showArchived ? (
+          <div className="qiv-banner">
+            <ArchiveRestore size={13} />
+            <span>
+              Archived · <Kbd combo="e" /> restores, <Kbd combo="u" /> returns
+            </span>
+          </div>
+        ) : null
+      }
+      body={body}
+      detail={
+        selectedPR === undefined ? null : (
+          <InboxDetailPane archived={showArchived} pr={selectedPR} />
+        )
+      }
+      hint={
+        showArchived || filtered.length > SHORT_INBOX_MAX ? null : (
+          <OrgAccessHint onOrgAccessHelp={openOrgApprovalDocs} />
+        )
+      }
+      listLabel={activeTab.label}
+      listMode={listMode}
+      listRef={listRef}
+      onHoverRow={handleHoverRow}
+      onListMouseMove={handleListMouseMove}
+      onOpenRow={onOpenAt}
+      rows={filtered.map((pr, index) => ({
+        pr,
+        selected: index === selectedIndex,
+        unread: isUnread(keyFor(pr), pr.updatedAt),
+      }))}
+      tabs={{
+        activeKey: tab,
+        archivedActive: showArchived,
+        archivedCount,
+        items: tabItems,
+        onSelect: onSelectTab,
+        onToggleArchived,
+        onWatch: onOpenWatch,
+      }}
+    />
   );
 }
 

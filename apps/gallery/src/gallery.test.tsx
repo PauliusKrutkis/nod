@@ -45,6 +45,7 @@ beforeEach(() => {
 
 const componentNames = Object.keys(catalog);
 const COMPONENTS_TAB = /^Components/;
+const HIDDEN_TAB = /^Hidden/;
 const SHEET = "Keyboard shortcuts";
 // The rail's own order — views before parts — which is what the gallery
 // lands on and what every key walk follows. Deriving it here again is how a
@@ -120,6 +121,33 @@ describe("gallery", () => {
         .getByRole("tab", { name: COMPONENTS_TAB })
         .getAttribute("aria-selected")
     ).toBe("true");
+  });
+
+  it("lists a hidden entry under Hidden, and nowhere else", async () => {
+    const hiddenName = tierNames.components[0];
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      json: () =>
+        Promise.resolve({
+          [hiddenName]: { decided: [], hidden: true, open: [] },
+        }),
+      ok: true,
+    } as Response);
+
+    render(<Gallery />);
+    // The rail reads notes off the dev server, so the tab only appears once
+    // that answer has landed.
+    const hiddenTab = await screen.findByRole("tab", { name: HIDDEN_TAB });
+    expect(hiddenTab).toBeDefined();
+
+    fireEvent.click(screen.getByRole("tab", { name: COMPONENTS_TAB }));
+    expect(
+      screen.queryByRole("button", { name: new RegExp(`^${hiddenName}`) })
+    ).toBeNull();
+
+    fireEvent.click(hiddenTab);
+    expect(
+      screen.getByRole("button", { name: new RegExp(`^${hiddenName}`) })
+    ).toBeDefined();
   });
 
   it("flips the rail's tab on v", () => {

@@ -5,5 +5,13 @@
       "why": "Kept, same reason as avatar: a leaf with many hosts, whose cells are tone and overflow cases rather than a place."
     }
   ],
-  "open": []
+  "open": [
+    {
+      "added": "2026-08-24",
+      "cell": "badge/accent/quiet/420",
+      "id": "n1",
+      "note": "let's remove isolated component",
+      "scope": "component"
+    }
+  ]
 }

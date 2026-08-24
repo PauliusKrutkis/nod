@@ -80,11 +80,13 @@ import { isSequence, sequenceElement } from "@nod/ui/fixtures";
 import { HelpOverlay, type HelpSection } from "@nod/ui/help-overlay";
 import { Kbd } from "@nod/ui/kbd";
 import { isView } from "@nod/ui/manifest";
+import { useLatest } from "@nod/ui/use-latest";
 import { Fragment, useEffect, useState } from "react";
 import { PENDING } from "./coverage.ts";
 import {
   cellAnchor,
   emptyNotes,
+  isHidden,
   type NoteScope,
   type NotesFile,
 } from "./notes.ts";
@@ -93,6 +95,7 @@ import {
   type NotesByComponent,
   postNote,
   removeNote,
+  setHidden,
 } from "./notes-client.ts";
 import { NotesMargin } from "./notes-margin.tsx";
 import {
@@ -125,20 +128,44 @@ const cataloguedNames = new Set(componentNames);
  */
 export const allNames = [...componentNames, ...PENDING];
 
-type RailTier = "components" | "views";
+type RailTier = "components" | "hidden" | "views";
 
 const TIER_LABELS: Record<RailTier, string> = {
   components: "Components",
+  hidden: "Hidden",
   views: "Views",
 };
 
-/** The two rail tabs. Names with no fixtures yet are components that have
- *  not been built, so they sit under Components rather than earning a third
- *  tab for a state that is temporary by definition. */
-export const tierNames: Record<RailTier, readonly string[]> = {
+/** The rail's standing partition, before anything is hidden. Names with no
+ *  fixtures yet are components that have not been built, so they sit under
+ *  Components rather than earning a tab for a state that is temporary by
+ *  definition. Exported so the tests do not re-derive rail order. */
+export const tierNames: Record<"components" | "views", readonly string[]> = {
   components: [...partNames, ...PENDING],
   views: viewNames,
 };
+
+/**
+ * The tiers as the rail shows them for one set of hidden names. A hidden
+ * entry leaves its own tab for Hidden, which is the only place it can be
+ * brought back from.
+ *
+ * Hiding is a listing choice and nothing else: the catalog still holds the
+ * entry, the capture suite still shoots its cells, and the coverage ratchet
+ * still counts it. That is what keeps the flag safe to use on anything
+ * merely noisy — you are tidying a rail, not dropping coverage.
+ */
+function railTiers(
+  hidden: ReadonlySet<string>
+): Record<RailTier, readonly string[]> {
+  const shown = (names: readonly string[]) =>
+    names.filter((name) => !hidden.has(name));
+  return {
+    components: shown(tierNames.components),
+    hidden: allNames.filter((name) => hidden.has(name)),
+    views: shown(tierNames.views),
+  };
+}
 
 /**
  * Which tab a name belongs to — and therefore which tab is open, because the
@@ -146,7 +173,10 @@ export const tierNames: Record<RailTier, readonly string[]> = {
  * source of truth means a deep link to a view opens the Views tab for free,
  * and no gesture can leave the tab disagreeing with the stage.
  */
-function tierOf(name: string): RailTier {
+function tierOf(name: string, hidden: ReadonlySet<string>): RailTier {
+  if (hidden.has(name)) {
+    return "hidden";
+  }
   return cataloguedNames.has(name) && isView(catalog[name])
     ? "views"
     : "components";
@@ -370,6 +400,7 @@ const HELP_SECTIONS: readonly HelpSection[] = [
       { combo: "tab", description: "Next component" },
       { combo: "shift+tab", description: "Previous component" },
       { combo: "v", description: "Switch between Views and Components" },
+      { combo: "h", description: "Hide this entry, or bring it back" },
       { combo: "/", description: "Find a component" },
       { combo: "?", description: "Show this sheet" },
     ],
@@ -399,9 +430,11 @@ const HELP_SECTIONS: readonly HelpSection[] = [
   {
     bindings: [
       { combo: "c", description: "Open the notes margin" },
+      { combo: "mod+enter", description: "Leave the note" },
+      { combo: "mod+s", description: "Switch the note's scope" },
       { combo: "esc", description: "Close the notes margin" },
     ],
-    note: "Dev server only",
+    note: "Dev server only, and hiding is stored beside the notes",
     scope: "Notes",
   },
 ];
@@ -444,36 +477,27 @@ function releaseSpecimenFocus(): boolean {
 function routePatchForKey(
   key: string,
   dir: 1 | -1,
-  route: GalleryRoute
+  route: GalleryRoute,
+  tiers: Record<RailTier, readonly string[]>,
+  activeTier: RailTier
 ): Partial<GalleryRoute> | null {
+  const openTier = tiers[activeTier];
   switch (key) {
     // Walking stays inside the open tab: j/k is how you read a tier, and
     // silently crossing into the other one is how you lose your place.
     case "j":
     case "ArrowDown":
       return {
-        component: cycle(
-          tierNames[tierOf(route.component)],
-          route.component,
-          1
-        ),
+        component: cycle(openTier, route.component, 1),
       };
     case "k":
     case "ArrowUp":
       return {
-        component: cycle(
-          tierNames[tierOf(route.component)],
-          route.component,
-          -1
-        ),
+        component: cycle(openTier, route.component, -1),
       };
     case "Tab":
       return {
-        component: cycle(
-          tierNames[tierOf(route.component)],
-          route.component,
-          dir
-        ),
+        component: cycle(openTier, route.component, dir),
       };
     case "f": {
       const fixtures = fixturesOf(route.component);
@@ -485,9 +509,11 @@ function routePatchForKey(
     // the tab is the selection's tier read back — there is no tab state of
     // its own to move.
     case "v": {
-      const other =
-        tierOf(route.component) === "views" ? "components" : "views";
-      return { component: tierNames[other][0] ?? route.component };
+      // Flips between the two standing tabs; from Hidden it lands on Views,
+      // since Hidden is somewhere you go back from, not a third stop in a
+      // cycle.
+      const other = activeTier === "views" ? "components" : "views";
+      return { component: tiers[other][0] ?? route.component };
     }
     case "t":
       return { theme: cycle(GALLERY_THEMES, route.theme, dir) };
@@ -507,6 +533,9 @@ interface GalleryKeyActions {
   setHelpOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setNotesOpen: React.Dispatch<React.SetStateAction<boolean>>;
   notesOpen: boolean;
+  tiers: Record<RailTier, readonly string[]>;
+  activeTier: RailTier;
+  onToggleHidden: () => void;
 }
 
 function handleGalleryKey(
@@ -519,6 +548,9 @@ function handleGalleryKey(
     setHelpOpen,
     setNotesOpen,
     notesOpen,
+    tiers,
+    activeTier,
+    onToggleHidden,
   }: GalleryKeyActions
 ): void {
   if (
@@ -561,7 +593,18 @@ function handleGalleryKey(
     setHelpOpen(true);
     return;
   }
-  const patch = routePatchForKey(key, event.shiftKey ? -1 : 1, route);
+  if (key === "h") {
+    event.preventDefault();
+    onToggleHidden();
+    return;
+  }
+  const patch = routePatchForKey(
+    key,
+    event.shiftKey ? -1 : 1,
+    route,
+    tiers,
+    activeTier
+  );
   if (patch) {
     if (key === "Tab") {
       event.preventDefault();
@@ -594,6 +637,7 @@ function handleZoomKey(
  *  carrying its open-note count. */
 function GalleryRail({
   activeTier,
+  tiers,
   cataloguedNames,
   filter,
   findSel,
@@ -605,6 +649,7 @@ function GalleryRail({
   visibleNames,
 }: {
   activeTier: RailTier;
+  tiers: Record<RailTier, readonly string[]>;
   cataloguedNames: ReadonlySet<string>;
   filter: string;
   findSel: number;
@@ -632,23 +677,28 @@ function GalleryRail({
         />
       </div>
       <div className="qg-rail-tabs" role="tablist">
-        {(Object.keys(TIER_LABELS) as RailTier[]).map((tier) => (
-          <button
-            aria-selected={tier === activeTier}
-            className={["qg-rail-tab", tier === activeTier ? "qg-on" : ""].join(
-              " "
-            )}
-            key={tier}
-            // Selecting the tier's first name is what opens the tab, since
-            // the tab is that selection's tier read back.
-            onClick={() => onSelect(tierNames[tier][0] ?? "")}
-            role="tab"
-            type="button"
-          >
-            {TIER_LABELS[tier]}
-            <span className="qg-rail-tab-n">{tierNames[tier].length}</span>
-          </button>
-        ))}
+        {(Object.keys(TIER_LABELS) as RailTier[])
+          // Hidden appears only once something is in it: an empty tab for a
+          // feature nobody used is chrome that never pays for itself.
+          .filter((tier) => tier !== "hidden" || tiers.hidden.length > 0)
+          .map((tier) => (
+            <button
+              aria-selected={tier === activeTier}
+              className={[
+                "qg-rail-tab",
+                tier === activeTier ? "qg-on" : "",
+              ].join(" ")}
+              key={tier}
+              // Selecting the tier's first name is what opens the tab, since
+              // the tab is that selection's tier read back.
+              onClick={() => onSelect(tiers[tier][0] ?? "")}
+              role="tab"
+              type="button"
+            >
+              {TIER_LABELS[tier]}
+              <span className="qg-rail-tab-n">{tiers[tier].length}</span>
+            </button>
+          ))}
       </div>
       <nav aria-label={TIER_LABELS[activeTier]} className="qg-rail-list">
         {visibleNames.map((name, index) => {
@@ -857,29 +907,63 @@ export function Gallery() {
     history.replaceState(null, "", formatGalleryHash(route));
   }, [route]);
 
+  // Hidden lives in the notes files, so the tiers are runtime data, not a
+  // module constant: what the rail lists depends on what the dev server
+  // last read off disk.
+  const hiddenNames = new Set(
+    Object.entries(notes)
+      .filter(([, file]) => isHidden(file))
+      .map(([component]) => component)
+  );
+  const tiers = railTiers(hiddenNames);
+  const activeTier = tierOf(route.component, hiddenNames);
+
+  const applyNotes = (result: { error: string; file: NotesFile }) => {
+    setNotesError(result.error);
+    if (!result.error) {
+      setNotes((all) => ({ ...all, [route.component]: result.file }));
+    }
+  };
+
+  /** Hiding is a write to the component's own notes file, so the rail's
+   *  contents survive a reload and travel with the repo. */
+  const toggleHidden = () => {
+    setHidden(route.component, !hiddenNames.has(route.component)).then(
+      applyNotes
+    );
+  };
+
+  // The listener is bound once per route, so the tier state it reads has to
+  // arrive by ref — re-subscribing on every render to keep three derived
+  // values fresh would be the more expensive way to be correct.
+  const keyState = useLatest({ activeTier, tiers, toggleHidden });
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       handleGalleryKey(event, route, {
+        activeTier: keyState.current.activeTier,
         notesOpen,
+        onToggleHidden: keyState.current.toggleHidden,
         setHelpOpen,
         setNotesOpen,
         setRoute,
         setXray,
         setZoom,
+        tiers: keyState.current.tiers,
       });
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [route, notesOpen]);
+  }, [route, notesOpen, keyState]);
 
-  const activeTier = tierOf(route.component);
   const needle = filter.trim().toLowerCase();
   const matching = (tier: RailTier) =>
-    tierNames[tier].filter((name) => name.includes(needle));
+    tiers[tier].filter((name) => name.includes(needle));
   const here = matching(activeTier);
   // A search that matches nothing in the open tab falls through to the other
   // one rather than dead-ending: picking a result selects it, and the tab
   // follows the selection, so the fall-through is also the way across.
+  // Hidden is deliberately not in that fall-through — a hidden entry should
+  // stay out of the way until you go looking for it.
   const visibleNames =
     here.length > 0
       ? here
@@ -890,13 +974,6 @@ export function Gallery() {
   };
 
   const openNotesOf = (component: string) => notes[component]?.open.length ?? 0;
-
-  const applyNotes = (result: { error: string; file: NotesFile }) => {
-    setNotesError(result.error);
-    if (!result.error) {
-      setNotes((all) => ({ ...all, [route.component]: result.file }));
-    }
-  };
 
   const onSubmitNote = () => {
     const note = (noteDrafts[route.component] ?? "").trim();
@@ -967,6 +1044,7 @@ export function Gallery() {
         onSelect={select}
         openNotesOf={openNotesOf}
         selected={route.component}
+        tiers={tiers}
         visibleNames={visibleNames}
       />
 

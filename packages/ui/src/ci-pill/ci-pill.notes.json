@@ -5,5 +5,13 @@
       "why": "Kept — the premise does not hold. The Checks tab only exists when ci.checks has rows; for rollup-only hosts and PRs cached before the per-check breakdown there is no tab at all and the pill is the only CI signal. It is also the tab's entry point (pr-summary routes its click to onShowChecks), which two e2e tests assert."
     }
   ],
-  "open": []
+  "open": [
+    {
+      "added": "2026-08-24",
+      "cell": "ci-pill/failure/quiet/420",
+      "id": "n1",
+      "note": "let's remove isolated component",
+      "scope": "component"
+    }
+  ]
 }
