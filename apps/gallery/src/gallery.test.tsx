@@ -3,13 +3,20 @@
  * hash names the visible cell (deep links land, interactions write back),
  * keys drive it without a pointer, the matrix renders one frame per
  * fixture × theme, every frame mounts its specimen on the mat, and the
- * ?capture query flag lands as qg-capture on the root. What the specimens
+ * ?capture query flag lands as qg-capture on the root, the ? sheet opens on
+ * the same key the desktop uses and prints the real bindings. What the specimens
  * look like is the screenshot suite's job, not this file's. The
  * retrofit-notice test only runs while something is PENDING: an empty
  * ratchet has no uncatalogued specimen to show.
  */
 import { catalog } from "@nod/ui/catalog";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PENDING } from "./coverage.ts";
 import { allNames, Gallery, tierNames } from "./gallery.tsx";
@@ -38,6 +45,7 @@ beforeEach(() => {
 
 const componentNames = Object.keys(catalog);
 const COMPONENTS_TAB = /^Components/;
+const SHEET = "Keyboard shortcuts";
 // The rail's own order — views before parts — which is what the gallery
 // lands on and what every key walk follows. Deriving it here again is how a
 // rail and its keyboard quietly disagree.
@@ -291,6 +299,20 @@ describe("gallery", () => {
     expect(container.querySelector(".qg-xray")).not.toBeNull();
     fireEvent.keyDown(window, { key: "x" });
     expect(container.querySelector(".qg-xray")).toBeNull();
+  });
+
+  it("opens the shortcut sheet on ?, never from the find field", () => {
+    render(<Gallery />);
+    const find = screen.getByLabelText("Find a component");
+    fireEvent.keyDown(find, { key: "?" });
+    expect(screen.queryByRole("dialog", { name: SHEET })).toBeNull();
+
+    fireEvent.keyDown(window, { key: "?" });
+    const sheet = screen.getByRole("dialog", { name: SHEET });
+    const row = within(sheet)
+      .getByText("Switch between Views and Components")
+      .closest(".qh-row");
+    expect(row?.querySelector(".q-kbd")?.textContent).toBe("V");
   });
 
   it("x-ray outlines the mat's child, never the corner ticks", () => {

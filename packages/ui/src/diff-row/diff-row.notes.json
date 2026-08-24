@@ -1,12 +1,9 @@
 {
-  "decided": [],
-  "open": [
+  "decided": [
     {
-      "added": "2026-08-24",
-      "cell": "diff-row/overflow/quiet/1400",
-      "id": "n1",
       "note": "maybe view is enough for this?",
-      "scope": "component"
+      "why": "Kept until the review screen is a view. Its containing surface is not extracted yet, and its cells are the data cases a screen cannot stage — intraline marks, an unbreakable line, a hunk band. Revisit once the review-screen view exists."
     }
-  ]
+  ],
+  "open": []
 }

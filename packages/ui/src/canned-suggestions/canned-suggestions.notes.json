@@ -1,12 +1,9 @@
 {
-  "decided": [],
-  "open": [
+  "decided": [
     {
-      "added": "2026-08-24",
-      "cell": "canned-suggestions/described-items/quiet/1400",
-      "id": "n1",
       "note": "maybe view is enough for this?",
-      "scope": "component"
+      "why": "Kept. Its host is chat-panel, which is a part (it sits in the 420px dock, where 420 is honest), so there is no view to fold it into; its cells are list-shape cases."
     }
-  ]
+  ],
+  "open": []
 }

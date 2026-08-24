@@ -1,12 +1,9 @@
 {
-  "decided": [],
-  "open": [
+  "decided": [
     {
-      "added": "2026-08-24",
-      "cell": "badge/accent/quiet/1400",
-      "id": "n1",
       "note": "maybe view is enough for this?",
-      "scope": "component"
+      "why": "Kept, same reason as avatar: a leaf with many hosts, whose cells are tone and overflow cases rather than a place."
     }
-  ]
+  ],
+  "open": []
 }

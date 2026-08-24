@@ -1,12 +1,9 @@
 {
-  "decided": [],
-  "open": [
+  "decided": [
     {
-      "added": "2026-08-24",
-      "cell": "comment-tools/pending/quiet/1400",
-      "id": "n1",
       "note": "maybe view is enough for this?",
-      "scope": "component"
+      "why": "Kept, same reason as comment-item: its cells are state combinations, not a place."
     }
-  ]
+  ],
+  "open": []
 }

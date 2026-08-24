@@ -1,12 +1,9 @@
 {
-  "decided": [],
-  "open": [
+  "decided": [
     {
-      "added": "2026-08-24",
-      "cell": "comment-item/code-fence/quiet/1400",
-      "id": "n1",
       "note": "maybe view is enough for this?",
-      "scope": "component"
+      "why": "Kept until its hosts are views. Its cells are body-shape cases — a code fence, a suggestion, markup as text, an edit in progress — that a composed surface shows one of."
     }
-  ]
+  ],
+  "open": []
 }

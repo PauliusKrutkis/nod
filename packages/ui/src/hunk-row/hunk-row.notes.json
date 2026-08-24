@@ -1,12 +1,9 @@
 {
-  "decided": [],
-  "open": [
+  "decided": [
     {
-      "added": "2026-08-24",
-      "cell": "hunk-row/typical/quiet/1400",
-      "id": "n1",
       "note": "maybe make this into a view?",
-      "scope": "component"
+      "why": "Kept until the review screen is a view — same reason as diff-row."
     }
-  ]
+  ],
+  "open": []
 }

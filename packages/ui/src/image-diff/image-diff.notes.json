@@ -1,12 +1,9 @@
 {
-  "decided": [],
-  "open": [
+  "decided": [
     {
-      "added": "2026-08-24",
-      "cell": "image-diff/added-only/quiet/1400",
-      "id": "n1",
       "note": "maybe make this into a view?",
-      "scope": "component"
+      "why": "Kept until the review screen is a view. Its cases are side-presence combinations (added only, removed only, both) that a screen shows one of at a time."
     }
-  ]
+  ],
+  "open": []
 }

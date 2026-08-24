@@ -1,12 +1,9 @@
 {
-  "decided": [],
-  "open": [
+  "decided": [
     {
-      "added": "2026-08-24",
-      "cell": "token-gate/signing-in/quiet/fluid",
-      "id": "n1",
       "note": "maybe this should a view?",
-      "scope": "component"
+      "why": "Yes — and it is one now. TokenGate is a route-level screen (app.tsx renders it for route 'token', beside inbox and ledger), so it owns the window and is captured at the window's widths."
     }
-  ]
+  ],
+  "open": []
 }

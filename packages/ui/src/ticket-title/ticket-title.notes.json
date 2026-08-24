@@ -1,12 +1,9 @@
 {
-  "decided": [],
-  "open": [
+  "decided": [
     {
-      "added": "2026-08-24",
-      "cell": "ticket-title/overflow/quiet/fluid",
-      "id": "n1",
       "note": "maybe view is enough for this?",
-      "scope": "component"
+      "why": "Kept. It renders in both the review header and inbox-detail — so the inbox view already shows it in place — while its own cells carry the parsing cases (no ticket, an odd key, overflow) that neither host would stage."
     }
-  ]
+  ],
+  "open": []
 }

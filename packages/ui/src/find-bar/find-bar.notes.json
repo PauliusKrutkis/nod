@@ -1,12 +1,9 @@
 {
-  "decided": [],
-  "open": [
+  "decided": [
     {
-      "added": "2026-08-24",
-      "cell": "find-bar/case-sensitive/quiet/1400",
-      "id": "n1",
       "note": "maybe make it into a view?",
-      "scope": "component"
+      "why": "Kept as a part. The find bar is a strip inside the review screen, not a surface that owns the window, so it will appear in the review-screen view rather than becoming one."
     }
-  ]
+  ],
+  "open": []
 }

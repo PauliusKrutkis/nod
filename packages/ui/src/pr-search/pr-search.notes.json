@@ -1,12 +1,9 @@
 {
-  "decided": [],
-  "open": [
+  "decided": [
     {
-      "added": "2026-08-20",
-      "cell": "pr-search/markup-as-text/quiet/720",
-      "id": "n1",
       "note": "there is no code highlighing?",
-      "scope": "cell"
+      "why": "By design. Fixtures deliberately supply no highlighter, so the pane falls back to escaped text with the query marked — that default is what lets a cell render with no highlight.js in the package. The app passes the real highlighter (highlightLineWithMatch), and the syntax colors you would expect are visible in the app and in this entry's own 1400 cells now that it is captured at the width it opens at."
     }
-  ]
+  ],
+  "open": []
 }

@@ -1,12 +1,9 @@
 {
-  "decided": [],
-  "open": [
+  "decided": [
     {
-      "added": "2026-08-24",
-      "cell": "chat-composer/draft-with-chips/quiet/1400",
-      "id": "n1",
       "note": "maybe view is enough for this?",
-      "scope": "component"
+      "why": "Kept, same reason as canned-suggestions: its host is the chat panel, itself a part, and its cells are draft-content cases."
     }
-  ]
+  ],
+  "open": []
 }

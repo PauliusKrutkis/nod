@@ -854,6 +854,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
     ],
   },
   "token-gate": {
+    view: true,
     fixtures: [
       "add-account",
       "auth-error",

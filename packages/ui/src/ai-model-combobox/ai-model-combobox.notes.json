@@ -1,12 +1,9 @@
 {
-  "decided": [],
-  "open": [
+  "decided": [
     {
-      "added": "2026-08-24",
-      "cell": "ai-model-combobox/closed/quiet/1400",
-      "id": "n2",
       "note": "maybe view is enough for this?",
-      "scope": "component"
+      "why": "It already is: the combobox only appears inside ai-setup-dialog, which is a view, so its cells now show it at the width the dialog really opens at. The isolated cells stay for the data cases a view cannot stage — 120 models, a filtered list, a free-text entry."
     }
-  ]
+  ],
+  "open": []
 }

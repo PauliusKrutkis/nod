@@ -24,7 +24,7 @@
  * arrows switch component, f fixture, t theme, w width, m view (shift
  * reverses the cycling keys), x the component-boundary outline, c the notes
  * margin (mod+S scope, mod+Enter leave, Escape close), / find (arrows walk
- * matches, Enter jumps), mod +/-/0 zoom.
+ * matches, Enter jumps), mod +/-/0 zoom, ? the shortcut sheet.
  * Specimens only keep focus when clicked into: stray autofocus is blurred
  * back to the gallery
  * so the keys keep working, and Escape hands focus back from a specimen
@@ -52,11 +52,15 @@
  * the margin opens, because the other writer is an agent clearing what it
  * just fixed and the tab is usually still open behind it.
  *
- * The `c` hint lives on the topbar toggle and deliberately NOT in the
- * helpbar: a tall cell's stitched webkit capture bakes in the fixed helpbar
- * band, so one more key there rewrites every tall baseline on both
- * platforms. Anything that only chrome needs to say belongs above the stage,
- * where ?capture can suppress it.
+ * Every key is written down once, in the same ? sheet the desktop app opens
+ * (help-overlay from @nod/ui, handed a static section list because the
+ * gallery has no keyboard registry to flatten). The bar under the stage is
+ * left with the route readout alone: a tall cell's stitched webkit capture
+ * bakes that band in, so a hint parked there rewrites every tall baseline on
+ * both platforms the day it changes. The `c` hint stays on the topbar
+ * toggle for the same reason — anything only the chrome needs to say belongs
+ * above the stage, where ?capture can suppress it. The sheet itself is a
+ * modal, so it never renders under ?capture at all.
  *
  * `c` opens and focuses the composer rather than toggling, because the key
  * you press to write a note should leave you writing; it preventDefaults for
@@ -73,6 +77,7 @@
 import { Button } from "@nod/ui/button";
 import { catalog } from "@nod/ui/catalog";
 import { isSequence, sequenceElement } from "@nod/ui/fixtures";
+import { HelpOverlay, type HelpSection } from "@nod/ui/help-overlay";
 import { Kbd } from "@nod/ui/kbd";
 import { isView } from "@nod/ui/manifest";
 import { Fragment, useEffect, useState } from "react";
@@ -347,6 +352,60 @@ function loadGalleryZoom(): number {
   }
 }
 
+/**
+ * What the ? sheet lists. The desktop flattens its live keyboard registry
+ * into this shape; the gallery has no registry, so the sections are written
+ * out once at module scope — beside the handlers they describe, and never
+ * rebuilt per render. Navigate leads because it is the section a stranger
+ * needs first, and it is the only one marked active for the same reason.
+ */
+const HELP_SECTIONS: readonly HelpSection[] = [
+  {
+    active: true,
+    bindings: [
+      { combo: "j", description: "Next component" },
+      { combo: "k", description: "Previous component" },
+      { combo: "down", description: "Next component" },
+      { combo: "up", description: "Previous component" },
+      { combo: "tab", description: "Next component" },
+      { combo: "shift+tab", description: "Previous component" },
+      { combo: "v", description: "Switch between Views and Components" },
+      { combo: "/", description: "Find a component" },
+      { combo: "?", description: "Show this sheet" },
+    ],
+    note: "Walks the open tab only",
+    scope: "Navigate",
+  },
+  {
+    bindings: [
+      { combo: "f", description: "Next fixture" },
+      { combo: "t", description: "Next theme" },
+      { combo: "w", description: "Next width" },
+      { combo: "m", description: "Switch specimen and matrix view" },
+      { combo: "x", description: "Toggle the component outline" },
+      { combo: "esc", description: "Hand focus back from a specimen" },
+    ],
+    note: "Shift reverses any cycling key",
+    scope: "Stage",
+  },
+  {
+    bindings: [
+      { combo: "mod+=", description: "Zoom in" },
+      { combo: "mod+-", description: "Zoom out" },
+      { combo: "mod+0", description: "Reset zoom" },
+    ],
+    scope: "Zoom",
+  },
+  {
+    bindings: [
+      { combo: "c", description: "Open the notes margin" },
+      { combo: "esc", description: "Close the notes margin" },
+    ],
+    note: "Dev server only",
+    scope: "Notes",
+  },
+];
+
 function ignoreGalleryKeys(event: KeyboardEvent): boolean {
   if (event.metaKey || event.ctrlKey || event.altKey) {
     return true;
@@ -445,6 +504,7 @@ interface GalleryKeyActions {
   setRoute: React.Dispatch<React.SetStateAction<GalleryRoute>>;
   setXray: React.Dispatch<React.SetStateAction<boolean>>;
   setZoom: React.Dispatch<React.SetStateAction<number>>;
+  setHelpOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setNotesOpen: React.Dispatch<React.SetStateAction<boolean>>;
   notesOpen: boolean;
 }
@@ -452,7 +512,14 @@ interface GalleryKeyActions {
 function handleGalleryKey(
   event: KeyboardEvent,
   route: GalleryRoute,
-  { setRoute, setXray, setZoom, setNotesOpen, notesOpen }: GalleryKeyActions
+  {
+    setRoute,
+    setXray,
+    setZoom,
+    setHelpOpen,
+    setNotesOpen,
+    notesOpen,
+  }: GalleryKeyActions
 ): void {
   if (
     (event.metaKey || event.ctrlKey) &&
@@ -485,6 +552,13 @@ function handleGalleryKey(
   if (key === "/") {
     event.preventDefault();
     document.querySelector<HTMLInputElement>(".qg-find input")?.focus();
+    return;
+  }
+  // Same key the desktop app answers to. Closing is the sheet's own business:
+  // it is a modal, so Escape reaches its cancel handler and never this one.
+  if (key === "?") {
+    event.preventDefault();
+    setHelpOpen(true);
     return;
   }
   const patch = routePatchForKey(key, event.shiftKey ? -1 : 1, route);
@@ -575,7 +649,6 @@ function GalleryRail({
             <span className="qg-rail-tab-n">{tierNames[tier].length}</span>
           </button>
         ))}
-        <Kbd combo="v" />
       </div>
       <nav aria-label={TIER_LABELS[activeTier]} className="qg-rail-list">
         {visibleNames.map((name, index) => {
@@ -711,6 +784,7 @@ export function Gallery() {
   const [zoom, setZoom] = useState(loadGalleryZoom);
   const [xray, setXray] = useState(false);
   const [capture] = useState(isCaptureRun);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [notes, setNotes] = useState<NotesByComponent>({});
   const [notesOpen, setNotesOpen] = useState(false);
   const [notesError, setNotesError] = useState("");
@@ -787,6 +861,7 @@ export function Gallery() {
     const onKeyDown = (event: KeyboardEvent) => {
       handleGalleryKey(event, route, {
         notesOpen,
+        setHelpOpen,
         setNotesOpen,
         setRoute,
         setXray,
@@ -931,14 +1006,6 @@ export function Gallery() {
         </main>
 
         <footer className="qg-helpbar">
-          <span>j/k · tab · arrows component</span>
-          <span>f fixture</span>
-          <span>t theme</span>
-          <span>w width</span>
-          <span>m view</span>
-          <span>x outline</span>
-          <span>/ find</span>
-          <span>mod ± zoom</span>
           <span className="qg-hash">{formatGalleryHash(route)}</span>
         </footer>
       </div>
@@ -962,6 +1029,14 @@ export function Gallery() {
           scope={noteScope}
         />
       ) : null}
+
+      {capture ? null : (
+        <HelpOverlay
+          onOpenChange={setHelpOpen}
+          open={helpOpen}
+          sections={HELP_SECTIONS}
+        />
+      )}
     </div>
   );
 }
