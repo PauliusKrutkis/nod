@@ -159,6 +159,21 @@ describe("gallery", () => {
     expect(container.querySelector(".qg-margin")).toBeNull();
   });
 
+  it("leaves mod+c to Copy when there is something to copy", () => {
+    const { container } = render(<Gallery />);
+    const find = screen.getByLabelText("Find a component");
+    // In a field: the panel must not steal the copy the caret is in.
+    fireEvent.keyDown(find, { key: "c", metaKey: true });
+    expect(container.querySelector(".qg-margin")).toBeNull();
+
+    // With a selection anywhere: same.
+    vi.spyOn(window, "getSelection").mockReturnValue({
+      toString: () => "a selected word",
+    } as unknown as Selection);
+    fireEvent.keyDown(window, { key: "c", metaKey: true });
+    expect(container.querySelector(".qg-margin")).toBeNull();
+  });
+
   it("flips the rail's tab on v", () => {
     render(<Gallery />);
     expect(window.location.hash).toContain(`/${tierNames.views[0]}/`);

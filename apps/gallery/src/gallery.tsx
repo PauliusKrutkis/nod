@@ -466,6 +466,27 @@ const HELP_SECTIONS: readonly HelpSection[] = [
   },
 ];
 
+/**
+ * Whether mod+c means Copy rather than the notes panel. It does whenever
+ * the focus is in a field or anything is selected, which is the only way
+ * the panel can borrow the most universal shortcut on the keyboard without
+ * stealing it: writing a note and copying a word out of it has to keep
+ * working, and so does copying a fixture name or the hash under the frame.
+ */
+function wantsCopy(event: KeyboardEvent): boolean {
+  const target = event.target;
+  if (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement
+  ) {
+    return true;
+  }
+  if (target instanceof HTMLElement && target.isContentEditable) {
+    return true;
+  }
+  return (window.getSelection()?.toString() ?? "") !== "";
+}
+
 function ignoreGalleryKeys(event: KeyboardEvent): boolean {
   if (event.metaKey || event.ctrlKey || event.altKey) {
     return true;
@@ -583,9 +604,14 @@ function handleGalleryKey(
     onToggleHidden,
   }: GalleryKeyActions
 ): void {
-  // Before the modifier guard, like zoom: mod+c is the notes panel's toggle,
-  // and c alone belongs to whatever the reviewer is typing into.
-  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c") {
+  // Before the modifier guard, like zoom: mod+c toggles the notes panel, and
+  // bare c belongs to whatever is being typed into. Copy wins the key
+  // whenever there is anything to copy — see wantsCopy.
+  if (
+    (event.metaKey || event.ctrlKey) &&
+    event.key.toLowerCase() === "c" &&
+    !wantsCopy(event)
+  ) {
     event.preventDefault();
     setNotesOpen((open) => !open);
     return;
