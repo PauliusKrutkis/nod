@@ -17,11 +17,13 @@ const SNAPSHOT_TRIGGER_DELAY_MS = 800;
  * Full PR detail (metadata + files + review comments). Seeds from the on-disk
  * cache so opening a PR is instant, then refetches in the background.
  *
- * Opening a PR also kicks off a repo snapshot at its head SHA (BACKLOG §9).
- * The result is never awaited or rendered, and failures are ignored by design —
- * a missing snapshot just means blobs come from the host, exactly as before.
- * Rust owns readiness and dedupes concurrent requests for a SHA, so re-firing
- * on remount or after a background refetch costs one IPC call.
+ * Opening a PR also kicks off the local sources for its head SHA: the repo
+ * store (clone tier — fetches the commit, or clones first) and, while the
+ * migration lasts, a repo snapshot (BACKLOG §9). Results are never awaited
+ * or rendered, and failures are ignored by design — no local source just
+ * means blobs come from the host, exactly as before. Rust owns readiness
+ * and dedupes concurrent requests, so re-firing on remount or after a
+ * background refetch costs one IPC call each.
  *
  * The trigger is delayed rather than fired on data arrival. "Fire-and-forget"
  * is not free: issued during the commit that opens the PR, even one IPC call
@@ -68,6 +70,7 @@ export function usePullRequestDetail(
       return;
     }
     const timer = setTimeout(() => {
+      api.ensureRepoStore(owner, repo, headSha).catch(() => undefined);
       api.ensureRepoSnapshot(owner, repo, headSha).catch(() => undefined);
     }, SNAPSHOT_TRIGGER_DELAY_MS);
     return () => clearTimeout(timer);

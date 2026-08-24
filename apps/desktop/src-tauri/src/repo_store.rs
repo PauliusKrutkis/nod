@@ -16,5 +16,6 @@
 //! the token never appears in an argument list or on disk.
 
 pub(crate) mod git;
+pub(crate) mod read;
 pub(crate) mod service;
 pub(crate) mod store;

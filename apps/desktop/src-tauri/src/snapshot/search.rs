@@ -14,8 +14,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use serde::Serialize;
-
 use super::store::{self, SnapshotKey};
 
 pub const MAX_LISTED_FILES: usize = 2000;
@@ -24,27 +22,10 @@ const MAX_SEARCH_FILE_BYTES: u64 = 1024 * 1024;
 const MAX_HIT_TEXT_CHARS: usize = 240;
 const BINARY_SNIFF_BYTES: usize = 4096;
 
-#[derive(Serialize, Clone, PartialEq, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct FileListing {
-    pub files: Vec<String>,
-    pub truncated: bool,
-}
-
-#[derive(Serialize, Clone, PartialEq, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct GrepHit {
-    pub path: String,
-    pub line: u32,
-    pub text: String,
-}
-
-#[derive(Serialize, Clone, PartialEq, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct GrepResult {
-    pub hits: Vec<GrepHit>,
-    pub truncated: bool,
-}
+// The result shapes moved to their canonical home in `repo_store::read`,
+// which serves the same contracts from the clone; this module re-exports
+// them until it is retired.
+pub use crate::repo_store::read::{FileListing, GrepHit, GrepResult};
 
 fn collect_paths(dir: &Path, base: &Path, out: &mut Vec<String>) {
     let Ok(entries) = fs::read_dir(dir) else {
