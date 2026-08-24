@@ -304,6 +304,11 @@ export const chatPanelEntry = defineEntry(ChatPanel, {
             id: "p2",
             label: "src/lib/fuzzy.ts:9",
           },
+          {
+            body: "nit: the threshold rides on a magic number.\n\nA reader cannot tell 0.4 from a typo of 0.04; the next tuner will guess.\n\n```suggestion\nconst FUZZY_THRESHOLD = 0.4;\nif (score > FUZZY_THRESHOLD) {\n```",
+            id: "p3",
+            label: "src/lib/fuzzy.ts:14",
+          },
         ],
         onDiscard: noop,
         onReveal: noop,

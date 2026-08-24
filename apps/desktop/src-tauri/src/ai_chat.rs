@@ -174,6 +174,13 @@ so write those in the answer and say why. side is LEFT for deleted lines and \
 RIGHT for added or unchanged lines, and the line numbers must fall inside the \
 diff.";
 
+/// How a staged comment body is written. The shape borrows what makes a
+/// review finding actionable: name the problem, give its consequence, hand
+/// over the fix as an applicable edit — and keeps bodies scannable inside a
+/// diff, where a wall of prose is the thing reviewers skip.
+const CHAT_SYSTEM_COMMENT_SHAPE: &str =
+    "Shape every propose_comment body for a reader inside a diff. First line: the finding itself, specific and self-contained — summaries show this line alone. Then at most one short paragraph on why it matters: the failure, cost or trap it invites, concretely, not 'this could be improved'. When the fix is a concrete edit to the commented lines, end with a ```suggestion fence holding the exact replacement for the commented range — set start_line and line so the range covers precisely the lines the replacement rewrites, and prefer a suggestion over describing the edit in prose: it applies in one click and prose does not. Not every finding has one (a missing test, a design question); write those without a fence rather than forcing a bad edit. Prefix minor or optional findings with 'nit:'. No headings, no greetings, no restating what the code visibly does.";
+
 fn chat_system_prompt(snapshot_ready: bool, skills: bool, proposals: bool, diffs: bool) -> String {
     let mut parts = vec![CHAT_SYSTEM_BASE];
     if snapshot_ready || diffs {
@@ -190,6 +197,7 @@ fn chat_system_prompt(snapshot_ready: bool, skills: bool, proposals: bool, diffs
     }
     if proposals {
         parts.push(CHAT_SYSTEM_PROPOSALS);
+        parts.push(CHAT_SYSTEM_COMMENT_SHAPE);
     }
     parts.join(" ")
 }
@@ -966,7 +974,7 @@ fn propose_comment_tool() -> Value {
                     "side": { "type": "string", "enum": ["LEFT", "RIGHT"], "description": "LEFT for deleted lines, RIGHT for added or unchanged lines." },
                     "line": { "type": "integer", "description": "The line the comment anchors to (the range end for multi-line)." },
                     "start_line": { "type": "integer", "description": "First line of a multi-line comment; must be ≤ line and in the same contiguous diff range." },
-                    "body": { "type": "string", "description": "The comment, as markdown. A ```suggestion fence proposes replacement code." }
+                    "body": { "type": "string", "description": "The comment, as markdown. First line: the finding. Then one short paragraph of why it matters. When the fix is a local edit, end with a ```suggestion fence containing the exact replacement for the commented range." }
                 },
                 "required": ["path", "side", "line", "body"]
             }
