@@ -128,7 +128,7 @@ export function ReviewHeader({
   return (
     <header className="qf-header">
       {showSidebarToggle && (
-        <Tooltip combo="b" label="Show files">
+        <Tooltip combo="mod+b" label="Show files">
           <button
             aria-label="Show files"
             aria-pressed={sidebarOpen}

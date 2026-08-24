@@ -29,7 +29,7 @@ import type { ChatComposerHandle } from "@nod/ui/chat-composer";
 import type { ChatPanelTurn, ChatSuggestionsState } from "@nod/ui/chat-panel";
 import { matchCanned } from "@nod/ui/match-canned";
 import { useLatest } from "@nod/ui/use-latest";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { listen } from "@tauri-apps/api/event";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
@@ -49,6 +49,7 @@ import {
   prKey,
   type SkillInfo,
 } from "../types.ts";
+import { useRepoStore } from "./use-repo-store.ts";
 
 interface LiveTurn {
   activity: string[];
@@ -279,55 +280,34 @@ function chatContext(
   };
 }
 
-/** The repo snapshot behind the chat: its state, a kick to fetch it when it
- *  is missing, and the sentence the panel shows about what the model can
- *  currently read. Answering "why can't it see my repo?" is the whole job. */
-function useChatSnapshot(args: { active: boolean; pr: PullRequest }): {
+/** The repo store behind the chat: its state and the sentence the panel
+ *  shows about what the model can currently read. Answering "why can't it
+ *  see my repo?" is the whole job; the lifecycle itself lives in the shared
+ *  useRepoStore hook. */
+function useChatRepoStore(args: { active: boolean; pr: PullRequest }): {
   note: string | null;
   state: string | undefined;
 } {
-  const snapshot = useQuery({
-    enabled: args.active,
-    queryFn: () =>
-      api.snapshotStatus(args.pr.owner, args.pr.name, args.pr.headSha),
-    queryKey: ["snapshotStatus", prKey(args.pr), args.pr.headSha],
-    refetchInterval: (query) =>
-      query.state.data?.state === "downloading" ? 2000 : false,
+  const { status } = useRepoStore({
+    active: args.active,
+    owner: args.pr.owner,
+    repo: args.pr.name,
+    sha: args.pr.headSha,
   });
-  const snapshotState = snapshot.data?.state;
-  const queryClient = useQueryClient();
-  const statusKey = ["snapshotStatus", prKey(args.pr), args.pr.headSha];
-
-  const ensure = useMutation({
-    mutationFn: () =>
-      api.ensureRepoSnapshot(args.pr.owner, args.pr.name, args.pr.headSha),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: statusKey }),
-  });
-
-  const kickRef = useLatest(ensure.mutate);
-  const idleRef = useLatest(ensure.isIdle);
-  useEffect(() => {
-    if (
-      args.active &&
-      idleRef.current &&
-      (snapshotState === "idle" || snapshotState === "failed")
-    ) {
-      kickRef.current();
-    }
-  }, [args.active, snapshotState, idleRef, kickRef]);
+  const state = status?.state;
 
   let contextNote: string | null = null;
-  if (snapshotState === "downloading" || snapshotState === "idle") {
+  if (state === "cloning" || state === "fetching" || state === "idle") {
     contextNote =
       "Fetching the repository so the chat can read beyond the diff. The diff itself is already available.";
-  } else if (snapshotState === "failed" || snapshotState === "skipped") {
-    const why = snapshot.data?.detail;
+  } else if (state === "failed") {
+    const why = status?.detail;
     contextNote = `Reading this pull request's diff only. Repo-wide search and file reads are off.${
-      why ? ` The snapshot failed: ${why}` : ""
+      why ? ` The repo fetch failed: ${why}` : ""
     }`;
   }
 
-  return { note: contextNote, state: snapshotState };
+  return { note: contextNote, state };
 }
 
 function emptyHint(loading: boolean): string {
@@ -508,13 +488,13 @@ export function useReviewChat(args: {
   const liveRef = useLatest(live);
   const settledByStop = useRef(new Set<string>());
 
-  const { note: contextNote, state: snapshotState } = useChatSnapshot(args);
+  const { note: contextNote, state: storeState } = useChatRepoStore(args);
 
   const skills = useQuery({
     enabled: args.active,
     queryFn: () =>
       api.listChatSkills(args.pr.owner, args.pr.name, args.pr.headSha),
-    queryKey: ["chatSkills", keyValue, args.pr.headSha, snapshotState ?? ""],
+    queryKey: ["chatSkills", keyValue, args.pr.headSha, storeState ?? ""],
     staleTime: Number.POSITIVE_INFINITY,
   });
   const skillNames = (skills.data ?? []).map((s) => s.name);

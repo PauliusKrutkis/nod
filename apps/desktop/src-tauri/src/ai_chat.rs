@@ -24,8 +24,7 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::ai::{self, AskContext};
-use crate::snapshot::search as snapshot_search;
-use crate::snapshot::store::{self as snapshot_store, SnapshotKey};
+use crate::repo_store::store::CommitKey;
 
 #[derive(Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -179,6 +178,13 @@ so write those in the answer and say why. side is LEFT for deleted lines and \
 RIGHT for added or unchanged lines, and the line numbers must fall inside the \
 diff.";
 
+/// How a staged comment body is written. The shape borrows what makes a
+/// review finding actionable: name the problem, give its consequence, hand
+/// over the fix as an applicable edit — and keeps bodies scannable inside a
+/// diff, where a wall of prose is the thing reviewers skip.
+const CHAT_SYSTEM_COMMENT_SHAPE: &str =
+    "Shape every propose_comment body for a reader inside a diff. First line: the finding itself, specific and self-contained — summaries show this line alone. Then at most one short paragraph on why it matters: the failure, cost or trap it invites, concretely, not 'this could be improved'. When the fix is a concrete edit to the commented lines, end with a ```suggestion fence holding the exact replacement for the commented range — set start_line and line so the range covers precisely the lines the replacement rewrites, and prefer a suggestion over describing the edit in prose: it applies in one click and prose does not. Not every finding has one (a missing test, a design question); write those without a fence rather than forcing a bad edit. Prefix minor or optional findings with 'nit:'. No headings, no greetings, no restating what the code visibly does.";
+
 fn chat_system_prompt(snapshot_ready: bool, skills: bool, proposals: bool, diffs: bool) -> String {
     let mut parts = vec![CHAT_SYSTEM_BASE];
     if snapshot_ready || diffs {
@@ -195,6 +201,7 @@ fn chat_system_prompt(snapshot_ready: bool, skills: bool, proposals: bool, diffs
     }
     if proposals {
         parts.push(CHAT_SYSTEM_PROPOSALS);
+        parts.push(CHAT_SYSTEM_COMMENT_SHAPE);
     }
     parts.join(" ")
 }
@@ -383,12 +390,12 @@ fn skill_name_from_path(path: &str) -> Option<&str> {
     (!name.is_empty()).then_some(name)
 }
 
-/// Every `SKILL.md` in the snapshot, as (name, path). `.claude/skills` is
+/// Every `SKILL.md` at the head SHA, as (name, path). `.claude/skills` is
 /// walked first so its entry is the one that survives a name clash.
-fn skill_paths(root: &std::path::Path, key: &SnapshotKey) -> Vec<(String, String)> {
+fn skill_paths(root: &std::path::Path, key: &CommitKey) -> Vec<(String, String)> {
     let mut out: Vec<(String, String)> = Vec::new();
     for prefix in SKILL_ROOTS {
-        let Some(listing) = snapshot_search::list_files(root, key, Some(prefix)) else {
+        let Some(listing) = ai::local_list_files(root, key, Some(prefix)) else {
             continue;
         };
         for path in listing.files {
@@ -467,7 +474,7 @@ fn skill_text(bytes: &[u8]) -> String {
     text
 }
 
-fn read_skill_body(root: &std::path::Path, key: &SnapshotKey, name: &str) -> Option<String> {
+fn read_skill_body(root: &std::path::Path, key: &CommitKey, name: &str) -> Option<String> {
     if !safe_skill_name(name) {
         return None;
     }
@@ -476,7 +483,7 @@ fn read_skill_body(root: &std::path::Path, key: &SnapshotKey, name: &str) -> Opt
     let direct = SKILL_ROOTS
         .iter()
         .map(|prefix| format!("{prefix}{name}/SKILL.md"))
-        .find_map(|path| snapshot_store::read_file(root, key, &path));
+        .find_map(|path| ai::local_read_file(root, key, &path));
     let bytes = match direct {
         Some(bytes) => bytes,
         None => {
@@ -484,7 +491,7 @@ fn read_skill_body(root: &std::path::Path, key: &SnapshotKey, name: &str) -> Opt
                 .into_iter()
                 .find(|(found, _)| found == name)
                 .map(|(_, path)| path)?;
-            snapshot_store::read_file(root, key, &path)?
+            ai::local_read_file(root, key, &path)?
         }
     };
     Some(skill_text(&bytes))
@@ -628,7 +635,7 @@ fn merge_skills(repo: Vec<SkillInfo>, personal: Vec<SkillInfo>) -> Vec<SkillInfo
 }
 
 fn resolve_skill_body(
-    snapshot: Option<&(std::path::PathBuf, SnapshotKey)>,
+    snapshot: Option<&(std::path::PathBuf, CommitKey)>,
     personal: &[std::path::PathBuf],
     name: &str,
 ) -> Option<String> {
@@ -638,7 +645,7 @@ fn resolve_skill_body(
         .or_else(|| builtin_skill_body(name))
 }
 
-fn discover_skills(root: &std::path::Path, key: &SnapshotKey) -> Vec<SkillInfo> {
+fn discover_skills(root: &std::path::Path, key: &CommitKey) -> Vec<SkillInfo> {
     let mut out: Vec<SkillInfo> = skill_paths(root, key)
         .into_iter()
         .map(|(name, _)| SkillInfo {
@@ -802,7 +809,7 @@ async fn fetch_public_skill(source: &str, name: &str) -> String {
 }
 
 fn execute_skill_tool(
-    snapshot: Option<&(std::path::PathBuf, SnapshotKey)>,
+    snapshot: Option<&(std::path::PathBuf, CommitKey)>,
     personal: &[std::path::PathBuf],
     name: &str,
     arguments: &str,
@@ -945,7 +952,7 @@ pub async fn list_chat_skills(
         ..AskContext::default()
     };
     let personal = personal_skills_dirs(&app);
-    let snapshot = ai::ready_snapshot(&app, &context).await;
+    let snapshot = ai::ready_source(&app, &context).await;
     tauri::async_runtime::spawn_blocking(move || {
         let repo_skills = snapshot
             .as_ref()
@@ -971,7 +978,7 @@ fn propose_comment_tool() -> Value {
                     "side": { "type": "string", "enum": ["LEFT", "RIGHT"], "description": "LEFT for deleted lines, RIGHT for added or unchanged lines." },
                     "line": { "type": "integer", "description": "The line the comment anchors to (the range end for multi-line)." },
                     "start_line": { "type": "integer", "description": "First line of a multi-line comment; must be ≤ line and in the same contiguous diff range." },
-                    "body": { "type": "string", "description": "The comment, as markdown. A ```suggestion fence proposes replacement code." }
+                    "body": { "type": "string", "description": "The comment, as markdown. First line: the finding. Then one short paragraph of why it matters. When the fix is a local edit, end with a ```suggestion fence containing the exact replacement for the commented range." }
                 },
                 "required": ["path", "side", "line", "body"]
             }
@@ -1377,7 +1384,7 @@ pub async fn ai_chat(
         .or(config.model)
         .ok_or_else(|| "Choose a model in AI settings first".to_string())?;
     state.clear(&chat_id);
-    let snapshot = ai::ready_snapshot(&app, &context).await;
+    let snapshot = ai::ready_source(&app, &context).await;
     let personal_skills = personal_skills_dirs(&app);
     let mut skill_bodies: Vec<String> = Vec::new();
     for name in &skills {

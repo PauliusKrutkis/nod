@@ -361,8 +361,9 @@ test("the file tree edge drags to a new width that survives a reload", async ({
   expect(Math.round(restored?.width ?? 0)).toBe(Math.round(after?.width ?? 0));
 });
 
-// `b` is pressed mid-read, so the tree must land at its final size in the same
-// frame — in both the inline (push column) and overlay modes, scrim included.
+// `mod+b` is pressed mid-read, so the tree must land at its final size in the
+// same frame — in both the inline (push column) and overlay modes, scrim
+// included.
 test("toggling the file tree is instant, not animated", async ({ page }) => {
   await page.setViewportSize({ height: 800, width: 1280 });
   const inline = page.locator(".qf-sidebar-inline");
@@ -380,7 +381,7 @@ test("toggling the file tree is instant, not animated", async ({ page }) => {
   expect(inlineOpen.animation).toBe("none");
   expect(inlineOpen.width).toBe(SIDEBAR_WIDTH_PX);
 
-  await page.keyboard.press("b");
+  await page.keyboard.press("ControlOrMeta+b");
   await expect(inline).not.toHaveClass(SIDEBAR_OPEN);
   const closedWidth = await inline.evaluate(
     (el) => (el as HTMLElement).offsetWidth

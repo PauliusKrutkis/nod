@@ -3,7 +3,7 @@
 > Two documents in one, deliberately. **[Position](#position-2026-08-05)** governs
 > every AI feature Nod will ever ship. The rest is the implementation plan for
 > the first one: BYOK "ask a question about the code you're reviewing", grounded
-> in the repo snapshot. Supersedes the two Post-MVP backlog sketches in
+> in the local repo store. Supersedes the two Post-MVP backlog sketches in
 > [BACKLOG.md](./BACKLOG.md#post-mvp-backlog); decision to build made 2026-08-03
 > (owner), position written down 2026-08-05. The
 > [second surface](#second-surface--chat-panel--suggested-comments-decided-2026-08-16)
@@ -124,22 +124,22 @@ Nexos documents only 400/402/500, so no hardcoded status mapping.
 undocumented. Same for tool calling: OpenAI-compatibility does not guarantee
 `tools` support, so the loop degrades (below) and we probe before relying on it.
 
-### Grounding — the snapshot is the retrieval layer
+### Grounding — the repo store is the retrieval layer
 
 A question about a diff is unanswerable from the diff alone (§9's
-tunnel-vision thesis). Layer 1 (snapshot service) **already shipped** — PRs
-#75/#113, `snapshot/` module, `ensure_repo_snapshot`/`snapshot_status`
-commands, local-first blob serving in `get_file_blob`. The AI feature is its
-second consumer and finally motivates **Layer 2**:
+tunnel-vision thesis). The local source was the tarball snapshot when this
+shipped (PRs #75/#113); since 2026-08-23 it is the **repo store** — the
+app-owned bare clone (BACKLOG §9) — with `ready_source` gating the loop and
+local-first blob serving in `get_file_blob` unchanged.
 
-**Tools the model can call** (agentic loop inside `ai_ask`, all pure local
-reads over the extracted tree — no network, no git):
+**Tools the model can call** (agentic loop inside `ai_ask`, all
+SHA-addressed reads answered by git against the store):
 
 | Tool | Backing |
 | --- | --- |
-| `list_files(glob?)` | walk `snapshot_dir` (respect `safe_join`) |
-| `read_file(path, start?, end?)` | `snapshot_store::read_file`, capped + line-sliced |
-| `grep_repo(pattern, glob?)` | new Layer 2 search (`grep` crate or hand-rolled; ripgrep-style over the tree) |
+| `list_files(glob?)` | `repo_store::read::list_files` (`ls-tree` at the SHA) |
+| `read_file(path, start?, end?)` | `repo_store::read::read_file_slice`, capped + line-sliced |
+| `grep_repo(pattern, glob?)` | `repo_store::read::grep` (`git grep` at the SHA) |
 
 Loop guards: max 8 tool rounds, per-read byte cap (~64 KB slice), binary
 detection, total-context budget, hard wall-clock timeout. Results are
@@ -147,11 +147,11 @@ truncated with an explicit `[truncated]` marker so the model knows.
 
 **Degradation ladder** (each step is a working feature):
 
-1. Model supports tools + snapshot ready → agentic loop, best answers.
+1. Model supports tools + store has the commit → agentic loop, best answers.
 2. No tool support → single-shot: selection + surrounding file content
-   (from the snapshot or `get_file_blob`) + our own `grep_repo` pass on
+   (from the store or `get_file_blob`) + our own `grep_repo` pass on
    identifiers in the selection, assembled in Rust.
-3. Snapshot not ready/too large (>100 MB guard) → selection + diff only.
+3. Store not ready (still cloning, or no git) → selection + diff only.
 4. No key → the setup dialog (below). Never an error state.
 
 `grep_repo` is also registered as a plain command — user-facing whole-repo
@@ -213,7 +213,7 @@ e2e + UI evidence for UI changes), pr-validity after each.
 | **1** | `ai.json` storage + `get_ai_config`/`set_ai_config`/`clear_ai_config` + `ai_list_models` | **#172** |
 | **2** | AI setup dialog + `a`-opens-setup onboarding + palette entries | **#173** |
 | **3** | `ai_ask` non-streaming + Ask surface + selection/PR prompt assembly | **#175** — surface later revised from drawer mode to the inline note |
-| **4** | Layer 2: `grep_repo` + `list_files` over the snapshot | folded into **#176** |
+| **4** | Layer 2: `grep_repo` + `list_files` over the local source | folded into **#176** |
 | **5** | Tool loop inside `ai_ask` + degradation ladder | **#176** |
 | **6** | SSE streaming + polish | **#177** |
 
@@ -223,7 +223,7 @@ e2e + UI evidence for UI changes), pr-validity after each.
 > `list_repo_files` and `search_repo_content` are in `invoke_handler`
 > (`lib.rs`) — but no UI calls them yet, so there is still no repo search *in
 > the app*. Tracked in
-> [BACKLOG §9 Layer 2](./BACKLOG.md#9-repo-snapshot--sync-layers-decided-2026-07-12);
+> [BACKLOG §9 Layer 2](./BACKLOG.md#9-repo-store--local-repo-content-re-decided-2026-08-23-tarball-layers-decided-2026-07-12);
 > what remains is UI only, not registration and not the search engine.
 
 **Probe (before PR 5/6, owner's live Nexos key):** `scripts/probe-nexos.mjs`
@@ -367,7 +367,7 @@ its findings instead of pinning them over the composer.
 Skills are `SKILL.md` files with YAML frontmatter, from two sources: the
 reviewed repo's own — `.claude/skills/**`, `.agents/`, `.cursor/`, `.codex/`
 or a bare `skills/**`, whichever it uses, with `.claude` winning a clash and
-the folder holding the manifest naming the skill — via the snapshot — a repo carries its
+the folder holding the manifest naming the skill — via the repo store — a repo carries its
 review conventions with it — and your own, read from every user-level folder the
 agents on this machine keep — `~/.claude/skills` first, then `~/.agents`,
 `~/.cursor`, `~/.codex`, then Nod's own config directory. They hold genuinely

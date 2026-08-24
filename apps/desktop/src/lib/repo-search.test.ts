@@ -2,9 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   blobLines,
   buildRepoState,
-  isSnapshotNotReady,
   repoSearchPhase,
-  SNAPSHOT_SETTLED,
   sliceContext,
   tagRepoHits,
 } from "./repo-search.ts";
@@ -135,34 +133,14 @@ describe("sliceContext", () => {
   });
 });
 
-describe("isSnapshotNotReady", () => {
-  it("recognises the backend's race message and nothing else", () => {
-    expect(isSnapshotNotReady("snapshot not ready")).toBe(true);
-    expect(isSnapshotNotReady(new Error("snapshot not ready"))).toBe(true);
-    expect(isSnapshotNotReady("search failed: boom")).toBe(false);
-    expect(isSnapshotNotReady(null)).toBe(false);
-  });
-});
-
-describe("SNAPSHOT_SETTLED", () => {
-  it("stops polling only on the terminal states", () => {
-    expect([...SNAPSHOT_SETTLED].sort()).toEqual([
-      "failed",
-      "ready",
-      "skipped",
-    ]);
-    expect(SNAPSHOT_SETTLED.has("downloading")).toBe(false);
-  });
-});
-
 describe("buildRepoState", () => {
   const ready = {
     files: FILES,
     grepError: null,
     grepFetching: false,
     peekRadius: 1,
-    snapshot: { detail: "", state: "ready" } as const,
-    snapshotError: null,
+    store: { detail: "", state: "ready" } as const,
+    storeError: null,
     truncated: false,
   };
 
@@ -200,7 +178,7 @@ describe("buildRepoState", () => {
       hits: [],
       peekLines: null,
       peekPath: null,
-      snapshot: { detail: "", state: "downloading" },
+      store: { detail: "", state: "cloning" },
       truncated: true,
     });
     expect(state.status).toBe("preparing");
@@ -225,63 +203,63 @@ describe("buildRepoState", () => {
 describe("repoSearchPhase", () => {
   const idle = { grepError: null, grepFetching: false };
 
-  it("prepares while the snapshot is downloading or unknown", () => {
+  it("prepares while the store is cloning, fetching or unknown", () => {
     expect(
       repoSearchPhase({
         ...idle,
-        snapshot: { detail: "", state: "downloading" },
-        snapshotError: null,
+        store: { detail: "", state: "cloning" },
+        storeError: null,
       })
     ).toEqual({ status: "preparing" });
     expect(
-      repoSearchPhase({ ...idle, snapshot: undefined, snapshotError: null })
+      repoSearchPhase({
+        ...idle,
+        store: { detail: "", state: "fetching" },
+        storeError: null,
+      })
+    ).toEqual({ status: "preparing" });
+    expect(
+      repoSearchPhase({ ...idle, store: undefined, storeError: null })
     ).toEqual({ status: "preparing" });
   });
 
-  it("fails with the backend's words when the snapshot was refused", () => {
+  it("fails with the clone or fetch error's detail, or without one", () => {
     expect(
       repoSearchPhase({
         ...idle,
-        snapshot: { detail: "repository is too large", state: "skipped" },
-        snapshotError: null,
+        store: {
+          detail: "git clone failed: no route to host",
+          state: "failed",
+        },
+        storeError: null,
       })
     ).toEqual({
-      reason: "This repository is too large for a local snapshot.",
+      reason: "git clone failed: no route to host",
       status: "failed",
     });
-  });
-
-  it("fails with the download error's detail, or without one", () => {
     expect(
       repoSearchPhase({
         ...idle,
-        snapshot: { detail: "tarball download failed", state: "failed" },
-        snapshotError: null,
-      })
-    ).toEqual({ reason: "tarball download failed", status: "failed" });
-    expect(
-      repoSearchPhase({
-        ...idle,
-        snapshot: { detail: "", state: "failed" },
-        snapshotError: null,
+        store: { detail: "", state: "failed" },
+        storeError: null,
       })
     ).toEqual({ reason: undefined, status: "failed" });
   });
 
-  it("fails when the ensure invoke itself rejects", () => {
+  it("fails when the status invoke itself rejects", () => {
     expect(
       repoSearchPhase({
         ...idle,
-        snapshot: undefined,
-        snapshotError: "no cache directory",
+        store: undefined,
+        storeError: "no cache directory",
       })
     ).toEqual({ reason: "no cache directory", status: "failed" });
   });
 
-  it("passes ready and loading through once the snapshot is ready", () => {
+  it("passes ready and loading through once the store is ready", () => {
     const ready = {
-      snapshot: { detail: "", state: "ready" } as const,
-      snapshotError: null,
+      store: { detail: "", state: "ready" } as const,
+      storeError: null,
     };
     expect(repoSearchPhase({ ...idle, ...ready })).toEqual({
       status: "ready",
@@ -289,20 +267,6 @@ describe("repoSearchPhase", () => {
     expect(
       repoSearchPhase({ ...ready, grepError: null, grepFetching: true })
     ).toEqual({ status: "loading" });
-  });
-
-  it("treats a grep race on an evicted snapshot as preparing", () => {
-    const ready = {
-      snapshot: { detail: "", state: "ready" } as const,
-      snapshotError: null,
-    };
-    expect(
-      repoSearchPhase({
-        ...ready,
-        grepError: "snapshot not ready",
-        grepFetching: false,
-      })
-    ).toEqual({ status: "preparing" });
     expect(
       repoSearchPhase({
         ...ready,

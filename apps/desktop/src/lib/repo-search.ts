@@ -1,7 +1,7 @@
 /**
- * Pure logic behind repo-scope search: tagging snapshot grep hits against the
+ * Pure logic behind repo-scope search: tagging repo grep hits against the
  * diff, slicing peek context out of a fetched blob, and deriving the pane's
- * phase from the snapshot's lifecycle.
+ * phase from the repo store's lifecycle.
  *
  * A hit counts as "in this PR" only when its exact line exists on the new side
  * of the diff (a `RIGHT:` anchor) — path overlap alone is not enough to jump
@@ -9,13 +9,11 @@
  * can act on lead the list. Blob decoding goes through TextDecoder because
  * atob alone mangles anything outside Latin-1.
  *
- * The phase derivation orders the snapshot above the grep: until the snapshot
- * is ready the grep cannot mean anything, and a snapshot the backend refused
- * (too large) or lost (download error) is a terminal "failed" whose reason is
- * the backend's own words — a too-large repository and a dead network must
- * read as different problems. The grep's "snapshot not ready" error still
- * maps to "preparing" as a race guard for a snapshot evicted between the
- * status poll and the search.
+ * The phase derivation orders the store above the grep: until the store has
+ * the commit the grep cannot mean anything, and a store the backend lost (a
+ * clone or fetch error) is a terminal "failed" whose reason is the backend's
+ * own words — a dead network and a missing git must read as different
+ * problems.
  *
  * `buildRepoState` assembles the pane's whole prop from those pieces, so the
  * host computes it during render with nothing to memoize and the assembly
@@ -28,7 +26,7 @@ import type {
   RepoSearchState,
 } from "@nod/ui/pr-search";
 
-import type { GrepHit, SnapshotStatus } from "../types.ts";
+import type { GrepHit, RepoStoreStatus } from "../types.ts";
 
 export function tagRepoHits(
   hits: readonly GrepHit[],
@@ -85,47 +83,27 @@ export function sliceContext(
   return out;
 }
 
-const NOT_READY = "snapshot not ready";
-
-export const SNAPSHOT_SETTLED: ReadonlySet<SnapshotStatus["state"]> = new Set([
-  "failed",
-  "ready",
-  "skipped",
-]);
-
-export function isSnapshotNotReady(error: unknown): boolean {
-  return String(error).includes(NOT_READY);
-}
-
 export function repoSearchPhase(args: {
-  snapshot: SnapshotStatus | undefined;
-  snapshotError: unknown;
+  store: RepoStoreStatus | undefined;
+  storeError: unknown;
   grepFetching: boolean;
   grepError: unknown;
 }): Pick<RepoSearchState, "reason" | "status"> {
-  const { snapshot, snapshotError, grepFetching, grepError } = args;
-  if (snapshotError !== null && snapshotError !== undefined) {
-    return { reason: String(snapshotError), status: "failed" };
+  const { store, storeError, grepFetching, grepError } = args;
+  if (storeError !== null && storeError !== undefined) {
+    return { reason: String(storeError), status: "failed" };
   }
-  if (snapshot?.state === "skipped") {
+  if (store?.state === "failed") {
     return {
-      reason: "This repository is too large for a local snapshot.",
+      reason: store.detail === "" ? undefined : store.detail,
       status: "failed",
     };
   }
-  if (snapshot?.state === "failed") {
-    return {
-      reason: snapshot.detail === "" ? undefined : snapshot.detail,
-      status: "failed",
-    };
-  }
-  if (snapshot?.state !== "ready") {
+  if (store?.state !== "ready") {
     return { status: "preparing" };
   }
   if (grepError !== null && grepError !== undefined) {
-    return isSnapshotNotReady(grepError)
-      ? { status: "preparing" }
-      : { reason: String(grepError), status: "failed" };
+    return { reason: String(grepError), status: "failed" };
   }
   return { status: grepFetching ? "loading" : "ready" };
 }
@@ -138,8 +116,8 @@ export function buildRepoState(args: {
   peekLines: readonly string[] | null;
   peekPath: string | null;
   peekRadius: number;
-  snapshot: SnapshotStatus | undefined;
-  snapshotError: unknown;
+  store: RepoStoreStatus | undefined;
+  storeError: unknown;
   truncated: boolean;
 }): RepoSearchState {
   const { files, hits, peekLines, peekPath, peekRadius, truncated } = args;

@@ -119,8 +119,8 @@ line:
 planned full-file context expansion — is built on our own rendering stack
 (highlight.js per line + `CodeCell` + the pure matchers in `apps/desktop/src/lib/`), not on
 an editor component like CodeMirror or Monaco. Reading-and-navigation features
-(find bar, occurrence highlighting, future go-to-definition once repo sync
-lands) are added to this stack, not bought.
+(find bar, occurrence highlighting, future go-to-definition on top of the
+repo store) are added to this stack, not bought.
 
 Why:
 
