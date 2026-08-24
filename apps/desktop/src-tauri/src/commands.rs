@@ -11,6 +11,8 @@ use crate::model::{
     FileBlob, GitHubUser, InboxBucket, InboxData, PullRequestDetail, RepoHit, ReviewComment,
     ReviewCommentInput, MAX_BLOB_BYTES,
 };
+use crate::repo_store::service as repo_store_service;
+use crate::repo_store::store::RepoKey;
 use crate::snapshot::search as snapshot_search;
 use crate::snapshot::service as snapshot_service;
 use crate::snapshot::store::{self as snapshot_store, SnapshotKey};
@@ -411,6 +413,46 @@ pub async fn snapshot_status(
     let key = snapshot_key(&app, owner, repo, sha).await?;
     let root = storage::cache_dir(&app)?;
     Ok(snapshot_service::status(&root, &key))
+}
+
+async fn repo_key(app: &AppHandle, owner: String, repo: String) -> Result<RepoKey, String> {
+    let account = accounts::active_account(app).await?;
+    Ok(RepoKey {
+        host: account.host,
+        owner,
+        repo,
+    })
+}
+
+/// Starts cloning/fetching the repo store toward `sha` (repo_store, the
+/// clone tier replacing snapshots) unless it is already there or under way.
+/// Fire-and-forget like `ensure_repo_snapshot`; callers poll
+/// `repo_store_status`.
+#[tauri::command]
+pub async fn ensure_repo_store(
+    app: AppHandle,
+    owner: String,
+    repo: String,
+    sha: String,
+) -> Result<repo_store_service::RepoStoreStatus, String> {
+    let key = repo_key(&app, owner, repo).await?;
+    Ok(repo_store_service::ensure(&app, key, sha))
+}
+
+/// Answering readiness spawns `git rev-parse`, so the check hops to a
+/// blocking thread like the snapshot-search commands below.
+#[tauri::command]
+pub async fn repo_store_status(
+    app: AppHandle,
+    owner: String,
+    repo: String,
+    sha: String,
+) -> Result<repo_store_service::RepoStoreStatus, String> {
+    let key = repo_key(&app, owner, repo).await?;
+    let root = storage::cache_dir(&app)?;
+    tauri::async_runtime::spawn_blocking(move || repo_store_service::status(&root, &key, &sha))
+        .await
+        .map_err(|e| format!("repo store status failed: {e}"))
 }
 
 /// Both snapshot-search commands hop to a blocking thread: a whole-repo walk
