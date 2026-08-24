@@ -608,10 +608,12 @@
   margin: 0;
 }
 
-/* The route readout, and nothing else: the keys live in the ? sheet. The
-   flex box stays even with one child — this band's height is baked into
-   every stitched capture of a specimen taller than the viewport, so
-   changing its geometry moves baselines in components nobody touched. */
+/* The route readout, and nothing else: the keys live in the ? sheet.
+   Whatever this band says is baked into the baselines of every specimen
+   taller than the viewport — those are captured by scrolling and stitching,
+   and the strip is painted across the seam. So editing this text moves
+   screenshots in components nobody touched, which is a refresh rather than
+   a regression, but check the diff images before believing that. */
 .qg-helpbar {
   display: flex;
   align-items: center;
