@@ -150,6 +150,15 @@ describe("gallery", () => {
     ).toBeDefined();
   });
 
+  it("toggles the notes margin on mod+c", () => {
+    const { container } = render(<Gallery />);
+    expect(container.querySelector(".qg-margin")).toBeNull();
+    fireEvent.keyDown(window, { key: "c", metaKey: true });
+    expect(container.querySelector(".qg-margin")).not.toBeNull();
+    fireEvent.keyDown(window, { key: "c", metaKey: true });
+    expect(container.querySelector(".qg-margin")).toBeNull();
+  });
+
   it("flips the rail's tab on v", () => {
     render(<Gallery />);
     expect(window.location.hash).toContain(`/${tierNames.views[0]}/`);

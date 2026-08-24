@@ -53,7 +53,7 @@
 }
 
 .qg-rail {
-  width: 232px;
+  position: relative;
   flex: none;
   display: flex;
   flex-direction: column;
@@ -697,12 +697,38 @@ dialog.q-dialog-top:modal {
   color: var(--warn);
 }
 
+/* Both grips are the review screen's: same width, same cursor, same wash on
+   hover, so a drag here feels like a drag there. */
+.qg-rail-resize,
+.qg-margin-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 7px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.qg-rail-resize {
+  right: -3px;
+}
+
+.qg-margin-resize {
+  left: -3px;
+}
+
+.qg-rail-resize:hover,
+.qg-margin-resize:hover {
+  background: var(--accent-soft);
+}
+
 .qg-margin {
+  position: relative;
   --accent: var(--warn);
   --mark-soft: color-mix(in srgb, var(--warn) 14%, transparent);
   --mark-line: color-mix(in srgb, var(--warn) 40%, transparent);
 
-  width: 300px;
   flex: none;
   display: flex;
   flex-direction: column;
@@ -900,18 +926,4 @@ dialog.q-dialog-top:modal {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.qg-compose-keys {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.qg-compose-keys .q-kbd-combo {
-  margin-left: 6px;
-}
-
-.qg-compose-keys .q-kbd-combo:first-child {
-  margin-left: 0;
 }

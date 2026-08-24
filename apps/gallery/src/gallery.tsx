@@ -78,10 +78,10 @@ import { Button } from "@nod/ui/button";
 import { catalog } from "@nod/ui/catalog";
 import { isSequence, sequenceElement } from "@nod/ui/fixtures";
 import { HelpOverlay, type HelpSection } from "@nod/ui/help-overlay";
-import { Kbd } from "@nod/ui/kbd";
 import { isView } from "@nod/ui/manifest";
+import { useEdgeResize } from "@nod/ui/use-edge-resize";
 import { useLatest } from "@nod/ui/use-latest";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { PENDING } from "./coverage.ts";
 import {
   cellAnchor,
@@ -377,6 +377,29 @@ function applyGalleryZoom(factor: number) {
   document.documentElement.style.setProperty("--qg-zoom", String(factor));
 }
 
+const RAIL_WIDTH_KEY = "nod:galleryRailWidth:v1";
+const NOTES_WIDTH_KEY = "nod:galleryNotesWidth:v1";
+
+/** Both panels are dragged with the same hook the review screen's columns
+ *  use, so they persist the same way: written on release, read on mount,
+ *  and any junk in storage falls back to the design width. */
+function loadPanelWidth(key: string, fallback: number): number {
+  try {
+    const v = Number(localStorage.getItem(key));
+    return Number.isFinite(v) && v >= 160 && v <= 900 ? v : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function persistPanelWidth(key: string, width: number): void {
+  try {
+    localStorage.setItem(key, String(width));
+  } catch {
+    /* storage unavailable — the width lasts the session */
+  }
+}
+
 function loadGalleryZoom(): number {
   try {
     const v = Number(localStorage.getItem(ZOOM_KEY));
@@ -433,7 +456,7 @@ const HELP_SECTIONS: readonly HelpSection[] = [
   },
   {
     bindings: [
-      { combo: "c", description: "Open the notes margin" },
+      { combo: "mod+c", description: "Open or close the notes margin" },
       { combo: "mod+enter", description: "Leave the note" },
       { combo: "mod+s", description: "Switch the note's scope" },
       { combo: "esc", description: "Close the notes margin" },
@@ -513,11 +536,14 @@ function routePatchForKey(
     // the tab is the selection's tier read back — there is no tab state of
     // its own to move.
     case "v": {
-      // Flips between the two standing tabs; from Hidden it lands on Views,
-      // since Hidden is somewhere you go back from, not a third stop in a
-      // cycle.
-      const other = activeTier === "views" ? "components" : "views";
-      return { component: tiers[other][0] ?? route.component };
+      // Walks the tabs the rail is actually showing, so Hidden joins the
+      // cycle exactly when it exists. Shift walks back.
+      const order: RailTier[] =
+        tiers.hidden.length > 0
+          ? ["views", "components", "hidden"]
+          : ["views", "components"];
+      const next = cycle(order, activeTier, dir);
+      return { component: tiers[next][0] ?? route.component };
     }
     case "t":
       return { theme: cycle(GALLERY_THEMES, route.theme, dir) };
@@ -557,6 +583,13 @@ function handleGalleryKey(
     onToggleHidden,
   }: GalleryKeyActions
 ): void {
+  // Before the modifier guard, like zoom: mod+c is the notes panel's toggle,
+  // and c alone belongs to whatever the reviewer is typing into.
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c") {
+    event.preventDefault();
+    setNotesOpen((open) => !open);
+    return;
+  }
   if (
     (event.metaKey || event.ctrlKey) &&
     !event.altKey &&
@@ -580,11 +613,7 @@ function handleGalleryKey(
     setNotesOpen(false);
     return;
   }
-  if (key === "c") {
-    event.preventDefault();
-    setNotesOpen(true);
-    return;
-  }
+
   if (key === "/") {
     event.preventDefault();
     document.querySelector<HTMLInputElement>(".qg-find input")?.focus();
@@ -641,7 +670,9 @@ function handleZoomKey(
  *  carrying its open-note count. */
 function GalleryRail({
   activeTier,
+  onResize,
   tiers,
+  width,
   cataloguedNames,
   filter,
   findSel,
@@ -653,7 +684,9 @@ function GalleryRail({
   visibleNames,
 }: {
   activeTier: RailTier;
+  onResize: (width: number) => void;
   tiers: Record<RailTier, readonly string[]>;
+  width: number;
   cataloguedNames: ReadonlySet<string>;
   filter: string;
   findSel: number;
@@ -664,8 +697,18 @@ function GalleryRail({
   selected: string;
   visibleNames: readonly string[];
 }) {
+  const railRef = useRef<HTMLElement>(null);
+  const startResize = useEdgeResize({
+    edge: "right",
+    maxFraction: 0.4,
+    min: 180,
+    onResize,
+    panelRef: railRef,
+  });
+
   return (
-    <aside className="qg-rail">
+    <aside className="qg-rail" ref={railRef} style={{ width }}>
+      <div aria-hidden className="qg-rail-resize" onPointerDown={startResize} />
       <div className="qg-rail-head">
         <span className="qg-brand">Nod</span>
         <span className="qg-env">gallery · dev</span>
@@ -769,7 +812,6 @@ function StageControls({
             {name}
           </button>
         ))}
-        <Kbd combo="f" />
       </div>
       <div className="qg-ctl">
         <span className="qg-ctl-label">theme</span>
@@ -787,7 +829,6 @@ function StageControls({
             </button>
           ))}
         </div>
-        <Kbd combo="t" />
       </div>
       <div className="qg-ctl">
         <span className="qg-ctl-label">width</span>
@@ -805,7 +846,6 @@ function StageControls({
             </button>
           ))}
         </div>
-        <Kbd combo="w" />
       </div>
       <div className="qg-ctl">
         <span className="qg-ctl-label">view</span>
@@ -823,7 +863,6 @@ function StageControls({
             </button>
           ))}
         </div>
-        <Kbd combo="m" />
       </div>
     </div>
   );
@@ -841,6 +880,12 @@ export function Gallery() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [notes, setNotes] = useState<NotesByComponent>({});
   const [notesOpen, setNotesOpen] = useState(false);
+  const [railWidth, setRailWidth] = useState(() =>
+    loadPanelWidth(RAIL_WIDTH_KEY, 232)
+  );
+  const [notesWidth, setNotesWidth] = useState(() =>
+    loadPanelWidth(NOTES_WIDTH_KEY, 300)
+  );
   const [notesError, setNotesError] = useState("");
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const [noteScope, setNoteScope] = useState<NoteScope>("component");
@@ -1045,11 +1090,16 @@ export function Gallery() {
         findSel={findSel}
         onFindChange={onFindChange}
         onFindKeyDown={onFindKeyDown}
+        onResize={(w) => {
+          setRailWidth(w);
+          persistPanelWidth(RAIL_WIDTH_KEY, w);
+        }}
         onSelect={select}
         openNotesOf={openNotesOf}
         selected={route.component}
         tiers={tiers}
         visibleNames={visibleNames}
+        width={railWidth}
       />
 
       <div className="qg-main">
@@ -1070,7 +1120,6 @@ export function Gallery() {
                 type="button"
               >
                 {noteToggleLabel(openNotesOf(route.component))}
-                <Kbd combo="c" />
               </button>
             )}
           </div>
@@ -1106,9 +1155,14 @@ export function Gallery() {
             setNoteDrafts((drafts) => ({ ...drafts, [route.component]: text }));
           }}
           onRemove={onRemoveNote}
+          onResize={(w) => {
+            setNotesWidth(w);
+            persistPanelWidth(NOTES_WIDTH_KEY, w);
+          }}
           onScopeChange={setNoteScope}
           onSubmit={onSubmitNote}
           scope={noteScope}
+          width={notesWidth}
         />
       ) : null}
 
