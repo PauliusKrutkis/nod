@@ -4,7 +4,9 @@ import {
   type LedgerConfig,
   readCommittedConfig,
   readLedgerConfig,
+  readLocalConfig,
   writeLedgerConfig,
+  writeLocalConfig,
 } from "./config.ts";
 import { approveTopic } from "./derive/approve.ts";
 import {
@@ -15,6 +17,7 @@ import {
 import { deriveSession } from "./derive/session.ts";
 import { signRegion } from "./derive/sign.ts";
 import { deriveStatus, type LedgerStatus } from "./derive/status.ts";
+import { syncJournal } from "./facts/journal.ts";
 import type { Actor } from "./facts/schema.ts";
 import { sync } from "./facts/store.ts";
 import { type GitRun, gitIn } from "./git/exec.ts";
@@ -56,6 +59,8 @@ const USAGE = `usage: ledger [--repo <dir>] [--tip <rev>] [--actor <id>] <comman
   --repo <dir>      operate on this repo (worktree or bare) instead of cwd
   --tip <rev>       derive against this rev instead of HEAD
   --actor <id>      record facts as this actor instead of git user.name
+  --state-dir <dir> durable fact journal + local config, for hosts whose
+                    clone is disposable
   --                end of flags; everything after is positional
 `;
 
@@ -75,6 +80,7 @@ interface Ctx {
   /** Tip commit sha (never a symbolic name). */
   tip: string;
   actorOverride?: string;
+  stateDir?: string;
 }
 
 const getActor = async (ctx: Ctx): Promise<Actor> => {
@@ -93,7 +99,8 @@ const getActor = async (ctx: Ctx): Promise<Actor> => {
 const requireConfig = async (ctx: Ctx): Promise<LedgerConfig> => {
   const config =
     (await readLedgerConfig(ctx.repoRoot)) ??
-    (await readCommittedConfig(ctx.git, ctx.tip));
+    (await readCommittedConfig(ctx.git, ctx.tip)) ??
+    (ctx.stateDir ? await readLocalConfig(ctx.stateDir) : null);
   if (!config) {
     return die("no ledger here yet — run `ledger init` to set the epoch");
   }
@@ -352,15 +359,37 @@ const main = async (): Promise<void> => {
     actorOverride: opts.actor,
     git,
     repoRoot,
+    stateDir: opts.stateDir,
     tip: await resolveTip(git, opts.tip),
   });
+  // Reconcile the durable journal with the ref before any read (a wiped
+  // clone gets its facts back) and again after any append (a new fact
+  // lands in the journal the moment it exists).
+  const journalSync = async (): Promise<void> => {
+    if (opts.stateDir && command) {
+      await syncJournal(git, opts.stateDir);
+    }
+  };
+  await journalSync();
 
   switch (command) {
     case "init": {
       const epoch = (await git(["rev-parse", args[0] ?? "HEAD"])).trim();
-      // Read-merge: re-init moves only the epoch, never drops other settings.
-      const existing = await readLedgerConfig(repoRoot).catch(() => null);
-      await writeLedgerConfig(repoRoot, { ...existing, epoch, version: 1 });
+      if (opts.stateDir) {
+        // Zero-commit adoption: the epoch lives in host state, and the
+        // repo never learns the ledger exists.
+        const existing = await readLocalConfig(opts.stateDir).catch(() => null);
+        await writeLocalConfig(opts.stateDir, {
+          ...existing,
+          epoch,
+          version: 1,
+        });
+      } else {
+        // Read-merge: re-init moves only the epoch, never drops other
+        // settings.
+        const existing = await readLedgerConfig(repoRoot).catch(() => null);
+        await writeLedgerConfig(repoRoot, { ...existing, epoch, version: 1 });
+      }
       console.log(
         `ledger initialized · epoch ${short(epoch)} · everything before it is grandfathered`
       );
@@ -399,14 +428,17 @@ const main = async (): Promise<void> => {
     }
     case "review": {
       await runReview(await ctx(), args);
+      await journalSync();
       return;
     }
     case "approve": {
       await runApprove(await ctx(), args, opts.force);
+      await journalSync();
       return;
     }
     case "comment": {
       await runComment(await ctx(), args);
+      await journalSync();
       return;
     }
     case "comments": {
@@ -430,11 +462,13 @@ const main = async (): Promise<void> => {
         die(`no comment thread rooted at ${args[0]} — see \`ledger comments\``);
       }
       console.log(`resolved · ${id}`);
+      await journalSync();
       return;
     }
     case "sync": {
       await sync(git, args[0] ?? "origin");
       console.log("ledger synced");
+      await journalSync();
       return;
     }
     default: {
