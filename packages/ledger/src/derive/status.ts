@@ -12,6 +12,7 @@ import { readAnchorRefs, readFacts } from "../facts/store.ts";
 import { cachedBlameTree } from "../git/blame-cache.ts";
 import type { GitRun } from "../git/exec.ts";
 import { readTreeLines } from "../git/files.ts";
+import { type Assignment, assignmentsFrom } from "../topics/assign.ts";
 
 /**
  * The invariant made executable: `status = f(facts, tip)` (docs/LEDGER.md
@@ -105,6 +106,23 @@ export interface LedgerComment {
   resolved: boolean;
 }
 
+/**
+ * A post-epoch commit the deterministic cascade could not name — no
+ * assignment fact, no conventional scope — currently sitting in a
+ * provenance bucket. The host's LLM stage reads this list, proposes
+ * topics, and writes them back as `assigned` facts via `ledger assign`.
+ */
+export interface UnassignedSha {
+  sha: string;
+  subject: string;
+  /** The provenance bucket it falls to today (`#123` or a short sha). */
+  topic: string;
+  /** Files holding lines that blame to this commit, capped for payload. */
+  files: string[];
+  /** Tip lines blaming to this commit. */
+  lines: number;
+}
+
 export interface LedgerStatus {
   tip: string;
   epoch: string;
@@ -115,6 +133,7 @@ export interface LedgerStatus {
   queue: QueueItem[];
   topics: TopicStatus[];
   comments: LedgerComment[];
+  unassigned: UnassignedSha[];
 }
 
 const SQUASH_SUBJECT = /\(#(\d+)\)\s*$/;
@@ -125,10 +144,12 @@ const BRIDGE = 2;
 const SUBJECT_BATCH = 200;
 
 /**
- * A commit's derived topic (docs/LEDGER.md §3, the deterministic stage of
- * the cascade): the declared scope when the subject carries one, the PR
- * for scopeless squash merges, the bare sha for direct pushes. Ergonomics
- * only — a wrong label mislabels a queue item, never loses a line.
+ * A commit's derived topic when no assignment fact names it (docs/LEDGER.md
+ * §3, the deterministic tail of the cascade): the declared scope when the
+ * subject carries one, the PR for scopeless squash merges, the bare sha for
+ * direct pushes. Ergonomics only — a wrong label mislabels a queue item,
+ * never loses a line. Scopeless commits are also what `unassigned` reports
+ * to the host's LLM stage.
  */
 const topicOf = (subject: string, sha: string): string => {
   const scope = CONVENTIONAL_SCOPE.exec(subject)?.[1]?.trim();
@@ -138,6 +159,8 @@ const topicOf = (subject: string, sha: string): string => {
   const pr = SQUASH_SUBJECT.exec(subject);
   return pr ? `#${pr[1]}` : sha.slice(0, 7);
 };
+
+const hasScope = (subject: string): boolean => CONVENTIONAL_SCOPE.test(subject);
 
 interface Run {
   path: string;
@@ -572,14 +595,19 @@ const byPathThenLine = (a: QueueItem, b: QueueItem): number => {
 /**
  * Line-level topics, computed before runs: approval coverage must paint the
  * masks so mixed-topic runs shrink and split before any run is labeled.
+ * The cascade per sha: a human `corrected` fact, an agent `assigned` fact,
+ * the conventional scope, the provenance bucket. Shas that fell through to
+ * the bucket are reported as `unassigned` — the LLM stage's work list.
  */
 const classifyTipShas = async (
   git: GitRun,
   blames: ReadonlyMap<string, readonly string[]>,
-  postEpoch: ReadonlySet<string>
+  postEpoch: ReadonlySet<string>,
+  assignments: ReadonlyMap<string, Assignment>
 ): Promise<{
   subjects: Map<string, string>;
   topicBySha: Map<string, string>;
+  unassignedShas: Set<string>;
 }> => {
   const tipShas = new Set<string>();
   for (const blame of blames.values()) {
@@ -591,10 +619,55 @@ const classifyTipShas = async (
   }
   const subjects = await loadSubjects(git, [...tipShas]);
   const topicBySha = new Map<string, string>();
+  const unassignedShas = new Set<string>();
   for (const sha of tipShas) {
-    topicBySha.set(sha, topicOf(subjects.get(sha) ?? "", sha));
+    const assigned = assignments.get(sha);
+    const subject = subjects.get(sha) ?? "";
+    if (assigned) {
+      topicBySha.set(sha, assigned.topic);
+      continue;
+    }
+    topicBySha.set(sha, topicOf(subject, sha));
+    if (!hasScope(subject)) {
+      unassignedShas.add(sha);
+    }
   }
-  return { subjects, topicBySha };
+  return { subjects, topicBySha, unassignedShas };
+};
+
+/** Files-and-lines context for each sha the LLM stage will be asked about. */
+const UNASSIGNED_FILE_CAP = 8;
+
+const describeUnassigned = (
+  blames: ReadonlyMap<string, readonly string[]>,
+  subjects: ReadonlyMap<string, string>,
+  topicBySha: ReadonlyMap<string, string>,
+  unassignedShas: ReadonlySet<string>
+): UnassignedSha[] => {
+  const bySha = new Map<string, { files: Set<string>; lines: number }>();
+  for (const [path, blame] of blames) {
+    for (const sha of blame) {
+      if (!unassignedShas.has(sha)) {
+        continue;
+      }
+      const entry = bySha.get(sha) ?? { files: new Set<string>(), lines: 0 };
+      entry.files.add(path);
+      entry.lines += 1;
+      bySha.set(sha, entry);
+    }
+  }
+  const out: UnassignedSha[] = [];
+  for (const [sha, entry] of bySha) {
+    out.push({
+      files: [...entry.files].slice(0, UNASSIGNED_FILE_CAP),
+      lines: entry.lines,
+      sha,
+      subject: subjects.get(sha) ?? "",
+      topic: topicBySha.get(sha) ?? sha.slice(0, 7),
+    });
+  }
+  out.sort((a, b) => b.lines - a.lines);
+  return out;
 };
 
 /**
@@ -669,13 +742,14 @@ export const deriveStatus = async (
     (await git(["rev-list", `${epoch}..${tip}`])).split("\n").filter(Boolean)
   );
   const blames = await cachedBlameTree(git, tip, [...raw.keys()]);
-  const { subjects, topicBySha } = await classifyTipShas(
+  const facts = await readFacts(git);
+  const { subjects, topicBySha, unassignedShas } = await classifyTipShas(
     git,
     blames,
-    postEpoch
+    postEpoch,
+    assignmentsFrom(facts)
   );
 
-  const facts = await readFacts(git);
   const { masks, resolved, commented } = await applyReviewMarks(
     git,
     raw,
@@ -770,5 +844,11 @@ export const deriveStatus = async (
     queue,
     topics,
     comments: deriveComments(facts, commented),
+    unassigned: describeUnassigned(
+      blames,
+      subjects,
+      topicBySha,
+      unassignedShas
+    ),
   };
 };

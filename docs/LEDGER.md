@@ -110,14 +110,16 @@ The dogfood constraints become the work list. Decisions, in build order:
    fact store stays deferred. Append-only makes this lossless — local
    history pushes wholesale the day sync turns on. Actor identity comes
    from the GitHub login, not `git config user.name`.
-4. **LLM-first grouping.** The LLM owns topic naming and boundaries for
-   novel code; blame inheritance (old stage 2) stays as the propagation
-   mechanism — modifications join the topic of the code they touch,
-   free and deterministic, which is what bounds LLM cost to novel code
-   only. Conventional-commit scope naming and learned path rules are
-   demoted to nothing. Assignments persist as agent facts: paid once
-   per repo, synced, reproducible. Keys ride the desktop app's existing
-   AI settings (BYOK); keyless falls back to provenance buckets.
+4. **LLM-first grouping.** The cascade per commit: human `corrected`
+   fact, agent `assigned` fact (the LLM stage writes these), the
+   conventional-commit scope when one exists, the provenance bucket.
+   The LLM's work list is exactly the bucket dwellers — `unassigned` in
+   status — so disciplined repos stay fully deterministic and free,
+   messy repos get the model, and existing scope-derived topics (and
+   the approvals attached to them) keep their names. Assignments
+   persist as facts: paid once per repo, synced, reproducible. Keys
+   ride the desktop app's existing AI settings (BYOK); keyless falls
+   back to the deterministic stages alone.
 5. **Cold start = warm + prep view.** Repos warm in the background from
    the moment they're watched (blob fetch → blame → topic mapping), so
    most first opens are already sub-second. Direct entry into an
