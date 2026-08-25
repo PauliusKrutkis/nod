@@ -136,6 +136,18 @@ export interface LedgerStatus {
   unassigned: UnassignedSha[];
 }
 
+/**
+ * Where a derivation currently is, for hosts that show the one expensive
+ * load (a cold blame pass) as staged progress instead of a mute spinner.
+ * `blame` carries file counts; the other stages are quick and just mark
+ * the phase.
+ */
+export interface DeriveProgress {
+  stage: "reading" | "blame" | "deriving";
+  done?: number;
+  total?: number;
+}
+
 const SQUASH_SUBJECT = /\(#(\d+)\)\s*$/;
 /** `feat(ledger): …` → "ledger"; conventional-commit scope. */
 const CONVENTIONAL_SCOPE = /^[a-z]+\(([^)]+)\)!?:/;
@@ -730,18 +742,27 @@ export const deriveStatus = async (
     tip?: string;
     config?: ResolveConfig;
     approvalsRequired?: number;
+    onProgress?: (progress: DeriveProgress) => void;
   }
 ): Promise<LedgerStatus> => {
   const config = options.config ?? DEFAULT_RESOLVE_CONFIG;
   const required = options.approvalsRequired ?? 1;
+  const onProgress = options.onProgress;
   const tip = (await git(["rev-parse", options.tip ?? "HEAD"])).trim();
   const epoch = (await git(["rev-parse", options.epoch])).trim();
 
+  onProgress?.({ stage: "reading" });
   const raw = await readTreeLines(git, tip);
   const postEpoch = new Set(
     (await git(["rev-list", `${epoch}..${tip}`])).split("\n").filter(Boolean)
   );
-  const blames = await cachedBlameTree(git, tip, [...raw.keys()]);
+  const blames = await cachedBlameTree(
+    git,
+    tip,
+    [...raw.keys()],
+    (done, total) => onProgress?.({ done, stage: "blame", total })
+  );
+  onProgress?.({ stage: "deriving" });
   const facts = await readFacts(git);
   const { subjects, topicBySha, unassignedShas } = await classifyTipShas(
     git,

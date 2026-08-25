@@ -137,6 +137,12 @@ pub async fn set_watched_repos(app: AppHandle, repos: Vec<String>) -> Result<(),
             }
         });
     }
+    // Newly watched repos warm in the background — clone, tips, first
+    // derivation — so the ledger's first open is already sub-second
+    // (docs/LEDGER.md "Productionization" item 5).
+    for repo in cleaned.iter().filter(|repo| !before.contains(repo)) {
+        crate::ledger::warm(&app, repo.clone());
+    }
     Ok(())
 }
 

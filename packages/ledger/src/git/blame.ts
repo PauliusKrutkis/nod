@@ -24,13 +24,18 @@ const blameFile = async (
 export const blameTree = async (
   git: GitRun,
   rev: string,
-  paths: readonly string[]
+  paths: readonly string[],
+  onProgress?: (done: number, total: number) => void
 ): Promise<Map<string, string[]>> => {
+  let done = 0;
   const results = await mapLimit(paths, 8, async (path) => {
     try {
       return await blameFile(git, rev, path);
     } catch {
       return null;
+    } finally {
+      done += 1;
+      onProgress?.(done, paths.length);
     }
   });
   const blames = new Map<string, string[]>();

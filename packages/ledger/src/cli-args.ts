@@ -12,6 +12,8 @@ export interface CliArgs {
   force: boolean;
   /** Record facts with an agent actor (assignment proposals, not truth). */
   agent: boolean;
+  /** Emit NDJSON derivation progress on stderr, for host progress views. */
+  progress: boolean;
   /** Repo to operate on; default: the repo containing cwd. */
   repo?: string;
   /**
@@ -37,6 +39,7 @@ export const parseCliArgs = (argv: readonly string[]): CliArgs => {
     force: false,
     json: false,
     positional: [],
+    progress: false,
   };
   const booleans = new Map<string, () => void>([
     [
@@ -55,6 +58,12 @@ export const parseCliArgs = (argv: readonly string[]): CliArgs => {
       "--agent",
       () => {
         args.agent = true;
+      },
+    ],
+    [
+      "--progress",
+      () => {
+        args.progress = true;
       },
     ],
   ]);
