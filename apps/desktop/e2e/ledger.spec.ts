@@ -16,8 +16,10 @@ import type { Page } from "./types.ts";
  * — signing flips the bridge to the after-review fixture, which is how the
  * spec asserts the keystroke both records the fact (command args in
  * localStorage) and re-derives the number rather than mutating UI state.
- * The clone-path map (nod:repoPaths:v1) is seeded for the returning-user
- * tests and built through the form in the first-visit test.
+ * Repos are addressed as owner/repo keys — Rust owns the store clone, so
+ * there is nothing to configure: the last opened repo
+ * (nod:ledgerLastRepo:v1) is seeded for the returning-user tests, and the
+ * first-visit test lands straight in the picked repo's queue.
  */
 
 const openLedger = (page: Page) =>
@@ -25,19 +27,15 @@ const openLedger = (page: Page) =>
     process.platform === "darwin" ? "Meta+Shift+l" : "Control+Shift+l"
   );
 
-const seedKnownClone = (page: Page) =>
+const seedLastRepo = (page: Page) =>
   page.addInitScript(() => {
-    localStorage.setItem(
-      "nod:repoPaths:v1",
-      JSON.stringify({ "me/nod": "/repo/nod" })
-    );
     localStorage.setItem("nod:ledgerLastRepo:v1", "me/nod");
   });
 
 test("the queue lists one session per feature group; r signs nothing here", async ({
   page,
 }) => {
-  await seedKnownClone(page);
+  await seedLastRepo(page);
   await setupApp(page, {
     ledger: LEDGER,
     watchedRepos: ["me/nod"],
@@ -65,7 +63,7 @@ test("the queue lists one session per feature group; r signs nothing here", asyn
 test("j selects the next group; signing happens inside its session", async ({
   page,
 }) => {
-  await seedKnownClone(page);
+  await seedLastRepo(page);
   await setupApp(page, {
     ledger: LEDGER,
     ledgerAfterReview: LEDGER_AFTER_REVIEW,
@@ -88,7 +86,7 @@ test("j selects the next group; signing happens inside its session", async ({
   });
 });
 
-test("first visit picks a watched repo and sets its clone path once", async ({
+test("first visit picks a watched repo and lands straight in its queue", async ({
   page,
 }) => {
   await setupApp(page, { watchedRepos: ["me/nod", "me/site"] });
@@ -100,22 +98,20 @@ test("first visit picks a watched repo and sets its clone path once", async ({
   ).toBeVisible();
   await expect(page.getByRole("option")).toHaveCount(2);
 
-  await page.keyboard.press("Enter");
-  await expect(page.getByText("Where is me/nod cloned?")).toBeVisible();
-  await page.getByLabel("Repository path").fill("/repo/nod");
+  // No setup step: Rust owns the clone, so enter goes straight to work.
   await page.keyboard.press("Enter");
   await expect(page.getByText("Queue is empty")).toBeVisible();
 
-  const paths = await page.evaluate(() =>
-    localStorage.getItem("nod:repoPaths:v1")
+  const last = await page.evaluate(() =>
+    localStorage.getItem("nod:ledgerLastRepo:v1")
   );
-  expect(JSON.parse(paths ?? "{}")).toMatchObject({ "me/nod": "/repo/nod" });
+  expect(last).toBe("me/nod");
 });
 
 test("enter opens a session on the review surface and r signs the region", async ({
   page,
 }) => {
-  await seedKnownClone(page);
+  await seedLastRepo(page);
   await setupApp(page, {
     ledger: LEDGER,
     ledgerAfterReview: LEDGER_AFTER_REVIEW,
@@ -134,7 +130,7 @@ test("enter opens a session on the review surface and r signs the region", async
     localStorage.getItem("e2e:ledgerSession")
   );
   expect(JSON.parse(sessionArgs ?? "{}")).toMatchObject({
-    repoPath: "/repo/nod",
+    repoKey: "me/nod",
     targets: ["src/anchors/resolve.ts:1-40"],
   });
 
@@ -143,7 +139,7 @@ test("enter opens a session on the review surface and r signs the region", async
     localStorage.getItem("e2e:ledgerReview")
   );
   expect(JSON.parse(review ?? "{}")).toMatchObject({
-    repoPath: "/repo/nod",
+    repoKey: "me/nod",
     target: "src/anchors/resolve.ts:1-40",
   });
   await expect(page.getByText("Session signed off")).toBeVisible();
@@ -158,7 +154,7 @@ test("enter opens a session on the review surface and r signs the region", async
 test("a session shows the net diff for a signed-then-edited file", async ({
   page,
 }) => {
-  await seedKnownClone(page);
+  await seedLastRepo(page);
   await setupApp(page, {
     ledger: LEDGER,
     ledgerSession: LEDGER_SESSION,
@@ -184,7 +180,7 @@ test("a session shows the net diff for a signed-then-edited file", async ({
 test("approving is gated on viewed: v unlocks a, which stamps the topic", async ({
   page,
 }) => {
-  await seedKnownClone(page);
+  await seedLastRepo(page);
   await setupApp(page, {
     ledger: LEDGER,
     ledgerAfterApprove: LEDGER_AFTER_APPROVE,
@@ -213,7 +209,7 @@ test("approving is gated on viewed: v unlocks a, which stamps the topic", async 
     localStorage.getItem("e2e:ledgerApprove")
   );
   expect(JSON.parse(approve ?? "{}")).toMatchObject({
-    repoPath: "/repo/nod",
+    repoKey: "me/nod",
     topic: "ledger",
   });
   await expect(
@@ -242,7 +238,7 @@ test("a multi-file group shows the file tree; clicking a file jumps to it", asyn
     path: "src/anchors/anchor.ts",
     regions: [{ endLine: 9, startLine: 1 }],
   };
-  await seedKnownClone(page);
+  await seedLastRepo(page);
   await setupApp(page, {
     ledger: { ...LEDGER, queue: [...LEDGER.queue, extraItem] },
     ledgerSession: {
@@ -270,7 +266,7 @@ test("a multi-file group shows the file tree; clicking a file jumps to it", asyn
 test("escape steps out of the queue to the picker, then to the inbox", async ({
   page,
 }) => {
-  await seedKnownClone(page);
+  await seedLastRepo(page);
   await setupApp(page, {
     ledger: LEDGER,
     watchedRepos: ["me/nod"],

@@ -161,10 +161,10 @@ export const api = {
   isGitlabOAuthConfigured: () => invoke<boolean>("is_gitlab_oauth_configured"),
   isOAuthConfigured: () => invoke<boolean>("is_oauth_configured"),
 
-  ledgerApprove: (repoPath: string, topic: string) =>
-    invoke<void>("ledger_approve", { repoPath, topic }),
+  ledgerApprove: (repoKey: string, topic: string) =>
+    invoke<void>("ledger_approve", { repoKey, topic }),
   ledgerComment: (
-    repoPath: string,
+    repoKey: string,
     target: string,
     body: string,
     parent?: string
@@ -172,17 +172,17 @@ export const api = {
     invoke<void>("ledger_comment", {
       body,
       parent: parent ?? null,
-      repoPath,
+      repoKey,
       target,
     }),
-  ledgerResolve: (repoPath: string, factId: string) =>
-    invoke<void>("ledger_resolve", { factId, repoPath }),
-  ledgerReview: (repoPath: string, target: string) =>
-    invoke<void>("ledger_review", { repoPath, target }),
-  ledgerSession: (repoPath: string, targets: string[]) =>
-    invoke<LedgerSession>("ledger_session", { repoPath, targets }),
-  ledgerStatus: (repoPath: string) =>
-    invoke<LedgerStatus>("ledger_status", { repoPath }),
+  ledgerResolve: (repoKey: string, factId: string) =>
+    invoke<void>("ledger_resolve", { factId, repoKey }),
+  ledgerReview: (repoKey: string, target: string) =>
+    invoke<void>("ledger_review", { repoKey, target }),
+  ledgerSession: (repoKey: string, targets: string[]) =>
+    invoke<LedgerSession>("ledger_session", { repoKey, targets }),
+  ledgerStatus: (repoKey: string) =>
+    invoke<LedgerStatus>("ledger_status", { repoKey }),
 
   listAccounts: () => invoke<AccountsInfo>("list_accounts"),
 

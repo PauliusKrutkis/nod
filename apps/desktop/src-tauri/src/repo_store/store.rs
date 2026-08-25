@@ -80,6 +80,20 @@ pub fn git_dir(root: &Path, key: &RepoKey) -> PathBuf {
         ))
 }
 
+/// The durable per-repo ledger state (fact journal + local config), under
+/// the config root — the store clone itself lives in the wipeable cache
+/// dir, so review history must not (docs/LEDGER.md "Productionization").
+pub fn ledger_state_dir(config_root: &Path, key: &RepoKey) -> PathBuf {
+    config_root
+        .join("ledger")
+        .join(segment(&key.host))
+        .join(format!(
+            "{}__{}",
+            segment(&key.owner),
+            segment(&key.repo)
+        ))
+}
+
 /// Staging directory a clone writes into before the atomic rename.
 pub fn partial_dir(root: &Path, key: &RepoKey) -> PathBuf {
     let dir = git_dir(root, key);

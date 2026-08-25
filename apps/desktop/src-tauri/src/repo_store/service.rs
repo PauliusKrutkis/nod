@@ -344,6 +344,98 @@ fn fetch_commit(git_dir: &Path, sha: &str, auth: &GitAuth) -> Result<(), String>
     .map(|_| ())
 }
 
+/// Registry sha recorded for ledger-driven store work. Never a git
+/// argument; it only keeps the failure-matching in `claim` from colliding
+/// with a real SHA.
+const LEDGER_WORK: &str = "ledger";
+
+/// Check-and-claim for the ledger path, one lock acquisition like `claim`:
+/// a busy entry wins, anything settled is reclaimed. `None` means busy.
+fn claim_ledger(root: &Path, key: &RepoKey) -> Result<Option<RepoStoreState>, String> {
+    let Ok(mut map) = registry().lock() else {
+        return Err("repo store registry unavailable".to_string());
+    };
+    if let Some(entry) = map.get(key) {
+        if matches!(
+            entry.status.state,
+            RepoStoreState::Cloning | RepoStoreState::Fetching
+        ) {
+            return Ok(None);
+        }
+    }
+    let state = if store::exists(root, key) {
+        RepoStoreState::Fetching
+    } else {
+        RepoStoreState::Cloning
+    };
+    map.insert(
+        key.clone(),
+        Entry {
+            status: RepoStoreStatus::new(state, ""),
+            sha: LEDGER_WORK.to_string(),
+        },
+    );
+    Ok(Some(state))
+}
+
+/// Blocking. Makes the store usable for the ledger: waits out any
+/// in-flight git work on this key (two git processes in one git dir
+/// contend on locks), clones if the store is missing, and — when asked —
+/// refreshes branch tips so `refs/remotes/origin/*` is current. A tip
+/// refresh failure on an existing store degrades to the last-known tips
+/// instead of failing the open: reviewing offline against a local clone
+/// is the point of having one.
+pub fn ensure_branch_tips(
+    root: &Path,
+    key: &RepoKey,
+    auth: &GitAuth,
+    refresh: bool,
+) -> Result<(), String> {
+    let claimed = 'claim: {
+        // Clones can legitimately run for minutes; poll rather than fail.
+        for _ in 0..1800 {
+            match claim_ledger(root, key)? {
+                Some(state) => break 'claim state,
+                None => std::thread::sleep(std::time::Duration::from_millis(200)),
+            }
+        }
+        return Err("the repo store stayed busy for too long".to_string());
+    };
+    let mut guard = PanicGuard {
+        key: Some((key.clone(), LEDGER_WORK.to_string())),
+    };
+    let result: Result<(), String> = (|| {
+        if claimed == RepoStoreState::Cloning {
+            clone(root, key, auth)?;
+        }
+        if refresh {
+            set_status(
+                key,
+                LEDGER_WORK,
+                RepoStoreStatus::new(RepoStoreState::Fetching, ""),
+            );
+            if let Err(e) = git::run(
+                Some(&store::git_dir(root, key)),
+                &["fetch", "--no-tags", "origin"],
+                Some(auth),
+            ) {
+                log(&format!(
+                    "ledger tip refresh failed {}/{}/{}: {e}",
+                    key.host, key.owner, key.repo
+                ));
+            }
+        }
+        Ok(())
+    })();
+    let status = match &result {
+        Ok(()) => RepoStoreStatus::new(RepoStoreState::Ready, ""),
+        Err(e) => RepoStoreStatus::new(RepoStoreState::Failed, e),
+    };
+    set_status(key, LEDGER_WORK, status);
+    guard.disarm();
+    result
+}
+
 fn path_arg(path: &PathBuf) -> Result<String, String> {
     path.to_str()
         .map(str::to_string)

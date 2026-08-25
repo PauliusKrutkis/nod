@@ -81,19 +81,19 @@ export function LedgerSession({
   initialTarget,
   onExit,
   onSigned,
-  repoPath,
+  repoKey,
   targets,
 }: {
   group: { label: string; subject: string };
   initialTarget: string;
   onExit: () => void;
   onSigned: (target: string) => void;
-  repoPath: string;
+  repoKey: string;
   targets: string[];
 }) {
   const setToast = useAppStore((s) => s.setToast);
   const setLedgerSessionOpen = useAppStore((s) => s.setLedgerSessionOpen);
-  const viewedKey = `ledger:${repoPath}`;
+  const viewedKey = `ledger:${repoKey}`;
   const viewedFiles = useAppStore((s) => s.viewed[viewedKey]);
   const toggleViewed = useAppStore((s) => s.toggleViewed);
   const queryClient = useQueryClient();
@@ -109,8 +109,8 @@ export function LedgerSession({
 
   const session = useQuery({
     enabled: targets.length > 0,
-    queryFn: () => api.ledgerSession(repoPath, targets),
-    queryKey: queryKeys.ledgerSession(repoPath, targets),
+    queryFn: () => api.ledgerSession(repoKey, targets),
+    queryKey: queryKeys.ledgerSession(repoKey, targets),
   });
 
   const tip = session.data?.tip ?? "";
@@ -277,10 +277,10 @@ export function LedgerSession({
   const refresh = () =>
     Promise.all([
       queryClient.invalidateQueries({
-        queryKey: queryKeys.ledger(repoPath),
+        queryKey: queryKeys.ledger(repoKey),
       }),
       queryClient.invalidateQueries({
-        queryKey: ["ledger-session", repoPath],
+        queryKey: ["ledger-session", repoKey],
       }),
     ]);
 
@@ -290,7 +290,7 @@ export function LedgerSession({
     }
     setApproving(true);
     try {
-      await api.ledgerApprove(repoPath, group.label);
+      await api.ledgerApprove(repoKey, group.label);
       await refresh();
       setToast({
         message: `${group.label} at ${shortSha(tip)}`,
@@ -309,7 +309,7 @@ export function LedgerSession({
     }
     setSigning(true);
     try {
-      await api.ledgerReview(repoPath, current.target);
+      await api.ledgerReview(repoKey, current.target);
       await refresh();
       setToast({ message: current.target, title: "Region signed" });
       onSigned(current.target);
@@ -357,7 +357,7 @@ export function LedgerSession({
       }
       try {
         await api.ledgerComment(
-          repoPath,
+          repoKey,
           `${path}:${startLine ?? line}-${line}`,
           body
         );
@@ -409,7 +409,7 @@ export function LedgerSession({
         return;
       }
       try {
-        await api.ledgerComment(repoPath, "", body, parent);
+        await api.ledgerComment(repoKey, "", body, parent);
         await refresh();
       } catch (e) {
         setToast({ message: String(e), title: "Reply failed" });
@@ -424,7 +424,7 @@ export function LedgerSession({
         return;
       }
       api
-        .ledgerResolve(repoPath, threadId)
+        .ledgerResolve(repoKey, threadId)
         .then(refresh)
         .catch((e) =>
           setToast({ message: String(e), title: "Resolve failed" })
@@ -663,7 +663,7 @@ export function LedgerSession({
               files={files}
               onSelect={jumpToFile}
               pending={EMPTY_PENDING_LIST}
-              prKeyValue={`ledger:${repoPath}`}
+              prKeyValue={`ledger:${repoKey}`}
               selectedIndex={clampedIndex}
             />
           </aside>
