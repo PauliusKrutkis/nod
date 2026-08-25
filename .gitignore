@@ -50,6 +50,10 @@ apps/web/public/demo/
 # `pnpm --filter @nod/gallery shots:update` when you want a local check.
 apps/gallery/e2e/*-snapshots/*-darwin.png
 
+# Compiled ledger sidecar (scripts/build-ledger-sidecar.mjs); tauri-build
+# resolves bundle.externalBin at compile time, so build it before cargo runs.
+apps/desktop/src-tauri/binaries/
+
 # Stale pre-monorepo leftover at the repo root (contains a local .env and
 # cargo artifacts); never stage it — the real crate lives in apps/desktop.
 /src-tauri/
