@@ -26,6 +26,7 @@
     "stats:downloads": "node scripts/download-stats.mjs",
     "gallery": "pnpm --filter @nod/gallery dev",
     "ledger": "node packages/ledger/src/cli.ts",
+    "build:ledger-sidecar": "node scripts/build-ledger-sidecar.mjs",
     "gallery:notes": "pnpm --filter @nod/gallery notes"
   },
   "devDependencies": {

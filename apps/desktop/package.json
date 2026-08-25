@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:desktop": "tauri dev",
+    "dev:desktop": "node ../../scripts/build-ledger-sidecar.mjs && tauri dev",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
@@ -17,7 +17,7 @@
     "e2e:ui": "playwright test --ui",
     "doctor": "npx react-doctor@latest",
     "build:demo": "vite build --config vite.demo.config.ts",
-    "gallery:desktop": "tauri dev --config '{\"build\":{\"devUrl\":\"http://localhost:1430\",\"beforeDevCommand\":\"pnpm --filter @nod/gallery dev\"}}'"
+    "gallery:desktop": "node ../../scripts/build-ledger-sidecar.mjs && tauri dev --config '{\"build\":{\"devUrl\":\"http://localhost:1430\",\"beforeDevCommand\":\"pnpm --filter @nod/gallery dev\"}}'"
   },
   "dependencies": {
     "@fontsource-variable/geist-mono": "^5.2.8",
