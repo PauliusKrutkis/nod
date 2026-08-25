@@ -10,7 +10,9 @@ export interface Actor {
 
 export type Subject =
   | { kind: "anchor"; id: string }
-  | { kind: "topic"; id: string };
+  | { kind: "topic"; id: string }
+  /** A commit: `assigned`/`corrected` facts map it to a topic via `body`. */
+  | { kind: "sha"; id: string };
 
 export const VERDICTS = [
   "reviewed",
@@ -82,7 +84,7 @@ const isActor = (value: unknown): value is Actor =>
 
 const isSubject = (value: unknown): value is Subject =>
   isRecord(value) &&
-  (value.kind === "anchor" || value.kind === "topic") &&
+  (value.kind === "anchor" || value.kind === "topic" || value.kind === "sha") &&
   typeof value.id === "string";
 
 const isVerdict = (value: unknown): value is Verdict =>
