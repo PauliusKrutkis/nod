@@ -657,6 +657,7 @@ export const EMPTY_LEDGER = {
   tip: "e9017aa000000000000000000000000000000000",
   topics: [],
   totalLines: 0,
+  unassigned: [],
 };
 
 export const LEDGER = {
@@ -721,6 +722,15 @@ export const LEDGER = {
     },
   ],
   totalLines: 46,
+  unassigned: [
+    {
+      files: ["src/facts/store.ts"],
+      lines: 6,
+      sha: "d1eec70000000000000000000000000000000000",
+      subject: "chore: tighten CAS retry",
+      topic: "d1eec70",
+    },
+  ],
 };
 
 export const LEDGER_AFTER_REVIEW = {
@@ -731,6 +741,7 @@ export const LEDGER_AFTER_REVIEW = {
   tip: "71b0000000000000000000000000000000000000",
   topics: LEDGER.topics,
   totalLines: 46,
+  unassigned: LEDGER.unassigned,
 };
 
 /** After approving "ledger": its lines covered, only the direct push queued. */
@@ -756,6 +767,7 @@ export const LEDGER_AFTER_APPROVE = {
     },
   ],
   totalLines: 46,
+  unassigned: LEDGER.unassigned,
 };
 
 /**
