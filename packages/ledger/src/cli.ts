@@ -16,7 +16,11 @@ import {
 } from "./derive/comment.ts";
 import { deriveSession } from "./derive/session.ts";
 import { signRegion } from "./derive/sign.ts";
-import { deriveStatus, type LedgerStatus } from "./derive/status.ts";
+import {
+  type DeriveProgress,
+  deriveStatus,
+  type LedgerStatus,
+} from "./derive/status.ts";
 import { syncJournal } from "./facts/journal.ts";
 import type { Actor } from "./facts/schema.ts";
 import { sync } from "./facts/store.ts";
@@ -81,7 +85,38 @@ interface Ctx {
   tip: string;
   actorOverride?: string;
   stateDir?: string;
+  /** NDJSON derivation progress on stderr, or undefined when not asked. */
+  onProgress?: (progress: DeriveProgress) => void;
 }
+
+/**
+ * One JSON line per phase change on stderr, blame counts throttled so a
+ * large tree does not turn the pipe into the bottleneck it reports on.
+ */
+const BLAME_REPORT_EVERY = 25;
+
+const progressReporter = (
+  enabled: boolean
+): ((progress: DeriveProgress) => void) | undefined => {
+  if (!enabled) {
+    return undefined;
+  }
+  let lastDone = 0;
+  return (progress) => {
+    if (
+      progress.stage === "blame" &&
+      progress.done !== undefined &&
+      progress.total !== undefined
+    ) {
+      const final = progress.done === progress.total;
+      if (!final && progress.done - lastDone < BLAME_REPORT_EVERY) {
+        return;
+      }
+      lastDone = progress.done;
+    }
+    console.error(JSON.stringify(progress));
+  };
+};
 
 const getActor = async (ctx: Ctx): Promise<Actor> => {
   if (ctx.actorOverride) {
@@ -112,6 +147,7 @@ const requireStatus = async (ctx: Ctx): Promise<LedgerStatus> => {
   return await deriveStatus(ctx.git, {
     approvalsRequired: config.approvalsRequired,
     epoch: config.epoch,
+    onProgress: ctx.onProgress,
     tip: ctx.tip,
   });
 };
@@ -135,6 +171,7 @@ const runSession = async (
   const session = await deriveSession(ctx.git, {
     approvalsRequired: config.approvalsRequired,
     epoch: config.epoch,
+    onProgress: ctx.onProgress,
     targets,
     tip: ctx.tip,
   });
@@ -358,6 +395,7 @@ const main = async (): Promise<void> => {
   const ctx = async (): Promise<Ctx> => ({
     actorOverride: opts.actor,
     git,
+    onProgress: progressReporter(opts.progress),
     repoRoot,
     stateDir: opts.stateDir,
     tip: await resolveTip(git, opts.tip),

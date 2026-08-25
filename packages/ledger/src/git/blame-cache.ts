@@ -88,7 +88,8 @@ const prune = async (dir: string, keepFile: string): Promise<void> => {
 export const cachedBlameTree = async (
   git: GitRun,
   rev: string,
-  paths: readonly string[]
+  paths: readonly string[],
+  onProgress?: (done: number, total: number) => void
 ): Promise<Map<string, string[]>> => {
   let dir: string | null = null;
   try {
@@ -100,7 +101,7 @@ export const cachedBlameTree = async (
   } catch {
     dir = null;
   }
-  const blames = await blameTree(git, rev, paths);
+  const blames = await blameTree(git, rev, paths, onProgress);
   if (dir) {
     try {
       await mkdir(dir, { recursive: true });

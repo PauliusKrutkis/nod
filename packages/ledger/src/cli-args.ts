@@ -10,6 +10,8 @@ import { gitIn } from "./git/exec.ts";
 export interface CliArgs {
   json: boolean;
   force: boolean;
+  /** Emit NDJSON derivation progress on stderr, for host progress views. */
+  progress: boolean;
   /** Repo to operate on; default: the repo containing cwd. */
   repo?: string;
   /**
@@ -30,7 +32,12 @@ export interface CliArgs {
 }
 
 export const parseCliArgs = (argv: readonly string[]): CliArgs => {
-  const args: CliArgs = { force: false, json: false, positional: [] };
+  const args: CliArgs = {
+    force: false,
+    json: false,
+    positional: [],
+    progress: false,
+  };
   const booleans = new Map<string, () => void>([
     [
       "--json",
@@ -42,6 +49,12 @@ export const parseCliArgs = (argv: readonly string[]): CliArgs => {
       "--force",
       () => {
         args.force = true;
+      },
+    ],
+    [
+      "--progress",
+      () => {
+        args.progress = true;
       },
     ],
   ]);

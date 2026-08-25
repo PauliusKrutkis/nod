@@ -21,10 +21,13 @@
  */
 import { InboxZero } from "@nod/ui/inbox-zero";
 import { Kbd } from "@nod/ui/kbd";
-import { Spinner } from "@nod/ui/spinner";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, CornerUpLeft } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import {
+  type LedgerPrepUpdate,
+  useLedgerPrep,
+} from "../../hooks/use-ledger-prep.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
 import { api } from "../../lib/api.ts";
 import { cn } from "../../lib/cn.ts";
@@ -39,6 +42,7 @@ import type {
   LedgerTopicApproval,
   LedgerTopicStatus,
 } from "../../types.ts";
+import { LedgerPrep } from "./ledger-prep.tsx";
 import { LedgerSession } from "./ledger-session.tsx";
 
 const LAST_REPO_KEY = "nod:ledgerLastRepo:v1";
@@ -109,6 +113,7 @@ export function Ledger() {
     queryFn: () => api.ledgerStatus(inRepo ? view.repoKey : ""),
     queryKey: queryKeys.ledger(inRepo ? view.repoKey : ""),
   });
+  const prep = useLedgerPrep(inRepo ? view.repoKey : "");
   const queue = status.data?.queue ?? [];
   const { groups } = groupQueueByProvenance(queue);
   const topics = status.data?.topics ?? [];
@@ -273,6 +278,8 @@ export function Ledger() {
         onOpen={openSession}
         onSelect={setSelected}
         pending={status.isPending}
+        prep={prep}
+        repoKey={view.repoKey}
         selected={selected}
       />
 
@@ -390,6 +397,8 @@ function QueueBody({
   onOpen,
   onSelect,
   pending,
+  prep,
+  repoKey,
   selected,
 }: {
   approvalOf: ReadonlyMap<string, LedgerTopicApproval | null>;
@@ -400,14 +409,12 @@ function QueueBody({
   onOpen: (index: number) => void;
   onSelect: (index: number) => void;
   pending: boolean;
+  prep: LedgerPrepUpdate | null;
+  repoKey: string;
   selected: number;
 }) {
   if (pending) {
-    return (
-      <div className="flex min-h-0 flex-1 items-center justify-center">
-        <Spinner label="Deriving status from git…" />
-      </div>
-    );
+    return <LedgerPrep repoKey={repoKey} update={prep} />;
   }
   if (error) {
     return (

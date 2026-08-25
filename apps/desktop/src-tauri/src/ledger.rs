@@ -18,17 +18,47 @@
 //! launched through tauri (cargo test) fall back to the as-built
 //! `binaries/ledger-<triple>` under the crate root.
 
+use std::io::{BufRead, BufReader, Read};
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Command, Stdio};
 
+use serde::Serialize;
 use serde_json::Value;
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 
 use crate::accounts;
+use crate::http::log;
 use crate::repo_store::git::{self, GitAuth};
 use crate::repo_store::service;
 use crate::repo_store::store::{self, RepoKey};
 use crate::storage;
+
+/// One step of getting a repo's ledger on screen, streamed to the webview
+/// so a cold open (clone → blame pass → derivation) reads as staged
+/// progress instead of a mute spinner. `blame` carries file counts; the
+/// terminal stages are `ready` and `failed`.
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LedgerPrepEvent {
+    repo_key: String,
+    stage: String,
+    done: Option<u64>,
+    total: Option<u64>,
+    detail: String,
+}
+
+fn emit_prep(app: &AppHandle, repo_key: &str, stage: &str, done: Option<u64>, total: Option<u64>) {
+    let _ = app.emit(
+        "ledger-prep",
+        LedgerPrepEvent {
+            detail: String::new(),
+            done,
+            repo_key: repo_key.to_string(),
+            stage: stage.to_string(),
+            total,
+        },
+    );
+}
 
 fn sidecar_path() -> Result<PathBuf, String> {
     let exe = std::env::current_exe()
@@ -129,6 +159,14 @@ async fn prepare(
     let state_dir = store::ledger_state_dir(&storage::config_dir(app)?, &key);
     let actor = account.login.clone();
     let auth: GitAuth = git::auth_for(&account);
+    if refresh {
+        let stage = if store::exists(&root, &key) {
+            "fetching"
+        } else {
+            "cloning"
+        };
+        emit_prep(app, repo_key, stage, None, None);
+    }
     tauri::async_runtime::spawn_blocking(move || -> Result<LedgerRepo, String> {
         service::ensure_branch_tips(&root, &key, &auth, refresh)?;
         std::fs::create_dir_all(&state_dir)
@@ -200,14 +238,127 @@ impl LedgerRepo {
         let stdout = self.run(command, positional)?;
         serde_json::from_str(&stdout).map_err(|e| format!("ledger returned invalid JSON: {e}"))
     }
+
+    /// `status --json --progress` with the sidecar's NDJSON stderr streamed
+    /// into `ledger-prep` events as it derives. Auto-adopts like `run`.
+    fn run_status_streaming(&self, app: &AppHandle, repo_key: &str) -> Result<Value, String> {
+        match self.stream_status(app, repo_key) {
+            Err(e) if e.contains("no ledger here yet") => {
+                self.spawn("init", &[&self.tip])?;
+                self.stream_status(app, repo_key)
+            }
+            other => other,
+        }
+    }
+
+    fn stream_status(&self, app: &AppHandle, repo_key: &str) -> Result<Value, String> {
+        let sidecar = sidecar_path()?;
+        let mut child = Command::new(&sidecar)
+            .args([
+                "--repo",
+                self.git_dir.to_str().ok_or("store path is not UTF-8")?,
+                "--tip",
+                &self.tip,
+                "--actor",
+                &self.actor,
+                "--state-dir",
+                self.state_dir.to_str().ok_or("state path is not UTF-8")?,
+                "--json",
+                "--progress",
+                "status",
+            ])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("could not launch the ledger sidecar: {e}"))?;
+
+        // stderr carries two languages: NDJSON progress lines while the
+        // derivation runs, plain text when something goes wrong. Progress
+        // becomes events as it arrives; everything else is kept as the
+        // error detail.
+        let stderr = child
+            .stderr
+            .take()
+            .ok_or("the ledger sidecar has no stderr")?;
+        let event_app = app.clone();
+        let event_key = repo_key.to_string();
+        let reader = std::thread::spawn(move || {
+            let mut noise = String::new();
+            for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+                match serde_json::from_str::<Value>(&line) {
+                    Ok(progress) if progress.get("stage").is_some() => {
+                        emit_prep(
+                            &event_app,
+                            &event_key,
+                            progress["stage"].as_str().unwrap_or(""),
+                            progress.get("done").and_then(Value::as_u64),
+                            progress.get("total").and_then(Value::as_u64),
+                        );
+                    }
+                    _ => {
+                        noise.push_str(&line);
+                        noise.push('\n');
+                    }
+                }
+            }
+            noise
+        });
+
+        let mut stdout = String::new();
+        if let Some(mut pipe) = child.stdout.take() {
+            let _ = pipe.read_to_string(&mut stdout);
+        }
+        let status = child
+            .wait()
+            .map_err(|e| format!("the ledger sidecar died: {e}"))?;
+        let noise = reader.join().unwrap_or_default();
+        if !status.success() {
+            let detail = if noise.trim().is_empty() {
+                stdout
+            } else {
+                noise
+            };
+            return Err(format!("ledger status failed: {}", detail.trim()));
+        }
+        serde_json::from_str(&stdout).map_err(|e| format!("ledger returned invalid JSON: {e}"))
+    }
+}
+
+async fn status_inner(app: &AppHandle, repo_key: &str) -> Result<Value, String> {
+    let repo = match prepare(app, repo_key, true).await {
+        Ok(repo) => repo,
+        Err(e) => {
+            emit_prep(app, repo_key, "failed", None, None);
+            return Err(e);
+        }
+    };
+    let task_app = app.clone();
+    let task_key = repo_key.to_string();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        repo.run_status_streaming(&task_app, &task_key)
+    })
+    .await
+    .map_err(|e| format!("ledger status failed: {e}"))?;
+    let stage = if result.is_ok() { "ready" } else { "failed" };
+    emit_prep(app, repo_key, stage, None, None);
+    result
 }
 
 #[tauri::command]
 pub async fn ledger_status(app: AppHandle, repo_key: String) -> Result<Value, String> {
-    let repo = prepare(&app, &repo_key, true).await?;
-    tauri::async_runtime::spawn_blocking(move || repo.run_json("status", &[]))
-        .await
-        .map_err(|e| format!("ledger status failed: {e}"))?
+    status_inner(&app, &repo_key).await
+}
+
+/// Fire-and-forget full warm — clone, tip refresh, derivation — so a repo
+/// is ready before its ledger is first opened. Kicked when a repo becomes
+/// watched; failures only log (the open path reports its own).
+pub fn warm(app: &AppHandle, repo_key: String) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        if let Err(e) = status_inner(&app, &repo_key).await {
+            log(&format!("ledger warm failed for {repo_key}: {e}"));
+        }
+    });
 }
 
 #[tauri::command]
