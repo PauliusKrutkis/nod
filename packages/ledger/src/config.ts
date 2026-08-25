@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import type { GitRun } from "./git/exec.ts";
 
 /**
  * Repo-versioned settings (docs/LEDGER.md §6): `.ledger/` lives in the
@@ -28,6 +29,14 @@ const isConfig = (value: unknown): value is LedgerConfig =>
       Number.isInteger(value.approvalsRequired) &&
       value.approvalsRequired >= 1));
 
+const parseConfig = (raw: string, label: string): LedgerConfig => {
+  const value: unknown = JSON.parse(raw);
+  if (!isConfig(value)) {
+    throw new Error(`invalid ${label}`);
+  }
+  return value;
+};
+
 export const readLedgerConfig = async (
   repoRoot: string
 ): Promise<LedgerConfig | null> => {
@@ -37,11 +46,25 @@ export const readLedgerConfig = async (
   } catch {
     return null;
   }
-  const value: unknown = JSON.parse(raw);
-  if (!isConfig(value)) {
-    throw new Error(`invalid ${CONFIG_PATH}`);
+  return parseConfig(raw, CONFIG_PATH);
+};
+
+/**
+ * The committed config at `tip`, for repos read without a worktree (bare
+ * store clones). Callers prefer the worktree file when both exist — same
+ * content once committed, and the dogfood loop may be editing it.
+ */
+export const readCommittedConfig = async (
+  git: GitRun,
+  tip: string
+): Promise<LedgerConfig | null> => {
+  let raw: string;
+  try {
+    raw = await git(["cat-file", "blob", `${tip}:${CONFIG_PATH}`]);
+  } catch {
+    return null;
   }
-  return value;
+  return parseConfig(raw, `committed ${CONFIG_PATH}`);
 };
 
 export const writeLedgerConfig = async (
