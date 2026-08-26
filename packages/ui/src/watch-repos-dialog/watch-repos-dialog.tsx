@@ -149,6 +149,10 @@ export interface WatchReposDialogProps {
   hits: readonly RepoHit[] | null;
   onWatch: (fullName: string) => void;
   onStopWatching: (repo: string) => void;
+  /** When provided, each watched row wears a Ledger toggle: whether the
+   *  repo's review coverage derives, independent of watching it. */
+  ledgerOn?: (repo: string) => boolean;
+  onToggleLedger?: (repo: string) => void;
   onOrgAccessHelp?: () => void;
   searching?: boolean;
   saving?: boolean;
@@ -171,6 +175,8 @@ function WatchReposDialogContent({
   hits,
   onWatch,
   onStopWatching,
+  ledgerOn,
+  onToggleLedger,
   onOrgAccessHelp,
   searching = false,
   saving = false,
@@ -357,7 +363,9 @@ function WatchReposDialogContent({
           <div className="qw-list-rows" ref={listRef}>
             <WatchedList
               armed={armed}
+              ledgerOn={ledgerOn}
               onStopWatching={stopWatching}
+              onToggleLedger={onToggleLedger}
               repos={repos}
             />
           </div>
@@ -398,11 +406,15 @@ function WatchReposDialogContent({
 
 function WatchedList({
   armed,
+  ledgerOn,
   onStopWatching,
+  onToggleLedger,
   repos,
 }: {
   armed: Armed;
+  ledgerOn?: (repo: string) => boolean;
   onStopWatching: (repo: string) => void;
+  onToggleLedger?: (repo: string) => void;
   repos: readonly string[] | null | undefined;
 }) {
   // Loading says nothing here — the input is sweeping, and an empty box under
@@ -430,7 +442,9 @@ function WatchedList({
     <WatchedRepoRow
       armed={armed === i}
       key={repo}
+      ledgerOn={ledgerOn ? ledgerOn(repo) : undefined}
       onStopWatching={onStopWatching}
+      onToggleLedger={onToggleLedger}
       repo={repo}
     />
   ));
@@ -490,19 +504,39 @@ function WatchHitRow({
 function WatchedRepoRow({
   repo,
   armed,
+  ledgerOn,
   onStopWatching,
+  onToggleLedger,
 }: {
   repo: string;
   armed: boolean;
+  ledgerOn?: boolean;
   onStopWatching: (repo: string) => void;
+  onToggleLedger?: (repo: string) => void;
 }) {
   const handleClick = () => {
     onStopWatching(repo);
+  };
+  const handleLedger = () => {
+    onToggleLedger?.(repo);
   };
 
   return (
     <div className={cn("qw-row", armed && "qw-row-armed")} data-armed={armed}>
       <span className="qw-name">{repo}</span>
+      {ledgerOn !== undefined && (
+        <button
+          aria-label={`${ledgerOn ? "Disable" : "Enable"} the ledger for ${repo}`}
+          aria-pressed={ledgerOn}
+          className={cn("qw-ledger", ledgerOn && "qw-ledger-on")}
+          onClick={handleLedger}
+          tabIndex={-1}
+          title="Review coverage of this repository's main branch"
+          type="button"
+        >
+          Ledger
+        </button>
+      )}
       <button
         aria-label={`Stop watching ${repo}`}
         className="qw-x"

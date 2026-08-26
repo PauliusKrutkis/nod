@@ -1,4 +1,4 @@
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { api } from "../lib/api.ts";
 import { queryClient, queryKeys } from "../lib/query-client.ts";
@@ -32,6 +32,31 @@ export function prefetchLedgerSession(
  * keeps tab-hopping from re-deriving six repos every few seconds, while
  * `ledger-assignments` invalidation still regroups immediately.
  */
+/**
+ * The repos whose ledgers derive: watched minus the per-repo opt-outs the
+ * watch dialog's Ledger toggle writes. Watching alone never starts
+ * derivations for an opted-out repo — no clone churn, no LLM calls.
+ */
+export function useLedgerRepos(): {
+  ledgerRepos: string[];
+  watchedCount: number;
+} {
+  const watched = useQuery({
+    queryFn: () => api.getWatchedRepos(),
+    queryKey: queryKeys.watchedRepos,
+  });
+  const excluded = useQuery({
+    queryFn: () => api.getLedgerExcluded(),
+    queryKey: queryKeys.ledgerExcluded,
+  });
+  const all = watched.data ?? [];
+  const out = new Set(excluded.data ?? []);
+  return {
+    ledgerRepos: all.filter((repo) => !out.has(repo)),
+    watchedCount: all.length,
+  };
+}
+
 export function useLedgerStatuses(repos: readonly string[]) {
   useEffect(() => {
     for (const repoKey of repos) {

@@ -2,6 +2,7 @@ import {
   type RepoHit,
   WatchReposDialog as WatchReposDialogView,
 } from "@nod/ui/watch-repos-dialog";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useCoalescedWrite } from "../../hooks/use-coalesced-write.ts";
 import { useWatchedRepos } from "../../hooks/use-subscribed.ts";
@@ -99,6 +100,27 @@ function WatchReposLoaderContent({ onClose }: { onClose: () => void }) {
     save([...(optimisticRepos ?? data ?? []), fullName]);
   };
 
+  // The per-repo Ledger toggle: an exclusion list, optimistic like the
+  // watched list itself, invalidating the statuses so the tab and its
+  // count follow the flip immediately.
+  const excluded = useQuery({
+    queryFn: () => api.getLedgerExcluded(),
+    queryKey: queryKeys.ledgerExcluded,
+  });
+  const excludedList = excluded.data ?? [];
+  const ledgerOn = (repo: string) => !excludedList.includes(repo);
+  const onToggleLedger = (repo: string) => {
+    const next = excludedList.includes(repo)
+      ? excludedList.filter((x) => x !== repo)
+      : [...excludedList, repo];
+    queryClient.setQueryData(queryKeys.ledgerExcluded, next);
+    api
+      .setLedgerExcluded(next)
+      .catch(() =>
+        queryClient.invalidateQueries({ queryKey: queryKeys.ledgerExcluded })
+      );
+  };
+
   const onOpenChange = (next: boolean) => {
     if (!next) {
       onClose();
@@ -145,10 +167,12 @@ function WatchReposLoaderContent({ onClose }: { onClose: () => void }) {
     <WatchReposDialogView
       error={writeError}
       hits={answered ? (searchResult?.hits ?? null) : null}
+      ledgerOn={ledgerOn}
       onOpenChange={onOpenChange}
       onOrgAccessHelp={openOrgApprovalDocs}
       onQueryChange={setQuery}
       onStopWatching={onStopWatching}
+      onToggleLedger={onToggleLedger}
       onWatch={onWatch}
       open
       query={query}

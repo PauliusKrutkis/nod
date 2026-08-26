@@ -33,6 +33,7 @@ import { useLedgerAssignments } from "../../hooks/use-ledger-assignments.ts";
 import { useLedgerPrep } from "../../hooks/use-ledger-prep.ts";
 import {
   prefetchLedgerSession,
+  useLedgerRepos,
   useLedgerStatuses,
 } from "../../hooks/use-ledger-statuses.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
@@ -43,6 +44,7 @@ import {
   type ProvenanceGroup,
 } from "../../lib/ledger-session.ts";
 import { queryKeys } from "../../lib/query-client.ts";
+import { useAppStore } from "../../store/app-store.ts";
 import type {
   LedgerQueueItem,
   LedgerStatus,
@@ -78,6 +80,56 @@ interface QueueEntry {
   group: ProvenanceGroup;
   approval: LedgerTopicApproval | null;
   status: LedgerStatus;
+  /** Sole commit author across the group, when everyone agrees. */
+  author?: string;
+  /** Newest provenance commit — the group's freshness, PR-row style. */
+  updatedAt?: string;
+  commentCount: number;
+  lastComment?: { author: string; body: string; createdAt: string };
+}
+
+/** Author, freshness, and comment presence for one group — the fields the
+ *  PR row and pane show, derived from provenance and positioned facts. */
+function entryMeta(
+  group: ProvenanceGroup,
+  status: LedgerStatus
+): Pick<QueueEntry, "author" | "updatedAt" | "commentCount" | "lastComment"> {
+  const authors = new Set<string>();
+  let updatedAt: string | undefined;
+  for (const item of group.items) {
+    for (const p of item.provenance) {
+      if (p.author) {
+        authors.add(p.author);
+      }
+      if (p.at && (updatedAt === undefined || p.at > updatedAt)) {
+        updatedAt = p.at;
+      }
+    }
+  }
+  const files = new Set(group.items.map((i) => i.path));
+  let commentCount = 0;
+  let last: QueueEntry["lastComment"];
+  let lastAt = "";
+  for (const comment of status.comments) {
+    if (comment.parent !== null || !files.has(comment.path)) {
+      continue;
+    }
+    commentCount += 1;
+    if (comment.atTime > lastAt) {
+      lastAt = comment.atTime;
+      last = {
+        author: comment.actor.id,
+        body: comment.body,
+        createdAt: comment.atTime,
+      };
+    }
+  }
+  return {
+    author: authors.size === 1 ? [...authors][0] : undefined,
+    commentCount,
+    lastComment: last,
+    updatedAt,
+  };
 }
 
 interface FinishedTopic {
@@ -111,6 +163,7 @@ function assembleQueue(
         group,
         repoKey,
         status,
+        ...entryMeta(group, status),
       });
     }
     for (const topic of status.topics) {
@@ -126,17 +179,31 @@ function assembleQueue(
   return { entries, finished };
 }
 
+function zeroHint(watchedCount: number, ledgerCount: number): string {
+  if (watchedCount === 0) {
+    return "Watch a repository first — press w.";
+  }
+  if (ledgerCount === 0) {
+    return "The ledger is off for every watched repository — press w and flip a Ledger toggle.";
+  }
+  return "Every post-epoch line on tip carries a review.";
+}
+
+function seenKey(entry: QueueEntry): string {
+  return `ledger:${entry.repoKey}:${entry.group.key}`;
+}
+
 export function Ledger({ onLeave }: { onLeave: () => void }) {
   useLedgerAssignments();
+  // The inbox's own seen-tracking, namespaced: a group reads unread until
+  // its session is opened, and lights again when newer commits join it.
+  const isUnread = useAppStore((s) => s.isUnread);
+  const markSeen = useAppStore((s) => s.markSeen);
   const [view, setView] = useState<LedgerView>({ kind: "queue" });
   const [selectedIndex, setSelected] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const watched = useQuery({
-    queryFn: () => api.getWatchedRepos(),
-    queryKey: queryKeys.watchedRepos,
-  });
-  const repos = watched.data ?? [];
+  const { ledgerRepos: repos, watchedCount } = useLedgerRepos();
 
   const statuses = useLedgerStatuses(repos);
 
@@ -193,6 +260,7 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
     if (!(entry && first)) {
       return;
     }
+    markSeen(seenKey(entry), entry.updatedAt ?? new Date().toISOString());
     setView({
       group: { label: entry.group.label, subject: entry.group.subject },
       initialTarget: targetOf(first),
@@ -281,11 +349,7 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
       <div className="flex h-full min-h-0 flex-col">
         <div className="flex-1">
           <InboxZero
-            hint={
-              repos.length === 0
-                ? "Watch a repository first — press w."
-                : "Every post-epoch line on tip carries a review."
-            }
+            hint={zeroHint(watchedCount, repos.length)}
             title={repos.length === 0 ? "Nothing to ledger yet" : "All read"}
           />
         </div>
@@ -311,7 +375,11 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
                 onOpen={() => openSession(i)}
                 pr={rowOf(entry)}
                 selected={i === selected}
-                unread={entry.approval !== null}
+                unread={
+                  entry.updatedAt
+                    ? isUnread(seenKey(entry), entry.updatedAt)
+                    : entry.approval !== null
+                }
               />
             </div>
           ))}
@@ -341,7 +409,8 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
 function rowOf(entry: QueueEntry): PullRequestRow {
   const bucket = isBucketTopic(entry.group.label);
   return {
-    commentsCount: 0,
+    author: entry.author,
+    commentsCount: entry.commentCount,
     draft: false,
     headRef: bucket ? entry.group.label : "",
     merged: false,
@@ -349,6 +418,7 @@ function rowOf(entry: QueueEntry): PullRequestRow {
     title: bucket
       ? entry.group.subject || entry.group.label
       : entry.group.label,
+    updatedAt: entry.updatedAt,
   };
 }
 
@@ -380,16 +450,19 @@ function detailOf(entry: QueueEntry, aiConfigured: boolean): InboxPullRequest {
   ].join("\n");
   return {
     additions: group.newLines,
+    author: entry.author,
     body,
     changedFiles: group.fileCount,
-    commentsCount: 0,
+    commentsCount: entry.commentCount,
     deletions: 0,
     draft: false,
+    lastComment: entry.lastComment,
     merged: false,
     repo: entry.repoKey,
     title: isBucketTopic(group.label)
       ? group.subject || group.label
       : group.label,
+    updatedAt: entry.updatedAt,
   };
 }
 

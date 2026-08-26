@@ -410,6 +410,10 @@ export interface ReleaseInfo {
  * `newLines` counts only unreviewed post-epoch lines inside the span.
  */
 interface LedgerProvenance {
+  /** Committer date, ISO 8601. */
+  at: string;
+  /** Commit author name. */
+  author: string;
   pr: number | null;
   sha: string;
   subject: string;

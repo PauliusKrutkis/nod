@@ -517,6 +517,8 @@ export function installBridge(cfg: BridgeConfig) {
     get_watched_repos: () => cfg.watchedRepos,
     has_token: () => cfg.hasToken,
     ledger_status_cached: () => null,
+    get_ledger_excluded: () => [],
+    set_ledger_excluded: () => null,
     ledger_approve: (args) => {
       countCall("ledger_approve");
       localStorage.setItem("e2e:ledgerApprove", JSON.stringify(args));

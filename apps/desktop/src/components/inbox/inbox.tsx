@@ -36,7 +36,6 @@ import { InboxZero } from "@nod/ui/inbox-zero";
 import { Kbd } from "@nod/ui/kbd";
 import { OrgAccessHint } from "@nod/ui/org-access-hint";
 import { Spinner } from "@nod/ui/spinner";
-import { useQuery } from "@tanstack/react-query";
 import {
   Archive,
   ArchiveRestore,
@@ -50,15 +49,16 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useInbox } from "../../hooks/use-inbox.ts";
-import { useLedgerStatuses } from "../../hooks/use-ledger-statuses.ts";
+import {
+  useLedgerRepos,
+  useLedgerStatuses,
+} from "../../hooks/use-ledger-statuses.ts";
 import { prefetchPullRequest } from "../../hooks/use-pull-request-detail.ts";
 import { useSubscribed } from "../../hooks/use-subscribed.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
-import { api } from "../../lib/api.ts";
 import { groupQueueByProvenance } from "../../lib/ledger-session.ts";
 import { openExternal } from "../../lib/open-external.ts";
 import { openOrgApprovalDocs } from "../../lib/org-approval-docs.ts";
-import { queryKeys } from "../../lib/query-client.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type { InboxData, InboxTabKey, PullRequest } from "../../types.ts";
 import { prKey } from "../../types.ts";
@@ -150,11 +150,7 @@ export function Inbox() {
   // Same query keys the ledger itself uses, so this rides the cache the
   // background warm already filled; a long staleTime keeps the inbox from
   // re-deriving on every mount, while the ledger tab refetches as it does.
-  const watchedForLedger = useQuery({
-    queryFn: () => api.getWatchedRepos(),
-    queryKey: queryKeys.watchedRepos,
-  });
-  const ledgerRepos = watchedForLedger.data ?? [];
+  const { ledgerRepos } = useLedgerRepos();
   const ledgerStatuses = useLedgerStatuses(ledgerRepos);
   const ledgerLoaded =
     ledgerRepos.length > 0 && ledgerStatuses.every((q) => q.data !== undefined);

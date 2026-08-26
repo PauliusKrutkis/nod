@@ -657,6 +657,7 @@ export const EMPTY_LEDGER = {
   tip: "e9017aa000000000000000000000000000000000",
   topics: [],
   totalLines: 0,
+  comments: [],
   unassigned: [],
 };
 
@@ -722,6 +723,7 @@ export const LEDGER = {
     },
   ],
   totalLines: 46,
+  comments: [],
   unassigned: [
     {
       files: ["src/facts/store.ts"],
@@ -741,6 +743,7 @@ export const LEDGER_AFTER_REVIEW = {
   tip: "71b0000000000000000000000000000000000000",
   topics: LEDGER.topics,
   totalLines: 46,
+  comments: [],
   unassigned: LEDGER.unassigned,
 };
 
@@ -767,6 +770,7 @@ export const LEDGER_AFTER_APPROVE = {
     },
   ],
   totalLines: 46,
+  comments: [],
   unassigned: LEDGER.unassigned,
 };
 

@@ -125,7 +125,9 @@ describe("groupQueueByProvenance", () => {
     endLine: 6,
     newLines: 6,
     path,
-    provenance: [{ pr, sha, subject }],
+    provenance: [
+      { at: "2026-08-25T12:00:00Z", author: "paulius", pr, sha, subject },
+    ],
     startLine: 1,
     topic,
   });

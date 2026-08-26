@@ -905,6 +905,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
   "watch-repos-dialog": {
     dialog: true,
     fixtures: [
+      "ledger-toggles",
       "crowd-60",
       "crowd-60-hits",
       "empty",

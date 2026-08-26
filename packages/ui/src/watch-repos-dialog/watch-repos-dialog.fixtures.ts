@@ -67,6 +67,14 @@ export const watchReposDialogEntry = defineEntry(
   WatchReposDialog,
   {
     "crowd-60": { props: { ...shared, repos: MANY } },
+    "ledger-toggles": {
+      props: {
+        ...shared,
+        ledgerOn: (repo: string) => !repo.includes("infra"),
+        onToggleLedger: noop,
+        repos: ["nod/nod", "nod/site", "acme/infra-terraform", "acme/checkout"],
+      },
+    },
     "crowd-60-hits": {
       props: {
         ...shared,

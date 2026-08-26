@@ -155,6 +155,7 @@ export const api = {
   fetchSitePricing: () => invoke<SitePricing>("fetch_site_pricing"),
 
   getViewedMap: () => invoke<unknown>("get_viewed_map"),
+  getLedgerExcluded: () => invoke<string[]>("get_ledger_excluded"),
   getWatchedRepos: () => invoke<string[]>("get_watched_repos"),
   hasToken: () => invoke<boolean>("has_token"),
   installUpdate: () => invoke<void>("install_update"),
@@ -183,6 +184,8 @@ export const api = {
     invoke<LedgerSession>("ledger_session", { repoKey, targets }),
   ledgerStatus: (repoKey: string) =>
     invoke<LedgerStatus>("ledger_status", { repoKey }),
+  setLedgerExcluded: (repos: string[]) =>
+    invoke<void>("set_ledger_excluded", { repos }),
   ledgerStatusCached: (repoKey: string) =>
     invoke<LedgerStatus | null>("ledger_status_cached", { repoKey }),
 
