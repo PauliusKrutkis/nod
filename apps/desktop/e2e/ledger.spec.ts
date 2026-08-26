@@ -43,15 +43,19 @@ test("the queue lists one row per feature group, styled as inbox rows", async ({
 
   await openLedger(page);
   await expect(page.getByRole("option")).toHaveCount(2);
-  // Rows wear the PR row anatomy: subject as title, topic on the branch
-  // chip. #321 carries scope "ledger"; the direct push falls back to sha.
+  // Rows wear the PR row anatomy, titled by identity: a named topic leads
+  // with its feature name ("ledger" from the #321 scope), while a bucket
+  // (the direct push's sha) leads with the commit subject and wears the
+  // bucket on the branch chip.
   const list = sessionList(page);
-  await expect(
-    list.getByText("feat(ledger): anchor resolver (#321)")
-  ).toBeVisible();
   await expect(list.getByText("ledger", { exact: true })).toBeVisible();
+  await expect(list.getByText("chore: tighten CAS retry")).toBeVisible();
   await expect(list.getByText("d1eec70", { exact: true })).toBeVisible();
-  // The reading pane carries the repo's coverage and the group's size.
+  // The reading pane mirrors the row's title and carries the story,
+  // coverage, and the group's size.
+  await expect(
+    page.getByText("feat(ledger): anchor resolver (#321)")
+  ).toBeVisible();
   await expect(page.getByText(COVERAGE_ZERO)).toBeVisible();
   await expect(page.locator(".qi-detail-stats").getByText("+40")).toBeVisible();
 

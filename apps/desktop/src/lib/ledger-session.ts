@@ -207,6 +207,19 @@ export function initialAnchorFor(
   return first ? { anchor: first.anchor, fileIndex } : null;
 }
 
+/**
+ * A provenance-bucket label (`#363`, a bare sha) is a fallback, not a
+ * feature name. The queue leads with the topic when it has a real name
+ * and falls back to the commit subject when it only has a bucket —
+ * mirrors the engine's own bucket test in topics/assign.ts.
+ */
+const PR_LABEL = /^#\d+$/;
+const SHA_LABEL = /^[0-9a-f]{7,40}$/;
+
+export function isBucketTopic(topic: string): boolean {
+  return PR_LABEL.test(topic) || SHA_LABEL.test(topic);
+}
+
 export interface ProvenanceGroup {
   /** Distinct headline provenance labels across the group's items (#pr / sha). */
   chips: string[];

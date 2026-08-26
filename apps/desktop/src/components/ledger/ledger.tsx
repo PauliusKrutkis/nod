@@ -35,6 +35,7 @@ import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
 import { api } from "../../lib/api.ts";
 import {
   groupQueueByProvenance,
+  isBucketTopic,
   type ProvenanceGroup,
 } from "../../lib/ledger-session.ts";
 import { queryKeys } from "../../lib/query-client.ts";
@@ -311,17 +312,23 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
   );
 }
 
-/** A topic group in the PR row's shape: the leading subject is the title,
- *  the topic rides the branch chip, the repo sits where it does for PRs.
- *  No number — a group can span many PRs, and the pane lists them all. */
+/** A topic group in the PR row's shape. The title answers "what is this
+ *  thing?": the feature name when the topic has one, and only for bucket
+ *  labels (#123, a bare sha — unmapped or keyless) the leading commit
+ *  subject, with the bucket riding the branch chip. A named topic never
+ *  repeats itself in the chip. No number — a group can span many PRs, and
+ *  the pane lists them all. */
 function rowOf(entry: QueueEntry): PullRequestRow {
+  const bucket = isBucketTopic(entry.group.label);
   return {
     commentsCount: 0,
     draft: false,
-    headRef: entry.group.label,
+    headRef: bucket ? entry.group.label : "",
     merged: false,
     repo: entry.repoKey,
-    title: entry.group.subject || entry.group.label,
+    title: bucket
+      ? entry.group.subject || entry.group.label
+      : entry.group.label,
   };
 }
 
@@ -360,7 +367,9 @@ function detailOf(entry: QueueEntry, aiConfigured: boolean): InboxPullRequest {
     draft: false,
     merged: false,
     repo: entry.repoKey,
-    title: group.subject || group.label,
+    title: isBucketTopic(group.label)
+      ? group.subject || group.label
+      : group.label,
   };
 }
 
