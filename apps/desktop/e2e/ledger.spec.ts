@@ -114,6 +114,10 @@ test("enter opens a session on the review surface and r signs the region", async
 
   await page.keyboard.press("Enter");
   await expect(page.locator('[data-testid="review-scroller"]')).toBeVisible();
+  // A session owns the window like the review screen: no tab strip, and
+  // the file tree column is there even for a single file.
+  await expect(page.getByRole("button", { name: "Ledger" })).toBeHidden();
+  await expect(page.locator(".qf-filelist")).toBeVisible();
   await expect(page.getByText("resolveAnchor")).toBeVisible();
   const sessionArgs = await page.evaluate(() =>
     localStorage.getItem("e2e:ledgerSession")

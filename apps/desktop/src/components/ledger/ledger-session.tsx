@@ -28,6 +28,7 @@ import {
 } from "react";
 import { useReviewFind } from "../../hooks/use-review-find.ts";
 import { isRealPointer } from "../../hooks/use-review-list-callbacks.ts";
+import { useReviewPanels } from "../../hooks/use-review-panels.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
 import { api } from "../../lib/api.ts";
 import { copyTextToClipboard } from "../../lib/clipboard.ts";
@@ -50,12 +51,12 @@ import {
 import { fingerprintFile } from "../../lib/viewed-fingerprint.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type { PendingComment } from "../../types.ts";
-import { FileSidebarLoader } from "../review/file-sidebar-loader.tsx";
 import { ReviewDiffPane } from "../review/review-diff-pane.tsx";
 import type {
   ReviewListCallbacks,
   ReviewListHandle,
 } from "../review/review-list.tsx";
+import { FileTreeColumn } from "../review/review-screen.tsx";
 
 const EMPTY_PENDING: ReadonlyMap<string, PendingComment[]> = new Map();
 const EMPTY_ROWS: ReadonlyMap<number, readonly DiffRow[]> = new Map();
@@ -99,6 +100,7 @@ export function LedgerSession({
   const viewedFiles = useAppStore((s) => s.viewed[viewedKey]);
   const toggleViewed = useAppStore((s) => s.toggleViewed);
   const queryClient = useQueryClient();
+  const panels = useReviewPanels();
   const [signing, setSigning] = useState(false);
   const [approving, setApproving] = useState(false);
 
@@ -464,6 +466,12 @@ export function LedgerSession({
 
   useHotkeys("ledger-session", [
     {
+      description: "Toggle file tree",
+      group: "Session",
+      keys: "mod+b",
+      run: panels.onToggleSidebar,
+    },
+    {
       description: "Next line",
       group: "Session",
       keys: ["j", "down"],
@@ -639,55 +647,63 @@ export function LedgerSession({
   };
 
   return (
-    <div className="dir-quiet flex h-full min-h-0 flex-col">
-      {/* The review screen's own ReviewHeader — one component, different
-          data: the topic is the title, baseline→tip shas ride the branch
-          chips (copyable like branches), and Approve stands where the
-          submit button stands, gated exactly like the `a` key. No author,
-          no number, no info dock: a topic has none of those. */}
-      <ReviewHeader
-        onCopyBranch={copyTextToClipboard}
-        onOpenSubmit={approve}
-        onOpenTicket={noop}
-        onToggleRightPanel={noop}
-        onToggleSidebar={noop}
-        pr={{
-          baseRef: baseline ? shortSha(baseline.sha) : undefined,
-          draft: false,
-          headRef: baseline ? shortSha(tip) : undefined,
-          merged: false,
-          repo: repoKey,
-          state: "open",
-          title: group.label,
-        }}
-        showInfo={false}
-        submitCombo="a"
-        submitDisabled={!allViewed}
-        submitLabel="Approve"
+    // The review screen's exact frame — full-height file tree beside a main
+    // column whose header is the review screen's own ReviewHeader with
+    // topic data: the topic is the title, baseline→tip shas ride the branch
+    // chips (copyable like branches), Approve stands where submit stands,
+    // gated exactly like the `a` key. No author, no number, no info dock:
+    // a topic has none of those.
+    <div className="dir-quiet relative flex h-full min-h-0 overflow-hidden">
+      <FileTreeColumn
+        changed={EMPTY_SET}
+        comments={commentList}
+        compact={panels.sidebarCompact}
+        files={files}
+        onResize={panels.onSidebarResize}
+        onSelect={jumpToFile}
+        open={panels.sidebarOpen}
+        pending={EMPTY_PENDING_LIST}
+        prKeyValue={`ledger:${repoKey}`}
+        selectedIndex={clampedIndex}
+        width={panels.sidebarWidth}
+      />
+      <button
+        aria-hidden={!panels.sidebarOverlayOpen}
+        aria-label="Close file tree"
+        className={cn(
+          "qf-sidebar-scrim",
+          panels.sidebarOverlayOpen && "qf-sidebar-scrim-open"
+        )}
+        onClick={panels.onCloseSidebar}
+        tabIndex={-1}
+        type="button"
       />
 
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        {files.length > 1 && (
-          <aside
-            className={cn(
-              "qf-sidebar-col",
-              "qf-sidebar-inline",
-              "qf-sidebar-open"
-            )}
-          >
-            <FileSidebarLoader
-              changed={EMPTY_SET}
-              comments={commentList}
-              files={files}
-              onSelect={jumpToFile}
-              pending={EMPTY_PENDING_LIST}
-              prKeyValue={`ledger:${repoKey}`}
-              selectedIndex={clampedIndex}
-            />
-          </aside>
-        )}
+      <main className="qf-main flex min-w-0 flex-1 flex-col">
+        <ReviewHeader
+          onCopyBranch={copyTextToClipboard}
+          onOpenSubmit={approve}
+          onOpenTicket={noop}
+          onToggleRightPanel={noop}
+          onToggleSidebar={panels.onToggleSidebar}
+          pr={{
+            baseRef: baseline ? shortSha(baseline.sha) : undefined,
+            draft: false,
+            headRef: baseline ? shortSha(tip) : undefined,
+            merged: false,
+            repo: repoKey,
+            state: "open",
+            title: group.label,
+          }}
+          showInfo={false}
+          showSidebarToggle={panels.sidebarCompact || !panels.sidebarOpen}
+          sidebarOpen={panels.sidebarOpen}
+          submitCombo="a"
+          submitDisabled={!allViewed}
+          submitLabel="Approve"
+        />
         {body()}
-      </div>
+      </main>
     </div>
   );
 }

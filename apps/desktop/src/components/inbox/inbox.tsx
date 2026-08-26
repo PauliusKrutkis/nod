@@ -36,6 +36,7 @@ import { InboxZero } from "@nod/ui/inbox-zero";
 import { Kbd } from "@nod/ui/kbd";
 import { OrgAccessHint } from "@nod/ui/org-access-hint";
 import { Spinner } from "@nod/ui/spinner";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import {
   Archive,
   ArchiveRestore,
@@ -52,8 +53,11 @@ import { useInbox } from "../../hooks/use-inbox.ts";
 import { prefetchPullRequest } from "../../hooks/use-pull-request-detail.ts";
 import { useSubscribed } from "../../hooks/use-subscribed.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
+import { api } from "../../lib/api.ts";
+import { groupQueueByProvenance } from "../../lib/ledger-session.ts";
 import { openExternal } from "../../lib/open-external.ts";
 import { openOrgApprovalDocs } from "../../lib/org-approval-docs.ts";
+import { queryKeys } from "../../lib/query-client.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type { InboxData, InboxTabKey, PullRequest } from "../../types.ts";
 import { prKey } from "../../types.ts";
@@ -136,6 +140,37 @@ export function Inbox() {
   const setToast = useAppStore((s) => s.setToast);
 
   const { data: subscribedData } = useSubscribed();
+  const ledgerSessionOpen = useAppStore((s) => s.ledgerSessionOpen);
+  // A ledger session owns the window the way the review screen does; the
+  // tab strip stands down until escape returns to the queue.
+  const fullSurface = tab === "ledger" && ledgerSessionOpen;
+
+  // The Ledger tab's count: open topic groups across every watched repo.
+  // Same query keys the ledger itself uses, so this rides the cache the
+  // background warm already filled; a long staleTime keeps the inbox from
+  // re-deriving on every mount, while the ledger tab refetches as it does.
+  const watchedForLedger = useQuery({
+    queryFn: () => api.getWatchedRepos(),
+    queryKey: queryKeys.watchedRepos,
+  });
+  const ledgerRepos = watchedForLedger.data ?? [];
+  const ledgerStatuses = useQueries({
+    queries: ledgerRepos.map((repoKey) => ({
+      queryFn: () => api.ledgerStatus(repoKey),
+      queryKey: queryKeys.ledger(repoKey),
+      staleTime: 60_000,
+    })),
+  });
+  const ledgerLoaded =
+    ledgerRepos.length > 0 && ledgerStatuses.every((q) => q.data !== undefined);
+  const ledgerCount = ledgerLoaded
+    ? ledgerStatuses.reduce(
+        (sum, q) =>
+          sum +
+          (q.data ? groupQueueByProvenance(q.data.queue).groups.length : 0),
+        0
+      )
+    : null;
   const [watchOpen, setWatchOpen] = useState(false);
 
   const buckets = {
@@ -419,8 +454,9 @@ export function Inbox() {
         tab={tab}
         tabItems={visibleTabs.map((t) => ({
           ...t,
-          count: t.key === "ledger" ? null : visibleCounts[t.key],
+          count: t.key === "ledger" ? ledgerCount : visibleCounts[t.key],
         }))}
+        tabless={fullSurface}
       />
 
       <WatchReposLoader onClose={closeWatchDialog} open={watchOpen} />
@@ -449,6 +485,7 @@ function InboxSurface({
   showArchived,
   tab,
   tabItems,
+  tabless,
 }: {
   activeTab: (typeof TABS)[number];
   archivedCount: number;
@@ -467,6 +504,7 @@ function InboxSurface({
   selectedPR: PullRequest | undefined;
   showArchived: boolean;
   tab: InboxTabKey;
+  tabless: boolean;
   tabItems: {
     count: number | null;
     hint: string;
@@ -526,15 +564,19 @@ function InboxSurface({
         selected: index === selectedIndex,
         unread: isUnread(keyFor(pr), pr.updatedAt),
       }))}
-      tabs={{
-        activeKey: tab,
-        archivedActive: showArchived,
-        archivedCount,
-        items: tabItems,
-        onSelect: onSelectTab,
-        onToggleArchived,
-        onWatch: onOpenWatch,
-      }}
+      tabs={
+        tabless
+          ? null
+          : {
+              activeKey: tab,
+              archivedActive: showArchived,
+              archivedCount,
+              items: tabItems,
+              onSelect: onSelectTab,
+              onToggleArchived,
+              onWatch: onOpenWatch,
+            }
+      }
     />
   );
 }
