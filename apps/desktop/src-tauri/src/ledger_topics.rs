@@ -100,25 +100,35 @@ fn topic_ids(status: &Value) -> Vec<String> {
 /// the model exists to improve on.
 fn build_prompt(repo_key: &str, topics: &[String], entries: &[UnassignedEntry]) -> String {
     let mut out = format!("Repository: {repo_key}\n\n");
-    if topics.is_empty() {
+    // Bucket labels never reach the prompt: shown as "known topics" the
+    // model dutifully reuses them, which is how dogfood ended up with
+    // features named "#363".
+    let named: Vec<&String> = topics.iter().filter(|t| !is_bucket_label(t)).collect();
+    if named.is_empty() {
         out.push_str("Known topics: none yet.\n\n");
     } else {
         out.push_str(&format!(
-            "Known topics (some are fallback bucket labels — reuse one only \
-when the work genuinely continues it): {}\n\n",
-            topics.join(", ")
+            "Known topics (reuse one only when the work genuinely continues \
+it): {}\n\n",
+            named
+                .iter()
+                .map(|topic| topic.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
         ));
     }
     out.push_str(
         "The commits below are merged work a reviewer will read one feature \
 at a time. Map every commit to the feature or workstream it belongs to. \
 Rules: a component or layer name (desktop, ui, web, app, gallery) is NOT a \
-feature — name what the work achieves, not where it lives. Stacked or \
-related PRs building one thing share one topic. Conventional-commit scopes \
-in subjects are hints at most, never answers. Otherwise invent a short \
-kebab-case feature name (never a file path, never a commit type like \
-\"fix\" or \"chore\"). Reply with one JSON object mapping the full sha of \
-every commit to its topic — every sha must appear.\n\nCommits:\n",
+feature — name what the work achieves, not where it lives. A PR number \
+(like \"#123\") or a commit sha is NEVER a topic name — every commit gets a \
+descriptive name, one-off work included. Stacked or related PRs building \
+one thing share one topic. Conventional-commit scopes in subjects are \
+hints at most, never answers. Otherwise invent a short kebab-case feature \
+name (never a file path, never a commit type like \"fix\" or \"chore\"). \
+Reply with one JSON object mapping the full sha of every commit to its \
+topic — every sha must appear.\n\nCommits:\n",
     );
     for entry in entries.iter().take(MAX_ENTRIES) {
         out.push_str(&format!(
@@ -144,11 +154,23 @@ fn extract_object(raw: &str) -> Option<Value> {
     serde_json::from_str(&raw[start..=end]).ok()
 }
 
+/// A provenance-bucket label: `#363`, or a bare sha. Assigning one adds
+/// nothing over the deterministic fallback and launders the bucket into a
+/// permanent-looking topic — dogfood's queue kept `#363`-named "features"
+/// because the model reused the labels the prompt showed it.
+fn is_bucket_label(topic: &str) -> bool {
+    if let Some(rest) = topic.strip_prefix('#') {
+        return !rest.is_empty() && rest.chars().all(|c| c.is_ascii_digit());
+    }
+    topic.len() >= 7 && topic.chars().all(|c| c.is_ascii_hexdigit())
+}
+
 fn clean_topic(raw: &str) -> Option<String> {
     let topic = raw.trim();
     if topic.is_empty()
         || topic.chars().count() > MAX_TOPIC_CHARS
         || topic.chars().any(char::is_control)
+        || is_bucket_label(topic)
     {
         return None;
     }
@@ -469,5 +491,19 @@ mod tests {
         assert!(!super::claim(repo, "t2"));
         assert!(super::claim(repo, "t3"));
         super::settle_done(repo, "t3");
+    }
+
+    #[test]
+    fn bucket_labels_are_rejected_as_topics_and_excluded_from_prompts() {
+        assert!(super::is_bucket_label("#363"));
+        assert!(super::is_bucket_label("c3860f8"));
+        assert!(!super::is_bucket_label("repo-store"));
+        assert!(!super::is_bucket_label("delta-review"));
+        assert!(super::clean_topic("#363").is_none());
+        assert!(super::clean_topic("c3860f8").is_none());
+        let topics = vec!["#363".to_string(), "repo-store".to_string()];
+        let prompt = super::build_prompt("a/b", &topics, &[entry(&"d".repeat(40), "x")]);
+        assert!(prompt.contains("repo-store"));
+        assert!(!prompt.contains("#363"));
     }
 }

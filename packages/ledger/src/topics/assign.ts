@@ -16,11 +16,25 @@ export interface Assignment {
   corrected: boolean;
 }
 
+/**
+ * A provenance-bucket label (`#363`, a bare sha) is what the fallback
+ * already provides — an agent "assigning" one adds nothing and, worse,
+ * launders the bucket into a permanent-looking topic. Such agent facts
+ * are inert: the commit stays on the LLM work list until a real name
+ * arrives. A human choosing one is a choice and stands.
+ */
+const PR_LABEL = /^#\d+$/;
+const SHA_LABEL = /^[0-9a-f]{7,40}$/;
+
+const isBucketLabel = (topic: string): boolean =>
+  PR_LABEL.test(topic) || SHA_LABEL.test(topic);
+
 const isAssignment = (fact: Fact): boolean =>
   (fact.verdict === "assigned" || fact.verdict === "corrected") &&
   fact.subject.kind === "sha" &&
   typeof fact.body === "string" &&
-  fact.body.length > 0;
+  fact.body.length > 0 &&
+  !(fact.verdict === "assigned" && isBucketLabel(fact.body));
 
 /**
  * Latest assignment per commit. Corrections beat proposals regardless of
