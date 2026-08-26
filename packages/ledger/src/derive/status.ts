@@ -33,6 +33,8 @@ interface Provenance {
   subject: string;
   /** Commit author name — a group's byline when everyone agrees. */
   author: string;
+  /** Author email; hosts derive forge identity (noreply logins) from it. */
+  authorEmail: string;
   /** Committer date, ISO 8601 — the group's freshness. */
   at: string;
 }
@@ -581,6 +583,7 @@ const baselineForRun = (
 
 interface CommitMeta {
   author: string;
+  authorEmail: string;
   /** Committer date, ISO 8601. */
   at: string;
   subject: string;
@@ -598,13 +601,18 @@ const loadSubjects = async (
     const out = await git([
       "show",
       "-s",
-      "--format=%H%x1f%an%x1f%cI%x1f%s",
+      "--format=%H%x1f%an%x1f%ae%x1f%cI%x1f%s",
       ...shas.slice(i, i + SUBJECT_BATCH),
     ]);
     for (const row of out.split("\n").filter(Boolean)) {
-      const [sha, author, at, subject] = row.split(META_SEP);
+      const [sha, author, email, at, subject] = row.split(META_SEP);
       if (sha && subject !== undefined) {
-        subjects.set(sha, { at: at ?? "", author: author ?? "", subject });
+        subjects.set(sha, {
+          at: at ?? "",
+          author: author ?? "",
+          authorEmail: email ?? "",
+          subject,
+        });
       }
     }
   }
@@ -850,6 +858,7 @@ export const deriveStatus = async (
           return {
             at: meta?.at ?? "",
             author: meta?.author ?? "",
+            authorEmail: meta?.authorEmail ?? "",
             pr: match ? Number(match[1]) : null,
             sha,
             subject,

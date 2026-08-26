@@ -1,3 +1,4 @@
+import { writeFileSync } from "node:fs";
 import process from "node:process";
 import { type CliArgs, parseCliArgs, resolveRepoRoot } from "./cli-args.ts";
 import {
@@ -74,6 +75,16 @@ const short = (sha: string): string => sha.slice(0, 7);
 
 const pct = (ratio: number): string => `${(100 * ratio).toFixed(1)}%`;
 
+/** JSON payloads go to --out when given: pipes truncate, files do not. */
+const emitJson = (out: string | undefined, payload: unknown): void => {
+  const text = JSON.stringify(payload);
+  if (out) {
+    writeFileSync(out, text);
+  } else {
+    console.log(text);
+  }
+};
+
 const die = (message: string): never => {
   console.error(message);
   process.exit(1);
@@ -89,6 +100,8 @@ interface Ctx {
   stateDir?: string;
   /** NDJSON derivation progress on stderr, or undefined when not asked. */
   onProgress?: (progress: DeriveProgress) => void;
+  /** JSON payload destination; stdout when absent. */
+  out?: string;
 }
 
 /**
@@ -178,7 +191,7 @@ const runSession = async (
     tip: ctx.tip,
   });
   if (json) {
-    console.log(JSON.stringify(session));
+    emitJson(ctx.out, session);
     return;
   }
   if (session.sessions.length === 0) {
@@ -406,7 +419,7 @@ const runComment = async (ctx: Ctx, args: readonly string[]): Promise<void> => {
 const runComments = async (ctx: Ctx, json: boolean) => {
   const status = await requireStatus(ctx);
   if (json) {
-    console.log(JSON.stringify(status.comments));
+    emitJson(ctx.out, status.comments);
     return;
   }
   if (status.comments.length === 0) {
@@ -450,6 +463,7 @@ const main = async (): Promise<void> => {
     actorOverride: opts.actor,
     git,
     onProgress: progressReporter(opts.progress),
+    out: opts.out,
     repoRoot,
     stateDir: opts.stateDir,
     tip: await resolveTip(git, opts.tip),
@@ -490,7 +504,7 @@ const main = async (): Promise<void> => {
     case "status": {
       const status = await requireStatus(await ctx());
       if (opts.json) {
-        console.log(JSON.stringify(status));
+        emitJson(opts.out, status);
         return;
       }
       console.log(
@@ -502,7 +516,7 @@ const main = async (): Promise<void> => {
     case "queue": {
       const status = await requireStatus(await ctx());
       if (opts.json) {
-        console.log(JSON.stringify(status));
+        emitJson(opts.out, status);
         return;
       }
       if (status.queue.length === 0) {

@@ -217,6 +217,18 @@ impl LedgerRepo {
         self.spawn("assign", pairs, Some(actor)).map(|_| ())
     }
 
+    /// A fresh path for one --json payload. Large payloads through the
+    /// sidecar's stdout pipe hit the compiled runtime's flush-on-exit
+    /// truncation (dogfooded as a session cut at exactly 64KB), so JSON
+    /// rides a file instead; unique per call so concurrent commands never
+    /// collide.
+    fn out_path(&self) -> PathBuf {
+        static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let n = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.state_dir
+            .join(format!("out-{}-{n}.json", std::process::id()))
+    }
+
     fn spawn(
         &self,
         command: &str,
@@ -237,8 +249,13 @@ impl LedgerRepo {
         if agent_actor.is_some() {
             args.push("--agent");
         }
-        if matches!(command, "status" | "session") {
+        let json = matches!(command, "status" | "session");
+        let out = self.out_path();
+        let out_arg = out.to_str().ok_or("state path is not UTF-8")?.to_string();
+        if json {
             args.push("--json");
+            args.push("--out");
+            args.push(&out_arg);
         }
         args.push(command);
         args.push("--");
@@ -256,6 +273,12 @@ impl LedgerRepo {
                 stderr
             };
             return Err(format!("ledger {command} failed: {}", detail.trim()));
+        }
+        if json {
+            let payload = std::fs::read_to_string(&out)
+                .map_err(|e| format!("ledger {command} wrote no payload: {e}"))?;
+            let _ = std::fs::remove_file(&out);
+            return Ok(payload);
         }
         Ok(String::from_utf8_lossy(&output.stdout).into_owned())
     }
@@ -279,6 +302,11 @@ impl LedgerRepo {
 
     fn stream_status(&self, app: &AppHandle, repo_key: &str) -> Result<Value, String> {
         let sidecar = sidecar_path()?;
+        let out = self.out_path();
+        let out_arg = out
+            .to_str()
+            .ok_or("state path is not UTF-8")?
+            .to_string();
         let mut child = Command::new(&sidecar)
             .args([
                 "--repo",
@@ -290,6 +318,8 @@ impl LedgerRepo {
                 "--state-dir",
                 self.state_dir.to_str().ok_or("state path is not UTF-8")?,
                 "--json",
+                "--out",
+                &out_arg,
                 "--progress",
                 "status",
             ])
@@ -346,7 +376,11 @@ impl LedgerRepo {
             };
             return Err(format!("ledger status failed: {}", detail.trim()));
         }
-        serde_json::from_str(&stdout).map_err(|e| format!("ledger returned invalid JSON: {e}"))
+        let payload = std::fs::read_to_string(&out)
+            .map_err(|e| format!("ledger status wrote no payload: {e}"))?;
+        let _ = std::fs::remove_file(&out);
+        serde_json::from_str(&payload)
+            .map_err(|e| format!("ledger returned invalid JSON: {e}"))
     }
 }
 
