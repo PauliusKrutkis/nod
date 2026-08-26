@@ -477,7 +477,7 @@ fn skill_tools_list_and_read_and_answer_mistakes_readably() {
     let listing = execute_skill_tool(Some(&(root.clone(), key.clone())), &[], "list_skills", "{}");
     assert_eq!(
         listing,
-        "code-review — Review like a senior\nfind-skill — Find a skill for what you are about to do, or write one\ngallery-notes — Write the gallery notes\npr-validity — Review against repo conventions\nsecurity-pass"
+        "code-review — Review like a senior [repo]\nfind-skill — Find a skill for what you are about to do, or write one [built-in]\ngallery-notes — Write the gallery notes [repo]\nimport-skill — Use a skill you have installed locally, or bring one into Nod [built-in]\npr-validity — Review against repo conventions [repo]\nsecurity-pass [repo]"
     );
 
     let body = execute_skill_tool(
@@ -709,6 +709,7 @@ fn find_skill_ships_with_the_app_and_survives_a_repo_of_its_own() {
     // No snapshot, no personal skills: `/` still has something to offer.
     let listing = execute_skill_tool(None, &dirs, "list_skills", "{}");
     assert!(listing.contains("find-skill"), "listing was {listing}");
+    assert!(listing.contains("import-skill"), "listing was {listing}");
     let body = execute_skill_tool(None, &dirs, "read_skill", r#"{"name":"find-skill"}"#);
     assert!(body.contains("list_skills"), "body was {body}");
 
@@ -795,6 +796,46 @@ fn find_skill_tells_the_model_to_search_wide_and_show_before_saving() {
     ] {
         assert!(body.contains(step), "find-skill should mention {step}");
     }
+}
+
+#[test]
+fn import_skill_checks_the_scanned_folders_before_asking_for_a_paste() {
+    let body = builtin_skill_body("import-skill").expect("built-in");
+    // The whole point: a skill in the scanned folders is already usable, so
+    // the model looks there first and only falls back to a paste for paths
+    // Nod deliberately does not read.
+    let listed_first = body.find("list_skills").expect("mentions list_skills");
+    let paste_later = body.find("paste").expect("mentions the paste fallback");
+    assert!(listed_first < paste_later, "list before paste: {body}");
+    for step in ["~/.claude/skills", "[personal]", "write_skill", "nothing to import"] {
+        assert!(body.contains(step), "import-skill should mention {step}");
+    }
+}
+
+#[test]
+fn oversized_skill_files_are_not_skills() {
+    let dir = std::env::temp_dir().join(format!("nod-oversize-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let dirs = vec![dir.clone()];
+    for (name, body) in [
+        ("sane", "---\ndescription: Fits\n---\nUse me.".to_string()),
+        // Just past the cap: whatever this file is, it is not instructions.
+        ("bloated", "x".repeat(256 * 1024 + 1)),
+    ] {
+        let skill = dir.join(name);
+        std::fs::create_dir_all(&skill).expect("skill dir");
+        std::fs::write(skill.join("SKILL.md"), body).expect("write");
+    }
+
+    let found = discover_personal_skills(&dirs);
+    assert_eq!(
+        found.iter().map(|s| s.name.as_str()).collect::<Vec<_>>(),
+        vec!["sane"]
+    );
+    assert!(read_personal_skill(&dirs, "bloated").is_none());
+    assert!(read_personal_skill(&dirs, "sane").is_some());
+
+    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
