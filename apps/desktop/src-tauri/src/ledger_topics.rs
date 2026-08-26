@@ -313,13 +313,16 @@ async fn classify(
     let mut assignments: Vec<(String, String)> = Vec::new();
     for batch in entries.chunks(MAX_ENTRIES).take(MAX_BATCHES) {
         let prompt = build_prompt(repo_key, &known, batch);
+        // No sampling params: gateways disagree on which are allowed per
+        // model (Nexos's vertex-ai route 400s on `temperature` — the bug
+        // that silently killed every mapping call in dogfood), and the
+        // chat sends none either. Determinism comes from the prompt.
         let body = serde_json::json!({
             "model": model,
             "messages": [
                 { "role": "system", "content": SYSTEM_PROMPT },
                 { "role": "user", "content": prompt },
             ],
-            "temperature": 0.1,
         });
         let response = ai::post_chat(&client, &url, &config.api_key, &body).await?;
         let answer =
