@@ -13,6 +13,8 @@
  * same list with the same keyboard feel. Signing invalidates the status
  * query so the queue and coverage are fresh on esc.
  */
+
+import { Button } from "@nod/ui/button";
 import { InboxZero } from "@nod/ui/inbox-zero";
 import { Kbd } from "@nod/ui/kbd";
 import { Spinner } from "@nod/ui/spinner";
@@ -638,14 +640,44 @@ export function LedgerSession({
 
   return (
     <div className="dir-quiet flex h-full min-h-0 flex-col">
-      <header className="flex items-baseline gap-3 border-line border-b px-6 py-3">
-        <span className="shrink-0 font-medium text-accent">{group.label}</span>
-        <span className="truncate text-muted text-sm">{group.subject}</span>
-        <span className="ml-auto shrink-0 text-faint text-xs">
-          {baseline
-            ? `since ${shortSha(baseline.sha)} → tip ${shortSha(tip)}`
-            : "no prior signature — everything here is new"}
-        </span>
+      {/* The review screen's own header band (qf-header family), so a
+          ledger session reads as what it is: the same review surface,
+          pointed at a topic instead of a PR. The approve button stands
+          where submit stands, gated exactly like the `a` key. */}
+      <header className="qf-header">
+        <div className="qf-header-id">
+          <div className="qf-header-title-row">
+            <h1 className="qf-pr-title" title={group.label}>
+              {group.label}
+            </h1>
+          </div>
+          <div className="qf-pr-sub">
+            <span className="truncate">{group.subject}</span>
+            <span className="q-dot">·</span>
+            <span className="shrink-0">
+              {baseline
+                ? `since ${shortSha(baseline.sha)} → tip ${shortSha(tip)}`
+                : "no prior signature — everything here is new"}
+            </span>
+          </div>
+        </div>
+        <div className="qf-header-actions">
+          <span className="text-faint text-xs tabular-nums">
+            viewed {viewedSet.size}/{files.length}
+          </span>
+          <Button
+            disabled={!allViewed}
+            onClick={approve}
+            title={
+              allViewed
+                ? `Approve ${group.label} at tip`
+                : "View every file first — v marks the current one"
+            }
+            variant={allViewed ? "primary" : "quiet"}
+          >
+            Approve <Kbd combo="a" />
+          </Button>
+        </div>
       </header>
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -670,34 +702,6 @@ export function LedgerSession({
         )}
         {body()}
       </div>
-
-      <footer className="flex items-center gap-5 border-line border-t px-6 py-2 text-faint text-xs">
-        <span>
-          <Kbd combo="j" /> / <Kbd combo="k" /> move
-        </span>
-        <span>
-          <Kbd combo="r" /> sign{" "}
-          {current
-            ? `${current.target} · ${current.region.endLine - current.region.startLine + 1} lines`
-            : ""}
-        </span>
-        <span>
-          <Kbd combo="c" /> comment
-        </span>
-        <span>
-          <Kbd combo="v" /> viewed ({viewedSet.size}/{files.length})
-        </span>
-        <span className={allViewed ? "text-fg" : undefined}>
-          <Kbd combo="a" /> approve {group.label}
-          {allViewed ? "" : " — view every file first"}
-        </span>
-        <span>
-          <Kbd combo="mod+f" /> find
-        </span>
-        <span>
-          <Kbd combo="esc" /> queue
-        </span>
-      </footer>
     </div>
   );
 }

@@ -114,7 +114,7 @@ export interface LedgerComment {
  * `assigned` facts via `ledger assign`; keyless repos simply keep the
  * deterministic labels.
  */
-export interface UnassignedSha {
+interface UnassignedSha {
   sha: string;
   subject: string;
   /** The deterministic label it wears until assigned. */

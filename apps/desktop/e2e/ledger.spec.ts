@@ -44,10 +44,12 @@ test("the queue lists one session per feature group; r signs nothing here", asyn
   await expect(page.getByRole("option")).toHaveCount(2);
   await expect(page.getByText("0.0%")).toBeVisible();
   // #321 carries scope "ledger"; the direct push falls back to its sha.
-  await expect(page.getByText("ledger", { exact: true })).toBeVisible();
-  await expect(page.getByText("d1eec70", { exact: true })).toBeVisible();
-  await expect(page.getByText("#321", { exact: true })).toBeVisible();
-  await expect(page.getByText("1 region · 1 file · 40 lines")).toBeVisible();
+  // Scoped to the list: the reading pane repeats the selected topic.
+  const list = page.getByRole("listbox", { name: "Review sessions" });
+  await expect(list.getByText("ledger", { exact: true })).toBeVisible();
+  await expect(list.getByText("d1eec70", { exact: true })).toBeVisible();
+  await expect(list.getByText("#321", { exact: true })).toBeVisible();
+  await expect(list.getByText("1 region · 1 file · 40 lines")).toBeVisible();
 
   // Signing lives inside the session, not on the queue.
   await page.keyboard.press("r");
@@ -190,7 +192,7 @@ test("approving is gated on viewed: v unlocks a, which stamps the topic", async 
   await expect(page.getByRole("option")).toHaveCount(2);
   await page.keyboard.press("Enter");
   await expect(page.locator('[data-testid="review-scroller"]')).toBeVisible();
-  await expect(page.getByText("viewed (0/1)")).toBeVisible();
+  await expect(page.getByText("viewed 0/1")).toBeVisible();
 
   // Before every file is viewed, a records nothing.
   await page.keyboard.press("a");
@@ -199,7 +201,7 @@ test("approving is gated on viewed: v unlocks a, which stamps the topic", async 
   ).toBeNull();
 
   await page.keyboard.press("v");
-  await expect(page.getByText("viewed (1/1)")).toBeVisible();
+  await expect(page.getByText("viewed 1/1")).toBeVisible();
 
   await page.keyboard.press("a");
   const approve = await page.evaluate(() =>

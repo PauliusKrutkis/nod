@@ -477,7 +477,7 @@ export interface LedgerComment {
  * A post-epoch commit the deterministic topic cascade could not name — the
  * background LLM stage's work list.
  */
-export interface LedgerUnassignedSha {
+interface LedgerUnassignedSha {
   /** Files holding tip lines that blame to this commit. */
   files: string[];
   /** Tip lines blaming to this commit. */
