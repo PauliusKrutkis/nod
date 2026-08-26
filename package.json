@@ -34,5 +34,10 @@
     "@playwright/test": "^1.61.1",
     "knip": "^6.25.0",
     "ultracite": "7.1.4"
+  },
+  "knip": {
+    "ignoreBinaries": [
+      "rustc"
+    ]
   }
 }
