@@ -35,9 +35,12 @@ function stepIndexOf(stage: LedgerPrepUpdate["stage"]): number {
 }
 
 export function LedgerPrep({
+  others = 0,
   repoKey,
   update,
 }: {
+  /** Watched repos also preparing behind this one. */
+  others?: number;
   repoKey: string;
   update: LedgerPrepUpdate | null;
 }) {
@@ -56,6 +59,8 @@ export function LedgerPrep({
           <p className="font-medium text-fg">Reading {repoKey}</p>
           <p className="text-muted text-sm">
             First open only — later opens are instant.
+            {others > 0 &&
+              ` ${others} more ${others === 1 ? "repository is" : "repositories are"} preparing behind it.`}
           </p>
         </div>
         <ol className="flex flex-col gap-1.5">

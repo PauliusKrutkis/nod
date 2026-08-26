@@ -26,11 +26,12 @@
 import { InboxDetail, type InboxPullRequest } from "@nod/ui/inbox-detail";
 import { InboxZero } from "@nod/ui/inbox-zero";
 import { PRListItem, type PullRequestRow } from "@nod/ui/pr-list-item";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, CornerUpLeft } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useLedgerAssignments } from "../../hooks/use-ledger-assignments.ts";
 import { useLedgerPrep } from "../../hooks/use-ledger-prep.ts";
+import { useLedgerStatuses } from "../../hooks/use-ledger-statuses.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
 import { api } from "../../lib/api.ts";
 import {
@@ -134,12 +135,7 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
   });
   const repos = watched.data ?? [];
 
-  const statuses = useQueries({
-    queries: repos.map((repoKey) => ({
-      queryFn: () => api.ledgerStatus(repoKey),
-      queryKey: queryKeys.ledger(repoKey),
-    })),
-  });
+  const statuses = useLedgerStatuses(repos);
 
   // "mapping features…" only when a model can actually be mapping: keyless
   // configs keep the deterministic labels and the note would never resolve.
@@ -248,7 +244,14 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
 
   if (entries.length === 0) {
     if (pendingRepo !== undefined) {
-      return <LedgerPrep repoKey={pendingRepo} update={prep} />;
+      const pendingCount = statuses.filter((q) => q.isPending).length;
+      return (
+        <LedgerPrep
+          others={Math.max(0, pendingCount - 1)}
+          repoKey={pendingRepo}
+          update={prep}
+        />
+      );
     }
     if (repos.length > 0 && !anyData && firstError !== undefined) {
       return (

@@ -16,7 +16,7 @@
 
 import { InboxZero } from "@nod/ui/inbox-zero";
 import { ReviewHeader } from "@nod/ui/review-header";
-import { Spinner } from "@nod/ui/spinner";
+import { ReviewScreenPending } from "@nod/ui/review-screen-pending";
 import { useLatest } from "@nod/ui/use-latest";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -570,22 +570,6 @@ export function LedgerSession({
         </div>
       );
     }
-    if (session.isPending) {
-      return (
-        <div className="flex min-h-0 flex-1 items-center justify-center">
-          <Spinner label="Deriving session diff from git…" />
-        </div>
-      );
-    }
-    if (session.error) {
-      return (
-        <div className="flex min-h-0 flex-1 items-center justify-center px-8">
-          <p className="max-w-lg text-danger text-sm">
-            {String(session.error)}
-          </p>
-        </div>
-      );
-    }
     if (files.length === 0) {
       return (
         <div className="min-h-0 flex-1">
@@ -645,6 +629,25 @@ export function LedgerSession({
       />
     );
   };
+
+  // targets empty = everything signed: the query is disabled (isPending by
+  // definition) and the frame's signed-off state owns the screen instead.
+  if (targets.length > 0 && (session.isPending || session.error)) {
+    // The review screen's own cold state — skeleton shell or error face —
+    // replacing the whole surface, exactly as opening a PR does.
+    return (
+      <div className="dir-quiet flex h-full min-h-0 flex-col">
+        <ReviewScreenPending
+          backLabel="Back to the queue"
+          error={session.error ? String(session.error) : ""}
+          errorTitle="Couldn't derive this session"
+          isError={Boolean(session.error)}
+          onBack={onExit}
+          pr={null}
+        />
+      </div>
+    );
+  }
 
   return (
     // The review screen's exact frame — full-height file tree beside a main

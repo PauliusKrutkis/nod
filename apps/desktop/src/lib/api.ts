@@ -183,6 +183,8 @@ export const api = {
     invoke<LedgerSession>("ledger_session", { repoKey, targets }),
   ledgerStatus: (repoKey: string) =>
     invoke<LedgerStatus>("ledger_status", { repoKey }),
+  ledgerStatusCached: (repoKey: string) =>
+    invoke<LedgerStatus | null>("ledger_status_cached", { repoKey }),
 
   listAccounts: () => invoke<AccountsInfo>("list_accounts"),
 

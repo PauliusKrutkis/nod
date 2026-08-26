@@ -516,6 +516,7 @@ export function installBridge(cfg: BridgeConfig) {
       JSON.parse(localStorage.getItem("e2e:viewed") ?? "{}"),
     get_watched_repos: () => cfg.watchedRepos,
     has_token: () => cfg.hasToken,
+    ledger_status_cached: () => null,
     ledger_approve: (args) => {
       countCall("ledger_approve");
       localStorage.setItem("e2e:ledgerApprove", JSON.stringify(args));

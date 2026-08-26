@@ -45,8 +45,14 @@ export function ReviewScreenPending({
   isError,
   onBack,
   pr,
+  backLabel = "Back to inbox",
+  errorTitle = "Couldn't load this pull request",
 }: {
+  /** Where Esc actually goes — a ledger session backs out to its queue. */
+  backLabel?: string;
   error: string;
+  /** What failed to load, in the host's words. */
+  errorTitle?: string;
   isError: boolean;
   onBack: () => void;
   pr?: Pr | null;
@@ -54,10 +60,10 @@ export function ReviewScreenPending({
   if (isError) {
     return (
       <div className="qrp-error">
-        <p className="qrp-error-title">Couldn't load this pull request</p>
+        <p className="qrp-error-title">{errorTitle}</p>
         <p className="qrp-error-detail">{error}</p>
         <button className="qrp-error-back" onClick={onBack} type="button">
-          Back to inbox
+          {backLabel}
         </button>
         <p className="qrp-error-hint">Press Esc to go back</p>
       </div>

@@ -369,10 +369,38 @@ async fn status_inner(app: &AppHandle, repo_key: &str) -> Result<Value, String> 
     let stage = if result.is_ok() { "ready" } else { "failed" };
     emit_prep(app, repo_key, stage, None, None);
     let status = result?;
+    // Principle #6 (docs/DESIGN.md): no loading states. The last good
+    // status persists beside the fact journal, and ledger_status_cached
+    // replays it for an instant first paint while this refreshes behind.
+    if let Ok(bytes) = serde_json::to_vec(&status) {
+        let _ = std::fs::write(repo.state_dir.join("status.json"), bytes);
+    }
     // The LLM stage rides every derivation — opens and warms alike — so a
     // newly watched repo arrives already mapped (docs/LEDGER.md item 5).
     ledger_topics::propose(app, repo_key.to_string(), repo, &status);
     Ok(status)
+}
+
+/// The last derived status from disk, or null — never derives, never
+/// clones: the instant-paint half of cache-first, mirroring
+/// `get_cached_inbox`.
+#[tauri::command]
+pub async fn ledger_status_cached(
+    app: AppHandle,
+    repo_key: String,
+) -> Result<Option<Value>, String> {
+    let (owner, repo) = split_key(&repo_key)?;
+    let account = accounts::active_account(&app).await?;
+    let key = RepoKey {
+        host: account.host.clone(),
+        owner,
+        repo,
+    };
+    let path = store::ledger_state_dir(&storage::config_dir(&app)?, &key).join("status.json");
+    let Ok(bytes) = std::fs::read(path) else {
+        return Ok(None);
+    };
+    Ok(serde_json::from_slice(&bytes).ok())
 }
 
 #[tauri::command]

@@ -36,7 +36,7 @@ import { InboxZero } from "@nod/ui/inbox-zero";
 import { Kbd } from "@nod/ui/kbd";
 import { OrgAccessHint } from "@nod/ui/org-access-hint";
 import { Spinner } from "@nod/ui/spinner";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   Archive,
   ArchiveRestore,
@@ -50,6 +50,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useInbox } from "../../hooks/use-inbox.ts";
+import { useLedgerStatuses } from "../../hooks/use-ledger-statuses.ts";
 import { prefetchPullRequest } from "../../hooks/use-pull-request-detail.ts";
 import { useSubscribed } from "../../hooks/use-subscribed.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
@@ -154,13 +155,7 @@ export function Inbox() {
     queryKey: queryKeys.watchedRepos,
   });
   const ledgerRepos = watchedForLedger.data ?? [];
-  const ledgerStatuses = useQueries({
-    queries: ledgerRepos.map((repoKey) => ({
-      queryFn: () => api.ledgerStatus(repoKey),
-      queryKey: queryKeys.ledger(repoKey),
-      staleTime: 60_000,
-    })),
-  });
+  const ledgerStatuses = useLedgerStatuses(ledgerRepos);
   const ledgerLoaded =
     ledgerRepos.length > 0 && ledgerStatuses.every((q) => q.data !== undefined);
   const ledgerCount = ledgerLoaded

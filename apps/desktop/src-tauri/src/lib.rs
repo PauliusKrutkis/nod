@@ -156,6 +156,7 @@ pub fn run() {
             activation::activate_license,
             activation::take_deep_link_pr,
             ledger::ledger_status,
+            ledger::ledger_status_cached,
             ledger::ledger_session,
             ledger::ledger_review,
             ledger::ledger_approve,
