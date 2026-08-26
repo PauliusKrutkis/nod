@@ -14,9 +14,8 @@
  * query so the queue and coverage are fresh on esc.
  */
 
-import { Button } from "@nod/ui/button";
 import { InboxZero } from "@nod/ui/inbox-zero";
-import { Kbd } from "@nod/ui/kbd";
+import { ReviewHeader } from "@nod/ui/review-header";
 import { Spinner } from "@nod/ui/spinner";
 import { useLatest } from "@nod/ui/use-latest";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -31,6 +30,7 @@ import { useReviewFind } from "../../hooks/use-review-find.ts";
 import { isRealPointer } from "../../hooks/use-review-list-callbacks.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
 import { api } from "../../lib/api.ts";
+import { copyTextToClipboard } from "../../lib/clipboard.ts";
 import { cn } from "../../lib/cn.ts";
 import type { DiffRow } from "../../lib/diff.ts";
 import {
@@ -640,45 +640,31 @@ export function LedgerSession({
 
   return (
     <div className="dir-quiet flex h-full min-h-0 flex-col">
-      {/* The review screen's own header band (qf-header family), so a
-          ledger session reads as what it is: the same review surface,
-          pointed at a topic instead of a PR. The approve button stands
-          where submit stands, gated exactly like the `a` key. */}
-      <header className="qf-header">
-        <div className="qf-header-id">
-          <div className="qf-header-title-row">
-            <h1 className="qf-pr-title" title={group.label}>
-              {group.label}
-            </h1>
-          </div>
-          <div className="qf-pr-sub">
-            <span className="truncate">{group.subject}</span>
-            <span className="q-dot">·</span>
-            <span className="shrink-0">
-              {baseline
-                ? `since ${shortSha(baseline.sha)} → tip ${shortSha(tip)}`
-                : "no prior signature — everything here is new"}
-            </span>
-          </div>
-        </div>
-        <div className="qf-header-actions">
-          <span className="text-faint text-xs tabular-nums">
-            viewed {viewedSet.size}/{files.length}
-          </span>
-          <Button
-            disabled={!allViewed}
-            onClick={approve}
-            title={
-              allViewed
-                ? `Approve ${group.label} at tip`
-                : "View every file first — v marks the current one"
-            }
-            variant={allViewed ? "primary" : "quiet"}
-          >
-            Approve <Kbd combo="a" />
-          </Button>
-        </div>
-      </header>
+      {/* The review screen's own ReviewHeader — one component, different
+          data: the topic is the title, baseline→tip shas ride the branch
+          chips (copyable like branches), and Approve stands where the
+          submit button stands, gated exactly like the `a` key. No author,
+          no number, no info dock: a topic has none of those. */}
+      <ReviewHeader
+        onCopyBranch={copyTextToClipboard}
+        onOpenSubmit={approve}
+        onOpenTicket={noop}
+        onToggleRightPanel={noop}
+        onToggleSidebar={noop}
+        pr={{
+          baseRef: baseline ? shortSha(baseline.sha) : undefined,
+          draft: false,
+          headRef: baseline ? shortSha(tip) : undefined,
+          merged: false,
+          repo: repoKey,
+          state: "open",
+          title: group.label,
+        }}
+        showInfo={false}
+        submitCombo="a"
+        submitDisabled={!allViewed}
+        submitLabel="Approve"
+      />
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {files.length > 1 && (

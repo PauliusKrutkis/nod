@@ -33,8 +33,6 @@ import { inboxViewEntry } from "../inbox-view/inbox-view.fixtures.ts";
 import { inboxZeroEntry } from "../inbox-zero/inbox-zero.fixtures.ts";
 import { issueTrackerDialogEntry } from "../issue-tracker-dialog/issue-tracker-dialog.fixtures.ts";
 import { kbdEntry } from "../kbd/kbd.fixtures.ts";
-import { ledgerRowEntry } from "../ledger-row/ledger-row.fixtures.ts";
-import { ledgerTopicDetailEntry } from "../ledger-topic-detail/ledger-topic-detail.fixtures.ts";
 import { licenseDialogEntry } from "../license-dialog/license-dialog.fixtures.ts";
 import { markdownEntry } from "../markdown/markdown.fixtures.ts";
 import { modelPickerEntry } from "../model-picker/model-picker.fixtures.ts";
@@ -101,8 +99,6 @@ export const catalog: Record<string, CatalogEntry<any>> = {
   "inbox-zero": inboxZeroEntry,
   "issue-tracker-dialog": issueTrackerDialogEntry,
   kbd: kbdEntry,
-  "ledger-row": ledgerRowEntry,
-  "ledger-topic-detail": ledgerTopicDetailEntry,
   "license-dialog": licenseDialogEntry,
   markdown: markdownEntry,
   "model-picker": modelPickerEntry,

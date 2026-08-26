@@ -45,6 +45,24 @@ function pr(overrides: Partial<InboxPullRequest>): InboxPullRequest {
 }
 
 export const inboxDetailEntry = defineEntry(InboxDetail, {
+  "ledger-topic": {
+    props: {
+      archivable: false,
+      onOpenTicket: noop,
+      openHint: "open session",
+      pr: {
+        additions: 11_764,
+        body: "How it got here:\n#348 feat(chat): the AI chat panel\n#358 feat(chat): suggested comments\n4e43d2a fix chat scroll pinning",
+        changedFiles: 86,
+        commentsCount: 0,
+        deletions: 0,
+        draft: false,
+        merged: false,
+        repo: "PauliusKrutkis/nod",
+        title: "feat(chat): the AI chat panel — chat, skills, and suggestions",
+      },
+    },
+  },
   archived: {
     props: {
       archived: true,

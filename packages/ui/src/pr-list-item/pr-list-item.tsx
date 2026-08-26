@@ -9,7 +9,12 @@
  * blurs afterwards: a row left focused steals the arrow keys from the list.
  *
  * PullRequestRow is the package's own minimal shape, not an import from the
- * app — the desktop's richer PullRequest satisfies it structurally.
+ * app — the desktop's richer PullRequest satisfies it structurally. Number,
+ * author, and time are optional because the row also renders things that
+ * are PR-shaped without being PRs: the ledger's topic groups have a story
+ * and a repo but no author, no number, and no timestamp, and the ledger
+ * reuses THIS row (one component, different data) so the two lists can
+ * never drift apart.
  */
 import { GitBranch, MessageSquare } from "lucide-react";
 import type { KeyboardEvent, MouseEvent } from "react";
@@ -20,16 +25,16 @@ import { formatAbsolute, formatRelativeTime } from "../time/time.ts";
 import "./pr-list-item.css";
 
 export interface PullRequestRow {
-  author: string;
+  author?: string;
   authorAvatarUrl?: string | null;
   commentsCount: number;
   draft: boolean;
   headRef: string;
   merged: boolean;
-  number: number;
+  number?: number;
   repo: string;
   title: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export function PRListItem({
@@ -81,12 +86,20 @@ export function PRListItem({
           {pr.merged ? <Badge tone="accent">Merged</Badge> : null}
         </div>
         <div className="q-pr-meta">
-          <span className="q-pr-num q-mono">#{pr.number}</span>
-          <span className="q-dot">·</span>
+          {pr.number !== undefined && (
+            <>
+              <span className="q-pr-num q-mono">#{pr.number}</span>
+              <span className="q-dot">·</span>
+            </>
+          )}
           <span className="q-pr-cell">{pr.repo}</span>
-          <span className="q-dot">·</span>
-          <Avatar name={pr.author} size={14} url={pr.authorAvatarUrl} />
-          <span className="q-pr-cell">{pr.author}</span>
+          {pr.author !== undefined && (
+            <>
+              <span className="q-dot">·</span>
+              <Avatar name={pr.author} size={14} url={pr.authorAvatarUrl} />
+              <span className="q-pr-cell">{pr.author}</span>
+            </>
+          )}
           {pr.headRef ? (
             <>
               <span className="q-dot">·</span>
@@ -108,9 +121,11 @@ export function PRListItem({
         </div>
       </div>
 
-      <span className="q-pr-time q-mono" title={formatAbsolute(pr.updatedAt)}>
-        {formatRelativeTime(pr.updatedAt)}
-      </span>
+      {pr.updatedAt !== undefined && (
+        <span className="q-pr-time q-mono" title={formatAbsolute(pr.updatedAt)}>
+          {formatRelativeTime(pr.updatedAt)}
+        </span>
+      )}
     </div>
   );
 }

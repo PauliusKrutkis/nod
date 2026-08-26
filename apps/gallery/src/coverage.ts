@@ -66,11 +66,11 @@ export const CONTAINERS: Record<string, string> = {
   inbox:
     "inbox and subscribed queries, the archive ledger, tab visibility and the digit hotkeys; its views are inbox-tabs, inbox-zero, inbox-detail and pr-list-item in @nod/ui, leaving it the listbox that arranges them and the query's loading and error states",
   ledger:
-    "the ledger status query and the pick/queue/session state machine, mounted as the inbox's Ledger tab against the app-owned store clone; its views are inbox-zero, spinner and kbd in @nod/ui, leaving it the listbox and the staged prep view (docs/LEDGER.md)",
+    "the per-watched-repo status queries and the queue/session state machine, mounted as the inbox's Ledger tab against the app-owned store clones; its views are pr-list-item, inbox-detail and inbox-zero in @nod/ui — the inbox's own, fed topic data — leaving it the listbox and the adapters (docs/LEDGER.md)",
   "ledger-prep":
     "the staged cold-open view: maps ledger-prep progress events onto three honest rows with a live blame counter, falling back to the spinner until the first event so warm loads never flash stages; its views are spinner in @nod/ui, leaving it the stage list",
   "ledger-session":
-    "the session query, the cursor slice and sign mutation over the reused review surface; its view is review-diff-pane with capabilities off — no markup of its own beyond the header and footer bands",
+    "the session query, the cursor slice and sign mutation over the reused review surface; its views are review-header (Approve standing where submit stands) and review-diff-pane with capabilities off — no markup of its own",
   "review-notifier":
     "diffs each inbox poll against a localStorage ledger of announced PRs and owns the 12s expiry and the enter/esc scope; its card is review-toast, catalogued in @nod/ui",
   "review-screen":

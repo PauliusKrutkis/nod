@@ -47,8 +47,6 @@
     "./inbox-zero": "./src/inbox-zero/inbox-zero.tsx",
     "./issue-tracker-dialog": "./src/issue-tracker-dialog/issue-tracker-dialog.tsx",
     "./kbd": "./src/kbd/kbd.tsx",
-    "./ledger-row": "./src/ledger-row/ledger-row.tsx",
-    "./ledger-topic-detail": "./src/ledger-topic-detail/ledger-topic-detail.tsx",
     "./license-dialog": "./src/license-dialog/license-dialog.tsx",
     "./manifest": "./src/manifest/manifest.ts",
     "./markdown": "./src/markdown/markdown.tsx",

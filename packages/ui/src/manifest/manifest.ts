@@ -433,6 +433,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
   },
   "inbox-detail": {
     fixtures: [
+      "ledger-topic",
       "archived",
       "cjk",
       "draft",
@@ -508,34 +509,6 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "named",
       "single",
       "unknown-word",
-    ],
-  },
-  "ledger-row": {
-    fixtures: [
-      "chip-flood",
-      "chips-capped",
-      "delta",
-      "markup-as-text",
-      "no-chips-no-subject",
-      "overflow",
-      "selected",
-      "singular",
-      "typical",
-      "unicode",
-      "zero-counts",
-    ],
-  },
-  "ledger-topic-detail": {
-    fixtures: [
-      "delta",
-      "empty-lists",
-      "file-flood",
-      "markup-as-text",
-      "no-story",
-      "overflow",
-      "singular",
-      "typical",
-      "unicode",
     ],
   },
   "license-dialog": {
@@ -660,6 +633,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
   },
   "pr-list-item": {
     fixtures: [
+      "ledger-topic",
       "ancient",
       "cjk",
       "draft",
@@ -757,6 +731,8 @@ export const catalogManifest: Record<string, ManifestEntry> = {
 
   "review-header": {
     fixtures: [
+      "ledger-session",
+      "ledger-session-gated",
       "ai-reply-ready",
       "ci-failure",
       "ci-none",

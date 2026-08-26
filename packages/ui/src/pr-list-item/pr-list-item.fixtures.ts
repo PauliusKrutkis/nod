@@ -38,6 +38,21 @@ function pr(overrides: Partial<PullRequestRow>): PullRequestRow {
 }
 
 export const prListItemEntry = defineEntry(PRListItem, {
+  "ledger-topic": {
+    props: {
+      onOpen: noop,
+      pr: {
+        commentsCount: 0,
+        draft: false,
+        headRef: "chat-panel",
+        merged: false,
+        repo: "PauliusKrutkis/nod",
+        title: "feat(chat): the AI chat panel — chat, skills, and suggestions",
+      },
+      selected: true,
+      unread: false,
+    },
+  },
   ancient: {
     props: {
       onOpen: noop,
