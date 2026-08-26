@@ -92,6 +92,71 @@ test("j selects the next group; signing happens inside its session", async ({
   });
 });
 
+test("e archives a group until it updates; z undoes; u browses archived", async ({
+  page,
+}) => {
+  await setupApp(page, {
+    ledger: LEDGER,
+    watchedRepos: ["me/nod"],
+  });
+  await expect(page.getByRole("option").first()).toBeVisible();
+
+  await openLedger(page);
+  await expect(page.getByRole("option")).toHaveCount(2);
+  const list = sessionList(page);
+
+  // Archive the selected group: it leaves the queue, like a PR row.
+  await page.keyboard.press("e");
+  await expect(page.getByRole("option")).toHaveCount(1);
+  await expect(list.getByText("ledger", { exact: true })).toBeHidden();
+
+  // z brings it straight back.
+  await page.keyboard.press("z");
+  await expect(page.getByRole("option")).toHaveCount(2);
+
+  // u flips to the archived view, where e restores.
+  await page.keyboard.press("e");
+  await page.keyboard.press("u");
+  await expect(page.getByText("restores")).toBeVisible();
+  await expect(list.getByText("ledger", { exact: true })).toBeVisible();
+  await page.keyboard.press("e");
+  await expect(page.getByText("Nothing archived")).toBeVisible();
+  await page.keyboard.press("u");
+  await expect(page.getByRole("option")).toHaveCount(2);
+});
+
+test("y copies the group's nod:// link — the topic is the id", async ({
+  page,
+}) => {
+  await setupApp(page, {
+    ledger: LEDGER,
+    watchedRepos: ["me/nod"],
+  });
+  await expect(page.getByRole("option").first()).toBeVisible();
+
+  await openLedger(page);
+  await expect(page.getByRole("option")).toHaveCount(2);
+  await page.keyboard.press("y");
+  await expect(page.getByText("nod://ledger/me/nod/ledger")).toBeVisible();
+});
+
+test("a group authored through the forge wears the login, like a PR row", async ({
+  page,
+}) => {
+  await setupApp(page, {
+    ledger: LEDGER,
+    watchedRepos: ["me/nod"],
+  });
+  await expect(page.getByRole("option").first()).toBeVisible();
+
+  await openLedger(page);
+  // The #321 squash's noreply email names the login; the direct push has a
+  // plain email and keeps the git name.
+  const list = sessionList(page);
+  await expect(list.getByText("amy", { exact: true })).toBeVisible();
+  await expect(list.getByText("Rosa Diaz")).toBeVisible();
+});
+
 test("empty ledgers across watched repos read as all-read, no setup step", async ({
   page,
 }) => {
@@ -122,6 +187,8 @@ test("enter opens a session on the review surface and r signs the region", async
   // the file tree column is there even for a single file.
   await expect(page.getByRole("button", { name: "Ledger" })).toBeHidden();
   await expect(page.locator(".qf-filelist")).toBeVisible();
+  // The header wears the group's author the way a PR header does.
+  await expect(page.locator(".qf-header-author")).toHaveText("amy");
   await expect(page.getByText("resolveAnchor")).toBeVisible();
   const sessionArgs = await page.evaluate(() =>
     localStorage.getItem("e2e:ledgerSession")

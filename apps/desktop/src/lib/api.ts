@@ -15,6 +15,7 @@ import type {
   GrepResult,
   InboxBucket,
   InboxData,
+  LedgerLinkTarget,
   LedgerSession,
   LedgerStatus,
   LicenseState,
@@ -260,6 +261,8 @@ export const api = {
       startLine?: number;
     }[];
   }) => invoke<void>("submit_review", args),
+  takeDeepLinkLedger: () =>
+    invoke<LedgerLinkTarget | null>("take_deep_link_ledger"),
   takeDeepLinkPr: () => invoke<PrLinkTarget | null>("take_deep_link_pr"),
   updateIssueComment: (args: {
     owner: string;

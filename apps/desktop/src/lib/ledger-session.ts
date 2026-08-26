@@ -220,6 +220,30 @@ export function isBucketTopic(topic: string): boolean {
   return PR_LABEL.test(topic) || SHA_LABEL.test(topic);
 }
 
+/**
+ * GitHub's web-UI merges (squash included — the ledger's dominant case)
+ * author commits from a noreply address that carries the forge login, so a
+ * group authored that way gets the same identity a PR row shows: login and
+ * avatar, not the git display name. A plain email keeps the git name and
+ * gets the initial-letter avatar fallback.
+ */
+const NOREPLY_EMAIL =
+  /^(?:\d+\+)?([a-z\d](?:[a-z\d-]*[a-z\d])?)@users\.noreply\.github\.com$/i;
+
+export function forgeIdentity(
+  author: string | undefined,
+  email: string | undefined
+): { author?: string; authorAvatarUrl?: string } {
+  const login = email === undefined ? null : NOREPLY_EMAIL.exec(email)?.[1];
+  if (login) {
+    return {
+      author: login,
+      authorAvatarUrl: `https://avatars.githubusercontent.com/${login}`,
+    };
+  }
+  return { author };
+}
+
 export interface ProvenanceGroup {
   /** Distinct headline provenance labels across the group's items (#pr / sha). */
   chips: string[];

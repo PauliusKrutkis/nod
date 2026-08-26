@@ -672,6 +672,9 @@ export const LEDGER = {
       path: "src/anchors/resolve.ts",
       provenance: [
         {
+          at: "2026-08-14T10:00:00.000Z",
+          author: "Amy Santiago",
+          authorEmail: "1234+amy@users.noreply.github.com",
           pr: 321,
           sha: "cafe321000000000000000000000000000000000",
           subject: "feat(ledger): anchor resolver (#321)",
@@ -693,6 +696,9 @@ export const LEDGER = {
       path: "src/facts/store.ts",
       provenance: [
         {
+          at: "2026-08-13T08:00:00.000Z",
+          author: "Rosa Diaz",
+          authorEmail: "rosa@example.com",
           pr: null,
           sha: "d1eec70000000000000000000000000000000000",
           subject: "chore: tighten CAS retry",

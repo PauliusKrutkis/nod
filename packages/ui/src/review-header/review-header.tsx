@@ -104,6 +104,7 @@ export function ReviewHeader({
   submitCombo = "s",
   submitDisabled = false,
   submitLabel,
+  submitTitle,
   trackerBase,
 }: {
   /** The chat's headless state, shown on the info button so a reviewer who
@@ -133,6 +134,10 @@ export function ReviewHeader({
   submitDisabled?: boolean;
   /** Fixed label overriding the Review/Submit-review pair. */
   submitLabel?: string;
+  /** Why the button is inert, as a tooltip — a disabled control that never
+   *  says why is the review screen's only dead end, so hosts that gate
+   *  submit (the ledger's view-every-file rule) explain the gate here. */
+  submitTitle?: string;
   trackerBase?: string;
 }) {
   const ciDot = ciDotClass(ciState);
@@ -239,21 +244,55 @@ export function ReviewHeader({
             </button>
           </Tooltip>
         )}
-        <button
-          className="qf-submit q-focus"
-          disabled={submitDisabled}
-          onClick={onOpenSubmit}
-          type="button"
-        >
-          {submitLabel ?? (pendingCount > 0 ? "Submit review" : "Review")}
-          {pendingCount > 0 && (
-            <span className="qf-submit-badge">{pendingCount}</span>
-          )}
-          <Kbd combo={submitCombo} />
-        </button>
+        <SubmitButton
+          onOpenSubmit={onOpenSubmit}
+          pendingCount={pendingCount}
+          submitCombo={submitCombo}
+          submitDisabled={submitDisabled}
+          submitLabel={submitLabel}
+          submitTitle={submitTitle}
+        />
       </div>
     </header>
   );
+}
+
+/** The submit button, wrapped in a tooltip only when the host supplied a
+ *  reason — the disabled button itself swallows pointer events (CSS turns
+ *  them off), so the tooltip's anchor span is what hovers. */
+function SubmitButton({
+  onOpenSubmit,
+  pendingCount,
+  submitCombo,
+  submitDisabled,
+  submitLabel,
+  submitTitle,
+}: {
+  onOpenSubmit: () => void;
+  pendingCount: number;
+  submitCombo: string;
+  submitDisabled: boolean;
+  submitLabel?: string;
+  submitTitle?: string;
+}) {
+  const button = (
+    <button
+      className="qf-submit q-focus"
+      disabled={submitDisabled}
+      onClick={onOpenSubmit}
+      type="button"
+    >
+      {submitLabel ?? (pendingCount > 0 ? "Submit review" : "Review")}
+      {pendingCount > 0 && (
+        <span className="qf-submit-badge">{pendingCount}</span>
+      )}
+      <Kbd combo={submitCombo} />
+    </button>
+  );
+  if (!submitTitle) {
+    return button;
+  }
+  return <Tooltip label={submitTitle}>{button}</Tooltip>;
 }
 
 /** Class for the small CI status dot on the info button, or null when a repo

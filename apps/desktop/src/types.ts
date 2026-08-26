@@ -158,6 +158,13 @@ export interface PrLinkTarget {
   number: number;
 }
 
+/** A ledger group named by a nod://ledger deep link — the topic is the id. */
+export interface LedgerLinkTarget {
+  owner: string;
+  repo: string;
+  topic: string;
+}
+
 export interface InboxBucket {
   count: number;
   prs: PullRequest[];
@@ -414,6 +421,8 @@ interface LedgerProvenance {
   at: string;
   /** Commit author name. */
   author: string;
+  /** Author email; noreply addresses carry the forge login. */
+  authorEmail: string;
   pr: number | null;
   sha: string;
   subject: string;

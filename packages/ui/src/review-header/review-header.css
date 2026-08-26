@@ -371,6 +371,10 @@
   cursor: default;
   filter: none;
   opacity: 0.45;
+  /* Let hover reach the tooltip anchor around the inert button — disabled
+     form controls eat pointer events otherwise, so the "why is this
+     disabled" tooltip could never open. */
+  pointer-events: none;
 }
 
 .qf-submit .q-kbd {

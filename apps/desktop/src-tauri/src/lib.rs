@@ -84,6 +84,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(ai_chat::ChatCancels::default())
         .manage(activation::PendingPrLink::default())
+        .manage(activation::PendingLedgerLink::default())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
@@ -155,6 +156,7 @@ pub fn run() {
             license::get_license_state,
             activation::activate_license,
             activation::take_deep_link_pr,
+            activation::take_deep_link_ledger,
             commands::get_ledger_excluded,
             commands::set_ledger_excluded,
             ledger::ledger_status,

@@ -50,7 +50,7 @@ import {
 } from "../../lib/review-items.ts";
 import { fingerprintFile } from "../../lib/viewed-fingerprint.ts";
 import { useAppStore } from "../../store/app-store.ts";
-import type { PendingComment } from "../../types.ts";
+import type { LedgerTopicApproval, PendingComment } from "../../types.ts";
 import { ReviewDiffPane } from "../review/review-diff-pane.tsx";
 import type {
   ReviewListCallbacks,
@@ -80,6 +80,9 @@ function shortSha(sha: string): string {
 
 // react-doctor-disable-next-line no-giant-component -- what is left after the sub-views moved out is state wiring: 27 hooks feeding one ReviewDiffPane that takes 45 props, so an extraction would thread every one of them through a new interface and read worse, not better. Same call as review-screen.tsx; BACKLOG § Tech debt records it
 export function LedgerSession({
+  approval = null,
+  author,
+  authorAvatarUrl,
   group,
   initialTarget,
   onExit,
@@ -87,6 +90,11 @@ export function LedgerSession({
   repoKey,
   targets,
 }: {
+  /** A standing approval on the topic, shown as the header's verdict pill. */
+  approval?: LedgerTopicApproval | null;
+  /** The group's sole commit author, PR-header style (queue's entryMeta). */
+  author?: string;
+  authorAvatarUrl?: string;
   group: { label: string; subject: string };
   initialTarget: string;
   onExit: () => void;
@@ -652,10 +660,12 @@ export function LedgerSession({
   return (
     // The review screen's exact frame — full-height file tree beside a main
     // column whose header is the review screen's own ReviewHeader with
-    // topic data: the topic is the title, baseline→tip shas ride the branch
-    // chips (copyable like branches), Approve stands where submit stands,
-    // gated exactly like the `a` key. No author, no number, no info dock:
-    // a topic has none of those.
+    // topic data: the topic is the title, the group's sole author wears the
+    // PR header's avatar slot, baseline→tip shas ride the branch chips
+    // (copyable like branches), a standing approval shows as the verdict
+    // pill, and Approve stands where submit stands, gated exactly like the
+    // `a` key — with the gate spelled out on hover. No number, no info
+    // dock: a topic has neither.
     <div className="dir-quiet relative flex h-full min-h-0 overflow-hidden">
       <FileTreeColumn
         changed={EMPTY_SET}
@@ -684,12 +694,15 @@ export function LedgerSession({
 
       <main className="qf-main flex min-w-0 flex-1 flex-col">
         <ReviewHeader
+          approved={approval ? [{ user: approval.actor.id }] : undefined}
           onCopyBranch={copyTextToClipboard}
           onOpenSubmit={approve}
           onOpenTicket={noop}
           onToggleRightPanel={noop}
           onToggleSidebar={panels.onToggleSidebar}
           pr={{
+            author,
+            authorAvatarUrl,
             baseRef: baseline ? shortSha(baseline.sha) : undefined,
             draft: false,
             headRef: baseline ? shortSha(tip) : undefined,
@@ -704,6 +717,11 @@ export function LedgerSession({
           submitCombo="a"
           submitDisabled={!allViewed}
           submitLabel="Approve"
+          submitTitle={
+            allViewed
+              ? undefined
+              : `Mark every file viewed to approve — ${viewedSet.size} of ${files.length} viewed, v marks the file under the cursor`
+          }
         />
         {body()}
       </main>

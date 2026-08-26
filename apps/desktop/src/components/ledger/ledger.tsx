@@ -25,9 +25,18 @@
  */
 import { InboxDetail, type InboxPullRequest } from "@nod/ui/inbox-detail";
 import { InboxZero } from "@nod/ui/inbox-zero";
+import { Kbd } from "@nod/ui/kbd";
 import { PRListItem, type PullRequestRow } from "@nod/ui/pr-list-item";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, CornerUpLeft } from "lucide-react";
+import {
+  Archive,
+  ArchiveRestore,
+  ArrowDown,
+  ArrowUp,
+  CornerUpLeft,
+  Link,
+  Undo2,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useLedgerAssignments } from "../../hooks/use-ledger-assignments.ts";
 import { useLedgerPrep } from "../../hooks/use-ledger-prep.ts";
@@ -39,6 +48,7 @@ import {
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
 import { api } from "../../lib/api.ts";
 import {
+  forgeIdentity,
   groupQueueByProvenance,
   isBucketTopic,
   type ProvenanceGroup,
@@ -72,6 +82,9 @@ type LedgerView =
       group: { label: string; subject: string };
       targets: string[];
       initialTarget: string;
+      author?: string;
+      authorAvatarUrl?: string;
+      approval: LedgerTopicApproval | null;
     };
 
 /** One queue row: a topic group of one watched repository. */
@@ -80,12 +93,35 @@ interface QueueEntry {
   group: ProvenanceGroup;
   approval: LedgerTopicApproval | null;
   status: LedgerStatus;
-  /** Sole commit author across the group, when everyone agrees. */
+  /** Sole commit author across the group, when everyone agrees — the forge
+   *  login (with avatar) when the noreply email carries it, like a PR row. */
   author?: string;
+  authorAvatarUrl?: string;
   /** Newest provenance commit — the group's freshness, PR-row style. */
   updatedAt?: string;
   commentCount: number;
   lastComment?: { author: string; body: string; createdAt: string };
+}
+
+/** The group's sole author as a PR-row identity, when every provenance
+ *  commit agrees. Unanimity is judged by email when the commit has one —
+ *  two spellings of the same person's name still count as one author. */
+function soleIdentity(
+  group: ProvenanceGroup
+): Pick<QueueEntry, "author" | "authorAvatarUrl"> {
+  const authors = new Map<string, { author: string; email?: string }>();
+  for (const item of group.items) {
+    for (const p of item.provenance) {
+      if (p.author) {
+        authors.set(p.authorEmail || p.author, {
+          author: p.author,
+          email: p.authorEmail || undefined,
+        });
+      }
+    }
+  }
+  const sole = authors.size === 1 ? [...authors.values()][0] : undefined;
+  return sole ? forgeIdentity(sole.author, sole.email) : {};
 }
 
 /** Author, freshness, and comment presence for one group — the fields the
@@ -93,14 +129,13 @@ interface QueueEntry {
 function entryMeta(
   group: ProvenanceGroup,
   status: LedgerStatus
-): Pick<QueueEntry, "author" | "updatedAt" | "commentCount" | "lastComment"> {
-  const authors = new Set<string>();
+): Pick<
+  QueueEntry,
+  "author" | "authorAvatarUrl" | "updatedAt" | "commentCount" | "lastComment"
+> {
   let updatedAt: string | undefined;
   for (const item of group.items) {
     for (const p of item.provenance) {
-      if (p.author) {
-        authors.add(p.author);
-      }
       if (p.at && (updatedAt === undefined || p.at > updatedAt)) {
         updatedAt = p.at;
       }
@@ -125,7 +160,7 @@ function entryMeta(
     }
   }
   return {
-    author: authors.size === 1 ? [...authors][0] : undefined,
+    ...soleIdentity(group),
     commentCount,
     lastComment: last,
     updatedAt,
@@ -199,6 +234,18 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
   // its session is opened, and lights again when newer commits join it.
   const isUnread = useAppStore((s) => s.isUnread);
   const markSeen = useAppStore((s) => s.markSeen);
+  // The inbox's own archive store, same keys as seen-tracking: archived
+  // until new commits join the group, e/z/u exactly like PR rows.
+  const dismissed = useAppStore((s) => s.dismissed);
+  const dismiss = useAppStore((s) => s.dismiss);
+  const clearDismissed = useAppStore((s) => s.clearDismissed);
+  const undoDismiss = useAppStore((s) => s.undoDismiss);
+  const setToast = useAppStore((s) => s.setToast);
+  // A nod://ledger link, stashed by the deep-link hook until this list can
+  // resolve the named group.
+  const linkTarget = useAppStore((s) => s.ledgerLinkTarget);
+  const setLedgerLinkTarget = useAppStore((s) => s.setLedgerLinkTarget);
+  const [showArchived, setShowArchived] = useState(false);
   const [view, setView] = useState<LedgerView>({ kind: "queue" });
   const [selectedIndex, setSelected] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
@@ -219,6 +266,18 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
     repos,
     statuses.map((q) => q.data)
   );
+  const isHidden = (entry: QueueEntry) => {
+    const at = dismissed[seenKey(entry)];
+    return (
+      !!at &&
+      entry.updatedAt !== undefined &&
+      new Date(entry.updatedAt).getTime() <= new Date(at).getTime()
+    );
+  };
+  const archivedEntries = entries.filter(isHidden);
+  const visible = showArchived
+    ? archivedEntries
+    : entries.filter((entry) => !isHidden(entry));
   const pendingRepo = repos.find((_, i) => statuses[i]?.isPending);
   const anyData = statuses.some((q) => q.data !== undefined);
   const firstError = statuses.find((q) => q.error)?.error;
@@ -226,7 +285,7 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
   const prep = useLedgerPrep(pendingRepo ?? "");
 
   const inQueue = view.kind === "queue";
-  const activeCount = entries.length;
+  const activeCount = visible.length;
 
   // Signing a region shrinks the queue under the cursor, so the stored index
   // can outrun the list. Clamping at read keeps the selection in range without
@@ -245,29 +304,90 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       for (const offset of [0, 1, -1]) {
-        const entry = entries[selected + offset];
+        const entry = visible[selected + offset];
         if (entry) {
           prefetchLedgerSession(entry.repoKey, entry.group.items.map(targetOf));
         }
       }
     }, 180);
     return () => clearTimeout(timer);
-  }, [selected, entries]);
+  }, [selected, visible]);
 
   const openSession = (index = selected) => {
-    const entry = entries[index];
+    const entry = visible[index];
     const first = entry?.group.items[0];
     if (!(entry && first)) {
       return;
     }
     markSeen(seenKey(entry), entry.updatedAt ?? new Date().toISOString());
     setView({
+      approval: entry.approval,
+      author: entry.author,
+      authorAvatarUrl: entry.authorAvatarUrl,
       group: { label: entry.group.label, subject: entry.group.subject },
       initialTarget: targetOf(first),
       kind: "session",
       repoKey: entry.repoKey,
       targets: entry.group.items.map(targetOf),
     });
+  };
+
+  // A nod://ledger link names a group by repo and topic; open its session
+  // the moment derivation surfaces it (statuses may still be loading when
+  // the link lands). An unknown topic just leaves the queue on screen.
+  useEffect(() => {
+    if (!linkTarget) {
+      return;
+    }
+    const index = visible.findIndex(
+      (entry) =>
+        entry.repoKey === linkTarget.repoKey &&
+        entry.group.key === linkTarget.topic
+    );
+    if (index >= 0) {
+      setLedgerLinkTarget(null);
+      setSelected(index);
+      openSession(index);
+    }
+  });
+
+  const groupTitle = (entry: QueueEntry) =>
+    isBucketTopic(entry.group.label)
+      ? entry.group.subject || entry.group.label
+      : entry.group.label;
+
+  const archiveSelected = () => {
+    const entry = visible[selected];
+    if (!entry) {
+      return;
+    }
+    if (showArchived) {
+      clearDismissed(seenKey(entry));
+      setToast({
+        message: groupTitle(entry),
+        note: "Back in the queue",
+        title: "Restored",
+      });
+      return;
+    }
+    dismiss(seenKey(entry), entry.updatedAt ?? new Date().toISOString());
+    setToast({
+      action: undoDismiss,
+      actionLabel: "Undo",
+      message: groupTitle(entry),
+      note: "Back when new commits land",
+      title: "Archived",
+    });
+  };
+
+  const copySelectedLink = () => {
+    const entry = visible[selected];
+    if (!entry) {
+      return;
+    }
+    const url = `nod://ledger/${entry.repoKey}/${encodeURIComponent(entry.group.key)}`;
+    navigator.clipboard?.writeText(url).catch(() => undefined);
+    setToast({ message: url, title: "Copied group link" });
   };
 
   useHotkeys("inbox", [
@@ -296,6 +416,37 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
       },
     },
     {
+      description: "Archive until it updates",
+      group: "Queue",
+      icon: Archive,
+      keys: "e",
+      run: archiveSelected,
+    },
+    {
+      description: "Undo archive",
+      group: "Queue",
+      icon: Undo2,
+      keys: "z",
+      run: undoDismiss,
+    },
+    {
+      description: "Show archived / back",
+      group: "Queue",
+      icon: ArchiveRestore,
+      keys: "u",
+      run: () => {
+        setShowArchived((v) => !v);
+        setSelected(0);
+      },
+    },
+    {
+      description: "Copy group link",
+      group: "Queue",
+      icon: Link,
+      keys: "y",
+      run: copySelectedLink,
+    },
+    {
       description: "Back",
       group: "Queue",
       icon: CornerUpLeft,
@@ -311,6 +462,9 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
   if (view.kind === "session") {
     return (
       <LedgerSession
+        approval={view.approval}
+        author={view.author}
+        authorAvatarUrl={view.authorAvatarUrl}
         group={view.group}
         initialTarget={view.initialTarget}
         onExit={() => setView({ kind: "queue" })}
@@ -358,9 +512,35 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
     );
   }
 
-  const active = entries[selected];
+  if (visible.length === 0) {
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="flex-1">
+          <InboxZero
+            hint={
+              showArchived
+                ? "u returns to the queue."
+                : "Everything left is archived — u shows it."
+            }
+            title={showArchived ? "Nothing archived" : "All read"}
+          />
+        </div>
+        <FinishedStrip finished={finished} multiRepo={repos.length > 1} />
+      </div>
+    );
+  }
+
+  const active = visible[selected];
   return (
     <div className="flex h-full min-h-0 flex-col">
+      {showArchived && (
+        <div className="qiv-banner">
+          <ArchiveRestore size={13} />
+          <span>
+            Archived · <Kbd combo="e" /> restores, <Kbd combo="u" /> returns
+          </span>
+        </div>
+      )}
       <div className="qiv-body">
         <div
           aria-label="Review sessions"
@@ -368,7 +548,7 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
           ref={listRef}
           role="listbox"
         >
-          {entries.map((entry, i) => (
+          {visible.map((entry, i) => (
             <div data-index={i} key={`${entry.repoKey}:${entry.group.key}`}>
               <PRListItem
                 onHover={() => setSelected(i)}
@@ -387,7 +567,7 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
         {active && (
           <div className="qiv-detail">
             <InboxDetail
-              archivable={false}
+              archivable={!showArchived}
               onOpenTicket={noop}
               openHint="open session"
               pr={detailOf(active, aiConfigured)}
@@ -410,6 +590,7 @@ function rowOf(entry: QueueEntry): PullRequestRow {
   const bucket = isBucketTopic(entry.group.label);
   return {
     author: entry.author,
+    authorAvatarUrl: entry.authorAvatarUrl,
     commentsCount: entry.commentCount,
     draft: false,
     headRef: bucket ? entry.group.label : "",
@@ -451,6 +632,7 @@ function detailOf(entry: QueueEntry, aiConfigured: boolean): InboxPullRequest {
   return {
     additions: group.newLines,
     author: entry.author,
+    authorAvatarUrl: entry.authorAvatarUrl,
     body,
     changedFiles: group.fileCount,
     commentsCount: entry.commentCount,

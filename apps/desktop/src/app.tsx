@@ -19,6 +19,10 @@ import { ReviewNotifier } from "./components/review-notifier.tsx";
 import { TokenGateFlow } from "./components/token-gate-flow.tsx";
 import { UpdatePromptLoader } from "./components/update-prompt-loader.tsx";
 import { WhatsNewLoader } from "./components/whats-new-loader.tsx";
+import {
+  takeLaunchLedgerTarget,
+  useDeepLinkLedger,
+} from "./hooks/use-deep-link-ledger.ts";
 import { takeLaunchPrTarget, useDeepLinkPr } from "./hooks/use-deep-link-pr.ts";
 import { useGlobalBindings } from "./keyboard/use-global-bindings.ts";
 import { api } from "./lib/api.ts";
@@ -136,6 +140,9 @@ export default function App() {
             .openReview(launch.owner, launch.repo, launch.number);
           return;
         }
+        if (await takeLaunchLedgerTarget()) {
+          return;
+        }
         setRoute(loadLastRoute() ?? { name: "inbox" });
       })
       .catch(() => setRoute({ name: "token" }));
@@ -146,6 +153,7 @@ export default function App() {
   }, [setRoute, setAccounts]);
 
   useDeepLinkPr();
+  useDeepLinkLedger();
 
   useGlobalBindings({
     openCanned: openCannedDialog,

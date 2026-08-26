@@ -203,10 +203,36 @@ pub fn take_deep_link_pr(state: tauri::State<'_, PendingPrLink>) -> Option<PrLin
     state.0.lock().ok().and_then(|mut pending| pending.take())
 }
 
+/// A ledger topic group named by a `nod://ledger/{owner}/{repo}/{topic}`
+/// link — the group's shareable identity. A topic has no forge-minted
+/// number, so the name itself is the id; the segment is percent-encoded by
+/// the sender (the queue's `y` binding) to survive any label.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct LedgerLink {
+    pub owner: String,
+    pub repo: String,
+    pub topic: String,
+}
+
+/// The ledger twin of [`PendingPrLink`], same cold-start reasoning.
+#[derive(Default)]
+pub struct PendingLedgerLink(Mutex<Option<LedgerLink>>);
+
+#[tauri::command]
+pub fn take_deep_link_ledger(
+    state: tauri::State<'_, PendingLedgerLink>,
+) -> Option<LedgerLink> {
+    state.0.lock().ok().and_then(|mut pending| pending.take())
+}
+
 fn handle_deep_link_urls(app: &AppHandle, urls: &[url::Url]) {
     for url in urls {
         if let Some(link) = pr_link(url) {
             deliver_pr_link(app, link);
+            continue;
+        }
+        if let Some(link) = ledger_link(url) {
+            deliver_ledger_link(app, link);
             continue;
         }
         let Some(token) = purchase_token(url) else {
@@ -230,6 +256,34 @@ fn deliver_pr_link(app: &AppHandle, link: PrLink) {
     }
     let _ = app.emit("deep-link-pr", link);
     focus_main(app);
+}
+
+fn deliver_ledger_link(app: &AppHandle, link: LedgerLink) {
+    if let Some(state) = app.try_state::<PendingLedgerLink>() {
+        if let Ok(mut pending) = state.0.lock() {
+            *pending = Some(link.clone());
+        }
+    }
+    let _ = app.emit("deep-link-ledger", link);
+    focus_main(app);
+}
+
+fn ledger_link(url: &url::Url) -> Option<LedgerLink> {
+    if url.scheme() != "nod" || url.host_str() != Some("ledger") {
+        return None;
+    }
+    let mut segments = url.path_segments()?;
+    let owner = segments.next().filter(|s| !s.is_empty())?.to_string();
+    let repo = segments.next().filter(|s| !s.is_empty())?.to_string();
+    let raw = segments.next().filter(|s| !s.is_empty())?;
+    let topic = percent_encoding::percent_decode_str(raw)
+        .decode_utf8()
+        .ok()?
+        .into_owned();
+    if segments.next().is_some() {
+        return None;
+    }
+    Some(LedgerLink { owner, repo, topic })
 }
 
 fn pr_link(url: &url::Url) -> Option<PrLink> {

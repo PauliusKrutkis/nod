@@ -305,6 +305,8 @@ interface AppState {
   isDismissed: (prKey: string, updatedAt: string) => boolean;
   /** A ledger session is mounted — the help sheet keys off its scope. */
   ledgerSessionOpen: boolean;
+  /** A nod://ledger link waiting for the ledger list to resolve it. */
+  ledgerLinkTarget: { repoKey: string; topic: string } | null;
 
   issueTrackers: Record<string, string>;
   isUnread: (prKey: string, updatedAt: string) => boolean;
@@ -333,6 +335,9 @@ interface AppState {
   setHelpOpen: (open: boolean) => void;
   setInboxPaneVisible: (visible: boolean) => void;
   setLedgerSessionOpen: (open: boolean) => void;
+  setLedgerLinkTarget: (
+    target: { repoKey: string; topic: string } | null
+  ) => void;
   setInboxSelectedKey: (key: string | null) => void;
   setInboxTab: (tab: InboxTabKey) => void;
   setIssueTracker: (accountId: string, url: string | null) => void;
@@ -503,6 +508,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   lastDismissedKey: null,
   lastSeen: loadLastSeen(),
   ledgerSessionOpen: false,
+  ledgerLinkTarget: null,
 
   markSeen: (prKey, updatedAt) => {
     const map = { ...get().lastSeen, [prKey]: updatedAt };
@@ -562,6 +568,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setHelpOpen: (open) => set({ helpOpen: open }),
   setInboxPaneVisible: (inboxPaneVisible) => set({ inboxPaneVisible }),
   setLedgerSessionOpen: (ledgerSessionOpen) => set({ ledgerSessionOpen }),
+  setLedgerLinkTarget: (ledgerLinkTarget) => set({ ledgerLinkTarget }),
   setInboxSelectedKey: (key) => set({ inboxSelectedKey: key }),
   setInboxTab: (tab) => {
     saveLastTab(tab);

@@ -99,6 +99,31 @@ fn pr_link_reads_only_a_complete_pr_deep_link() {
 }
 
 #[test]
+fn ledger_link_reads_a_topic_and_decodes_its_name() {
+    let parse = |s: &str| url::Url::parse(s).unwrap();
+    assert_eq!(
+        super::ledger_link(&parse("nod://ledger/acme/rocket/repo-store")),
+        Some(super::LedgerLink {
+            owner: "acme".to_string(),
+            repo: "rocket".to_string(),
+            topic: "repo-store".to_string(),
+        })
+    );
+    // The queue percent-encodes the topic segment; any label survives.
+    assert_eq!(
+        super::ledger_link(&parse("nod://ledger/acme/rocket/chat%20panel"))
+            .map(|l| l.topic),
+        Some("chat panel".to_string())
+    );
+    assert_eq!(super::ledger_link(&parse("nod://ledger/acme/rocket")), None);
+    assert_eq!(
+        super::ledger_link(&parse("nod://ledger/acme/rocket/topic/extra")),
+        None
+    );
+    assert_eq!(super::ledger_link(&parse("nod://pr/acme/rocket/1")), None);
+}
+
+#[test]
 fn an_unknown_path_is_a_404() {
     let (token, response) = roundtrip("GET /favicon.ico HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
     assert_eq!(token, None);
