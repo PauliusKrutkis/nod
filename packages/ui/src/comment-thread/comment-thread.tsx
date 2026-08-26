@@ -87,6 +87,13 @@ function firstLine(body: string): string {
   return body.trim().split("\n")[0] ?? "";
 }
 
+function consumedNonce(
+  request: { nonce: number; rootId: number } | null | undefined,
+  rootId: number | undefined
+): number {
+  return request && request.rootId === rootId ? request.nonce : 0;
+}
+
 function applyCommand(
   request: { nonce: number; rootId: number } | null | undefined,
   rootId: number | undefined,
@@ -131,9 +138,21 @@ export function CommentThread({
   const [editingId, setEditingId] = useState<number | null>(null);
   const [collapsed, setCollapsed] = useState(resolved);
   const [wasResolved, setWasResolved] = useState(resolved);
-  const [lastReplyNonce, setLastReplyNonce] = useState(0);
-  const [lastToggleNonce, setLastToggleNonce] = useState(0);
-  const [lastEditNonce, setLastEditNonce] = useState(0);
+  // Requests are edge-triggered commands aimed at a thread that was on
+  // screen when the key was pressed — but the host keeps the last request
+  // in state and the list virtualizes, so a thread that unmounts and comes
+  // back would see the old nonce and replay it (dogfooded as: cycling
+  // comments with w reopened an edit composer). A request already present
+  // at mount is therefore consumed, never applied.
+  const [lastReplyNonce, setLastReplyNonce] = useState(() =>
+    consumedNonce(replyRequest, rootId)
+  );
+  const [lastToggleNonce, setLastToggleNonce] = useState(() =>
+    consumedNonce(toggleRequest, rootId)
+  );
+  const [lastEditNonce, setLastEditNonce] = useState(() =>
+    consumedNonce(editRequest, rootId)
+  );
   const composerOpen = replying || editingId !== null;
 
   if (wasResolved !== resolved) {
