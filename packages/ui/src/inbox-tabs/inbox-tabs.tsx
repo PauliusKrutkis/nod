@@ -10,14 +10,15 @@
  *
  * Counts render verbatim, including 0 — the host only passes a bucket it
  * wants shown, and hiding the number on the tab you are looking at would read
- * as a loading state.
+ * as a loading state. A null count means the tab is a surface rather than a
+ * bucket (the ledger), and wears no number at all.
  */
 import { Archive, ArchiveRestore, Eye } from "lucide-react";
 import { Tooltip } from "../tooltip/tooltip.tsx";
 import "./inbox-tabs.css";
 
 export interface InboxTab {
-  count: number;
+  count: number | null;
   hint: string;
   key: string;
   label: string;
@@ -47,7 +48,9 @@ function InboxTabButton({
         type="button"
       >
         {tab.label}
-        <span className="qi-tab-count">{tab.count}</span>
+        {tab.count !== null && (
+          <span className="qi-tab-count">{tab.count}</span>
+        )}
       </button>
     </Tooltip>
   );

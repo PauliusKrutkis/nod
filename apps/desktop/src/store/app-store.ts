@@ -26,26 +26,19 @@ export type Route =
   | { name: "loading" }
   | { name: "token" }
   | { name: "inbox" }
-  | { name: "ledger" }
   | { name: "review"; owner: string; repo: string; number: number };
 
 /**
- * We remember the inbox/ledger/review screen you were last on (never the
+ * We remember the inbox/review screen you were last on (never the
  * token/loading screens) so the next launch reopens it instead of always
- * landing on the inbox.
+ * landing on the inbox. The ledger is an inbox tab, remembered through
+ * the tab key like every other tab.
  */
 const LAST_ROUTE_KEY = "nod:lastRoute:v1";
-type ResumableRoute = Extract<
-  Route,
-  { name: "inbox" } | { name: "ledger" } | { name: "review" }
->;
+type ResumableRoute = Extract<Route, { name: "inbox" } | { name: "review" }>;
 
 function saveLastRoute(route: Route) {
-  if (
-    route.name !== "inbox" &&
-    route.name !== "ledger" &&
-    route.name !== "review"
-  ) {
+  if (route.name !== "inbox" && route.name !== "review") {
     return;
   }
   try {
@@ -63,7 +56,8 @@ export function loadLastRoute(): ResumableRoute | null {
       return { name: "inbox" };
     }
     if (v?.name === "ledger") {
-      return { name: "ledger" };
+      // Stored by builds where the ledger was its own route.
+      return { name: "inbox" };
     }
     if (
       v?.name === "review" &&
@@ -87,6 +81,7 @@ const TAB_KEYS: readonly InboxTabKey[] = [
   "created",
   "involved",
   "subscribed",
+  "ledger",
 ];
 
 function saveLastTab(tab: InboxTabKey) {
@@ -302,7 +297,6 @@ interface AppState {
 
   dismissed: Record<string, string>;
   goInbox: () => void;
-  goLedger: () => void;
   helpOpen: boolean;
   hideResolvedThreads: boolean;
   inboxPaneVisible: boolean;
@@ -483,11 +477,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     flushPersistViewed();
     saveLastRoute({ name: "inbox" });
     set({ route: { name: "inbox" } });
-  },
-  goLedger: () => {
-    flushPersistViewed();
-    saveLastRoute({ name: "ledger" });
-    set({ paletteOpen: false, route: { name: "ledger" } });
   },
   helpOpen: false,
   hideResolvedThreads: false,

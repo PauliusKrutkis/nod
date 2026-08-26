@@ -1,12 +1,16 @@
 /**
- * The review-ledger surface (docs/LEDGER.md §6): pick a watched
- * repository, land in its queue of review sessions — unreviewed
- * post-epoch regions pooled by feature-ish provenance (conventional-commit
- * scope, PR fallback) — and enter one to read and sign. Three modes —
- * pick (watched repos), queue, session — j/k/enter walk whichever list is
- * active, escape steps out one level (session → queue → picker → inbox).
- * Signing lives only inside the session, where the code is on screen: a
- * queue-level sign would be the rubber-stamp §13 warns about.
+ * The review-ledger surface (docs/LEDGER.md §6), mounted as the inbox's
+ * Ledger tab: pick a watched repository, land in its queue of review
+ * sessions — unreviewed post-epoch regions pooled by feature-ish
+ * provenance (conventional-commit scope, PR fallback) — and enter one to
+ * read and sign. Three modes — pick (watched repos), queue, session —
+ * j/k/enter walk whichever list is active, escape steps out one level
+ * (session → queue → picker → the PR tabs via onLeave). Bindings register
+ * under the inbox scope: this component only mounts on its tab, where the
+ * inbox's own list keys stand down, so the tab bar's digits and Tab keep
+ * working from inside the ledger. Signing lives only inside the session,
+ * where the code is on screen: a queue-level sign would be the
+ * rubber-stamp §13 warns about.
  *
  * Repos are addressed as owner/repo keys; Rust resolves everything else —
  * the store's bare clone (cloning on first open), the tip, the actor, the
@@ -37,7 +41,6 @@ import {
   type ProvenanceGroup,
 } from "../../lib/ledger-session.ts";
 import { queryKeys } from "../../lib/query-client.ts";
-import { useAppStore } from "../../store/app-store.ts";
 import type {
   LedgerQueueItem,
   LedgerTopicApproval,
@@ -96,8 +99,7 @@ function initialView(): LedgerView {
   return { kind: "pick" };
 }
 
-export function Ledger() {
-  const goInbox = useAppStore((s) => s.goInbox);
+export function Ledger({ onLeave }: { onLeave: () => void }) {
   useLedgerAssignments();
   const [view, setView] = useState<LedgerView>(initialView);
   const [selectedIndex, setSelected] = useState(0);
@@ -152,7 +154,7 @@ export function Ledger() {
 
   const stepOut = () => {
     if (view.kind === "pick") {
-      goInbox();
+      onLeave();
     } else {
       setSelected(0);
       setView({ kind: "pick" });
@@ -177,7 +179,7 @@ export function Ledger() {
     });
   };
 
-  useHotkeys("ledger", [
+  useHotkeys("inbox", [
     {
       description: "Next",
       group: "Queue",
@@ -317,7 +319,7 @@ function RepoPicker({
   if (repos.length === 0) {
     return (
       <InboxZero
-        hint="Watch a repository first — press w on the inbox."
+        hint="Watch a repository first — press w."
         title="Nothing to ledger yet"
       />
     );
@@ -354,7 +356,7 @@ function RepoPicker({
           <Kbd combo="↵" /> open
         </span>
         <span>
-          <Kbd combo="esc" /> inbox
+          <Kbd combo="esc" /> back
         </span>
       </footer>
     </div>

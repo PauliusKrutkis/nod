@@ -220,18 +220,15 @@ export function useGlobalBindings(dialogs: {
         run: toggleNotifications,
       },
       {
-        description: "Review ledger · coverage of main",
+        description: "Ledger · review coverage of main",
         global: true,
         group: "General",
         icon: ListChecks,
-        keys: "mod+shift+l",
+        keys: [],
         run: () => {
           const s = useAppStore.getState();
-          if (s.route.name === "ledger") {
-            s.goInbox();
-          } else {
-            s.goLedger();
-          }
+          s.setInboxTab("ledger");
+          s.goInbox();
         },
       },
       ...accountBindings,
