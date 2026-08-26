@@ -31,7 +31,10 @@ import { ArrowDown, ArrowUp, CornerUpLeft } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useLedgerAssignments } from "../../hooks/use-ledger-assignments.ts";
 import { useLedgerPrep } from "../../hooks/use-ledger-prep.ts";
-import { useLedgerStatuses } from "../../hooks/use-ledger-statuses.ts";
+import {
+  prefetchLedgerSession,
+  useLedgerStatuses,
+} from "../../hooks/use-ledger-statuses.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
 import { api } from "../../lib/api.ts";
 import {
@@ -169,6 +172,20 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
       ?.querySelector(`[data-index="${selected}"]`)
       ?.scrollIntoView({ block: "nearest" });
   }, [selected]);
+
+  // Mirror the inbox: once the cursor rests, warm the selected session and
+  // its neighbours so Enter opens instantly.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      for (const offset of [0, 1, -1]) {
+        const entry = entries[selected + offset];
+        if (entry) {
+          prefetchLedgerSession(entry.repoKey, entry.group.items.map(targetOf));
+        }
+      }
+    }, 180);
+    return () => clearTimeout(timer);
+  }, [selected, entries]);
 
   const openSession = (index = selected) => {
     const entry = entries[index];

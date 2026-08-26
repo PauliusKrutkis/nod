@@ -4,6 +4,26 @@ import { api } from "../lib/api.ts";
 import { queryClient, queryKeys } from "../lib/query-client.ts";
 import type { LedgerStatus } from "../types.ts";
 
+/** Session derivations stay warm this long before a prefetch re-derives. */
+const SESSION_STALE_MS = 60_000;
+
+/**
+ * Warm a session into the cache ahead of opening it — the ledger's
+ * prefetchPullRequest. `prefetchQuery` skips the sidecar when the data is
+ * fresh and TanStack dedupes concurrent identical requests, so calling
+ * this on every selection change stays cheap.
+ */
+export function prefetchLedgerSession(
+  repoKey: string,
+  targets: string[]
+): void {
+  queryClient.prefetchQuery({
+    queryFn: () => api.ledgerSession(repoKey, targets),
+    queryKey: queryKeys.ledgerSession(repoKey, targets),
+    staleTime: SESSION_STALE_MS,
+  });
+}
+
 /**
  * Every watched repo's ledger status, cache-first the way the inbox is:
  * the last derived status seeds from disk for an instant paint, then the
