@@ -83,13 +83,13 @@ const seeded = async (): Promise<{
 };
 
 describe("classification cascade", () => {
-  it("reports scopeless commits as unassigned, in their sha bucket", async () => {
+  it("reports every unmapped commit as unassigned, wearing its fallback label", async () => {
     const { repo, epoch, scopeless } = await seeded();
     const status = await deriveStatus(repo.git, { epoch });
 
-    expect(status.unassigned).toHaveLength(1);
-    const entry = status.unassigned[0];
-    expect(entry?.sha).toBe(scopeless);
+    // Both post-epoch commits await mapping: scopes name, they don't exempt.
+    expect(status.unassigned).toHaveLength(2);
+    const entry = status.unassigned.find((u) => u.sha === scopeless);
     expect(entry?.subject).toBe("tweak things");
     expect(entry?.topic).toBe(scopeless.slice(0, 7));
     expect(entry?.files).toEqual(["src/mystery.ts"]);
@@ -99,14 +99,14 @@ describe("classification cascade", () => {
     expect(item?.topic).toBe(scopeless.slice(0, 7));
   });
 
-  it("an assigned fact renames the bucket and clears the work list", async () => {
+  it("an assigned fact renames the bucket and leaves the work list", async () => {
     const { repo, epoch, scopeless } = await seeded();
     await appendFacts(repo.git, [
       assignment("assigned", scopeless, "onboarding", "2026-08-25T10:00:00Z"),
     ]);
     const status = await deriveStatus(repo.git, { epoch });
 
-    expect(status.unassigned).toHaveLength(0);
+    expect(status.unassigned.some((u) => u.sha === scopeless)).toBe(false);
     const item = status.queue.find((i) => i.path === "src/mystery.ts");
     expect(item?.topic).toBe("onboarding");
     expect(status.topics.some((t) => t.id === "onboarding")).toBe(true);
@@ -124,11 +124,13 @@ describe("classification cascade", () => {
     expect(item?.topic).toBe("billing");
   });
 
-  it("scoped commits never reach the work list", async () => {
+  it("scoped commits wear their scope but still await mapping", async () => {
     const { repo, epoch } = await seeded();
     const status = await deriveStatus(repo.git, { epoch });
     const item = status.queue.find((i) => i.path === "src/scoped.ts");
+    // A scope is a component name, not a feature — it labels the bucket
+    // until the LLM stage (or a human) maps the commit properly.
     expect(item?.topic).toBe("payments");
-    expect(status.unassigned.some((u) => u.topic === "payments")).toBe(false);
+    expect(status.unassigned.some((u) => u.topic === "payments")).toBe(true);
   });
 });

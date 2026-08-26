@@ -111,15 +111,19 @@ The dogfood constraints become the work list. Decisions, in build order:
    history pushes wholesale the day sync turns on. Actor identity comes
    from the GitHub login, not `git config user.name`.
 4. **LLM-first grouping.** The cascade per commit: human `corrected`
-   fact, agent `assigned` fact (the LLM stage writes these), the
-   conventional-commit scope when one exists, the provenance bucket.
-   The LLM's work list is exactly the bucket dwellers — `unassigned` in
-   status — so disciplined repos stay fully deterministic and free,
-   messy repos get the model, and existing scope-derived topics (and
-   the approvals attached to them) keep their names. Assignments
-   persist as facts: paid once per repo, synced, reproducible. Keys
-   ride the desktop app's existing AI settings (BYOK); keyless falls
-   back to the deterministic stages alone.
+   fact, agent `assigned` fact (the LLM stage writes these), then the
+   deterministic fallback label — conventional scope or provenance
+   bucket. A scope names a commit until the model has spoken but never
+   exempts it: scopes are component names (`desktop`, `ui`), and
+   dogfood showed they collapse a dozen unrelated features into one
+   mega-topic. `unassigned` in status is therefore every commit without
+   an assignment fact; the LLM maps the whole backlog in batches
+   (later batches see earlier batches' names, so features don't
+   fracture at batch seams) and one topic can absorb a stacked PR
+   series. Assignments persist as facts: paid once per repo, synced,
+   reproducible. Keys ride the desktop app's existing AI settings
+   (BYOK); keyless keeps the deterministic labels — still reviewable,
+   just grouped by component and provenance instead of feature.
 5. **Cold start = warm + prep view.** Repos warm in the background from
    the moment they're watched (blob fetch → blame → topic mapping), so
    most first opens are already sub-second. Direct entry into an

@@ -118,6 +118,13 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
     queryKey: queryKeys.ledger(inRepo ? view.repoKey : ""),
   });
   const prep = useLedgerPrep(inRepo ? view.repoKey : "");
+  // "mapping features…" only when a model can actually be mapping: keyless
+  // configs keep the deterministic labels and the note would never resolve.
+  const aiInfo = useQuery({
+    queryFn: api.getAiConfig,
+    queryKey: queryKeys.aiConfig,
+  });
+  const aiConfigured = aiInfo.data?.configured === true;
   const queue = status.data?.queue ?? [];
   const { groups } = groupQueueByProvenance(queue);
   const topics = status.data?.topics ?? [];
@@ -269,7 +276,7 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
               epoch {shortSha(status.data.epoch)} → tip{" "}
               {shortSha(status.data.tip)}
             </span>
-            {status.data.unassigned.length > 0 && (
+            {aiConfigured && status.data.unassigned.length > 0 && (
               <span className="text-faint text-xs">mapping features…</span>
             )}
           </>
