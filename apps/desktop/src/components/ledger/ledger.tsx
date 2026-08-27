@@ -228,6 +228,14 @@ function seenKey(entry: QueueEntry): string {
   return `ledger:${entry.repoKey}:${entry.group.key}`;
 }
 
+/** What a toast calls the group — the row's own title rule. */
+function groupTitle(entry: QueueEntry): string {
+  return isBucketTopic(entry.group.label)
+    ? entry.group.subject || entry.group.label
+    : entry.group.label;
+}
+
+// react-doctor-disable-next-line no-giant-component -- the tab's container: store wiring, the queue/session/zero/prep branching, and archive/link actions over shared state; the assemblers, hotkey map, and row/pane mappers already live outside, and threading a dozen state slices through further extractions would read worse. Same call as review-screen.tsx and ledger-session.tsx; BACKLOG § Tech debt records it
 export function Ledger({ onLeave }: { onLeave: () => void }) {
   useLedgerAssignments();
   // The inbox's own seen-tracking, namespaced: a group reads unread until
@@ -346,15 +354,11 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
     );
     if (index >= 0) {
       setLedgerLinkTarget(null);
+      // react-doctor-disable-next-line react-hooks-js/set-state-in-effect -- resolving a link needs the derived queue, which may only fill in on a later render (a cold repo derives after the link lands), and opening the session is a side effect (markSeen) — it cannot be computed during render; the linkTarget guard clears itself so this runs once per link
       setSelected(index);
       openSession(index);
     }
   });
-
-  const groupTitle = (entry: QueueEntry) =>
-    isBucketTopic(entry.group.label)
-      ? entry.group.subject || entry.group.label
-      : entry.group.label;
 
   const archiveSelected = () => {
     const entry = visible[selected];
@@ -390,74 +394,27 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
     setToast({ message: url, title: "Copied group link" });
   };
 
-  useHotkeys("inbox", [
-    {
-      description: "Next",
-      group: "Queue",
-      icon: ArrowDown,
-      keys: ["j", "down"],
-      run: () => setSelected(Math.min(selected + 1, activeCount - 1)),
+  useQueueHotkeys({
+    archiveSelected,
+    copySelectedLink,
+    next: () => setSelected(Math.min(selected + 1, activeCount - 1)),
+    onBack: () => {
+      if (inQueue) {
+        onLeave();
+      }
     },
-    {
-      description: "Previous",
-      group: "Queue",
-      icon: ArrowUp,
-      keys: ["k", "up"],
-      run: () => setSelected(Math.max(selected - 1, 0)),
+    onOpen: () => {
+      if (inQueue) {
+        openSession();
+      }
     },
-    {
-      description: "Open session",
-      group: "Queue",
-      keys: "enter",
-      run: () => {
-        if (inQueue) {
-          openSession();
-        }
-      },
+    prev: () => setSelected(Math.max(selected - 1, 0)),
+    toggleArchived: () => {
+      setShowArchived((v) => !v);
+      setSelected(0);
     },
-    {
-      description: "Archive until it updates",
-      group: "Queue",
-      icon: Archive,
-      keys: "e",
-      run: archiveSelected,
-    },
-    {
-      description: "Undo archive",
-      group: "Queue",
-      icon: Undo2,
-      keys: "z",
-      run: undoDismiss,
-    },
-    {
-      description: "Show archived / back",
-      group: "Queue",
-      icon: ArchiveRestore,
-      keys: "u",
-      run: () => {
-        setShowArchived((v) => !v);
-        setSelected(0);
-      },
-    },
-    {
-      description: "Copy group link",
-      group: "Queue",
-      icon: Link,
-      keys: "y",
-      run: copySelectedLink,
-    },
-    {
-      description: "Back",
-      group: "Queue",
-      icon: CornerUpLeft,
-      keys: "esc",
-      run: () => {
-        if (inQueue) {
-          onLeave();
-        }
-      },
-    },
-  ]);
+    undoArchive: undoDismiss,
+  });
 
   if (view.kind === "session") {
     return (
@@ -578,6 +535,88 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
       <FinishedStrip finished={finished} multiRepo={repos.length > 1} />
     </div>
   );
+}
+
+/** The queue's key map under the inbox scope — the inbox's own bindings
+ *  (useInboxHotkeys) stand down on the ledger tab, and these take the same
+ *  keys with the same meanings: j/k/enter walk and open, e/z/u archive,
+ *  y copies the group's link, esc leaves to the PR tabs. */
+function useQueueHotkeys({
+  archiveSelected,
+  copySelectedLink,
+  next,
+  onBack,
+  onOpen,
+  prev,
+  toggleArchived,
+  undoArchive,
+}: {
+  archiveSelected: () => void;
+  copySelectedLink: () => void;
+  next: () => void;
+  onBack: () => void;
+  onOpen: () => void;
+  prev: () => void;
+  toggleArchived: () => void;
+  undoArchive: () => void;
+}) {
+  useHotkeys("inbox", [
+    {
+      description: "Next",
+      group: "Queue",
+      icon: ArrowDown,
+      keys: ["j", "down"],
+      run: next,
+    },
+    {
+      description: "Previous",
+      group: "Queue",
+      icon: ArrowUp,
+      keys: ["k", "up"],
+      run: prev,
+    },
+    {
+      description: "Open session",
+      group: "Queue",
+      keys: "enter",
+      run: onOpen,
+    },
+    {
+      description: "Archive until it updates",
+      group: "Queue",
+      icon: Archive,
+      keys: "e",
+      run: archiveSelected,
+    },
+    {
+      description: "Undo archive",
+      group: "Queue",
+      icon: Undo2,
+      keys: "z",
+      run: undoArchive,
+    },
+    {
+      description: "Show archived / back",
+      group: "Queue",
+      icon: ArchiveRestore,
+      keys: "u",
+      run: toggleArchived,
+    },
+    {
+      description: "Copy group link",
+      group: "Queue",
+      icon: Link,
+      keys: "y",
+      run: copySelectedLink,
+    },
+    {
+      description: "Back",
+      group: "Queue",
+      icon: CornerUpLeft,
+      keys: "esc",
+      run: onBack,
+    },
+  ]);
 }
 
 /** A topic group in the PR row's shape. The title answers "what is this
