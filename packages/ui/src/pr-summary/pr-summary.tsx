@@ -19,15 +19,21 @@ import { formatAbsolute, formatRelativeTime } from "../time/time.ts";
 import { Tooltip } from "../tooltip/tooltip.tsx";
 import "./pr-summary.css";
 
+/**
+ * Author, number, time and url are optional for the same reason the
+ * header's and row's are: the drawer also crowns things that are PR-shaped
+ * without being PRs (a ledger topic has no forge number and no page to
+ * open), and each absent field simply leaves its slot out.
+ */
 export interface SummaryPullRequest {
   additions: number;
-  author: string;
+  author?: string;
   authorAvatarUrl?: string | null;
   deletions: number;
-  number: number;
+  number?: number;
   title: string;
-  updatedAt: string;
-  url: string;
+  updatedAt?: string;
+  url?: string;
 }
 
 export function PrSummary({
@@ -55,7 +61,9 @@ export function PrSummary({
   return (
     <section className="qf-drawer-summary">
       <div className="qf-drawer-pr">
-        <span className="qf-drawer-num">#{pr.number}</span>
+        {pr.number !== undefined && (
+          <span className="qf-drawer-num">#{pr.number}</span>
+        )}
         <span className="qf-drawer-pr-title">
           <TicketTitle
             onOpenTicket={onOpenTicket}
@@ -65,35 +73,48 @@ export function PrSummary({
         </span>
       </div>
       <div className="qf-drawer-meta">
-        <Avatar name={pr.author} size={15} url={pr.authorAvatarUrl} />
-        <span>{pr.author}</span>
-        <span className="q-dot">·</span>
+        {pr.author !== undefined && (
+          <>
+            <Avatar name={pr.author} size={15} url={pr.authorAvatarUrl} />
+            <span>{pr.author}</span>
+            <span className="q-dot">·</span>
+          </>
+        )}
         <span>
           {fileCount} file{fileCount === 1 ? "" : "s"}
         </span>
         <span className="q-dot">·</span>
         <span className="qf-drawer-add">+{pr.additions}</span>
         <span className="qf-drawer-del">−{pr.deletions}</span>
-        <span className="q-dot">·</span>
-        <span className="qf-drawer-when" title={formatAbsolute(pr.updatedAt)}>
-          {formatRelativeTime(pr.updatedAt)}
-        </span>
+        {pr.updatedAt !== undefined && (
+          <>
+            <span className="q-dot">·</span>
+            <span
+              className="qf-drawer-when"
+              title={formatAbsolute(pr.updatedAt)}
+            >
+              {formatRelativeTime(pr.updatedAt)}
+            </span>
+          </>
+        )}
       </div>
       <div className="qf-drawer-links">
         <CiPill
           ci={ci}
           onOpen={onShowChecks ? () => onShowChecks() : onOpenCiUrl}
         />
-        <Tooltip label={pr.url}>
-          <button
-            className="qf-drawer-link q-focus"
-            onClick={onOpenPr}
-            type="button"
-          >
-            <span className="qf-drawer-link-label">{openLabel}</span>
-            <ExternalLink aria-hidden size={13} />
-          </button>
-        </Tooltip>
+        {!!pr.url && (
+          <Tooltip label={pr.url}>
+            <button
+              className="qf-drawer-link q-focus"
+              onClick={onOpenPr}
+              type="button"
+            >
+              <span className="qf-drawer-link-label">{openLabel}</span>
+              <ExternalLink aria-hidden size={13} />
+            </button>
+          </Tooltip>
+        )}
       </div>
     </section>
   );

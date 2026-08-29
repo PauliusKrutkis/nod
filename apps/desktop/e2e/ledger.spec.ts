@@ -51,6 +51,9 @@ test("the queue lists one row per feature group, styled as inbox rows", async ({
   await expect(list.getByText("ledger", { exact: true })).toBeVisible();
   await expect(list.getByText("chore: tighten CAS retry")).toBeVisible();
   await expect(list.getByText("d1eec70", { exact: true })).toBeVisible();
+  // The topic's fact-minted display number rides the row like a PR number;
+  // the unnumbered bucket shows none.
+  await expect(list.getByText("#1", { exact: true })).toBeVisible();
   // The reading pane mirrors the row's title and carries the story,
   // coverage, and the group's size.
   await expect(
@@ -238,7 +241,7 @@ test("a session shows the net diff for a signed-then-edited file", async ({
   await expect(sessionList(page)).toBeVisible();
 });
 
-test("approving is gated on viewed: v arms the Approve button and a stamps", async ({
+test("a approves immediately — no gate — and returns to the queue", async ({
   page,
 }) => {
   await setupApp(page, {
@@ -254,15 +257,6 @@ test("approving is gated on viewed: v arms the Approve button and a stamps", asy
   await page.keyboard.press("Enter");
   await expect(page.locator('[data-testid="review-scroller"]')).toBeVisible();
   const approve = page.getByRole("button", { name: APPROVE });
-  await expect(approve).toBeDisabled();
-
-  // Before every file is viewed, a records nothing.
-  await page.keyboard.press("a");
-  expect(
-    await page.evaluate(() => localStorage.getItem("e2e:ledgerApprove"))
-  ).toBeNull();
-
-  await page.keyboard.press("v");
   await expect(approve).toBeEnabled();
 
   await page.keyboard.press("a");
@@ -276,6 +270,29 @@ test("approving is gated on viewed: v arms the Approve button and a stamps", asy
   await expect(sessionList(page)).toBeVisible();
   await expect(page.getByText(COVERAGE_87)).toBeVisible();
   await expect(page.getByRole("option")).toHaveCount(1);
+});
+
+test("the info panel opens on the session and tells the group's story", async ({
+  page,
+}) => {
+  await setupApp(page, {
+    ledger: LEDGER,
+    ledgerSession: LEDGER_SESSION,
+    watchedRepos: ["me/nod"],
+  });
+  await expect(page.getByRole("option").first()).toBeVisible();
+
+  await openLedger(page);
+  await expect(page.getByRole("option")).toHaveCount(2);
+  await page.keyboard.press("Enter");
+  await expect(page.locator('[data-testid="review-scroller"]')).toBeVisible();
+
+  await page
+    .getByRole("button", { name: "PR description & conversation" })
+    .click();
+  await expect(page.locator("aside.qf-drawer-open")).toBeVisible();
+  await expect(page.getByText("How it got here:")).toBeVisible();
+  await expect(page.getByText(COVERAGE_ZERO)).toBeVisible();
 });
 
 test("a multi-file group shows the file tree; clicking a file jumps to it", async ({

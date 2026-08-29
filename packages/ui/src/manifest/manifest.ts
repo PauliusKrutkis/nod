@@ -623,6 +623,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "draft-present",
       "empty-conversation",
       "foreign-comment",
+      "ledger-topic",
       "markup-as-text",
       "no-verdicts",
       "overflow",

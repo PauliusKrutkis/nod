@@ -27,7 +27,7 @@ import { InboxDetail, type InboxPullRequest } from "@nod/ui/inbox-detail";
 import { InboxZero } from "@nod/ui/inbox-zero";
 import { Kbd } from "@nod/ui/kbd";
 import { PRListItem, type PullRequestRow } from "@nod/ui/pr-list-item";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import {
   Archive,
   ArchiveRestore,
@@ -56,6 +56,7 @@ import {
 import { queryKeys } from "../../lib/query-client.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type {
+  LedgerCommitAuthors,
   LedgerQueueItem,
   LedgerStatus,
   LedgerTopicApproval,
@@ -85,6 +86,8 @@ type LedgerView =
       author?: string;
       authorAvatarUrl?: string;
       approval: LedgerTopicApproval | null;
+      number?: number;
+      updatedAt?: string;
     };
 
 /** One queue row: a topic group of one watched repository. */
@@ -97,6 +100,8 @@ interface QueueEntry {
    *  login (with avatar) when the noreply email carries it, like a PR row. */
   author?: string;
   authorAvatarUrl?: string;
+  /** Fact-minted display number (#N), once the engine has one. */
+  number?: number;
   /** Newest provenance commit — the group's freshness, PR-row style. */
   updatedAt?: string;
   commentCount: number;
@@ -104,31 +109,40 @@ interface QueueEntry {
 }
 
 /** The group's sole author as a PR-row identity, when every provenance
- *  commit agrees. Unanimity is judged by email when the commit has one —
- *  two spellings of the same person's name still count as one author. */
+ *  commit agrees. The forge's own answer (ledger_commit_authors: the
+ *  linked account by verified email — the same face a PR shows) wins;
+ *  offline or unlinked commits fall back to the noreply-email heuristic,
+ *  then the git name. Unanimity is judged on the displayed identity, so
+ *  two spellings of the same person still count as one author. */
 function soleIdentity(
-  group: ProvenanceGroup
+  group: ProvenanceGroup,
+  resolved: LedgerCommitAuthors
 ): Pick<QueueEntry, "author" | "authorAvatarUrl"> {
-  const authors = new Map<string, { author: string; email?: string }>();
+  const authors = new Map<
+    string,
+    { author?: string; authorAvatarUrl?: string }
+  >();
   for (const item of group.items) {
     for (const p of item.provenance) {
-      if (p.author) {
-        authors.set(p.authorEmail || p.author, {
-          author: p.author,
-          email: p.authorEmail || undefined,
-        });
+      const linked = resolved[p.sha];
+      const identity = linked
+        ? { author: linked.login, authorAvatarUrl: linked.avatarUrl }
+        : forgeIdentity(p.author || undefined, p.authorEmail || undefined);
+      if (identity.author) {
+        authors.set(identity.author, identity);
       }
     }
   }
   const sole = authors.size === 1 ? [...authors.values()][0] : undefined;
-  return sole ? forgeIdentity(sole.author, sole.email) : {};
+  return sole ?? {};
 }
 
 /** Author, freshness, and comment presence for one group — the fields the
  *  PR row and pane show, derived from provenance and positioned facts. */
 function entryMeta(
   group: ProvenanceGroup,
-  status: LedgerStatus
+  status: LedgerStatus,
+  resolved: LedgerCommitAuthors
 ): Pick<
   QueueEntry,
   "author" | "authorAvatarUrl" | "updatedAt" | "commentCount" | "lastComment"
@@ -160,11 +174,23 @@ function entryMeta(
     }
   }
   return {
-    ...soleIdentity(group),
+    ...soleIdentity(group, resolved),
     commentCount,
     lastComment: last,
     updatedAt,
   };
+}
+
+/** Distinct provenance shas of a status, sorted — the resolver's work list
+ *  and the stable half of its query key. */
+function provenanceShas(status: LedgerStatus): string[] {
+  const shas = new Set<string>();
+  for (const item of status.queue) {
+    for (const p of item.provenance) {
+      shas.add(p.sha);
+    }
+  }
+  return [...shas].sort();
 }
 
 interface FinishedTopic {
@@ -176,7 +202,8 @@ interface FinishedTopic {
  *  signed-off pile; repos still deriving contribute nothing yet. */
 function assembleQueue(
   repos: readonly string[],
-  data: readonly (LedgerStatus | undefined)[]
+  data: readonly (LedgerStatus | undefined)[],
+  authors: readonly LedgerCommitAuthors[]
 ): { entries: QueueEntry[]; finished: FinishedTopic[] } {
   const entries: QueueEntry[] = [];
   const finished: FinishedTopic[] = [];
@@ -191,14 +218,20 @@ function assembleQueue(
         .filter((t) => t.approvedAt !== null)
         .map((t) => [t.id, t.approvedAt])
     );
+    const numberOf = new Map(
+      status.topics
+        .filter((t) => t.number !== null)
+        .map((t) => [t.id, t.number])
+    );
     const open = new Set(groups.map((g) => g.key));
     for (const group of groups) {
       entries.push({
         approval: approvalOf.get(group.key) ?? null,
         group,
+        number: numberOf.get(group.key) ?? undefined,
         repoKey,
         status,
-        ...entryMeta(group, status),
+        ...entryMeta(group, status, authors[i] ?? {}),
       });
     }
     for (const topic of status.topics) {
@@ -270,9 +303,26 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
   });
   const aiConfigured = aiInfo.data?.configured === true;
 
+  // The forge's answer for each provenance commit's author — cached on
+  // disk forever (shas are immutable), so this is one batched query per
+  // repo the first time and cache reads after.
+  const authorQueries = useQueries({
+    queries: repos.map((repoKey, i) => {
+      const status = statuses[i]?.data;
+      const shas = status ? provenanceShas(status) : [];
+      return {
+        enabled: shas.length > 0,
+        queryFn: () => api.ledgerCommitAuthors(repoKey, shas),
+        queryKey: ["ledger-authors", repoKey, shas],
+        staleTime: Number.POSITIVE_INFINITY,
+      };
+    }),
+  });
+
   const { entries, finished } = assembleQueue(
     repos,
-    statuses.map((q) => q.data)
+    statuses.map((q) => q.data),
+    authorQueries.map((q) => q.data ?? {})
   );
   const isHidden = (entry: QueueEntry) => {
     const at = dismissed[seenKey(entry)];
@@ -335,8 +385,10 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
       group: { label: entry.group.label, subject: entry.group.subject },
       initialTarget: targetOf(first),
       kind: "session",
+      number: entry.number,
       repoKey: entry.repoKey,
       targets: entry.group.items.map(targetOf),
+      updatedAt: entry.updatedAt,
     });
   };
 
@@ -424,6 +476,7 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
         authorAvatarUrl={view.authorAvatarUrl}
         group={view.group}
         initialTarget={view.initialTarget}
+        number={view.number}
         onExit={() => setView({ kind: "queue" })}
         onSigned={(target) =>
           setView((v) =>
@@ -434,6 +487,7 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
         }
         repoKey={view.repoKey}
         targets={view.targets}
+        updatedAt={view.updatedAt}
       />
     );
   }
@@ -623,8 +677,8 @@ function useQueueHotkeys({
  *  thing?": the feature name when the topic has one, and only for bucket
  *  labels (#123, a bare sha — unmapped or keyless) the leading commit
  *  subject, with the bucket riding the branch chip. A named topic never
- *  repeats itself in the chip. No number — a group can span many PRs, and
- *  the pane lists them all. */
+ *  repeats itself in the chip. The number is the ledger's own (#N minted
+ *  as a fact) — a group can span many PRs, and the pane lists them all. */
 function rowOf(entry: QueueEntry): PullRequestRow {
   const bucket = isBucketTopic(entry.group.label);
   return {
@@ -634,6 +688,7 @@ function rowOf(entry: QueueEntry): PullRequestRow {
     draft: false,
     headRef: bucket ? entry.group.label : "",
     merged: false,
+    number: entry.number,
     repo: entry.repoKey,
     title: bucket
       ? entry.group.subject || entry.group.label
@@ -679,6 +734,7 @@ function detailOf(entry: QueueEntry, aiConfigured: boolean): InboxPullRequest {
     draft: false,
     lastComment: entry.lastComment,
     merged: false,
+    number: entry.number,
     repo: entry.repoKey,
     title: isBucketTopic(group.label)
       ? group.subject || group.label

@@ -14,6 +14,7 @@ import type {
   LedgerQueueItem,
   LedgerSessionFile,
   LedgerSessionRegion,
+  LedgerStatus,
   ReviewComment,
 } from "../types.ts";
 import { parsePatch } from "./diff.ts";
@@ -61,6 +62,21 @@ export function sessionToChangedFiles(
 const numericId = (factId: string): number =>
   Number.parseInt(factId.slice(0, 13), 16);
 
+/**
+ * A fact's actor id IS the forge login for human actors (ledger.rs sets it
+ * from the account), so the avatar is a plain URL derivation — the same
+ * face the PR surface shows. Agent actors ("agent:<model>") keep the
+ * initial-letter fallback.
+ */
+export function actorAvatarUrl(actor: {
+  id: string;
+  kind: "agent" | "human";
+}): string {
+  return actor.kind === "human"
+    ? `https://avatars.githubusercontent.com/${actor.id}`
+    : "";
+}
+
 export function ledgerCommentsToReview(comments: readonly LedgerComment[]): {
   byFile: Map<string, ReviewComment[]>;
   factIdOf: Map<number, string>;
@@ -89,7 +105,7 @@ export function ledgerCommentsToReview(comments: readonly LedgerComment[]): {
       side: "RIGHT",
       threadId: comment.parent ?? comment.id,
       user: comment.actor.id,
-      userAvatarUrl: "",
+      userAvatarUrl: actorAvatarUrl(comment.actor),
     });
   }
   return { byFile, factIdOf };
@@ -262,6 +278,37 @@ export interface ProvenanceGroup {
  * source of truth so the queue, approvals, and coverage all agree on what
  * a topic is; per docs/LEDGER.md §3 grouping is ergonomics only.
  */
+/**
+ * The group's story as description text — coverage, provenance, files —
+ * one composition shared by the queue's reading pane and the session's
+ * info drawer so the two never tell different stories.
+ */
+export function topicStory(
+  group: ProvenanceGroup,
+  status: LedgerStatus
+): string {
+  const files = new Map<string, number>();
+  const provenance = new Map<string, string>();
+  for (const item of group.items) {
+    files.set(item.path, (files.get(item.path) ?? 0) + item.newLines);
+    for (const p of item.provenance) {
+      const label = p.pr ? `#${p.pr}` : p.sha.slice(0, 7);
+      if (!provenance.has(label)) {
+        provenance.set(label, p.subject);
+      }
+    }
+  }
+  return [
+    `Coverage ${(status.coverage * 100).toFixed(1)}% · ${status.reviewedLines}/${status.totalLines} post-epoch lines · epoch ${status.epoch.slice(0, 7)} → tip ${status.tip.slice(0, 7)}`,
+    "",
+    "How it got here:",
+    ...[...provenance].map(([label, subject]) => `${label} ${subject}`),
+    "",
+    "Files:",
+    ...[...files].map(([path, lines]) => `${path} (+${lines})`),
+  ].join("\n");
+}
+
 export function groupQueueByProvenance(queue: readonly LedgerQueueItem[]): {
   flat: LedgerQueueItem[];
   groups: ProvenanceGroup[];
