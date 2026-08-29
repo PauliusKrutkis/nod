@@ -25,7 +25,12 @@
  * with the surface that has the store.
  */
 
-import { CheckCircle2, MessageSquare } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  MessageSquare,
+} from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { cn } from "../cn/cn.ts";
 import { CommentItem } from "../comment-item/comment-item.tsx";
@@ -283,6 +288,7 @@ export function CommentThread({
             title="Expand (z)"
             type="button"
           >
+            <ChevronDown aria-hidden size={11} />
             Expand
             <span aria-hidden className="qf-key-hint">
               <Kbd combo="z" />
@@ -306,6 +312,7 @@ export function CommentThread({
         title="Collapse (z)"
         type="button"
       >
+        <ChevronUp aria-hidden size={11} />
         Collapse
         <span aria-hidden className="qf-key-hint">
           <Kbd combo="z" />

@@ -51,7 +51,7 @@ test("offline, the bar says so before anything is written", async ({
   await setupApp(page, { offline: true });
   await openFirstPr(page);
   await expect(bar(page)).toContainText("Offline");
-  await expect(bar(page)).toContainText("Anything you write will queue");
+  await expect(bar(page)).toContainText("Anything you write queues");
 });
 
 test("a comment written offline queues and the bar counts it by verb", async ({

@@ -853,6 +853,29 @@ textarea.q-input {
   background: var(--surface-hi);
 }
 
+/* The offline surface's dock: full-width at the window's bottom edge, under
+   the toast stack. The strip face spans the edge like a status bar; the
+   reconnect report card keeps its card width, centered. Empty renders
+   nothing, so the host itself never blocks clicks (it has no height). */
+.qb-obar-host {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 54;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.qb-obar-host .q-obar {
+  width: min(100% - 36px, 560px);
+  margin-bottom: 14px;
+}
+.qb-obar-host .q-obar-offline {
+  width: 100%;
+  margin-bottom: 0;
+}
+
 /* bottom-right / top-right transient card stack */
 .qb-stack {
   position: fixed;

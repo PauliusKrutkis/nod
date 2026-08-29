@@ -1,6 +1,9 @@
 /**
- * The offline surface's card, with two faces. Offline it announces the state
- * with the queue summarised by verb; back online it is the reconnect report:
+ * The offline surface, with two faces. Offline it is a persistent status
+ * strip, not a toast — being offline is a standing condition, so it stays on
+ * screen (the host docks it to the window edge) with the queue summarised by
+ * verb, and leaves quietly on reconnect. Back online it is the reconnect
+ * report card:
  * how many writes landed, what there was nothing to do for, each failed item
  * with its text and the ways out (place again, copy, discard), and the staged
  * review submission, which never sends without the press here because
@@ -51,18 +54,14 @@ export function OfflineBar({
 
   if (!online) {
     return (
-      <div className="q-obar" role="status">
-        <span aria-hidden className="q-obar-rail" />
-        <div className="q-obar-body">
-          <div className="q-obar-head">
-            <span className="q-obar-title">Offline</span>
-          </div>
-          <div className="q-obar-sub">
-            {queuedItems.length > 0
-              ? `Queued: ${queueSummary(queuedItems)}. Everything posts when the connection returns.`
-              : "Reading from cache. Anything you write will queue and post when the connection returns."}
-          </div>
-        </div>
+      <div className="q-obar q-obar-offline" role="status">
+        <span aria-hidden className="q-obar-dot" />
+        <span className="q-obar-title">Offline</span>
+        <span className="q-obar-strip-sub">
+          {queuedItems.length > 0
+            ? `Queued: ${queueSummary(queuedItems)}. Everything posts when the connection returns.`
+            : "Reading from cache. Anything you write queues and posts when the connection returns."}
+        </span>
       </div>
     );
   }
