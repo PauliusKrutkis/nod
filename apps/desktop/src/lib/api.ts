@@ -15,6 +15,7 @@ import type {
   GrepResult,
   InboxBucket,
   InboxData,
+  LedgerCommitAuthors,
   LedgerLinkTarget,
   LedgerSession,
   LedgerStatus,
@@ -165,6 +166,8 @@ export const api = {
 
   ledgerApprove: (repoKey: string, topic: string) =>
     invoke<void>("ledger_approve", { repoKey, topic }),
+  ledgerCommitAuthors: (repoKey: string, shas: string[]) =>
+    invoke<LedgerCommitAuthors>("ledger_commit_authors", { repoKey, shas }),
   ledgerComment: (
     repoKey: string,
     target: string,

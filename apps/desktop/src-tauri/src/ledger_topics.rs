@@ -158,7 +158,7 @@ fn extract_object(raw: &str) -> Option<Value> {
 /// nothing over the deterministic fallback and launders the bucket into a
 /// permanent-looking topic — dogfood's queue kept `#363`-named "features"
 /// because the model reused the labels the prompt showed it.
-fn is_bucket_label(topic: &str) -> bool {
+pub(crate) fn is_bucket_label(topic: &str) -> bool {
     if let Some(rest) = topic.strip_prefix('#') {
         return !rest.is_empty() && rest.chars().all(|c| c.is_ascii_digit());
     }

@@ -216,8 +216,20 @@ export const appendObjects = async (
   );
 };
 
-export const readFacts = async (git: GitRun): Promise<Fact[]> =>
-  (await readObjects(git, FACTS_DIR)).map(parseFact);
+/** Unparseable facts (a newer client's verdict, a corrupt object) are
+ *  skipped, not fatal: an old binary must keep deriving what it can
+ *  understand from a ref a newer one has written to. */
+export const readFacts = async (git: GitRun): Promise<Fact[]> => {
+  const facts: Fact[] = [];
+  for (const json of await readObjects(git, FACTS_DIR)) {
+    try {
+      facts.push(parseFact(json));
+    } catch {
+      // Skip — see above.
+    }
+  }
+  return facts;
+};
 
 /** id → ref for every anchor the ledger knows. */
 export const readAnchorRefs = async (

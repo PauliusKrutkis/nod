@@ -8,6 +8,7 @@ mod commands;
 mod http;
 mod install_format;
 mod ledger;
+mod ledger_identity;
 mod ledger_topics;
 mod license;
 mod model;
@@ -160,6 +161,7 @@ pub fn run() {
             commands::get_ledger_excluded,
             commands::set_ledger_excluded,
             ledger::ledger_status,
+            ledger_identity::ledger_commit_authors,
             ledger::ledger_status_cached,
             ledger::ledger_session,
             ledger::ledger_review,

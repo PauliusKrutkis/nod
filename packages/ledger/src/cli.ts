@@ -24,8 +24,10 @@ import {
 } from "./derive/status.ts";
 import { syncJournal } from "./facts/journal.ts";
 import type { Actor, Fact } from "./facts/schema.ts";
-import { appendFacts, sync } from "./facts/store.ts";
+import { appendFacts, readFacts, sync } from "./facts/store.ts";
 import { type GitRun, gitIn } from "./git/exec.ts";
+import { isBucketLabel } from "./topics/assign.ts";
+import { nextNumber, numbersFrom } from "./topics/numbers.ts";
 
 /**
  * The dogfood surface for phase 3 (docs/LEDGER.md §12) and the engine the
@@ -57,6 +59,7 @@ const USAGE = `usage: ledger [--repo <dir>] [--tip <rev>] [--actor <id>] <comman
                     a topic id the queue does not currently show)
   assign <sha>=<topic>…  map commits to topics: human corrections, or
                     agent proposals with --agent (the LLM stage)
+  number <topic>…   mint display numbers (#N) for topics that lack one
   comment <target> <body>      start a thread on a region (path:line[-end])
   comment --reply <id> <body>  answer the thread rooted at fact id
   resolve <id>      close the thread rooted at fact id
@@ -364,6 +367,44 @@ const runAssign = async (
   );
 };
 
+const runNumber = async (
+  ctx: Ctx,
+  topics: readonly string[]
+): Promise<void> => {
+  if (topics.length === 0) {
+    die("number needs at least one <topic>");
+  }
+  await requireConfig(ctx);
+  const actor = await getActor(ctx);
+  const atTime = new Date().toISOString();
+  const facts = await readFacts(ctx.git);
+  const numbered = numbersFrom(facts);
+  let next = nextNumber(facts);
+  const additions: Fact[] = [];
+  for (const topic of new Set(topics)) {
+    if (isBucketLabel(topic)) {
+      return die(`a bucket label (#pr, sha) is never numbered: ${topic}`);
+    }
+    if (numbered.has(topic)) {
+      continue;
+    }
+    additions.push({
+      actor,
+      atSha: ctx.tip,
+      atTime,
+      body: String(next),
+      subject: { id: topic, kind: "topic" },
+      v: 1,
+      verdict: "numbered",
+    });
+    next += 1;
+  }
+  if (additions.length > 0) {
+    await appendFacts(ctx.git, additions);
+  }
+  console.log(`numbered ${additions.length} topic(s)`);
+};
+
 const COMMENT_TARGET = /^(.+):(\d+)(?:-(\d+))?$/;
 
 const runComment = async (ctx: Ctx, args: readonly string[]): Promise<void> => {
@@ -544,6 +585,11 @@ const main = async (): Promise<void> => {
     }
     case "assign": {
       await runAssign(await ctx(), args, opts.agent);
+      await journalSync();
+      return;
+    }
+    case "number": {
+      await runNumber(await ctx(), args);
       await journalSync();
       return;
     }

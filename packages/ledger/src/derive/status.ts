@@ -13,6 +13,7 @@ import { cachedBlameTree } from "../git/blame-cache.ts";
 import type { GitRun } from "../git/exec.ts";
 import { readTreeLines } from "../git/files.ts";
 import { type Assignment, assignmentsFrom } from "../topics/assign.ts";
+import { numbersFrom } from "../topics/numbers.ts";
 
 /**
  * The invariant made executable: `status = f(facts, tip)` (docs/LEDGER.md
@@ -65,6 +66,8 @@ interface TopicApproval {
 
 interface TopicStatus {
   id: string;
+  /** Fact-minted display number (#N); null until a claim resolves. */
+  number: number | null;
   /** Post-epoch tip lines classified into this topic. */
   totalLines: number;
   reviewedLines: number;
@@ -874,9 +877,11 @@ export const deriveStatus = async (
     })
     .sort(byPathThenLine);
 
+  const numbers = numbersFrom(facts);
   const topics: TopicStatus[] = [...perTopic.entries()]
     .map(([id, tally]) => ({
       id,
+      number: numbers.get(id) ?? null,
       totalLines: tally.total,
       reviewedLines: tally.reviewed,
       requiredApprovals: required,

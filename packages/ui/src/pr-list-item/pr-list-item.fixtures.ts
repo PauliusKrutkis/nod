@@ -42,10 +42,12 @@ export const prListItemEntry = defineEntry(PRListItem, {
     props: {
       onOpen: noop,
       pr: {
+        author: "PauliusKrutkis",
         commentsCount: 0,
         draft: false,
         headRef: "chat-panel",
         merged: false,
+        number: 7,
         repo: "PauliusKrutkis/nod",
         title: "feat(chat): the AI chat panel — chat, skills, and suggestions",
       },

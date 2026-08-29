@@ -26,7 +26,7 @@ export interface Assignment {
 const PR_LABEL = /^#\d+$/;
 const SHA_LABEL = /^[0-9a-f]{7,40}$/;
 
-const isBucketLabel = (topic: string): boolean =>
+export const isBucketLabel = (topic: string): boolean =>
   PR_LABEL.test(topic) || SHA_LABEL.test(topic);
 
 const isAssignment = (fact: Fact): boolean =>

@@ -467,10 +467,19 @@ export interface LedgerTopicStatus {
   /** Null until the threshold is met. */
   approvedAt: LedgerTopicApproval | null;
   id: string;
+  /** Fact-minted display number (#N); null until a claim resolves. */
+  number: number | null;
   requiredApprovals: number;
   reviewedLines: number;
   totalLines: number;
 }
+
+/** A commit's linked forge account, resolved by ledger_commit_authors;
+ *  null = resolved, but the author has no linked account. */
+export type LedgerCommitAuthors = Record<
+  string,
+  { login: string; avatarUrl: string } | null
+>;
 
 export interface LedgerComment {
   actor: { id: string; kind: "agent" | "human" };

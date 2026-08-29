@@ -391,6 +391,50 @@ impl GitHubPlatform {
         fetch_user(&self.client).await
     }
 
+    /// Forge identity for a set of commits: the login and avatar of the
+    /// GitHub account linked to each commit's author (matched server-side
+    /// by verified email — the same face a PR shows). `None` means the
+    /// commit resolved but its author has no linked account. Batched via
+    /// field aliases, one query per 60 shas; callers must pass validated
+    /// hex oids (they are inlined into the query).
+    pub async fn commit_authors(
+        &self,
+        owner: &str,
+        repo: &str,
+        shas: &[String],
+    ) -> Result<Vec<(String, Option<(String, String)>)>, String> {
+        let mut out = Vec::new();
+        for chunk in shas.chunks(60) {
+            let fields: String = chunk
+                .iter()
+                .enumerate()
+                .map(|(i, sha)| {
+                    format!(
+                        "c{i}: object(oid: \"{sha}\") {{ ... on Commit {{ author {{ user {{ login avatarUrl }} }} }} }}\n"
+                    )
+                })
+                .collect();
+            let query = format!(
+                "query($owner: String!, $name: String!) {{ repository(owner: $owner, name: $name) {{ {fields} }} }}"
+            );
+            let v = self
+                .graphql_vars(&query, json!({ "owner": owner, "name": repo }))
+                .await?;
+            let repo_v = &v["data"]["repository"];
+            for (i, sha) in chunk.iter().enumerate() {
+                let user = &repo_v[format!("c{i}")]["author"]["user"];
+                let resolved = match (user["login"].as_str(), user["avatarUrl"].as_str()) {
+                    (Some(login), Some(avatar)) => {
+                        Some((login.to_string(), avatar.to_string()))
+                    }
+                    _ => None,
+                };
+                out.push((sha.clone(), resolved));
+            }
+        }
+        Ok(out)
+    }
+
     pub async fn inbox(&self) -> Result<InboxData, String> {
         log("GraphQL inbox: review-requested / assigned / created / involved");
         let v = self

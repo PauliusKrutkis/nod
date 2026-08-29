@@ -97,7 +97,7 @@ pub(crate) struct LedgerRepo {
     actor: String,
 }
 
-fn split_key(repo_key: &str) -> Result<(String, String), String> {
+pub(crate) fn split_key(repo_key: &str) -> Result<(String, String), String> {
     match repo_key.split_once('/') {
         Some((owner, repo)) if !owner.is_empty() && !repo.is_empty() => {
             Ok((owner.to_string(), repo.to_string()))
@@ -384,6 +384,43 @@ impl LedgerRepo {
     }
 }
 
+/// Every named topic gets a display number (#N) the first derivation that
+/// sees it: mint `numbered` facts for the unnumbered ones and re-derive so
+/// the payload carries them (warm caches make the second pass cheap).
+/// Numbering is a nicety — any failure keeps the original status.
+fn mint_topic_numbers(repo: &LedgerRepo, status: Value) -> Value {
+    let unnumbered: Vec<String> = status["topics"]
+        .as_array()
+        .map(|topics| {
+            topics
+                .iter()
+                .filter(|t| t["number"].is_null())
+                .filter_map(|t| t["id"].as_str())
+                .filter(|id| !ledger_topics::is_bucket_label(id))
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default();
+    if unnumbered.is_empty() {
+        return status;
+    }
+    let refs: Vec<&str> = unnumbered.iter().map(String::as_str).collect();
+    if let Err(e) = repo.spawn("number", &refs, None) {
+        log(&format!("ledger number failed for {refs:?}: {e}"));
+        return status;
+    }
+    match repo
+        .spawn("status", &[], None)
+        .and_then(|out| serde_json::from_str(&out).map_err(|e| e.to_string()))
+    {
+        Ok(renumbered) => renumbered,
+        Err(e) => {
+            log(&format!("ledger re-derive after numbering failed: {e}"));
+            status
+        }
+    }
+}
+
 async fn status_inner(app: &AppHandle, repo_key: &str) -> Result<Value, String> {
     let repo = match prepare(app, repo_key, true).await {
         Ok(repo) => repo,
@@ -395,7 +432,9 @@ async fn status_inner(app: &AppHandle, repo_key: &str) -> Result<Value, String> 
     let task_app = app.clone();
     let task_key = repo_key.to_string();
     let (repo, result) = tauri::async_runtime::spawn_blocking(move || {
-        let result = repo.run_status_streaming(&task_app, &task_key);
+        let result = repo
+            .run_status_streaming(&task_app, &task_key)
+            .map(|status| mint_topic_numbers(&repo, status));
         (repo, result)
     })
     .await
