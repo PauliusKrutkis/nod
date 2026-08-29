@@ -71,8 +71,10 @@
   z-index: 1;
 }
 
+/* Reserve the corner Collapse button's footprint (chevron + label + keycap)
+   so the head's own Copy/Delete actions never sit under it. */
 .qf-thread-expanded .qf-comment-head {
-  padding-right: 76px;
+  padding-right: 96px;
 }
 
 .qf-reply-btn {
