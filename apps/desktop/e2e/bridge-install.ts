@@ -560,6 +560,11 @@ export function installBridge(cfg: BridgeConfig) {
     ledger_session: (args) => {
       countCall("ledger_session");
       localStorage.setItem("e2e:ledgerSession", JSON.stringify(args));
+      const calls: unknown[] = JSON.parse(
+        localStorage.getItem("e2e:ledgerSessionCalls") ?? "[]"
+      );
+      calls.push(args);
+      localStorage.setItem("e2e:ledgerSessionCalls", JSON.stringify(calls));
       const payload = cfg.ledgerSession as {
         sessions: { path: string }[];
         tip: string;

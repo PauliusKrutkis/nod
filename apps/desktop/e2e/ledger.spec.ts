@@ -242,13 +242,17 @@ test("enter opens a session on the review surface and r signs the region", async
   await expect(page.locator(".qf-header-author")).toHaveText("amy");
   await expect(page.locator(".qf-pr-num")).toHaveText("#1");
   await expect(page.getByText("resolveAnchor")).toBeVisible();
-  const sessionArgs = await page.evaluate(() =>
-    localStorage.getItem("e2e:ledgerSession")
+  // The neighbor prefetch may land after Enter's own fetch, so the proof
+  // is containment in the call log, never "the last call".
+  const sessionCalls = await page.evaluate(() =>
+    localStorage.getItem("e2e:ledgerSessionCalls")
   );
-  expect(JSON.parse(sessionArgs ?? "{}")).toMatchObject({
-    repoKey: "me/nod",
-    targets: ["src/anchors/resolve.ts:1-40"],
-  });
+  expect(JSON.parse(sessionCalls ?? "[]")).toContainEqual(
+    expect.objectContaining({
+      repoKey: "me/nod",
+      targets: ["src/anchors/resolve.ts:1-40"],
+    })
+  );
 
   await page.keyboard.press("r");
   const review = await page.evaluate(() =>
