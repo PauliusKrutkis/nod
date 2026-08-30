@@ -18,8 +18,8 @@ import { deriveSession } from "./derive/session.ts";
 import { signRegion } from "./derive/sign.ts";
 import { deriveStatus, type LedgerStatus } from "./derive/status.ts";
 import { syncJournal } from "./facts/journal.ts";
-import type { Actor } from "./facts/schema.ts";
-import { sync } from "./facts/store.ts";
+import type { Actor, Fact } from "./facts/schema.ts";
+import { appendFacts, sync } from "./facts/store.ts";
 import { type GitRun, gitIn } from "./git/exec.ts";
 
 /**
@@ -50,6 +50,8 @@ const USAGE = `usage: ledger [--repo <dir>] [--tip <rev>] [--actor <id>] <comman
   review <target>…  mark regions reviewed; target: path or path:start-end
   approve <topic>…  stamp a topic at tip; deltas baseline here (--force for
                     a topic id the queue does not currently show)
+  assign <sha>=<topic>…  map commits to topics: human corrections, or
+                    agent proposals with --agent (the LLM stage)
   comment <target> <body>      start a thread on a region (path:line[-end])
   comment --reply <id> <body>  answer the thread rooted at fact id
   resolve <id>      close the thread rooted at fact id
@@ -260,6 +262,58 @@ const runReview = async (
   );
 };
 
+const ASSIGN_PAIR = /^([0-9a-f]{7,64})=(.+)$/i;
+
+const runAssign = async (
+  ctx: Ctx,
+  pairs: readonly string[],
+  agent: boolean
+): Promise<void> => {
+  if (pairs.length === 0) {
+    die("assign needs at least one <sha>=<topic> pair");
+  }
+  await requireConfig(ctx);
+  const actor: Actor = agent
+    ? { id: ctx.actorOverride ?? "agent", kind: "agent" }
+    : await getActor(ctx);
+  const atTime = new Date().toISOString();
+  const facts: Fact[] = [];
+  for (const pair of pairs) {
+    const match = ASSIGN_PAIR.exec(pair);
+    const topic = match?.[2]?.trim();
+    if (!(match?.[1] && topic)) {
+      return die(`not a <sha>=<topic> pair: ${pair}`);
+    }
+    // Resolve so a typo'd sha can never become a junk fact forever.
+    let full: string;
+    try {
+      full = (
+        await ctx.git([
+          "rev-parse",
+          "--verify",
+          "--quiet",
+          `${match[1]}^{commit}`,
+        ])
+      ).trim();
+    } catch {
+      return die(`no such commit: ${match[1]}`);
+    }
+    facts.push({
+      actor,
+      atSha: ctx.tip,
+      atTime,
+      body: topic,
+      subject: { id: full, kind: "sha" },
+      v: 1,
+      verdict: agent ? "assigned" : "corrected",
+    });
+  }
+  await appendFacts(ctx.git, facts);
+  console.log(
+    `${agent ? "proposed" : "corrected"} ${facts.length} assignment(s)`
+  );
+};
+
 const COMMENT_TARGET = /^(.+):(\d+)(?:-(\d+))?$/;
 
 const runComment = async (ctx: Ctx, args: readonly string[]): Promise<void> => {
@@ -433,6 +487,11 @@ const main = async (): Promise<void> => {
     }
     case "approve": {
       await runApprove(await ctx(), args, opts.force);
+      await journalSync();
+      return;
+    }
+    case "assign": {
+      await runAssign(await ctx(), args, opts.agent);
       await journalSync();
       return;
     }

@@ -10,6 +10,8 @@ import { gitIn } from "./git/exec.ts";
 export interface CliArgs {
   json: boolean;
   force: boolean;
+  /** Record facts with an agent actor (assignment proposals, not truth). */
+  agent: boolean;
   /** Repo to operate on; default: the repo containing cwd. */
   repo?: string;
   /**
@@ -30,7 +32,12 @@ export interface CliArgs {
 }
 
 export const parseCliArgs = (argv: readonly string[]): CliArgs => {
-  const args: CliArgs = { force: false, json: false, positional: [] };
+  const args: CliArgs = {
+    agent: false,
+    force: false,
+    json: false,
+    positional: [],
+  };
   const booleans = new Map<string, () => void>([
     [
       "--json",
@@ -42,6 +49,12 @@ export const parseCliArgs = (argv: readonly string[]): CliArgs => {
       "--force",
       () => {
         args.force = true;
+      },
+    ],
+    [
+      "--agent",
+      () => {
+        args.agent = true;
       },
     ],
   ]);
