@@ -1,7 +1,10 @@
 # Ledger — review coverage for the AI era
 
 Status: draft spec · owner: Paulius · dogfooding since 2026-08-13 (phases
-0–3 built; epoch `d2962f6` in `.ledger/config.json`)
+0–3 built; epoch `d2962f6` in `.ledger/config.json`) · **phase 4 verdict
+2026-08-25: continue** — the net-diff unit of review beats reviewing PRs;
+now productionizing the desktop surface for any user, any repo (see
+"Productionization" below)
 
 The problem: AI now writes a large share of merged code, review is the
 bottleneck, and teams that merge fast lose the thing pre-merge review used
@@ -85,6 +88,46 @@ blame is a pure function of the rev) and the tree is read through one
 is sub-second. The SQLite index still arrives when scale demands it.
 
 ---
+
+## Productionization (phase 4 verdict, 2026-08-25)
+
+The dogfood constraints become the work list. Decisions, in build order:
+
+1. **Sidecar binary.** The engine ships inside the app as a Tauri sidecar
+   compiled from the existing CLI; no vendoring, no `node` on PATH. The
+   CLI contract is unchanged — the sidecar *is* the CLI.
+2. **The store clone is the repo.** The ledger runs against the app-owned
+   bare clone from the repo store, not a user-supplied path; the
+   `nod:repoPaths:v1` picker step disappears. Blob-filtered clones pay a
+   one-time blob fetch for the post-epoch tree before the first blame
+   pass (the warm, below).
+3. **Zero-commit adoption.** Nothing is ever required in the target repo.
+   The epoch defaults to first-open tip and is recorded as a fact; a
+   committed `.ledger/config.json` remains the team-grade override when
+   present. Facts are **local-first**: authoritative in app data,
+   mirrored into the store clone's `refs/ledger/facts`. Publishing that
+   ref to origin is an opt-in toggle (needs push access); the hosted
+   fact store stays deferred. Append-only makes this lossless — local
+   history pushes wholesale the day sync turns on. Actor identity comes
+   from the GitHub login, not `git config user.name`.
+4. **LLM-first grouping.** The LLM owns topic naming and boundaries for
+   novel code; blame inheritance (old stage 2) stays as the propagation
+   mechanism — modifications join the topic of the code they touch,
+   free and deterministic, which is what bounds LLM cost to novel code
+   only. Conventional-commit scope naming and learned path rules are
+   demoted to nothing. Assignments persist as agent facts: paid once
+   per repo, synced, reproducible. Keys ride the desktop app's existing
+   AI settings (BYOK); keyless falls back to provenance buckets.
+5. **Cold start = warm + prep view.** Repos warm in the background from
+   the moment they're watched (blob fetch → blame → topic mapping), so
+   most first opens are already sub-second. Direct entry into an
+   unwarmed repo gets a one-time staged preparation view — honest
+   counters, topics appearing as they're mapped, the coverage number as
+   the payoff — never a fake percent bar. Later tips warm incrementally
+   behind the status dot, cache-first as everywhere else.
+
+Deferred from this push: backfill, the CI ratchet, correction-rate
+metrics, any sync/conflict UI beyond a status indicator, web, indexer.
 
 ## 1. Concept
 
@@ -442,7 +485,7 @@ waitlist form. No pricing page until the hosted tier exists.
 | 1 · plumbing | Fact schema, refs/ledger read/write/merge-retry, SQLite index | Facts round-trip across two clones |
 | 2 · anchors | Anchor engine + replay tests over ~20 real PRs | Anchor survival ≥ target on real history; stale boundary documented |
 | 3 · queue | Derivations + minimal Ledger tab (path+provenance grouping, no LLM) | Two weeks of real dogfood; verdict on the unit of review |
-| 4 · decide | Continue only if phase 3 feels right | — |
+| 4 · decide | Continue only if phase 3 feels right | ✅ 2026-08-25: continue; productionization plan above |
 | 5 · classify | Cascade + LLM stage; correction-rate metric | Correction rate < ~1 in 10 hunks |
 | 6 · enforce | `ledger check` CI ratchet + badge | Ratchet green for a month on this repo |
 | 7 · team | Colleague trial → indexer service → web dashboard | A second human reviews weekly without the desktop app |
