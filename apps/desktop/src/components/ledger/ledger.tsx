@@ -25,6 +25,11 @@
  */
 import { InboxZero } from "@nod/ui/inbox-zero";
 import { Kbd } from "@nod/ui/kbd";
+import { LedgerRow, type LedgerRowGroup } from "@nod/ui/ledger-row";
+import {
+  type LedgerTopic,
+  LedgerTopicDetail,
+} from "@nod/ui/ledger-topic-detail";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, CornerUpLeft } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -118,6 +123,13 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
     queryKey: queryKeys.ledger(inRepo ? view.repoKey : ""),
   });
   const prep = useLedgerPrep(inRepo ? view.repoKey : "");
+  // "mapping features…" only when a model can actually be mapping: keyless
+  // configs keep the deterministic labels and the note would never resolve.
+  const aiInfo = useQuery({
+    queryFn: api.getAiConfig,
+    queryKey: queryKeys.aiConfig,
+  });
+  const aiConfigured = aiInfo.data?.configured === true;
   const queue = status.data?.queue ?? [];
   const { groups } = groupQueueByProvenance(queue);
   const topics = status.data?.topics ?? [];
@@ -269,7 +281,7 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
               epoch {shortSha(status.data.epoch)} → tip{" "}
               {shortSha(status.data.tip)}
             </span>
-            {status.data.unassigned.length > 0 && (
+            {aiConfigured && status.data.unassigned.length > 0 && (
               <span className="text-faint text-xs">mapping features…</span>
             )}
           </>
@@ -289,18 +301,6 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
         repoKey={view.repoKey}
         selected={selected}
       />
-
-      <footer className="flex items-center gap-5 border-line border-t px-6 py-2 text-faint text-xs">
-        <span>
-          <Kbd combo="j" /> / <Kbd combo="k" /> navigate
-        </span>
-        <span>
-          <Kbd combo="↵" /> open session
-        </span>
-        <span>
-          <Kbd combo="esc" /> back
-        </span>
-      </footer>
     </div>
   );
 }
@@ -443,29 +443,88 @@ function QueueBody({
       </div>
     );
   }
+  const active = groups[selected];
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div
-        aria-label="Review sessions"
-        className="min-h-0 flex-1 overflow-y-auto py-2"
-        ref={listRef}
-        role="listbox"
-      >
-        {groups.map((group, i) => (
-          <GroupRow
-            approval={approvalOf.get(group.key) ?? null}
-            group={group}
-            index={i}
-            key={group.key}
-            onOpen={onOpen}
-            onSelect={onSelect}
-            selected={i === selected}
-          />
-        ))}
+      <div className="qiv-body">
+        <div
+          aria-label="Review sessions"
+          className="qiv-list"
+          ref={listRef}
+          role="listbox"
+        >
+          {groups.map((group, i) => (
+            <div data-index={i} key={group.key}>
+              <LedgerRow
+                group={rowGroupOf(group, approvalOf.get(group.key) ?? null)}
+                onHover={() => onSelect(i)}
+                onOpen={() => onOpen(i)}
+                selected={i === selected}
+              />
+            </div>
+          ))}
+        </div>
+        {active && (
+          <div className="qiv-detail">
+            <LedgerTopicDetail
+              topic={topicDetailOf(active, approvalOf.get(active.key) ?? null)}
+            />
+          </div>
+        )}
       </div>
       <FinishedStrip finished={finished} />
     </div>
   );
+}
+
+/** A queue group in the row's shape: the topic is the title, the label's
+ *  own chip drops (it IS the title), a decayed approval becomes the badge. */
+function rowGroupOf(
+  group: ProvenanceGroup,
+  approval: LedgerTopicApproval | null
+): LedgerRowGroup {
+  return {
+    chips: otherChips(group),
+    deltaSince: approval ? shortSha(approval.sha) : null,
+    files: group.fileCount,
+    lines: group.newLines,
+    regions: group.items.length,
+    subject: group.subject,
+    topic: group.label,
+  };
+}
+
+/** The reading pane's shape: files aggregated across the group's regions,
+ *  provenance deduplicated in first-seen order. */
+function topicDetailOf(
+  group: ProvenanceGroup,
+  approval: LedgerTopicApproval | null
+): LedgerTopic {
+  const files = new Map<string, number>();
+  const provenance = new Map<string, string>();
+  for (const item of group.items) {
+    files.set(item.path, (files.get(item.path) ?? 0) + item.newLines);
+    for (const entry of item.provenance) {
+      const label = entry.pr ? `#${entry.pr}` : shortSha(entry.sha);
+      if (!provenance.has(label)) {
+        provenance.set(label, entry.subject);
+      }
+    }
+  }
+  return {
+    deltaSince: approval
+      ? { actor: approval.actor.id, sha: shortSha(approval.sha) }
+      : null,
+    files: [...files].map(([path, lines]) => ({ lines, path })),
+    lines: group.newLines,
+    provenance: [...provenance].map(([label, subject]) => ({
+      label,
+      subject,
+    })),
+    regions: group.items.length,
+    subject: group.subject,
+    topic: group.label,
+  };
 }
 
 /**
@@ -494,65 +553,6 @@ function topicTitle(topic: LedgerTopicStatus): string {
   return topic.approvedAt
     ? `approved by ${topic.approvedAt.actor.id} at ${shortSha(topic.approvedAt.sha)} · ${lines}`
     : `every region signed · ${lines}`;
-}
-
-function GroupRow({
-  approval,
-  group,
-  index,
-  onOpen,
-  onSelect,
-  selected,
-}: {
-  approval: LedgerTopicApproval | null;
-  group: ProvenanceGroup;
-  index: number;
-  onOpen: (index: number) => void;
-  onSelect: (index: number) => void;
-  selected: boolean;
-}) {
-  const handleClick = () => {
-    onSelect(index);
-  };
-  const handleDoubleClick = () => {
-    onOpen(index);
-  };
-  return (
-    <button
-      aria-selected={selected}
-      className={cn(
-        "flex w-full cursor-default items-center gap-3 px-6 py-1.5 text-left",
-        selected && "bg-surface-2"
-      )}
-      data-index={index}
-      onClick={handleClick}
-      onDoubleClick={handleDoubleClick}
-      role="option"
-      tabIndex={-1}
-      type="button"
-    >
-      <span className="shrink-0 font-medium text-fg">{group.label}</span>
-      {approval !== null && (
-        <span
-          className="shrink-0 text-warning text-xs"
-          title={`approved by ${approval.actor.id}; these lines changed since`}
-        >
-          Δ since {shortSha(approval.sha)}
-        </span>
-      )}
-      <span className="shrink-0 text-faint text-xs tabular-nums">
-        {group.items.length} region{group.items.length === 1 ? "" : "s"} ·{" "}
-        {group.fileCount} file{group.fileCount === 1 ? "" : "s"} ·{" "}
-        {group.newLines} lines
-      </span>
-      {otherChips(group).map((chip) => (
-        <span className="shrink-0 text-accent text-xs" key={chip}>
-          {chip}
-        </span>
-      ))}
-      <span className="truncate text-muted text-xs">{group.subject}</span>
-    </button>
-  );
 }
 
 /** A group's chips minus the one already shown as its label. */

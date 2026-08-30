@@ -1,10 +1,15 @@
 //! The ledger's LLM classification stage (docs/LEDGER.md §Productionization
-//! item 4). `status` reports `unassigned` — post-epoch commits the
-//! deterministic cascade could not name — and this module, fire-and-forget
-//! after every successful status run, asks the configured model to map each
-//! one to a feature topic and writes the answers back as agent `assigned`
-//! facts through the sidecar. The queue regroups on the next status; the
-//! webview hears `ledger-assignments` and refetches.
+//! item 4). `status` reports `unassigned` — every post-epoch commit no
+//! assignment fact names yet, conventional scopes included: a scope is a
+//! component name, not a feature, and only labels the bucket until the
+//! model has spoken — and this module, fire-and-forget after every
+//! successful status run, asks the configured model to map each one to a
+//! feature topic and writes the answers back as agent `assigned` facts
+//! through the sidecar. The backlog is worked in batches within one task
+//! (later batches see the names earlier ones invented, so one feature does
+//! not fracture across batch seams); the facts land in a single sidecar
+//! write. The queue regroups on the next status; the webview hears
+//! `ledger-assignments` and refetches.
 //!
 //! Paid once per repo: assignments persist as facts, so a sha never comes
 //! back once mapped. A per-process registry additionally remembers the tip
@@ -23,9 +28,11 @@ use tauri::{AppHandle, Emitter};
 use crate::ai;
 use crate::ledger::LedgerRepo;
 
-/// Work-list cap per attempt: enough for any realistic backlog while keeping
-/// the prompt bounded; the remainder rides a later tip's attempt.
+/// Commits per model call: keeps one prompt bounded.
 const MAX_ENTRIES: usize = 120;
+/// Batches per attempt: a 600-commit backlog clears in one run; anything
+/// beyond that rides a later tip's attempt.
+const MAX_BATCHES: usize = 5;
 /// A topic longer than this is not a name — treat it as model junk.
 const MAX_TOPIC_CHARS: usize = 40;
 
@@ -85,22 +92,32 @@ fn topic_ids(status: &Value) -> Vec<String> {
         .collect()
 }
 
-/// The user prompt: repo, existing topic names, and the work list (capped at
-/// [`MAX_ENTRIES`]). Every instruction the parser depends on lives here.
+/// The user prompt for one batch. Every instruction the parser depends on
+/// lives here. `topics` carries the current labels plus whatever earlier
+/// batches invented, framed as reusable-but-replaceable: many of the
+/// current labels are fallback buckets (component scopes, PR numbers) that
+/// the model exists to improve on.
 fn build_prompt(repo_key: &str, topics: &[String], entries: &[UnassignedEntry]) -> String {
     let mut out = format!("Repository: {repo_key}\n\n");
     if topics.is_empty() {
-        out.push_str("Existing topics: none yet.\n\n");
+        out.push_str("Known topics: none yet.\n\n");
     } else {
-        out.push_str(&format!("Existing topics: {}\n\n", topics.join(", ")));
+        out.push_str(&format!(
+            "Known topics (some are fallback bucket labels — reuse one only \
+when the work genuinely continues it): {}\n\n",
+            topics.join(", ")
+        ));
     }
     out.push_str(
-        "The commits below are merged work that no deterministic rule could \
-name. For each, decide which feature it belongs to. Prefer reusing an \
-existing topic when the work belongs there; otherwise invent a short \
-kebab-case feature name (never a file path, never a commit type like \"fix\" \
-or \"chore\"). Reply with one JSON object mapping the full sha of every \
-commit to its topic — every sha must appear.\n\nCommits:\n",
+        "The commits below are merged work a reviewer will read one feature \
+at a time. Map every commit to the feature or workstream it belongs to. \
+Rules: a component or layer name (desktop, ui, web, app, gallery) is NOT a \
+feature — name what the work achieves, not where it lives. Stacked or \
+related PRs building one thing share one topic. Conventional-commit scopes \
+in subjects are hints at most, never answers. Otherwise invent a short \
+kebab-case feature name (never a file path, never a commit type like \
+\"fix\" or \"chore\"). Reply with one JSON object mapping the full sha of \
+every commit to its topic — every sha must appear.\n\nCommits:\n",
     );
     for entry in entries.iter().take(MAX_ENTRIES) {
         out.push_str(&format!(
@@ -235,26 +252,31 @@ async fn classify(
     topics: &[String],
     entries: Vec<UnassignedEntry>,
 ) -> Result<bool, String> {
-    let prompt = build_prompt(repo_key, topics, &entries);
-    let body = serde_json::json!({
-        "model": model,
-        "messages": [
-            { "role": "system", "content": SYSTEM_PROMPT },
-            { "role": "user", "content": prompt },
-        ],
-        "temperature": 0.1,
-    });
     let client = ai::ask_client()?;
     let url = format!("{}/v1/chat/completions", config.base_url);
-    let response = ai::post_chat(&client, &url, &config.api_key, &body).await?;
-    let answer =
-        ai::completion_text(&response).ok_or_else(|| "empty AI response".to_string())?;
-    let requested: Vec<String> = entries
-        .iter()
-        .take(MAX_ENTRIES)
-        .map(|e| e.sha.clone())
-        .collect();
-    let assignments = parse_assignments(&answer, &requested);
+    let mut known = topics.to_vec();
+    let mut assignments: Vec<(String, String)> = Vec::new();
+    for batch in entries.chunks(MAX_ENTRIES).take(MAX_BATCHES) {
+        let prompt = build_prompt(repo_key, &known, batch);
+        let body = serde_json::json!({
+            "model": model,
+            "messages": [
+                { "role": "system", "content": SYSTEM_PROMPT },
+                { "role": "user", "content": prompt },
+            ],
+            "temperature": 0.1,
+        });
+        let response = ai::post_chat(&client, &url, &config.api_key, &body).await?;
+        let answer =
+            ai::completion_text(&response).ok_or_else(|| "empty AI response".to_string())?;
+        let requested: Vec<String> = batch.iter().map(|e| e.sha.clone()).collect();
+        for (sha, topic) in parse_assignments(&answer, &requested) {
+            if !known.contains(&topic) {
+                known.push(topic.clone());
+            }
+            assignments.push((sha, topic));
+        }
+    }
     if assignments.is_empty() {
         return Ok(false);
     }
@@ -315,7 +337,7 @@ mod tests {
             .collect();
         let prompt = build_prompt("acme/widget", &["auth".to_string()], &entries);
         assert!(prompt.contains("acme/widget"));
-        assert!(prompt.contains("Existing topics: auth"));
+        assert!(prompt.contains("auth"));
         assert!(prompt.contains(&format!("{:040x}", MAX_ENTRIES - 1)));
         assert!(!prompt.contains(&format!("{:040x}", MAX_ENTRIES)));
     }
@@ -323,7 +345,7 @@ mod tests {
     #[test]
     fn prompt_names_the_empty_topic_list() {
         let prompt = build_prompt("acme/widget", &[], &[entry(&"c".repeat(40), "wip")]);
-        assert!(prompt.contains("Existing topics: none yet."));
+        assert!(prompt.contains("Known topics: none yet."));
     }
 
     #[test]

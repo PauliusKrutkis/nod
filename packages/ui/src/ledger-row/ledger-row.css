@@ -1,0 +1,16 @@
+/* Only what the q-pr anatomy does not already give the ledger row: the
+   size run never shrinks (it is the row's number and short), the chip run
+   ellipsizes like any unbounded cell. */
+
+.q-lr-size {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.q-lr-chips {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--accent);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

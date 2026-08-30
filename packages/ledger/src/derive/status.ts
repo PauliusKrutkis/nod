@@ -107,15 +107,17 @@ export interface LedgerComment {
 }
 
 /**
- * A post-epoch commit the deterministic cascade could not name — no
- * assignment fact, no conventional scope — currently sitting in a
- * provenance bucket. The host's LLM stage reads this list, proposes
- * topics, and writes them back as `assigned` facts via `ledger assign`.
+ * A post-epoch commit no assignment fact names yet. The deterministic
+ * label it wears meanwhile (conventional scope, `#123`, short sha) is a
+ * component-or-provenance bucket, not a feature — the host's LLM stage
+ * reads this list, proposes real feature topics, and writes them back as
+ * `assigned` facts via `ledger assign`; keyless repos simply keep the
+ * deterministic labels.
  */
-export interface UnassignedSha {
+interface UnassignedSha {
   sha: string;
   subject: string;
-  /** The provenance bucket it falls to today (`#123` or a short sha). */
+  /** The deterministic label it wears until assigned. */
   topic: string;
   /** Files holding lines that blame to this commit, capped for payload. */
   files: string[];
@@ -608,8 +610,10 @@ const byPathThenLine = (a: QueueItem, b: QueueItem): number => {
  * Line-level topics, computed before runs: approval coverage must paint the
  * masks so mixed-topic runs shrink and split before any run is labeled.
  * The cascade per sha: a human `corrected` fact, an agent `assigned` fact,
- * the conventional scope, the provenance bucket. Shas that fell through to
- * the bucket are reported as `unassigned` — the LLM stage's work list.
+ * then the deterministic fallback (conventional scope, provenance bucket).
+ * Every sha still on the fallback is reported as `unassigned` — the LLM
+ * stage's work list. Scopes are component names, not features, so they do
+ * not exempt a commit from mapping; they only name it until then.
  */
 const classifyTipShas = async (
   git: GitRun,
@@ -634,15 +638,12 @@ const classifyTipShas = async (
   const unassignedShas = new Set<string>();
   for (const sha of tipShas) {
     const assigned = assignments.get(sha);
-    const subject = subjects.get(sha) ?? "";
     if (assigned) {
       topicBySha.set(sha, assigned.topic);
       continue;
     }
-    topicBySha.set(sha, topicOf(subject, sha));
-    if (!hasScope(subject)) {
-      unassignedShas.add(sha);
-    }
+    topicBySha.set(sha, topicOf(subjects.get(sha) ?? "", sha));
+    unassignedShas.add(sha);
   }
   return { subjects, topicBySha, unassignedShas };
 };
