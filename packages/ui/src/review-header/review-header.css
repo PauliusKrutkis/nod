@@ -365,6 +365,14 @@
   filter: brightness(1.08);
 }
 
+/* Disabled = the gate is not met yet (the ledger's view-every-file rule);
+   still readable, clearly inert. */
+.qf-submit:disabled {
+  cursor: default;
+  filter: none;
+  opacity: 0.45;
+}
+
 .qf-submit .q-kbd {
   color: var(--accent-ink);
   background: rgba(20, 17, 31, 0.16);

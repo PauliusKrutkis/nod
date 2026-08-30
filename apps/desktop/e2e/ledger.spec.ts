@@ -9,31 +9,32 @@ import { expect, test } from "./test.ts";
 import type { Page } from "./types.ts";
 
 /**
- * The ledger view derives everything from the mocked ledger_status /
- * ledger_session commands. The queue is one row per feature group
- * (conventional-commit scope, sha fallback); enter opens the group's
- * session on the review surface, where r signs the region under the cursor
- * — signing flips the bridge to the after-review fixture, which is how the
- * spec asserts the keystroke both records the fact (command args in
- * localStorage) and re-derives the number rather than mutating UI state.
- * Repos are addressed as owner/repo keys — Rust owns the store clone, so
- * there is nothing to configure: the last opened repo
- * (nod:ledgerLastRepo:v1) is seeded for the returning-user tests, and the
- * first-visit test lands straight in the picked repo's queue.
+ * The ledger tab derives everything from the mocked ledger_status /
+ * ledger_session commands and is deliberately the inbox's twin: one flat
+ * list across watched repos rendered through PRListItem rows (subject as
+ * the title, topic on the branch chip, repo in the meta) beside the
+ * InboxDetail reading pane carrying coverage, provenance and files. Enter
+ * opens the group's session on the review surface — ReviewHeader on top,
+ * Approve standing where submit stands — where r signs the region under
+ * the cursor; signing flips the bridge to the after-review fixture, which
+ * is how the spec asserts the keystroke both records the fact (command
+ * args in localStorage) and re-derives the number rather than mutating UI
+ * state.
  */
+
+const COVERAGE_ZERO = /Coverage 0\.0%/;
+const COVERAGE_87 = /Coverage 87\.0%/;
+const APPROVE = /Approve/;
 
 const openLedger = (page: Page) =>
   page.getByRole("button", { name: "Ledger" }).click();
 
-const seedLastRepo = (page: Page) =>
-  page.addInitScript(() => {
-    localStorage.setItem("nod:ledgerLastRepo:v1", "me/nod");
-  });
+const sessionList = (page: Page) =>
+  page.getByRole("listbox", { name: "Review sessions" });
 
-test("the queue lists one session per feature group; r signs nothing here", async ({
+test("the queue lists one row per feature group, styled as inbox rows", async ({
   page,
 }) => {
-  await seedLastRepo(page);
   await setupApp(page, {
     ledger: LEDGER,
     watchedRepos: ["me/nod"],
@@ -42,14 +43,17 @@ test("the queue lists one session per feature group; r signs nothing here", asyn
 
   await openLedger(page);
   await expect(page.getByRole("option")).toHaveCount(2);
-  await expect(page.getByText("0.0%")).toBeVisible();
-  // #321 carries scope "ledger"; the direct push falls back to its sha.
-  // Scoped to the list: the reading pane repeats the selected topic.
-  const list = page.getByRole("listbox", { name: "Review sessions" });
+  // Rows wear the PR row anatomy: subject as title, topic on the branch
+  // chip. #321 carries scope "ledger"; the direct push falls back to sha.
+  const list = sessionList(page);
+  await expect(
+    list.getByText("feat(ledger): anchor resolver (#321)")
+  ).toBeVisible();
   await expect(list.getByText("ledger", { exact: true })).toBeVisible();
   await expect(list.getByText("d1eec70", { exact: true })).toBeVisible();
-  await expect(list.getByText("#321", { exact: true })).toBeVisible();
-  await expect(list.getByText("1 region · 1 file · 40 lines")).toBeVisible();
+  // The reading pane carries the repo's coverage and the group's size.
+  await expect(page.getByText(COVERAGE_ZERO)).toBeVisible();
+  await expect(page.locator(".qi-detail-stats").getByText("+40")).toBeVisible();
 
   // Signing lives inside the session, not on the queue.
   await page.keyboard.press("r");
@@ -62,7 +66,6 @@ test("the queue lists one session per feature group; r signs nothing here", asyn
 test("j selects the next group; signing happens inside its session", async ({
   page,
 }) => {
-  await seedLastRepo(page);
   await setupApp(page, {
     ledger: LEDGER,
     ledgerAfterReview: LEDGER_AFTER_REVIEW,
@@ -85,32 +88,19 @@ test("j selects the next group; signing happens inside its session", async ({
   });
 });
 
-test("first visit picks a watched repo and lands straight in its queue", async ({
+test("empty ledgers across watched repos read as all-read, no setup step", async ({
   page,
 }) => {
   await setupApp(page, { watchedRepos: ["me/nod", "me/site"] });
   await expect(page.getByRole("option").first()).toBeVisible();
 
   await openLedger(page);
-  await expect(
-    page.getByRole("listbox", { name: "Watched repositories" })
-  ).toBeVisible();
-  await expect(page.getByRole("option")).toHaveCount(2);
-
-  // No setup step: Rust owns the clone, so enter goes straight to work.
-  await page.keyboard.press("Enter");
-  await expect(page.getByText("Queue is empty")).toBeVisible();
-
-  const last = await page.evaluate(() =>
-    localStorage.getItem("nod:ledgerLastRepo:v1")
-  );
-  expect(last).toBe("me/nod");
+  await expect(page.getByText("All read")).toBeVisible();
 });
 
 test("enter opens a session on the review surface and r signs the region", async ({
   page,
 }) => {
-  await seedLastRepo(page);
   await setupApp(page, {
     ledger: LEDGER,
     ledgerAfterReview: LEDGER_AFTER_REVIEW,
@@ -144,16 +134,13 @@ test("enter opens a session on the review surface and r signs the region", async
   await expect(page.getByText("Session signed off")).toBeVisible();
 
   await page.keyboard.press("Escape");
-  await expect(
-    page.getByRole("listbox", { name: "Review sessions" })
-  ).toBeVisible();
-  await expect(page.getByText("87.0%")).toBeVisible();
+  await expect(sessionList(page)).toBeVisible();
+  await expect(page.getByText(COVERAGE_87)).toBeVisible();
 });
 
 test("a session shows the net diff for a signed-then-edited file", async ({
   page,
 }) => {
-  await seedLastRepo(page);
   await setupApp(page, {
     ledger: LEDGER,
     ledgerSession: LEDGER_SESSION,
@@ -166,20 +153,19 @@ test("a session shows the net diff for a signed-then-edited file", async ({
   await page.keyboard.press("j");
   await page.keyboard.press("Enter");
   await expect(page.locator('[data-testid="review-scroller"]')).toBeVisible();
-  await expect(page.getByText("since ba5e100 → tip 71b0000")).toBeVisible();
+  // The baseline and tip ride the review header's branch chips.
+  await expect(page.getByText("ba5e100", { exact: true })).toBeVisible();
+  await expect(page.getByText("71b0000", { exact: true })).toBeVisible();
   await expect(page.locator(".qf-row-del")).toHaveCount(1);
   await expect(page.locator(".qf-row-add")).toHaveCount(1);
 
   await page.keyboard.press("Escape");
-  await expect(
-    page.getByRole("listbox", { name: "Review sessions" })
-  ).toBeVisible();
+  await expect(sessionList(page)).toBeVisible();
 });
 
-test("approving is gated on viewed: v unlocks a, which stamps the topic", async ({
+test("approving is gated on viewed: v arms the Approve button and a stamps", async ({
   page,
 }) => {
-  await seedLastRepo(page);
   await setupApp(page, {
     ledger: LEDGER,
     ledgerAfterApprove: LEDGER_AFTER_APPROVE,
@@ -192,7 +178,8 @@ test("approving is gated on viewed: v unlocks a, which stamps the topic", async 
   await expect(page.getByRole("option")).toHaveCount(2);
   await page.keyboard.press("Enter");
   await expect(page.locator('[data-testid="review-scroller"]')).toBeVisible();
-  await expect(page.getByText("viewed 0/1")).toBeVisible();
+  const approve = page.getByRole("button", { name: APPROVE });
+  await expect(approve).toBeDisabled();
 
   // Before every file is viewed, a records nothing.
   await page.keyboard.press("a");
@@ -201,20 +188,18 @@ test("approving is gated on viewed: v unlocks a, which stamps the topic", async 
   ).toBeNull();
 
   await page.keyboard.press("v");
-  await expect(page.getByText("viewed 1/1")).toBeVisible();
+  await expect(approve).toBeEnabled();
 
   await page.keyboard.press("a");
-  const approve = await page.evaluate(() =>
+  const approved = await page.evaluate(() =>
     localStorage.getItem("e2e:ledgerApprove")
   );
-  expect(JSON.parse(approve ?? "{}")).toMatchObject({
+  expect(JSON.parse(approved ?? "{}")).toMatchObject({
     repoKey: "me/nod",
     topic: "ledger",
   });
-  await expect(
-    page.getByRole("listbox", { name: "Review sessions" })
-  ).toBeVisible();
-  await expect(page.getByText("87.0%")).toBeVisible();
+  await expect(sessionList(page)).toBeVisible();
+  await expect(page.getByText(COVERAGE_87)).toBeVisible();
   await expect(page.getByRole("option")).toHaveCount(1);
 });
 
@@ -237,7 +222,6 @@ test("a multi-file group shows the file tree; clicking a file jumps to it", asyn
     path: "src/anchors/anchor.ts",
     regions: [{ endLine: 9, startLine: 1 }],
   };
-  await seedLastRepo(page);
   await setupApp(page, {
     ledger: { ...LEDGER, queue: [...LEDGER.queue, extraItem] },
     ledgerSession: {
@@ -262,10 +246,7 @@ test("a multi-file group shows the file tree; clicking a file jumps to it", asyn
   await expect(page.getByText("makeAnchor")).toBeVisible();
 });
 
-test("escape steps out of the queue to the picker, then to the PR tabs", async ({
-  page,
-}) => {
-  await seedLastRepo(page);
+test("escape leaves the queue straight to the PR tabs", async ({ page }) => {
   await setupApp(page, {
     ledger: LEDGER,
     watchedRepos: ["me/nod"],
@@ -273,16 +254,9 @@ test("escape steps out of the queue to the picker, then to the PR tabs", async (
   await expect(page.getByRole("option").first()).toBeVisible();
 
   await openLedger(page);
-  await expect(page.getByText("0.0%")).toBeVisible();
+  await expect(page.getByText(COVERAGE_ZERO)).toBeVisible();
 
   await page.keyboard.press("Escape");
-  await expect(
-    page.getByRole("listbox", { name: "Watched repositories" })
-  ).toBeVisible();
-
-  await page.keyboard.press("Escape");
-  await expect(
-    page.getByRole("listbox", { name: "Watched repositories" })
-  ).toBeHidden();
+  await expect(sessionList(page)).toBeHidden();
   await expect(page.getByRole("option").first()).toBeVisible();
 });

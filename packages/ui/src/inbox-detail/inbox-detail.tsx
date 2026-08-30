@@ -15,7 +15,12 @@
  * per-account setting and the host opens the resolved href.
  *
  * InboxPullRequest is the package's own minimal shape, not an import from the
- * app — the desktop's richer PullRequest satisfies it structurally.
+ * app — the desktop's richer PullRequest satisfies it structurally. Number,
+ * author, and time are optional for the same reason PRListItem's are: the
+ * ledger's topic groups read through THIS pane (one component, different
+ * data), and a group has no author, number, or timestamp. `openHint` and
+ * `archivable` let that host label the footer truthfully — a ledger topic
+ * opens a session and cannot be archived.
  */
 import type { ReactNode } from "react";
 import { Avatar } from "../avatar/avatar.tsx";
@@ -27,7 +32,7 @@ import "./inbox-detail.css";
 
 export interface InboxPullRequest {
   additions: number;
-  author: string;
+  author?: string;
   authorAvatarUrl?: string | null;
   body: string;
   changedFiles: number;
@@ -41,10 +46,10 @@ export interface InboxPullRequest {
     createdAt: string;
   };
   merged: boolean;
-  number: number;
+  number?: number;
   repo: string;
   title: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 function stateBadge(pr: InboxPullRequest): ReactNode {
@@ -100,12 +105,18 @@ function DetailStats({ pr }: { pr: InboxPullRequest }) {
 export function InboxDetail({
   pr,
   archived = false,
+  archivable = true,
+  openHint = "open review",
   trackerBase,
   onOpenTicket,
   renderBody,
 }: {
+  /** False hides the archive hint entirely — the ledger has no archive. */
+  archivable?: boolean;
   archived?: boolean;
   onOpenTicket: (url: string) => void;
+  /** What Enter does here, in the host's words. */
+  openHint?: string;
   pr: InboxPullRequest;
   renderBody?: (body: string) => ReactNode;
   trackerBase?: string;
@@ -117,8 +128,12 @@ export function InboxDetail({
       <header className="qi-detail-head">
         <div className="qi-detail-meta">
           {stateBadge(pr)}
-          <span className="qi-detail-num">#{pr.number}</span>
-          <span className="q-dot">·</span>
+          {pr.number !== undefined && (
+            <>
+              <span className="qi-detail-num">#{pr.number}</span>
+              <span className="q-dot">·</span>
+            </>
+          )}
           <span className="qi-detail-repo" title={pr.repo}>
             {pr.repo}
           </span>
@@ -130,13 +145,20 @@ export function InboxDetail({
             trackerBase={trackerBase}
           />
         </h2>
-        <div className="qi-detail-author">
-          <Avatar name={pr.author} size={20} url={pr.authorAvatarUrl} />
-          <span className="qi-detail-author-name">{pr.author}</span>
-          <span className="qi-detail-time" title={formatAbsolute(pr.updatedAt)}>
-            updated {formatRelativeTime(pr.updatedAt)}
-          </span>
-        </div>
+        {pr.author !== undefined && (
+          <div className="qi-detail-author">
+            <Avatar name={pr.author} size={20} url={pr.authorAvatarUrl} />
+            <span className="qi-detail-author-name">{pr.author}</span>
+            {pr.updatedAt !== undefined && (
+              <span
+                className="qi-detail-time"
+                title={formatAbsolute(pr.updatedAt)}
+              >
+                updated {formatRelativeTime(pr.updatedAt)}
+              </span>
+            )}
+          </div>
+        )}
         <DetailStats pr={pr} />
       </header>
 
@@ -180,12 +202,16 @@ export function InboxDetail({
 
       <footer className="qi-detail-foot">
         <span className="qi-detail-hint">
-          <Kbd combo="enter" /> open review
+          <Kbd combo="enter" /> {openHint}
         </span>
-        <span className="q-dot">·</span>
-        <span className="qi-detail-hint">
-          <Kbd combo="e" /> {archived ? "restore" : "archive"}
-        </span>
+        {archivable && (
+          <>
+            <span className="q-dot">·</span>
+            <span className="qi-detail-hint">
+              <Kbd combo="e" /> {archived ? "restore" : "archive"}
+            </span>
+          </>
+        )}
       </footer>
     </aside>
   );

@@ -56,6 +56,40 @@ const reviewers: Reviewer[] = [
 ];
 
 export const reviewHeaderEntry = defineEntry(ReviewHeader, {
+  "ledger-session": {
+    props: {
+      ...handlers,
+      pr: {
+        baseRef: "319aa0f",
+        draft: false,
+        headRef: "ee000f6",
+        merged: false,
+        repo: "PauliusKrutkis/nod",
+        state: "open",
+        title: "chat-panel",
+      },
+      showInfo: false,
+      showSidebarToggle: false,
+      submitCombo: "a",
+      submitLabel: "Approve",
+    },
+  },
+  "ledger-session-gated": {
+    props: {
+      ...handlers,
+      pr: {
+        draft: false,
+        merged: false,
+        repo: "PauliusKrutkis/nod",
+        state: "open",
+        title: "repo-store-migration",
+      },
+      showInfo: false,
+      submitCombo: "a",
+      submitDisabled: true,
+      submitLabel: "Approve",
+    },
+  },
   "ci-failure": {
     props: {
       ...handlers,

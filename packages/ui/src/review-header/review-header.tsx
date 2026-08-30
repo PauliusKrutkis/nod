@@ -50,14 +50,21 @@ export interface StackView {
   position: number;
 }
 
+/**
+ * Number and author are optional because the header also crowns things that
+ * are PR-shaped without being PRs: a ledger session has a topic for a title
+ * and baseline→tip shas for branches, but no author and no number — and it
+ * reuses THIS header (one component, different data) so the two review
+ * surfaces can never drift apart.
+ */
 export interface HeaderPullRequest {
-  author: string;
+  author?: string;
   authorAvatarUrl?: string | null;
   baseRef?: string;
   draft: boolean;
   headRef?: string;
   merged: boolean;
-  number: number;
+  number?: number;
   repo: string;
   state: string;
   title: string;
@@ -90,9 +97,13 @@ export function ReviewHeader({
   pendingCount = 0,
   pr,
   rightOpen = false,
+  showInfo = true,
   showSidebarToggle = false,
   sidebarOpen = false,
   stack = null,
+  submitCombo = "s",
+  submitDisabled = false,
+  submitLabel,
   trackerBase,
 }: {
   /** The chat's headless state, shown on the info button so a reviewer who
@@ -112,9 +123,16 @@ export function ReviewHeader({
   pendingCount?: number;
   pr: HeaderPullRequest;
   rightOpen?: boolean;
+  /** False hides the info/conversation button — hosts with no right dock. */
+  showInfo?: boolean;
   showSidebarToggle?: boolean;
   sidebarOpen?: boolean;
   stack?: StackView | null;
+  /** The submit button's keycap; the review screen's is `s`. */
+  submitCombo?: string;
+  submitDisabled?: boolean;
+  /** Fixed label overriding the Review/Submit-review pair. */
+  submitLabel?: string;
   trackerBase?: string;
 }) {
   const ciDot = ciDotClass(ciState);
@@ -155,12 +173,20 @@ export function ReviewHeader({
           </h1>
         </div>
         <div className="qf-pr-sub">
-          <span className="qf-pr-num">#{pr.number}</span>
-          <span className="q-dot">·</span>
+          {pr.number !== undefined && (
+            <>
+              <span className="qf-pr-num">#{pr.number}</span>
+              <span className="q-dot">·</span>
+            </>
+          )}
           <span>{pr.repo}</span>
-          <span className="q-dot">·</span>
-          <Avatar name={pr.author} size={15} url={pr.authorAvatarUrl} />
-          <span className="qf-header-author">{pr.author}</span>
+          {pr.author !== undefined && (
+            <>
+              <span className="q-dot">·</span>
+              <Avatar name={pr.author} size={15} url={pr.authorAvatarUrl} />
+              <span className="qf-header-author">{pr.author}</span>
+            </>
+          )}
           {!!pr.baseRef && !!pr.headRef && (
             <>
               <span className="q-dot">·</span>
@@ -190,36 +216,40 @@ export function ReviewHeader({
           approved={approved}
           changesRequested={changesRequested}
         />
-        <Tooltip combo="i" label={infoTitle}>
-          <button
-            aria-label={infoTitle}
-            aria-pressed={rightOpen}
-            className="qf-info-btn q-focus"
-            onClick={onToggleRightPanel}
-            type="button"
-          >
-            i{ciDot && <span aria-hidden className={cn("qf-ci-dot", ciDot)} />}
-            {aiState && (
-              <span
-                aria-hidden
-                className={cn("qf-ai-dot", `qf-ai-dot-${aiState}`)}
-              />
-            )}
-            {convoCount > 0 && (
-              <span className="qf-info-count">{convoCount}</span>
-            )}
-          </button>
-        </Tooltip>
+        {showInfo && (
+          <Tooltip combo="i" label={infoTitle}>
+            <button
+              aria-label={infoTitle}
+              aria-pressed={rightOpen}
+              className="qf-info-btn q-focus"
+              onClick={onToggleRightPanel}
+              type="button"
+            >
+              i
+              {ciDot && <span aria-hidden className={cn("qf-ci-dot", ciDot)} />}
+              {aiState && (
+                <span
+                  aria-hidden
+                  className={cn("qf-ai-dot", `qf-ai-dot-${aiState}`)}
+                />
+              )}
+              {convoCount > 0 && (
+                <span className="qf-info-count">{convoCount}</span>
+              )}
+            </button>
+          </Tooltip>
+        )}
         <button
           className="qf-submit q-focus"
+          disabled={submitDisabled}
           onClick={onOpenSubmit}
           type="button"
         >
-          {pendingCount > 0 ? "Submit review" : "Review"}
+          {submitLabel ?? (pendingCount > 0 ? "Submit review" : "Review")}
           {pendingCount > 0 && (
             <span className="qf-submit-badge">{pendingCount}</span>
           )}
-          <Kbd combo="s" />
+          <Kbd combo={submitCombo} />
         </button>
       </div>
     </header>
