@@ -20,6 +20,12 @@ export interface CliArgs {
   tip?: string;
   /** Actor id recorded on facts; default `git config user.name`. */
   actor?: string;
+  /**
+   * Durable host-owned directory: a plain-file journal of the fact ref
+   * (reconciled both ways on every run) plus personal-local config. For
+   * hosts whose clone is disposable; without it the repo is the only copy.
+   */
+  stateDir?: string;
   positional: string[];
 }
 
@@ -56,6 +62,12 @@ export const parseCliArgs = (argv: readonly string[]): CliArgs => {
       "--actor",
       (value) => {
         args.actor = value;
+      },
+    ],
+    [
+      "--state-dir",
+      (value) => {
+        args.stateDir = value;
       },
     ],
   ]);

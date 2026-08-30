@@ -138,6 +138,17 @@ const isAncestor = async (
   }
 };
 
+/** path → blob sha for everything under the ledger ref; empty when unborn. */
+export const listLedgerEntries = async (
+  git: GitRun
+): Promise<Map<string, string>> => {
+  const head = await revParse(git, LEDGER_REF);
+  if (!head) {
+    return new Map();
+  }
+  return await listEntries(git, head);
+};
+
 const readObjects = async (git: GitRun, dir: string): Promise<string[]> => {
   const head = await revParse(git, LEDGER_REF);
   if (!head) {
@@ -159,7 +170,7 @@ const readObjects = async (git: GitRun, dir: string): Promise<string[]> => {
  * same path always the same content). Safe against concurrent local writers
  * via the CAS retry loop.
  */
-const appendObjects = async (
+export const appendObjects = async (
   git: GitRun,
   contents: ReadonlyMap<string, string>
 ): Promise<void> => {
