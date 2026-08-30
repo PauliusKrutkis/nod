@@ -7,6 +7,10 @@
  * The three *Request props are keyboard commands addressed to one thread by
  * root id and made idempotent by a nonce — the surface owning the hotkeys is
  * far above this component, and a re-render must not replay the last one.
+ * The list virtualizes threads in and out, so a request already present at
+ * mount is consumed, never applied: the host still holds the last request
+ * in state, and a remounting thread would otherwise replay it (dogfooded
+ * as: cycling comments with w reopened an edit composer).
  * `shift+e` always edits your last comment in the thread — even one buried
  * under someone else's reply — but its hint chip only shows when that comment
  * is also the thread's last word, since otherwise the chip would misleadingly
@@ -92,6 +96,13 @@ function firstLine(body: string): string {
   return body.trim().split("\n")[0] ?? "";
 }
 
+function consumedNonce(
+  request: { nonce: number; rootId: number } | null | undefined,
+  rootId: number | undefined
+): number {
+  return request && request.rootId === rootId ? request.nonce : 0;
+}
+
 function applyCommand(
   request: { nonce: number; rootId: number } | null | undefined,
   rootId: number | undefined,
@@ -136,9 +147,15 @@ export function CommentThread({
   const [editingId, setEditingId] = useState<number | null>(null);
   const [collapsed, setCollapsed] = useState(resolved);
   const [wasResolved, setWasResolved] = useState(resolved);
-  const [lastReplyNonce, setLastReplyNonce] = useState(0);
-  const [lastToggleNonce, setLastToggleNonce] = useState(0);
-  const [lastEditNonce, setLastEditNonce] = useState(0);
+  const [lastReplyNonce, setLastReplyNonce] = useState(() =>
+    consumedNonce(replyRequest, rootId)
+  );
+  const [lastToggleNonce, setLastToggleNonce] = useState(() =>
+    consumedNonce(toggleRequest, rootId)
+  );
+  const [lastEditNonce, setLastEditNonce] = useState(() =>
+    consumedNonce(editRequest, rootId)
+  );
   const composerOpen = replying || editingId !== null;
 
   if (wasResolved !== resolved) {
