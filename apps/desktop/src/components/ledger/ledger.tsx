@@ -69,7 +69,6 @@ import {
   type ProvenanceGroup,
 } from "../../lib/ledger-session.ts";
 import { queryKeys } from "../../lib/query-client.ts";
-import { useAppStore } from "../../store/app-store.ts";
 import type {
   LedgerCommitAuthors,
   LedgerQueueItem,

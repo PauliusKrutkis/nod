@@ -183,6 +183,8 @@ const topicOf = (subject: string, sha: string): string => {
   return pr ? `#${pr[1]}` : sha.slice(0, 7);
 };
 
+const hasScope = (subject: string): boolean => CONVENTIONAL_SCOPE.test(subject);
+
 interface Run {
   path: string;
   start: number;

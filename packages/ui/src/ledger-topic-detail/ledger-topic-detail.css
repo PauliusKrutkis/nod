@@ -1,0 +1,44 @@
+/* Only the list rows under the qi-detail head are this pane's own: a label
+   column that never shrinks and an unbounded cell that ellipsizes, the same
+   deal the inbox row cuts with its title. */
+
+.q-ltd-section + .q-ltd-section {
+  margin-top: 20px;
+}
+
+.q-ltd-list {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.q-ltd-row {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+  padding: 3px 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.q-ltd-label {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--accent);
+}
+
+.q-ltd-cell {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.q-ltd-lines {
+  flex-shrink: 0;
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--faint);
+}
