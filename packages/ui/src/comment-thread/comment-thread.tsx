@@ -7,6 +7,10 @@
  * The three *Request props are keyboard commands addressed to one thread by
  * root id and made idempotent by a nonce — the surface owning the hotkeys is
  * far above this component, and a re-render must not replay the last one.
+ * The list virtualizes threads in and out, so a request already present at
+ * mount is consumed, never applied: the host still holds the last request
+ * in state, and a remounting thread would otherwise replay it (dogfooded
+ * as: cycling comments with w reopened an edit composer).
  * `shift+e` always edits your last comment in the thread — even one buried
  * under someone else's reply — but its hint chip only shows when that comment
  * is also the thread's last word, since otherwise the chip would misleadingly
@@ -138,12 +142,6 @@ export function CommentThread({
   const [editingId, setEditingId] = useState<number | null>(null);
   const [collapsed, setCollapsed] = useState(resolved);
   const [wasResolved, setWasResolved] = useState(resolved);
-  // Requests are edge-triggered commands aimed at a thread that was on
-  // screen when the key was pressed — but the host keeps the last request
-  // in state and the list virtualizes, so a thread that unmounts and comes
-  // back would see the old nonce and replay it (dogfooded as: cycling
-  // comments with w reopened an edit composer). A request already present
-  // at mount is therefore consumed, never applied.
   const [lastReplyNonce, setLastReplyNonce] = useState(() =>
     consumedNonce(replyRequest, rootId)
   );
