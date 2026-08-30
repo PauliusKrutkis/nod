@@ -22,8 +22,8 @@ import {
   type LedgerStatus,
 } from "./derive/status.ts";
 import { syncJournal } from "./facts/journal.ts";
-import type { Actor } from "./facts/schema.ts";
-import { sync } from "./facts/store.ts";
+import type { Actor, Fact } from "./facts/schema.ts";
+import { appendFacts, sync } from "./facts/store.ts";
 import { type GitRun, gitIn } from "./git/exec.ts";
 
 /**
@@ -525,6 +525,11 @@ const main = async (): Promise<void> => {
     }
     case "approve": {
       await runApprove(await ctx(), args, opts.force);
+      await journalSync();
+      return;
+    }
+    case "assign": {
+      await runAssign(await ctx(), args, opts.agent);
       await journalSync();
       return;
     }

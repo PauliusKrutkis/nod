@@ -763,7 +763,8 @@ export const deriveStatus = async (
     (done, total) => onProgress?.({ done, stage: "blame", total })
   );
   onProgress?.({ stage: "deriving" });
-  const { subjects, topicBySha } = await classifyTipShas(
+  const facts = await readFacts(git);
+  const { subjects, topicBySha, unassignedShas } = await classifyTipShas(
     git,
     blames,
     postEpoch,

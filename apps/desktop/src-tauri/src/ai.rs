@@ -716,7 +716,7 @@ fn build_complete_prompt(prefix: &str, context: &CompleteContext) -> String {
 /// The first choice's message content, or None when the provider answered with
 /// a shape we do not recognize — a completion is an optional courtesy, so an
 /// unreadable answer is silence rather than an error in the composer.
-fn completion_text(body: &Value) -> Option<String> {
+pub(crate) fn completion_text(body: &Value) -> Option<String> {
     body.get("choices")?
         .as_array()?
         .first()?

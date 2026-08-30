@@ -24,6 +24,7 @@ import { Kbd } from "@nod/ui/kbd";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, CornerUpLeft } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useLedgerAssignments } from "../../hooks/use-ledger-assignments.ts";
 import {
   type LedgerPrepUpdate,
   useLedgerPrep,
@@ -97,6 +98,7 @@ function initialView(): LedgerView {
 
 export function Ledger() {
   const goInbox = useAppStore((s) => s.goInbox);
+  useLedgerAssignments();
   const [view, setView] = useState<LedgerView>(initialView);
   const [selectedIndex, setSelected] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
@@ -265,6 +267,9 @@ export function Ledger() {
               epoch {shortSha(status.data.epoch)} → tip{" "}
               {shortSha(status.data.tip)}
             </span>
+            {status.data.unassigned.length > 0 && (
+              <span className="text-faint text-xs">mapping features…</span>
+            )}
           </>
         )}
       </header>

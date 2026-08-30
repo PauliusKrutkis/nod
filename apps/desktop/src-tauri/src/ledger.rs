@@ -28,6 +28,7 @@ use tauri::{AppHandle, Emitter};
 
 use crate::accounts;
 use crate::http::log;
+use crate::ledger_topics;
 use crate::repo_store::git::{self, GitAuth};
 use crate::repo_store::service;
 use crate::repo_store::store::{self, RepoKey};
@@ -87,7 +88,7 @@ fn sidecar_path() -> Result<PathBuf, String> {
 }
 
 /// Everything one sidecar invocation needs, resolved from the repo key.
-struct LedgerRepo {
+pub(crate) struct LedgerRepo {
     git_dir: PathBuf,
     /// Ref the derivation runs against: the remote-tracking default branch
     /// when it exists, the clone-time local branch otherwise.
@@ -190,16 +191,38 @@ impl LedgerRepo {
     /// adopted on the spot: `init` records the current tip as the epoch in
     /// the state dir, then the original command reruns.
     fn run(&self, command: &str, positional: &[&str]) -> Result<String, String> {
-        match self.spawn(command, positional) {
+        match self.spawn(command, positional, None) {
             Err(e) if e.contains("no ledger here yet") => {
-                self.spawn("init", &[&self.tip])?;
-                self.spawn(command, positional)
+                self.spawn("init", &[&self.tip], None)?;
+                self.spawn(command, positional, None)
             }
             other => other,
         }
     }
 
-    fn spawn(&self, command: &str, positional: &[&str]) -> Result<String, String> {
+    pub(crate) fn tip(&self) -> &str {
+        &self.tip
+    }
+
+    /// Writes agent `assigned` facts — the LLM stage's output. The `--agent`
+    /// flag marks the facts as proposals, and the actor is the model's
+    /// identity rather than the signed-in login. No adoption retry: this only
+    /// runs after a successful `status` on the same state dir, so the ledger
+    /// exists.
+    pub(crate) fn assign_as_agent(
+        &self,
+        actor: &str,
+        pairs: &[&str],
+    ) -> Result<(), String> {
+        self.spawn("assign", pairs, Some(actor)).map(|_| ())
+    }
+
+    fn spawn(
+        &self,
+        command: &str,
+        positional: &[&str],
+        agent_actor: Option<&str>,
+    ) -> Result<String, String> {
         let sidecar = sidecar_path()?;
         let mut args: Vec<&str> = vec![
             "--repo",
@@ -207,10 +230,13 @@ impl LedgerRepo {
             "--tip",
             &self.tip,
             "--actor",
-            &self.actor,
+            agent_actor.unwrap_or(&self.actor),
             "--state-dir",
             self.state_dir.to_str().ok_or("state path is not UTF-8")?,
         ];
+        if agent_actor.is_some() {
+            args.push("--agent");
+        }
         if matches!(command, "status" | "session") {
             args.push("--json");
         }
@@ -244,7 +270,7 @@ impl LedgerRepo {
     fn run_status_streaming(&self, app: &AppHandle, repo_key: &str) -> Result<Value, String> {
         match self.stream_status(app, repo_key) {
             Err(e) if e.contains("no ledger here yet") => {
-                self.spawn("init", &[&self.tip])?;
+                self.spawn("init", &[&self.tip], None)?;
                 self.stream_status(app, repo_key)
             }
             other => other,
@@ -334,14 +360,19 @@ async fn status_inner(app: &AppHandle, repo_key: &str) -> Result<Value, String> 
     };
     let task_app = app.clone();
     let task_key = repo_key.to_string();
-    let result = tauri::async_runtime::spawn_blocking(move || {
-        repo.run_status_streaming(&task_app, &task_key)
+    let (repo, result) = tauri::async_runtime::spawn_blocking(move || {
+        let result = repo.run_status_streaming(&task_app, &task_key);
+        (repo, result)
     })
     .await
     .map_err(|e| format!("ledger status failed: {e}"))?;
     let stage = if result.is_ok() { "ready" } else { "failed" };
     emit_prep(app, repo_key, stage, None, None);
-    result
+    let status = result?;
+    // The LLM stage rides every derivation — opens and warms alike — so a
+    // newly watched repo arrives already mapped (docs/LEDGER.md item 5).
+    ledger_topics::propose(app, repo_key.to_string(), repo, &status);
+    Ok(status)
 }
 
 #[tauri::command]
@@ -349,9 +380,10 @@ pub async fn ledger_status(app: AppHandle, repo_key: String) -> Result<Value, St
     status_inner(&app, &repo_key).await
 }
 
-/// Fire-and-forget full warm — clone, tip refresh, derivation — so a repo
-/// is ready before its ledger is first opened. Kicked when a repo becomes
-/// watched; failures only log (the open path reports its own).
+/// Fire-and-forget full warm — clone, tip refresh, derivation, topic
+/// mapping — so a repo is ready before its ledger is first opened. Kicked
+/// when a repo becomes watched; failures only log (the open path reports
+/// its own).
 pub fn warm(app: &AppHandle, repo_key: String) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {

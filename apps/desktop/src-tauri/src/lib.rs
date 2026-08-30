@@ -8,6 +8,7 @@ mod commands;
 mod http;
 mod install_format;
 mod ledger;
+mod ledger_topics;
 mod license;
 mod model;
 mod offline;

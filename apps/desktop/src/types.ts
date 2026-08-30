@@ -473,6 +473,21 @@ export interface LedgerComment {
   startLine: number | null;
 }
 
+/**
+ * A post-epoch commit the deterministic topic cascade could not name — the
+ * background LLM stage's work list.
+ */
+export interface LedgerUnassignedSha {
+  /** Files holding tip lines that blame to this commit. */
+  files: string[];
+  /** Tip lines blaming to this commit. */
+  lines: number;
+  sha: string;
+  subject: string;
+  /** The provenance bucket it falls to today (`#123` or a short sha). */
+  topic: string;
+}
+
 export interface LedgerStatus {
   comments: LedgerComment[];
   coverage: number;
@@ -482,6 +497,7 @@ export interface LedgerStatus {
   tip: string;
   topics: LedgerTopicStatus[];
   totalLines: number;
+  unassigned: LedgerUnassignedSha[];
 }
 
 /** 1-based inclusive span on tip; identical to the queue item's span. */
