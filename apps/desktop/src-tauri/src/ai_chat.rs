@@ -855,9 +855,6 @@ fn execute_skill_tool(
             if skills.is_empty() {
                 "(no skills available)".to_string()
             } else {
-                // The source rides every line so the model can tell the
-                // reviewer where a skill lives — a [personal] one is theirs,
-                // already installed, and never something to ask a paste for.
                 skills
                     .iter()
                     .map(|s| {
