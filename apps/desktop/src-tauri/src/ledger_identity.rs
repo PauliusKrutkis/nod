@@ -8,8 +8,10 @@
 //! Results are cached forever beside the ledger state (`authors.json`):
 //! a sha's author never changes, and a "no linked account" answer is
 //! cached too (as null) so unlinked authors don't refetch each open.
-//! GitLab repos return only what the cache holds — the frontend's git-name
-//! fallback stands there until a GitLab resolver exists.
+//! Concurrent calls can lose entries to the read-merge-write race, which
+//! is benign: a lost entry just refetches next time. GitLab repos return
+//! only what the cache holds — the frontend's git-name fallback stands
+//! there until a GitLab resolver exists.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -40,7 +42,7 @@ async fn cache_path(app: &AppHandle, repo_key: &str) -> Result<PathBuf, String> 
     Ok(store::ledger_state_dir(&storage::config_dir(app)?, &key).join("authors.json"))
 }
 
-fn load_cache(path: &PathBuf) -> AuthorCache {
+fn load_cache(path: &std::path::Path) -> AuthorCache {
     std::fs::read(path)
         .ok()
         .and_then(|bytes| serde_json::from_slice(&bytes).ok())
@@ -84,7 +86,7 @@ pub async fn ledger_commit_authors(
                         );
                     }
                     if let Ok(bytes) = serde_json::to_vec(&cache) {
-                        let _ = std::fs::write(&path, bytes);
+                        let _ = crate::ledger::write_atomically(&path, &bytes);
                     }
                 }
                 Err(e) => log(&format!("commit author lookup failed: {e}")),
@@ -96,3 +98,7 @@ pub async fn ledger_commit_authors(
         .filter_map(|sha| cache.get(&sha).map(|v| (sha.clone(), v.clone())))
         .collect())
 }
+
+#[cfg(test)]
+#[path = "ledger_identity_tests.rs"]
+mod tests;

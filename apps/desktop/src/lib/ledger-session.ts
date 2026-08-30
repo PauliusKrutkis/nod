@@ -272,6 +272,23 @@ export interface ProvenanceGroup {
 }
 
 /**
+ * The group's freshness: the newest provenance commit's timestamp. Both
+ * the queue rows and the inbox tab badge judge "archived until it
+ * updates" against this same value, so the two can never disagree.
+ */
+export function newestProvenanceAt(group: ProvenanceGroup): string | undefined {
+  let newest: string | undefined;
+  for (const item of group.items) {
+    for (const p of item.provenance) {
+      if (p.at && (newest === undefined || p.at > newest)) {
+        newest = p.at;
+      }
+    }
+  }
+  return newest;
+}
+
+/**
  * The queue as feature groups keyed by the ENGINE's topic classification
  * (item.topic — conventional scope, #pr, sha fallback, derived line-level
  * in deriveStatus), in first-appearance order. The engine is the single

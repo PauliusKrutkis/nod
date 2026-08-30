@@ -58,7 +58,7 @@ export function LedgerPrep({
         <div>
           <p className="font-medium text-fg">Reading {repoKey}</p>
           <p className="text-muted text-sm">
-            First open only — later opens are instant.
+            Only the first open takes this long. Later opens are instant.
             {others > 0 &&
               ` ${others} more ${others === 1 ? "repository is" : "repositories are"} preparing behind it.`}
           </p>

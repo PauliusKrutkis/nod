@@ -11,15 +11,22 @@ import type { Page } from "./types.ts";
 /**
  * The ledger tab derives everything from the mocked ledger_status /
  * ledger_session commands and is deliberately the inbox's twin: one flat
- * list across watched repos rendered through PRListItem rows (subject as
- * the title, topic on the branch chip, repo in the meta) beside the
- * InboxDetail reading pane carrying coverage, provenance and files. Enter
- * opens the group's session on the review surface — ReviewHeader on top,
- * Approve standing where submit stands — where r signs the region under
- * the cursor; signing flips the bridge to the after-review fixture, which
- * is how the spec asserts the keystroke both records the fact (command
- * args in localStorage) and re-derives the number rather than mutating UI
- * state.
+ * list across watched repos rendered through PRListItem rows beside the
+ * InboxDetail reading pane. Rows are titled by identity — a named topic
+ * leads with its feature name and wears its fact-minted #N, while a bucket
+ * (a direct push's sha) leads with the commit subject and wears the bucket
+ * on the branch chip; the sole author shows as the forge login when the
+ * noreply email or the ledger_commit_authors mock names one, the git name
+ * otherwise. Enter opens the group's session on the review surface —
+ * ReviewHeader on top, Approve standing where submit stands, the info dock
+ * behind mod+i — where r signs the region under the cursor.
+ *
+ * Mutations are optimistic, and the bridge is built to prove both halves:
+ * signing/approving flips it to the after-review/after-approve fixture, so
+ * a re-derive (not UI mutation) explains the new numbers; posted comments
+ * accumulate in the mock and `ledgerMutationDelayMs` holds the sidecar
+ * reply open, so a thread visible before the delay elapses can only have
+ * painted from the optimistic cache.
  */
 
 const COVERAGE_ZERO = /Coverage 0\.0%/;
@@ -43,26 +50,17 @@ test("the queue lists one row per feature group, styled as inbox rows", async ({
 
   await openLedger(page);
   await expect(page.getByRole("option")).toHaveCount(2);
-  // Rows wear the PR row anatomy, titled by identity: a named topic leads
-  // with its feature name ("ledger" from the #321 scope), while a bucket
-  // (the direct push's sha) leads with the commit subject and wears the
-  // bucket on the branch chip.
   const list = sessionList(page);
   await expect(list.getByText("ledger", { exact: true })).toBeVisible();
   await expect(list.getByText("chore: tighten CAS retry")).toBeVisible();
   await expect(list.getByText("d1eec70", { exact: true })).toBeVisible();
-  // The topic's fact-minted display number rides the row like a PR number;
-  // the unnumbered bucket shows none.
   await expect(list.getByText("#1", { exact: true })).toBeVisible();
-  // The reading pane mirrors the row's title and carries the story,
-  // coverage, and the group's size.
   await expect(
     page.getByText("feat(ledger): anchor resolver (#321)")
   ).toBeVisible();
   await expect(page.getByText(COVERAGE_ZERO)).toBeVisible();
   await expect(page.locator(".qi-detail-stats").getByText("+40")).toBeVisible();
 
-  // Signing lives inside the session, not on the queue.
   await page.keyboard.press("r");
   const review = await page.evaluate(() =>
     localStorage.getItem("e2e:ledgerReview")
@@ -108,16 +106,13 @@ test("e archives a group until it updates; z undoes; u browses archived", async 
   await expect(page.getByRole("option")).toHaveCount(2);
   const list = sessionList(page);
 
-  // Archive the selected group: it leaves the queue, like a PR row.
   await page.keyboard.press("e");
   await expect(page.getByRole("option")).toHaveCount(1);
   await expect(list.getByText("ledger", { exact: true })).toBeHidden();
 
-  // z brings it straight back.
   await page.keyboard.press("z");
   await expect(page.getByRole("option")).toHaveCount(2);
 
-  // u flips to the archived view, where e restores.
   await page.keyboard.press("e");
   await page.keyboard.press("u");
   await expect(page.getByText("restores")).toBeVisible();
@@ -126,6 +121,28 @@ test("e archives a group until it updates; z undoes; u browses archived", async 
   await expect(page.getByText("Nothing archived")).toBeVisible();
   await page.keyboard.press("u");
   await expect(page.getByRole("option")).toHaveCount(2);
+});
+
+test("an archived group stays archived across a reload", async ({ page }) => {
+  await setupApp(page, {
+    ledger: LEDGER,
+    watchedRepos: ["me/nod"],
+  });
+  await expect(page.getByRole("option").first()).toBeVisible();
+
+  await openLedger(page);
+  await expect(page.getByRole("option")).toHaveCount(2);
+  await page.keyboard.press("e");
+  await expect(page.getByRole("option")).toHaveCount(1);
+
+  await page.reload();
+  await expect(page.getByRole("option").first()).toBeVisible();
+  await openLedger(page);
+  await expect(page.getByRole("option")).toHaveCount(1);
+  await page.keyboard.press("u");
+  await expect(
+    sessionList(page).getByText("ledger", { exact: true })
+  ).toBeVisible();
 });
 
 test("y copies the group's nod:// link — the topic is the id", async ({
@@ -143,6 +160,21 @@ test("y copies the group's nod:// link — the topic is the id", async ({
   await expect(page.getByText("nod://ledger/me/nod/ledger")).toBeVisible();
 });
 
+test("a nod://ledger launch link lands straight in the named session", async ({
+  page,
+}) => {
+  await setupApp(page, {
+    ledger: LEDGER,
+    ledgerLink: { owner: "me", repo: "nod", topic: "ledger" },
+    ledgerSession: LEDGER_SESSION,
+    watchedRepos: ["me/nod"],
+  });
+
+  await expect(page.locator('[data-testid="review-scroller"]')).toBeVisible();
+  await expect(page.getByText("resolveAnchor")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Ledger" })).toBeHidden();
+});
+
 test("a group authored through the forge wears the login, like a PR row", async ({
   page,
 }) => {
@@ -153,11 +185,30 @@ test("a group authored through the forge wears the login, like a PR row", async 
   await expect(page.getByRole("option").first()).toBeVisible();
 
   await openLedger(page);
-  // The #321 squash's noreply email names the login; the direct push has a
-  // plain email and keeps the git name.
   const list = sessionList(page);
   await expect(list.getByText("amy", { exact: true })).toBeVisible();
   await expect(list.getByText("Rosa Diaz")).toBeVisible();
+});
+
+test("a resolved commit author displaces the git name on the row", async ({
+  page,
+}) => {
+  await setupApp(page, {
+    ledger: LEDGER,
+    ledgerAuthors: {
+      d1eec70000000000000000000000000000000000: {
+        avatarUrl: "",
+        login: "rosad",
+      },
+    },
+    watchedRepos: ["me/nod"],
+  });
+  await expect(page.getByRole("option").first()).toBeVisible();
+
+  await openLedger(page);
+  const list = sessionList(page);
+  await expect(list.getByText("rosad", { exact: true })).toBeVisible();
+  await expect(list.getByText("Rosa Diaz")).toBeHidden();
 });
 
 test("empty ledgers across watched repos read as all-read, no setup step", async ({
@@ -186,12 +237,10 @@ test("enter opens a session on the review surface and r signs the region", async
 
   await page.keyboard.press("Enter");
   await expect(page.locator('[data-testid="review-scroller"]')).toBeVisible();
-  // A session owns the window like the review screen: no tab strip, and
-  // the file tree column is there even for a single file.
   await expect(page.getByRole("button", { name: "Ledger" })).toBeHidden();
   await expect(page.locator(".qf-filelist")).toBeVisible();
-  // The header wears the group's author the way a PR header does.
   await expect(page.locator(".qf-header-author")).toHaveText("amy");
+  await expect(page.locator(".qf-pr-num")).toHaveText("#1");
   await expect(page.getByText("resolveAnchor")).toBeVisible();
   const sessionArgs = await page.evaluate(() =>
     localStorage.getItem("e2e:ledgerSession")
@@ -231,7 +280,6 @@ test("a session shows the net diff for a signed-then-edited file", async ({
   await page.keyboard.press("j");
   await page.keyboard.press("Enter");
   await expect(page.locator('[data-testid="review-scroller"]')).toBeVisible();
-  // The baseline and tip ride the review header's branch chips.
   await expect(page.getByText("ba5e100", { exact: true })).toBeVisible();
   await expect(page.getByText("71b0000", { exact: true })).toBeVisible();
   await expect(page.locator(".qf-row-del")).toHaveCount(1);
@@ -295,10 +343,104 @@ test("the info panel opens on the session and tells the group's story", async ({
   await expect(page.getByText(COVERAGE_ZERO)).toBeVisible();
 });
 
+test("session threads render inline and c posts a comment optimistically", async ({
+  page,
+}) => {
+  await setupApp(page, {
+    ledger: LEDGER,
+    ledgerMutationDelayMs: 1500,
+    ledgerSession: LEDGER_SESSION,
+    watchedRepos: ["me/nod"],
+  });
+  await expect(page.getByRole("option").first()).toBeVisible();
+
+  await openLedger(page);
+  await expect(page.getByRole("option")).toHaveCount(2);
+  await page.keyboard.press("Enter");
+  await expect(page.locator('[data-testid="review-scroller"]')).toBeVisible();
+  await expect(
+    page.getByText("Postings could be cached per tip.").first()
+  ).toBeVisible();
+  await expect(
+    page.getByText("Should gone report which lines it lost?").first()
+  ).toBeVisible();
+  await expect(page.getByText("rosa", { exact: true }).first()).toBeVisible();
+
+  await page.keyboard.press("j");
+  await page.keyboard.press("c");
+  const box = page.getByRole("textbox", { name: "Add a review comment…" });
+  await expect(box).toBeFocused();
+  await page.keyboard.type("Wait, what about renames?");
+  await page.getByRole("button", { name: "Comment", exact: true }).click();
+  // The mock holds the sidecar reply for 1.5s, so the thread appearing now
+  // can only have painted from the optimistic cache.
+  await expect(
+    page.getByText("Wait, what about renames?").first()
+  ).toBeVisible();
+  const posted = await page.evaluate(() =>
+    localStorage.getItem("e2e:ledgerComment")
+  );
+  expect(JSON.parse(posted ?? "{}")).toMatchObject({
+    body: "Wait, what about renames?",
+    repoKey: "me/nod",
+  });
+});
+
+test("q and w walk the session's threads; x resolves the active one", async ({
+  page,
+}) => {
+  await setupApp(page, {
+    ledger: LEDGER,
+    ledgerSession: LEDGER_SESSION,
+    watchedRepos: ["me/nod"],
+  });
+  await expect(page.getByRole("option").first()).toBeVisible();
+
+  await openLedger(page);
+  await expect(page.getByRole("option")).toHaveCount(2);
+  await page.keyboard.press("Enter");
+  await expect(page.locator('[data-testid="review-scroller"]')).toBeVisible();
+
+  await page.keyboard.press("q");
+  await page.keyboard.press("x");
+  const resolved = await page.evaluate(() =>
+    localStorage.getItem("e2e:ledgerResolve")
+  );
+  expect(JSON.parse(resolved ?? "{}")).toMatchObject({
+    factId: "bbbb333300000000",
+    repoKey: "me/nod",
+  });
+  await page.keyboard.press("w");
+  await expect(page.locator('[data-testid="review-scroller"]')).toBeVisible();
+});
+
+test("shift+v expands the full file from the store clone", async ({ page }) => {
+  await setupApp(page, {
+    fileBlobs: {
+      "src/facts/store.ts":
+        "const LOCKS = new Map();\nconst RETRY_BACKOFF = 10;\nconst UNUSED = 0;\nconst PADDING = 0;\nconst RETRIES = 5;\n\nconst casUpdate = (ref, attempt = 0) => {\n  const lock = takeLock(ref);\n  if (!lock) {\n    return retry(ref);\n  }\n};\nconst FULL_FILE_MARKER = 1;",
+    },
+    ledger: LEDGER,
+    ledgerSession: LEDGER_SESSION,
+    watchedRepos: ["me/nod"],
+  });
+  await expect(page.getByRole("option").first()).toBeVisible();
+
+  await openLedger(page);
+  await expect(page.getByRole("option")).toHaveCount(2);
+  await page.keyboard.press("j");
+  await page.keyboard.press("Enter");
+  await expect(page.locator('[data-testid="review-scroller"]')).toBeVisible();
+
+  await page.keyboard.press("Shift+v");
+  await expect(
+    page.locator(".qf-row-xctx", { hasText: "FULL_FILE_MARKER" }).first()
+  ).toBeVisible();
+});
+
 test("a multi-file group shows the file tree; clicking a file jumps to it", async ({
   page,
 }) => {
-  // Extend the canned fixtures with a second file in the #321 group.
   const extraItem = {
     baseline: null,
     endLine: 9,

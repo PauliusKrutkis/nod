@@ -18,7 +18,14 @@
  *
  * Mutations are optimistic (useLedgerMutations): the fact's effect paints
  * from cache instantly and the sidecar reconciles behind it, exactly like
- * the PR surface's comment mutations.
+ * the PR surface's comment mutations. `r` and `a` gate on key repeat and
+ * an in-flight ref — a held key must never serially sign regions, and
+ * every extra fire would append an immutable duplicate fact.
+ *
+ * The drawer's story reads from the queue's own status query (same key,
+ * warm from the tab); empty `targets` means everything is signed, the
+ * disabled session query stays isPending by definition, and the signed-off
+ * face owns the screen instead of the pending shell.
  */
 
 import { InboxZero } from "@nod/ui/inbox-zero";
@@ -125,12 +132,9 @@ export function LedgerSession({
   targets,
   updatedAt,
 }: {
-  /** A standing approval on the topic, shown as the header's verdict pill. */
   approval?: LedgerTopicApproval | null;
-  /** The group's sole commit author, PR-header style (queue's entryMeta). */
   author?: string;
   authorAvatarUrl?: string;
-  /** The topic's fact-minted display number (#N). */
   number?: number;
   group: { label: string; subject: string };
   initialTarget: string;
@@ -138,7 +142,6 @@ export function LedgerSession({
   onSigned: (target: string) => void;
   repoKey: string;
   targets: string[];
-  /** The group's freshness, shown in the info drawer's summary. */
   updatedAt?: string;
 }) {
   const [owner = "", name = ""] = repoKey.split("/");
@@ -167,9 +170,6 @@ export function LedgerSession({
     queryFn: () => api.ledgerSession(repoKey, targets),
     queryKey: queryKeys.ledgerSession(repoKey, targets),
   });
-  // The queue's own status query, warm from the tab — the drawer's story
-  // (coverage, provenance, files) reads from the same cache the queue
-  // paints from.
   const status = useQuery({
     queryFn: () => api.ledgerStatus(repoKey),
     queryKey: queryKeys.ledger(repoKey),
@@ -201,8 +201,6 @@ export function LedgerSession({
     ? buildCommentsByFile(visibleThreads.comments)
     : threadMaps.byFile;
 
-  // A file counts as viewed only while its content fingerprint still
-  // matches — a new tip that changed the patch clears the mark.
   const viewedSet = useMemo(() => {
     const set = new Set<string>();
     for (const file of files) {
@@ -213,7 +211,6 @@ export function LedgerSession({
     return set;
   }, [files, tip, viewedFiles]);
 
-  // ---- cursor slice, mirroring the review screen's ---------------------
   const [cursor, setCursor] = useState<CursorPos | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [inputMode, setInputMode] = useState<"keyboard" | "mouse">("keyboard");
@@ -266,9 +263,6 @@ export function LedgerSession({
 
   const clampedIndex = Math.max(0, Math.min(activeIndex, files.length - 1));
 
-  // Full-file expansion off the store clone: get_file_blob resolves the tip
-  // sha locally before it would ever ask the forge, so this is the review
-  // screen's own hook, unchanged.
   const {
     expandedNames,
     expandedRows,
@@ -351,7 +345,6 @@ export function LedgerSession({
     }
   };
 
-  // Land on the region the queue row pointed at, once per payload.
   const placedRef = useRef(false);
   useEffect(() => {
     if (placedRef.current || files.length === 0) {
@@ -470,8 +463,17 @@ export function LedgerSession({
     toggleNonceRef,
   });
 
+  const signInFlightRef = useRef(false);
+  const approveInFlightRef = useRef(false);
+
   const approve = () => {
-    mutations.approve(group.label);
+    if (approveInFlightRef.current) {
+      return;
+    }
+    approveInFlightRef.current = true;
+    mutations.approve(group.label).finally(() => {
+      approveInFlightRef.current = false;
+    });
     setToast({
       message: `${group.label} at ${shortSha(tip)}`,
       title: "Topic approved",
@@ -480,10 +482,13 @@ export function LedgerSession({
   };
 
   const sign = () => {
-    if (!current) {
+    if (!current || signInFlightRef.current) {
       return;
     }
-    mutations.sign(current.target);
+    signInFlightRef.current = true;
+    mutations.sign(current.target).finally(() => {
+      signInFlightRef.current = false;
+    });
     setToast({ message: current.target, title: "Region signed" });
     onSigned(current.target);
   };
@@ -697,7 +702,11 @@ export function LedgerSession({
       description: "Sign region under cursor",
       group: "Session",
       keys: "r",
-      run: sign,
+      run: (e) => {
+        if (!e.repeat) {
+          sign();
+        }
+      },
     },
     {
       description: "Toggle file viewed",
@@ -774,7 +783,11 @@ export function LedgerSession({
       description: "Approve the topic",
       group: "Session",
       keys: "a",
-      run: approve,
+      run: (e) => {
+        if (!e.repeat) {
+          approve();
+        }
+      },
     },
     {
       description: "Back to the queue",
@@ -882,11 +895,7 @@ export function LedgerSession({
     );
   };
 
-  // targets empty = everything signed: the query is disabled (isPending by
-  // definition) and the frame's signed-off state owns the screen instead.
   if (targets.length > 0 && (session.isPending || session.error)) {
-    // The review screen's own cold state — skeleton shell or error face —
-    // replacing the whole surface, exactly as opening a PR does.
     return (
       <div className="dir-quiet flex h-full min-h-0 flex-col">
         <ReviewScreenPending
@@ -902,14 +911,6 @@ export function LedgerSession({
   }
 
   return (
-    // The review screen's exact frame — full-height file tree beside a main
-    // column whose header is the review screen's own ReviewHeader with
-    // topic data: the topic is the title, the group's sole author wears the
-    // PR header's avatar slot, baseline→tip shas ride the branch chips
-    // (copyable like branches), a standing approval shows as the verdict
-    // pill, and Approve stands where submit stands. The info button opens
-    // the same RightDock + PrDrawer the PR surface docks, with the topic's
-    // story as the description and the session's threads as the discussion.
     <div className="dir-quiet relative flex h-full min-h-0 overflow-hidden">
       <FileTreeColumn
         changed={EMPTY_SET}

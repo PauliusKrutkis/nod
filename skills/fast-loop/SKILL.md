@@ -45,7 +45,16 @@ Root-level `pnpm typecheck` / `pnpm test` fan out across every package — use t
 
 ## What CI still guards (so fast ≠ unguarded)
 
-PR CI is already tiered: chromium-only e2e on desktop/ui/tokens changes, gallery shots when ui/tokens/gallery/quiet-css paths are touched, webkit-perf and prod-perf deferred to main. So skipping e2e locally defers it, it doesn't waive it — after pushing, check the PR's checks before calling the task done, and expect ui/tokens changes to pay the gallery-shots cost in CI. If a shot legitimately changed, the baseline update flows through the workflow's published artifacts, not a local darwin render.
+PR CI is already tiered: chromium-only e2e on desktop/ui/tokens changes, gallery shots when ui/tokens/gallery/quiet-css paths are touched, webkit-perf and prod-perf deferred to main. Skipping e2e locally defers it, it doesn't waive it — CI's verdict still lands and still has to be acted on. But acting on it is a **separate batch chore, never something the loop blocks on**.
+
+## Never wait on CI
+
+The loop's whole point is that iteration speed is bounded by lints and unit tests, not by anything measured in minutes. So:
+
+- After pushing, keep working (or hand back to the user). Do not poll checks, do not arm a watcher and idle until it fires, do not treat "CI is running" as an open task that keeps the turn alive.
+- When CI's verdict eventually surfaces — a later glance, the next round, or the user asking "is the PR green?" — triage it as its own batch pass. A red e2e check is reproduced by running **only the failing spec** locally (that's seconds-to-a-minute, same spirit as the edited-spec exception), fixed, and pushed; never re-run neighbours "to be safe".
+- Shot-baseline updates are the same shape: new/changed gallery cells go red until the workflow's merged-baselines artifact is committed. Batch that into one artifact pull per push cycle, done whenever the run happens to be finished — not a wait-then-commit sequence the session sits on. If several pushes are coming, let them all land and pull the artifact once at the end.
+- It's fine for a turn to end with CI still running. Say so plainly ("pushed; CI will report — the likely reds are the new shot cells") instead of staying alive to watch it.
 
 ## Prototyping posture
 

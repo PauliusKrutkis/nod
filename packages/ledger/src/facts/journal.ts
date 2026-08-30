@@ -106,8 +106,9 @@ const exportJournal = async (
   }
 };
 
+/** Import then export, re-listing between the two because the import may
+ *  have moved the ref. */
 export const syncJournal = async (git: GitRun, dir: string): Promise<void> => {
   await importJournal(git, dir, await listLedgerEntries(git));
-  // Re-list: the import may have moved the ref.
   await exportJournal(git, dir, await listLedgerEntries(git));
 };

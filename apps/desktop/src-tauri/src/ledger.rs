@@ -300,6 +300,9 @@ impl LedgerRepo {
         }
     }
 
+    /// Spawns `status --json --progress` and reads stderr as two languages:
+    /// NDJSON progress lines become `ledger-prep` events as they arrive,
+    /// anything else is kept as the error detail.
     fn stream_status(&self, app: &AppHandle, repo_key: &str) -> Result<Value, String> {
         let sidecar = sidecar_path()?;
         let out = self.out_path();
@@ -328,10 +331,6 @@ impl LedgerRepo {
             .spawn()
             .map_err(|e| format!("could not launch the ledger sidecar: {e}"))?;
 
-        // stderr carries two languages: NDJSON progress lines while the
-        // derivation runs, plain text when something goes wrong. Progress
-        // becomes events as it arrives; everything else is kept as the
-        // error detail.
         let stderr = child
             .stderr
             .take()
@@ -389,18 +388,7 @@ impl LedgerRepo {
 /// the payload carries them (warm caches make the second pass cheap).
 /// Numbering is a nicety — any failure keeps the original status.
 fn mint_topic_numbers(repo: &LedgerRepo, status: Value) -> Value {
-    let unnumbered: Vec<String> = status["topics"]
-        .as_array()
-        .map(|topics| {
-            topics
-                .iter()
-                .filter(|t| t["number"].is_null())
-                .filter_map(|t| t["id"].as_str())
-                .filter(|id| !ledger_topics::is_bucket_label(id))
-                .map(str::to_string)
-                .collect()
-        })
-        .unwrap_or_default();
+    let unnumbered = unnumbered_topics(&status);
     if unnumbered.is_empty() {
         return status;
     }
@@ -421,6 +409,13 @@ fn mint_topic_numbers(repo: &LedgerRepo, status: Value) -> Value {
     }
 }
 
+/// One full derivation: prepare the clone, stream the sidecar's progress,
+/// mint numbers for new topics, then persist and fan out. The last good
+/// status persists beside the fact journal (principle #6, docs/DESIGN.md:
+/// no loading states) so `ledger_status_cached` can replay it for an
+/// instant first paint while the next derivation refreshes behind; the
+/// LLM stage rides every derivation, opens and warms alike, so a newly
+/// watched repo arrives already mapped (docs/LEDGER.md item 5).
 async fn status_inner(app: &AppHandle, repo_key: &str) -> Result<Value, String> {
     let repo = match prepare(app, repo_key, true).await {
         Ok(repo) => repo,
@@ -442,16 +437,36 @@ async fn status_inner(app: &AppHandle, repo_key: &str) -> Result<Value, String> 
     let stage = if result.is_ok() { "ready" } else { "failed" };
     emit_prep(app, repo_key, stage, None, None);
     let status = result?;
-    // Principle #6 (docs/DESIGN.md): no loading states. The last good
-    // status persists beside the fact journal, and ledger_status_cached
-    // replays it for an instant first paint while this refreshes behind.
     if let Ok(bytes) = serde_json::to_vec(&status) {
-        let _ = std::fs::write(repo.state_dir.join("status.json"), bytes);
+        let _ = write_atomically(&repo.state_dir.join("status.json"), &bytes);
     }
-    // The LLM stage rides every derivation — opens and warms alike — so a
-    // newly watched repo arrives already mapped (docs/LEDGER.md item 5).
     ledger_topics::propose(app, repo_key.to_string(), repo, &status);
     Ok(status)
+}
+
+/// The named topics in a status payload still waiting for a display
+/// number; bucket labels never get one.
+fn unnumbered_topics(status: &Value) -> Vec<String> {
+    status["topics"]
+        .as_array()
+        .map(|topics| {
+            topics
+                .iter()
+                .filter(|t| t["number"].is_null())
+                .filter_map(|t| t["id"].as_str())
+                .filter(|id| !ledger_topics::is_bucket_label(id))
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Write-to-temp-then-rename (journal.ts's own idiom) so a concurrent
+/// reader never catches a half-written file.
+pub(crate) fn write_atomically(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
+    let tmp = path.with_extension("tmp");
+    std::fs::write(&tmp, bytes)?;
+    std::fs::rename(&tmp, path)
 }
 
 /// The last derived status from disk, or null — never derives, never
@@ -566,3 +581,7 @@ pub async fn ledger_resolve(
         .await
         .map_err(|e| format!("ledger resolve failed: {e}"))?
 }
+
+#[cfg(test)]
+#[path = "ledger_tests.rs"]
+mod tests;

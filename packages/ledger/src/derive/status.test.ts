@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { Actor } from "../facts/schema.ts";
+import { appendFacts } from "../facts/store.ts";
 import { type GitRun, gitIn } from "../git/exec.ts";
 import { signRegion } from "./sign.ts";
 import { deriveStatus } from "./status.ts";
@@ -96,6 +97,42 @@ describe("deriveStatus", () => {
     ]);
     expect(status.queue[0].provenance).toMatchObject([{ pr: 1 }]);
     expect(status.queue[1].provenance).toMatchObject([{ pr: 2 }]);
+  });
+
+  it("provenance carries the commit author, email and date", async () => {
+    const { repo, epoch } = await setup();
+    const status = await deriveStatus(repo.git, { epoch });
+    expect(status.queue[0].provenance[0]).toMatchObject({
+      author: "ledger-test",
+      authorEmail: "ledger-test@invalid",
+    });
+    expect(Date.parse(status.queue[0].provenance[0].at)).not.toBeNaN();
+  });
+
+  it("numbered facts surface as topics[].number; unclaimed topics stay null", async () => {
+    const repo = await makeRepo();
+    await write(repo, "src/base.ts", BASE);
+    const epoch = await commitAll(repo, "pre-ledger world");
+    await write(repo, "src/base.ts", `${BASE}${BLOCK}`);
+    await commitAll(repo, "feat(debt): review debt");
+    await write(repo, "src/util.ts", UTIL);
+    const tip = await commitAll(repo, "feat(coverage): formatting");
+    await appendFacts(repo.git, [
+      {
+        actor: ACTOR,
+        atSha: tip,
+        atTime: AT_TIME,
+        body: "1",
+        subject: { id: "debt", kind: "topic" },
+        v: 1,
+        verdict: "numbered",
+      },
+    ]);
+
+    const status = await deriveStatus(repo.git, { epoch });
+    const numberOf = new Map(status.topics.map((t) => [t.id, t.number]));
+    expect(numberOf.get("debt")).toBe(1);
+    expect(numberOf.get("coverage")).toBeNull();
   });
 
   it("signing a region moves coverage and clears its queue item", async () => {

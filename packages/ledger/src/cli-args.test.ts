@@ -25,6 +25,15 @@ describe("parseCliArgs", () => {
     expect(args.positional).toEqual(["queue", "--reply", "id"]);
   });
 
+  it("captures --out as the JSON payload destination", () => {
+    const args = parseCliArgs(["status", "--json", "--out", "/tmp/out.json"]);
+    expect(args.out).toBe("/tmp/out.json");
+    expect(args.positional).toEqual(["status"]);
+    const literal = parseCliArgs(["comment", "--", "--out"]);
+    expect(literal.out).toBeUndefined();
+    expect(literal.positional).toEqual(["comment", "--out"]);
+  });
+
   it("stops flag parsing at --", () => {
     const args = parseCliArgs([
       "comment",

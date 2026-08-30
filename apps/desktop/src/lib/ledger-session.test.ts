@@ -1,10 +1,20 @@
 import { describe, expect, it } from "vitest";
-import type { LedgerQueueItem, LedgerSessionFile } from "../types.ts";
+import type {
+  LedgerComment,
+  LedgerQueueItem,
+  LedgerSessionFile,
+  LedgerStatus,
+} from "../types.ts";
 import {
+  actorAvatarUrl,
+  forgeIdentity,
   groupQueueByProvenance,
   initialAnchorFor,
+  ledgerCommentsToReview,
+  newestProvenanceAt,
   regionAtCursor,
   sessionToChangedFiles,
+  topicStory,
 } from "./ledger-session.ts";
 import { buildReviewItems } from "./review-items.ts";
 
@@ -153,5 +163,166 @@ describe("groupQueueByProvenance", () => {
     expect(groups[0].chips).toEqual(["#321", "#322"]);
     expect(groups[0].fileCount).toBe(2);
     expect(groups[0].newLines).toBe(12);
+  });
+});
+
+describe("forgeIdentity", () => {
+  it("names the login from a numeric-prefix noreply email, with avatar", () => {
+    expect(
+      forgeIdentity("Amy Santiago", "1234+amy@users.noreply.github.com")
+    ).toEqual({
+      author: "amy",
+      authorAvatarUrl: "https://avatars.githubusercontent.com/amy",
+    });
+  });
+
+  it("keeps the git name for a plain email, no avatar", () => {
+    expect(forgeIdentity("Rosa Diaz", "rosa@example.com")).toEqual({
+      author: "Rosa Diaz",
+    });
+  });
+
+  it("tolerates a missing email", () => {
+    expect(forgeIdentity("Rosa Diaz", undefined)).toEqual({
+      author: "Rosa Diaz",
+    });
+  });
+});
+
+describe("actorAvatarUrl", () => {
+  it("derives the forge avatar for a human actor", () => {
+    expect(actorAvatarUrl({ id: "amy", kind: "human" })).toBe(
+      "https://avatars.githubusercontent.com/amy"
+    );
+  });
+
+  it("leaves agent actors on the letter fallback", () => {
+    expect(actorAvatarUrl({ id: "agent:claude", kind: "agent" })).toBe("");
+  });
+});
+
+describe("ledgerCommentsToReview", () => {
+  const comment = (
+    over: Partial<LedgerComment> & { id: string }
+  ): LedgerComment => ({
+    actor: { id: "amy", kind: "human" },
+    anchorStatus: "alive",
+    atSha: "t1p".padEnd(40, "0"),
+    atTime: "2026-08-25T12:00:00Z",
+    body: "root",
+    endLine: 4,
+    parent: null,
+    path: "a.ts",
+    resolved: false,
+    startLine: 4,
+    ...over,
+  });
+
+  it("threads a reply to its parent's numeric id and fact id", () => {
+    const root = comment({ id: "aaaa111100000000" });
+    const child = comment({
+      body: "reply",
+      endLine: null,
+      id: "bbbb222200000000",
+      parent: "aaaa111100000000",
+      startLine: null,
+    });
+    const { byFile, factIdOf } = ledgerCommentsToReview([root, child]);
+    const [first, second] = byFile.get("a.ts") ?? [];
+    expect(second.inReplyToId).toBe(first.id);
+    expect(second.threadId).toBe("aaaa111100000000");
+    expect(factIdOf.get(first.id)).toBe("aaaa111100000000");
+  });
+
+  it("appends the stale note and carries resolution and avatar", () => {
+    const { byFile } = ledgerCommentsToReview([
+      comment({
+        anchorStatus: "stale",
+        id: "cccc333300000000",
+        resolved: true,
+      }),
+    ]);
+    const [only] = byFile.get("a.ts") ?? [];
+    expect(only.body).toContain("previous version");
+    expect(only.resolved).toBe(true);
+    expect(only.userAvatarUrl).toBe(
+      "https://avatars.githubusercontent.com/amy"
+    );
+  });
+});
+
+describe("topicStory", () => {
+  it("tells coverage, provenance, and files", () => {
+    const queue: LedgerQueueItem[] = [
+      {
+        baseline: null,
+        endLine: 6,
+        newLines: 6,
+        path: "a.ts",
+        provenance: [
+          {
+            at: "2026-08-25T12:00:00Z",
+            author: "amy",
+            authorEmail: "amy@example.com",
+            pr: 321,
+            sha: "a".repeat(40),
+            subject: "feat(ledger): a (#321)",
+          },
+        ],
+        startLine: 1,
+        topic: "ledger",
+      },
+    ];
+    const status = {
+      comments: [],
+      coverage: 0.5,
+      epoch: "e".repeat(40),
+      queue,
+      reviewedLines: 5,
+      tip: "f".repeat(40),
+      topics: [],
+      totalLines: 10,
+      unassigned: [],
+    } as unknown as LedgerStatus;
+    const [group] = groupQueueByProvenance(queue).groups;
+    const story = topicStory(group, status);
+    expect(story).toContain("Coverage 50.0%");
+    expect(story).toContain("#321 feat(ledger): a (#321)");
+    expect(story).toContain("a.ts (+6)");
+  });
+});
+
+describe("newestProvenanceAt", () => {
+  it("returns the newest commit time across the group", () => {
+    const queue: LedgerQueueItem[] = [
+      {
+        baseline: null,
+        endLine: 2,
+        newLines: 2,
+        path: "a.ts",
+        provenance: [
+          {
+            at: "2026-08-20T12:00:00Z",
+            author: "amy",
+            authorEmail: "",
+            pr: null,
+            sha: "a".repeat(40),
+            subject: "one",
+          },
+          {
+            at: "2026-08-26T12:00:00Z",
+            author: "amy",
+            authorEmail: "",
+            pr: null,
+            sha: "b".repeat(40),
+            subject: "two",
+          },
+        ],
+        startLine: 1,
+        topic: "t",
+      },
+    ];
+    const [group] = groupQueueByProvenance(queue).groups;
+    expect(newestProvenanceAt(group)).toBe("2026-08-26T12:00:00Z");
   });
 });

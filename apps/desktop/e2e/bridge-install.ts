@@ -80,6 +80,9 @@ export interface AppOptions {
   ledger?: unknown;
   ledgerAfterApprove?: unknown;
   ledgerAfterReview?: unknown;
+  ledgerAuthors?: Record<string, { login: string; avatarUrl: string } | null>;
+  ledgerLink?: { owner: string; repo: string; topic: string } | null;
+  ledgerMutationDelayMs?: number;
   ledgerSession?: unknown;
   repoHits?: { fullName: string; description: string }[];
   subscribed?: BucketFixture;
@@ -147,6 +150,18 @@ function offlineDefaults(opts: AppOptions) {
   };
 }
 
+function ledgerDefaults(opts: AppOptions) {
+  return {
+    ledger: opts.ledger ?? EMPTY_LEDGER,
+    ledgerAfterApprove: opts.ledgerAfterApprove ?? null,
+    ledgerAfterReview: opts.ledgerAfterReview ?? null,
+    ledgerAuthors: opts.ledgerAuthors ?? {},
+    ledgerLink: opts.ledgerLink ?? null,
+    ledgerMutationDelayMs: opts.ledgerMutationDelayMs ?? 0,
+    ledgerSession: opts.ledgerSession ?? null,
+  };
+}
+
 export function buildBridgeConfig(opts: AppOptions = {}) {
   return {
     ...aiDefaults(opts),
@@ -166,10 +181,7 @@ export function buildBridgeConfig(opts: AppOptions = {}) {
     releases: opts.releases ?? [],
     inbox: opts.inbox ?? INBOX,
     inboxByCall: opts.inboxByCall ?? null,
-    ledger: opts.ledger ?? EMPTY_LEDGER,
-    ledgerAfterApprove: opts.ledgerAfterApprove ?? null,
-    ledgerAfterReview: opts.ledgerAfterReview ?? null,
-    ledgerSession: opts.ledgerSession ?? null,
+    ...ledgerDefaults(opts),
     ...offlineDefaults(opts),
     repoHits: opts.repoHits ?? [],
     subscribed: opts.subscribed ?? { count: 0, prs: [] },
@@ -219,6 +231,20 @@ export function installBridge(cfg: BridgeConfig) {
 
   let ledgerReviews = 0;
   let ledgerApprovals = 0;
+  let ledgerLinkTaken = false;
+  const postedLedgerComments: {
+    actor: { id: string; kind: string };
+    anchorStatus: string;
+    atSha: string;
+    atTime: string;
+    body: string;
+    endLine: number | null;
+    id: string;
+    parent: string | null;
+    path: string;
+    resolved: boolean;
+    startLine: number | null;
+  }[] = [];
 
   let callbackId = 0;
   const eventCallbacks = new Map<number, (event: unknown) => void>();
@@ -551,10 +577,46 @@ export function installBridge(cfg: BridgeConfig) {
           return colon === -1 ? t : t.slice(0, colon);
         })
       );
+      const fixtureComments =
+        (payload as { comments?: unknown[] }).comments ?? [];
       return {
+        comments: [...fixtureComments, ...postedLedgerComments],
         sessions: payload.sessions.filter((s) => wanted.has(s.path)),
         tip: payload.tip,
       };
+    },
+    ledger_comment: (args) => {
+      countCall("ledger_comment");
+      localStorage.setItem("e2e:ledgerComment", JSON.stringify(args));
+      const target = String((args as { target?: string }).target ?? "");
+      const colon = target.lastIndexOf(":");
+      const path = colon === -1 ? target : target.slice(0, colon);
+      const span = colon === -1 ? "" : target.slice(colon + 1);
+      const [start, end] = span.split("-").map((n) => Number(n));
+      postedLedgerComments.push({
+        actor: { id: "me", kind: "human" },
+        anchorStatus: "alive",
+        atSha: "71b0000000000000000000000000000000000000",
+        atTime: new Date().toISOString(),
+        body: String((args as { body?: string }).body ?? ""),
+        endLine: Number.isFinite(end) ? end : null,
+        id: `ddd${postedLedgerComments.length.toString(16).padStart(13, "0")}`,
+        parent: (args as { parent?: string | null }).parent ?? null,
+        path,
+        resolved: false,
+        startLine: Number.isFinite(start) ? start : null,
+      });
+      if (cfg.ledgerMutationDelayMs > 0) {
+        return new Promise((resolve) =>
+          setTimeout(() => resolve(null), cfg.ledgerMutationDelayMs)
+        );
+      }
+      return null;
+    },
+    ledger_resolve: (args) => {
+      countCall("ledger_resolve");
+      localStorage.setItem("e2e:ledgerResolve", JSON.stringify(args));
+      return null;
     },
     ledger_status: () => {
       countCall("ledger_status");
@@ -621,8 +683,14 @@ export function installBridge(cfg: BridgeConfig) {
       localStorage.setItem("e2e:lastReview", JSON.stringify(args));
       return null;
     },
-    ledger_commit_authors: () => ({}),
-    take_deep_link_ledger: () => null,
+    ledger_commit_authors: () => cfg.ledgerAuthors,
+    take_deep_link_ledger: () => {
+      if (ledgerLinkTaken) {
+        return null;
+      }
+      ledgerLinkTaken = true;
+      return cfg.ledgerLink;
+    },
     take_deep_link_pr: () => null,
     update_issue_comment: (args) => {
       for (const c of cfg.detail.issueComments as Array<{

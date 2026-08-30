@@ -22,6 +22,20 @@
  * Bindings register under the inbox scope: this component only mounts on
  * its tab, where the inbox's own list keys stand down, so the tab bar's
  * digits and Tab keep working from inside the ledger.
+ *
+ * Signing shrinks the queue under the cursor, so the selection index is
+ * clamped at read instead of reset by an effect; movement keys write back
+ * the clamped value, and the raw index never drifts past the screen.
+ * Groups reuse the inbox's own stores under `ledger:{repo}:{topic}` keys:
+ * seen-tracking (unread until the session opens, relit by newer commits)
+ * and the archive map (e hides until new commits land, z undoes, u browses
+ * the pile). Authors come from the forge's own commit-to-account answer,
+ * cached forever since shas are immutable; the "mapping features…" note
+ * shows only when an AI key is configured, because keyless configs keep
+ * the deterministic labels and the note would never resolve. A nod://ledger
+ * link is stashed in the store until derivation surfaces the named group —
+ * a cold repo may still be deriving when the link lands — then its session
+ * opens directly, leaving the archived filter off.
  */
 import { InboxDetail, type InboxPullRequest } from "@nod/ui/inbox-detail";
 import { InboxZero } from "@nod/ui/inbox-zero";
@@ -51,6 +65,7 @@ import {
   forgeIdentity,
   groupQueueByProvenance,
   isBucketTopic,
+  newestProvenanceAt,
   type ProvenanceGroup,
 } from "../../lib/ledger-session.ts";
 import { queryKeys } from "../../lib/query-client.ts";
@@ -90,19 +105,18 @@ type LedgerView =
       updatedAt?: string;
     };
 
-/** One queue row: a topic group of one watched repository. */
+/** One queue row: a topic group of one watched repository, carrying the
+ *  PR-row fields derived for it — the sole author when every provenance
+ *  commit agrees, the fact-minted display number, and the newest
+ *  provenance commit as its freshness. */
 interface QueueEntry {
   repoKey: string;
   group: ProvenanceGroup;
   approval: LedgerTopicApproval | null;
   status: LedgerStatus;
-  /** Sole commit author across the group, when everyone agrees — the forge
-   *  login (with avatar) when the noreply email carries it, like a PR row. */
   author?: string;
   authorAvatarUrl?: string;
-  /** Fact-minted display number (#N), once the engine has one. */
   number?: number;
-  /** Newest provenance commit — the group's freshness, PR-row style. */
   updatedAt?: string;
   commentCount: number;
   lastComment?: { author: string; body: string; createdAt: string };
@@ -147,14 +161,7 @@ function entryMeta(
   QueueEntry,
   "author" | "authorAvatarUrl" | "updatedAt" | "commentCount" | "lastComment"
 > {
-  let updatedAt: string | undefined;
-  for (const item of group.items) {
-    for (const p of item.provenance) {
-      if (p.at && (updatedAt === undefined || p.at > updatedAt)) {
-        updatedAt = p.at;
-      }
-    }
-  }
+  const updatedAt = newestProvenanceAt(group);
   const files = new Set(group.items.map((i) => i.path));
   let commentCount = 0;
   let last: QueueEntry["lastComment"];
@@ -249,10 +256,10 @@ function assembleQueue(
 
 function zeroHint(watchedCount: number, ledgerCount: number): string {
   if (watchedCount === 0) {
-    return "Watch a repository first — press w.";
+    return "No repositories watched yet. Press w to add one.";
   }
   if (ledgerCount === 0) {
-    return "The ledger is off for every watched repository — press w and flip a Ledger toggle.";
+    return "The ledger is off for every watched repository. Press w and flip a Ledger toggle.";
   }
   return "Every post-epoch line on tip carries a review.";
 }
@@ -271,19 +278,13 @@ function groupTitle(entry: QueueEntry): string {
 // react-doctor-disable-next-line no-giant-component -- the tab's container: store wiring, the queue/session/zero/prep branching, and archive/link actions over shared state; the assemblers, hotkey map, and row/pane mappers already live outside, and threading a dozen state slices through further extractions would read worse. Same call as review-screen.tsx and ledger-session.tsx; BACKLOG § Tech debt records it
 export function Ledger({ onLeave }: { onLeave: () => void }) {
   useLedgerAssignments();
-  // The inbox's own seen-tracking, namespaced: a group reads unread until
-  // its session is opened, and lights again when newer commits join it.
   const isUnread = useAppStore((s) => s.isUnread);
   const markSeen = useAppStore((s) => s.markSeen);
-  // The inbox's own archive store, same keys as seen-tracking: archived
-  // until new commits join the group, e/z/u exactly like PR rows.
   const dismissed = useAppStore((s) => s.dismissed);
   const dismiss = useAppStore((s) => s.dismiss);
   const clearDismissed = useAppStore((s) => s.clearDismissed);
   const undoDismiss = useAppStore((s) => s.undoDismiss);
   const setToast = useAppStore((s) => s.setToast);
-  // A nod://ledger link, stashed by the deep-link hook until this list can
-  // resolve the named group.
   const linkTarget = useAppStore((s) => s.ledgerLinkTarget);
   const setLedgerLinkTarget = useAppStore((s) => s.setLedgerLinkTarget);
   const [showArchived, setShowArchived] = useState(false);
@@ -295,17 +296,12 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
 
   const statuses = useLedgerStatuses(repos);
 
-  // "mapping features…" only when a model can actually be mapping: keyless
-  // configs keep the deterministic labels and the note would never resolve.
   const aiInfo = useQuery({
     queryFn: api.getAiConfig,
     queryKey: queryKeys.aiConfig,
   });
   const aiConfigured = aiInfo.data?.configured === true;
 
-  // The forge's answer for each provenance commit's author — cached on
-  // disk forever (shas are immutable), so this is one batched query per
-  // repo the first time and cache reads after.
   const authorQueries = useQueries({
     queries: repos.map((repoKey, i) => {
       const status = statuses[i]?.data;
@@ -344,11 +340,6 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
 
   const inQueue = view.kind === "queue";
   const activeCount = visible.length;
-
-  // Signing a region shrinks the queue under the cursor, so the stored index
-  // can outrun the list. Clamping at read keeps the selection in range without
-  // the extra render an effect would cost; the movement keys write back the
-  // clamped value, so the raw index never drifts past what was on screen.
   const selected = Math.max(0, Math.min(selectedIndex, activeCount - 1));
 
   useEffect(() => {
@@ -357,8 +348,6 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
       ?.scrollIntoView({ block: "nearest" });
   }, [selected]);
 
-  // Mirror the inbox: once the cursor rests, warm the selected session and
-  // its neighbours so Enter opens instantly.
   useEffect(() => {
     const timer = setTimeout(() => {
       for (const offset of [0, 1, -1]) {
@@ -371,10 +360,9 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
     return () => clearTimeout(timer);
   }, [selected, visible]);
 
-  const openSession = (index = selected) => {
-    const entry = visible[index];
-    const first = entry?.group.items[0];
-    if (!(entry && first)) {
+  const openEntry = (entry: QueueEntry) => {
+    const first = entry.group.items[0];
+    if (!first) {
       return;
     }
     markSeen(seenKey(entry), entry.updatedAt ?? new Date().toISOString());
@@ -392,23 +380,28 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
     });
   };
 
-  // A nod://ledger link names a group by repo and topic; open its session
-  // the moment derivation surfaces it (statuses may still be loading when
-  // the link lands). An unknown topic just leaves the queue on screen.
+  const openSession = (index = selected) => {
+    const entry = visible[index];
+    if (entry) {
+      openEntry(entry);
+    }
+  };
+
   useEffect(() => {
     if (!linkTarget) {
       return;
     }
-    const index = visible.findIndex(
-      (entry) =>
-        entry.repoKey === linkTarget.repoKey &&
-        entry.group.key === linkTarget.topic
+    const entry = entries.find(
+      (candidate) =>
+        candidate.repoKey === linkTarget.repoKey &&
+        candidate.group.key === linkTarget.topic
     );
-    if (index >= 0) {
+    if (entry) {
       setLedgerLinkTarget(null);
       // react-doctor-disable-next-line react-hooks-js/set-state-in-effect -- resolving a link needs the derived queue, which may only fill in on a later render (a cold repo derives after the link lands), and opening the session is a side effect (markSeen) — it cannot be computed during render; the linkTarget guard clears itself so this runs once per link
-      setSelected(index);
-      openSession(index);
+      setShowArchived(false);
+      setSelected(0);
+      openEntry(entry);
     }
   });
 
@@ -531,7 +524,7 @@ export function Ledger({ onLeave }: { onLeave: () => void }) {
             hint={
               showArchived
                 ? "u returns to the queue."
-                : "Everything left is archived — u shows it."
+                : "Everything left is archived. Press u to see it."
             }
             title={showArchived ? "Nothing archived" : "All read"}
           />

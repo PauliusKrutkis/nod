@@ -790,11 +790,52 @@ export const LEDGER_AFTER_APPROVE = {
  * baseline (real mixed hunk with a deletion).
  */
 export const LEDGER_SESSION = {
+  comments: [
+    {
+      actor: { id: "rosa", kind: "human" },
+      anchorStatus: "alive",
+      atSha: "71b0000000000000000000000000000000000000",
+      atTime: "2026-08-14T11:00:00.000Z",
+      body: "Should gone report which lines it lost?",
+      endLine: 4,
+      id: "aaaa111100000000",
+      parent: null,
+      path: "src/anchors/resolve.ts",
+      resolved: true,
+      startLine: 4,
+    },
+    {
+      actor: { id: "me", kind: "human" },
+      anchorStatus: "alive",
+      atSha: "71b0000000000000000000000000000000000000",
+      atTime: "2026-08-14T11:05:00.000Z",
+      body: "The caller only needs the verdict.",
+      endLine: null,
+      id: "aaaa222200000000",
+      parent: "aaaa111100000000",
+      path: "src/anchors/resolve.ts",
+      resolved: true,
+      startLine: null,
+    },
+    {
+      actor: { id: "me", kind: "human" },
+      anchorStatus: "alive",
+      atSha: "71b0000000000000000000000000000000000000",
+      atTime: "2026-08-14T11:10:00.000Z",
+      body: "Postings could be cached per tip.",
+      endLine: 2,
+      id: "bbbb333300000000",
+      parent: null,
+      path: "src/anchors/resolve.ts",
+      resolved: false,
+      startLine: 2,
+    },
+  ],
   sessions: [
     {
       baseline: null,
       patch:
-        '@@ -0,0 +1,5 @@\n+export const resolveAnchor = (index, anchor) => {\n+  const hits = postings(index, anchor.lines);\n+  if (hits.length === 0) {\n+    return { status: "gone" };\n+  }\n+};',
+        '@@ -0,0 +1,6 @@\n+export const resolveAnchor = (index, anchor) => {\n+  const hits = postings(index, anchor.lines);\n+  if (hits.length === 0) {\n+    return { status: "gone" };\n+  }\n+};',
       path: "src/anchors/resolve.ts",
       regions: [{ endLine: 40, startLine: 1 }],
     },

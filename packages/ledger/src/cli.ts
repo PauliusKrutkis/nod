@@ -155,7 +155,7 @@ const requireConfig = async (ctx: Ctx): Promise<LedgerConfig> => {
     (await readCommittedConfig(ctx.git, ctx.tip)) ??
     (ctx.stateDir ? await readLocalConfig(ctx.stateDir) : null);
   if (!config) {
-    return die("no ledger here yet — run `ledger init` to set the epoch");
+    return die("no ledger here yet. Run `ledger init` to set the epoch");
   }
   return config;
 };
@@ -200,8 +200,8 @@ const runSession = async (
   if (session.sessions.length === 0) {
     die(
       targets.length > 0
-        ? "nothing in the queue matches — see `ledger queue`"
-        : "queue is empty — everything post-epoch is reviewed"
+        ? "nothing in the queue matches. See `ledger queue`"
+        : "queue is empty: everything post-epoch is reviewed"
     );
   }
   for (const file of session.sessions) {
@@ -215,13 +215,15 @@ const runSession = async (
   }
 };
 
+/** Unknown topic ids are refused unless forced: the log is append-only,
+ *  so a typo'd id would be a junk fact forever. */
 const runApprove = async (
   ctx: Ctx,
   topics: readonly string[],
   force: boolean
 ): Promise<void> => {
   if (topics.length === 0) {
-    die("approve needs at least one topic — see `ledger status`");
+    die("approve needs at least one topic. See `ledger status`");
   }
   const config = await requireConfig(ctx);
   const required = config.approvalsRequired ?? 1;
@@ -233,8 +235,7 @@ const runApprove = async (
   const known = new Set(before.topics.map((t) => t.id));
   for (const topic of topics) {
     if (!(known.has(topic) || force)) {
-      // Append-only: a typo'd id would be a junk fact forever.
-      die(`unknown topic "${topic}" — see \`ledger status\`, or pass --force`);
+      die(`unknown topic "${topic}": see \`ledger status\`, or pass --force`);
     }
   }
   const actor = await getActor(ctx);
@@ -260,11 +261,11 @@ const runApprove = async (
         before.queue.filter((i) => i.topic === topic).length -
         after.queue.filter((i) => i.topic === topic).length;
       console.log(
-        `approved ${topic} at ${short(after.tip)} — coverage ${pct(before.coverage)} → ${pct(after.coverage)} · ${covered} lines · ${cleared} region(s)`
+        `approved ${topic} at ${short(after.tip)} · coverage ${pct(before.coverage)} → ${pct(after.coverage)} · ${covered} lines · ${cleared} region(s)`
       );
     } else {
       console.log(
-        `recorded approval for ${topic} (${now?.approvals ?? 1} of ${required} required) — no coverage change yet`
+        `recorded approval for ${topic} (${now?.approvals ?? 1} of ${required} required), no coverage change yet`
       );
     }
   }
@@ -293,7 +294,7 @@ const runReview = async (
     })
   );
   if (selected.length === 0) {
-    die("nothing in the queue matches — see `ledger queue`");
+    die("nothing in the queue matches. See `ledger queue`");
   }
   let signedLines = 0;
   for (const item of selected) {
@@ -426,7 +427,7 @@ const runComment = async (ctx: Ctx, args: readonly string[]): Promise<void> => {
       body
     );
     if (!id) {
-      die(`no comment thread rooted at ${parent} — see \`ledger comments\``);
+      die(`no comment thread rooted at ${parent}. See \`ledger comments\``);
     }
     console.log(`replied · ${id}`);
     return;
@@ -452,7 +453,7 @@ const runComment = async (ctx: Ctx, args: readonly string[]): Promise<void> => {
     body
   );
   if (!id) {
-    die(`nothing to anchor to at ${target} — is the region on tip?`);
+    die(`nothing to anchor to at ${target}. Is the region on tip?`);
   }
   console.log(`commented on ${target} · ${id}`);
 };
@@ -561,7 +562,7 @@ const main = async (): Promise<void> => {
         return;
       }
       if (status.queue.length === 0) {
-        console.log("queue is empty — everything post-epoch is reviewed");
+        console.log("queue is empty: everything post-epoch is reviewed");
         return;
       }
       for (const [i, item] of status.queue.entries()) {
@@ -616,7 +617,7 @@ const main = async (): Promise<void> => {
         new Date().toISOString()
       );
       if (!id) {
-        die(`no comment thread rooted at ${args[0]} — see \`ledger comments\``);
+        die(`no comment thread rooted at ${args[0]}. See \`ledger comments\``);
       }
       console.log(`resolved · ${id}`);
       await journalSync();

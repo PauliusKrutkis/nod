@@ -195,9 +195,6 @@ export default function App() {
       </div>
 
       {showRouteChrome && (
-        // The offline surface docks to the window edge rather than riding
-        // the toast stack: offline is a standing condition, so its strip
-        // stays put while the state lasts instead of rising like a toast.
         <div className="qb-obar-host">
           <OfflineBarLoader />
         </div>

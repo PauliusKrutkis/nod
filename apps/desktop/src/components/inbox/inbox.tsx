@@ -56,7 +56,10 @@ import {
 import { prefetchPullRequest } from "../../hooks/use-pull-request-detail.ts";
 import { useSubscribed } from "../../hooks/use-subscribed.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
-import { groupQueueByProvenance } from "../../lib/ledger-session.ts";
+import {
+  groupQueueByProvenance,
+  newestProvenanceAt,
+} from "../../lib/ledger-session.ts";
 import { openExternal } from "../../lib/open-external.ts";
 import { openOrgApprovalDocs } from "../../lib/org-approval-docs.ts";
 import { useAppStore } from "../../store/app-store.ts";
@@ -85,7 +88,7 @@ const TABS: { key: InboxTabKey; label: string; hint: string }[] = [
     label: "Watching",
   },
   {
-    hint: "Review coverage of main — what's on tip that nobody has read.",
+    hint: "Review coverage of main: what's on tip that nobody has read.",
     key: "ledger",
     label: "Ledger",
   },
@@ -146,21 +149,33 @@ export function Inbox() {
   // tab strip stands down until escape returns to the queue.
   const fullSurface = tab === "ledger" && ledgerSessionOpen;
 
-  // The Ledger tab's count: open topic groups across every watched repo.
-  // Same query keys the ledger itself uses, so this rides the cache the
-  // background warm already filled; a long staleTime keeps the inbox from
-  // re-deriving on every mount, while the ledger tab refetches as it does.
+  // The Ledger tab's count: open, unarchived topic groups across every
+  // watched repo. Same query keys the ledger itself uses, so this rides
+  // the cache the background warm already filled; repos still deriving
+  // simply have not joined the sum yet, and the badge shows null only
+  // while nothing has loaded at all.
   const { ledgerRepos } = useLedgerRepos();
   const ledgerStatuses = useLedgerStatuses(ledgerRepos);
-  const ledgerLoaded =
-    ledgerRepos.length > 0 && ledgerStatuses.every((q) => q.data !== undefined);
-  const ledgerCount = ledgerLoaded
-    ? ledgerStatuses.reduce(
-        (sum, q) =>
-          sum +
-          (q.data ? groupQueueByProvenance(q.data.queue).groups.length : 0),
-        0
-      )
+  const ledgerAnyLoaded = ledgerStatuses.some((q) => q.data !== undefined);
+  const ledgerCount = ledgerAnyLoaded
+    ? ledgerRepos.reduce((sum, repoKey, i) => {
+        const status = ledgerStatuses[i]?.data;
+        if (!status) {
+          return sum;
+        }
+        const open = groupQueueByProvenance(status.queue).groups.filter(
+          (group) => {
+            const at = dismissed[`ledger:${repoKey}:${group.key}`];
+            const updatedAt = newestProvenanceAt(group);
+            return !(
+              at &&
+              updatedAt &&
+              new Date(updatedAt).getTime() <= new Date(at).getTime()
+            );
+          }
+        );
+        return sum + open.length;
+      }, 0)
     : null;
   const [watchOpen, setWatchOpen] = useState(false);
 

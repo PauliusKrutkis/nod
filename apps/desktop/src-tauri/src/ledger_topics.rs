@@ -97,12 +97,11 @@ fn topic_ids(status: &Value) -> Vec<String> {
 /// lives here. `topics` carries the current labels plus whatever earlier
 /// batches invented, framed as reusable-but-replaceable: many of the
 /// current labels are fallback buckets (component scopes, PR numbers) that
-/// the model exists to improve on.
+/// the model exists to improve on. Bucket labels never reach the prompt:
+/// shown as "known topics" the model dutifully reuses them, which is how
+/// dogfood ended up with features named "#363".
 fn build_prompt(repo_key: &str, topics: &[String], entries: &[UnassignedEntry]) -> String {
     let mut out = format!("Repository: {repo_key}\n\n");
-    // Bucket labels never reach the prompt: shown as "known topics" the
-    // model dutifully reuses them, which is how dogfood ended up with
-    // features named "#363".
     let named: Vec<&String> = topics.iter().filter(|t| !is_bucket_label(t)).collect();
     if named.is_empty() {
         out.push_str("Known topics: none yet.\n\n");
@@ -271,7 +270,10 @@ struct AssignmentsPayload {
 
 /// Fire-and-forget from `ledger_status`: classify this status's unassigned
 /// commits in the background, write the facts, nudge the webview. Returns
-/// immediately; does nothing without unassigned work or an AI config.
+/// immediately; does nothing without unassigned work or an AI config. A
+/// background courtesy, but never a silent one: failures are logged and
+/// retried up to MAX_FAILURES per tip, because dogfood showed a single
+/// swallowed provider error freezes the queue's grouping.
 pub fn propose(app: &AppHandle, repo_key: String, repo: LedgerRepo, status: &Value) {
     let entries = unassigned_entries(status);
     if entries.is_empty() {
@@ -291,9 +293,6 @@ pub fn propose(app: &AppHandle, repo_key: String, repo: LedgerRepo, status: &Val
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         let tip = repo.tip().to_string();
-        // A background courtesy, but never a silent one: failures are
-        // logged and retried up to MAX_FAILURES per tip — dogfood showed a
-        // single swallowed provider error freezes the queue's grouping.
         let outcome = classify(&repo_key, repo, &config, &model, &topics, entries).await;
         match outcome {
             Ok(true) => {
@@ -320,7 +319,11 @@ pub fn propose(app: &AppHandle, repo_key: String, repo: LedgerRepo, status: &Val
 }
 
 /// One model round-trip plus the sidecar write. Ok(true) means at least one
-/// assignment fact was written.
+/// assignment fact was written. The request carries no sampling params:
+/// gateways disagree on which are allowed per model (Nexos's vertex-ai
+/// route 400s on `temperature`, the bug that silently killed every mapping
+/// call in dogfood), and the chat sends none either. Determinism comes
+/// from the prompt.
 async fn classify(
     repo_key: &str,
     repo: LedgerRepo,
@@ -335,10 +338,6 @@ async fn classify(
     let mut assignments: Vec<(String, String)> = Vec::new();
     for batch in entries.chunks(MAX_ENTRIES).take(MAX_BATCHES) {
         let prompt = build_prompt(repo_key, &known, batch);
-        // No sampling params: gateways disagree on which are allowed per
-        // model (Nexos's vertex-ai route 400s on `temperature` — the bug
-        // that silently killed every mapping call in dogfood), and the
-        // chat sends none either. Determinism comes from the prompt.
         let body = serde_json::json!({
             "model": model,
             "messages": [
@@ -460,18 +459,8 @@ mod tests {
 
     #[test]
     fn claim_allows_retries_until_the_failure_cap() {
-        let repo = "retry-test/repo";
-        let tip = "t1";
-        for _ in 0..super::MAX_FAILURES {
-            assert!(super::claim(repo, tip));
-            let prior = 0; // read-before-claim happens in propose; count via settle chain
-            let _ = prior;
-            super::settle_failed(repo, tip, super::failures_so_far(repo, tip));
-        }
-        // The counter never advanced past 1 above because failures_so_far
-        // reads after claim overwrote the slot — mirror propose's real
-        // order instead: read, claim, settle.
         let repo = "retry-test/repo2";
+        let tip = "t1";
         let mut prior = super::failures_so_far(repo, tip);
         while super::claim(repo, tip) {
             super::settle_failed(repo, tip, prior);

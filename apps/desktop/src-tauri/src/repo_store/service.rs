@@ -384,7 +384,8 @@ fn claim_ledger(root: &Path, key: &RepoKey) -> Result<Option<RepoStoreState>, St
 /// refreshes branch tips so `refs/remotes/origin/*` is current. A tip
 /// refresh failure on an existing store degrades to the last-known tips
 /// instead of failing the open: reviewing offline against a local clone
-/// is the point of having one.
+/// is the point of having one. Claiming polls instead of failing because
+/// a clone can legitimately run for minutes.
 pub fn ensure_branch_tips(
     root: &Path,
     key: &RepoKey,
@@ -392,7 +393,6 @@ pub fn ensure_branch_tips(
     refresh: bool,
 ) -> Result<(), String> {
     let claimed = 'claim: {
-        // Clones can legitimately run for minutes; poll rather than fail.
         for _ in 0..1800 {
             match claim_ledger(root, key)? {
                 Some(state) => break 'claim state,

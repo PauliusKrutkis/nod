@@ -13,7 +13,11 @@
  * within a session and visibly fake in a debugger. Signing writes the
  * narrowed session (the caller drops the target from view state, which
  * changes the query key) so the next render paints from cache instead of
- * flashing the pending shell.
+ * flashing the pending shell; a failed sign therefore invalidates every
+ * session key for the repo on top of the rollback, because the snapshot
+ * restore alone cannot reach the narrowed entry the optimism seeded.
+ * Every verb returns its settle promise so callers can hold an in-flight
+ * guard against key auto-repeat.
  */
 import { api } from "../lib/api.ts";
 import { queryClient, queryKeys } from "../lib/query-client.ts";
@@ -99,7 +103,7 @@ export function useLedgerMutations(args: {
       resolved: false,
       startLine: start,
     });
-    api
+    return api
       .ledgerComment(repoKey, `${c.path}:${start}-${c.line}`, c.body)
       .then(reconcile)
       .catch((e) => rollback(before, "Comment failed", e));
@@ -121,7 +125,7 @@ export function useLedgerMutations(args: {
       resolved: false,
       startLine: root?.startLine ?? null,
     });
-    api
+    return api
       .ledgerComment(repoKey, "", body, parentFactId)
       .then(reconcile)
       .catch((e) => rollback(before, "Reply failed", e));
@@ -141,14 +145,12 @@ export function useLedgerMutations(args: {
     queryClient.setQueryData<LedgerStatus>(statusKey, (cur) =>
       cur ? { ...cur, ...mark(cur) } : cur
     );
-    api
+    return api
       .ledgerResolve(repoKey, factId)
       .then(reconcile)
       .catch((e) => rollback(before, "Resolve failed", e));
   };
 
-  /** Drops the signed region from the caches so the narrowed view paints
-   *  instantly, then lets the real derivation reconcile the coverage. */
   const sign = (target: string) => {
     const before = snapshot();
     const narrowed = targets.filter((t) => t !== target);
@@ -182,14 +184,17 @@ export function useLedgerMutations(args: {
         reviewedLines,
       };
     });
-    api
+    return api
       .ledgerReview(repoKey, target)
       .then(reconcile)
-      .catch((e) => rollback(before, "Signing failed", e));
+      .catch((e) => {
+        rollback(before, "Signing failed", e);
+        return queryClient.invalidateQueries({
+          queryKey: ["ledger-session", repoKey],
+        });
+      });
   };
 
-  /** Stamps the topic in the status cache — approval pill, emptied queue —
-   *  so the queue the caller returns to already shows the outcome. */
   const approve = (topic: string) => {
     const before = snapshot();
     queryClient.setQueryData<LedgerStatus>(statusKey, (cur) => {
@@ -219,7 +224,7 @@ export function useLedgerMutations(args: {
         ),
       };
     });
-    api
+    return api
       .ledgerApprove(repoKey, topic)
       .then(reconcile)
       .catch((e) => rollback(before, "Approval failed", e));
