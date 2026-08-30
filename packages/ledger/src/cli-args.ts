@@ -10,8 +10,8 @@ import { gitIn } from "./git/exec.ts";
 export interface CliArgs {
   json: boolean;
   force: boolean;
-  /** Record facts with an agent actor (assignment proposals, not truth). */
-  agent: boolean;
+  /** Emit NDJSON derivation progress on stderr, for host progress views. */
+  progress: boolean;
   /** Repo to operate on; default: the repo containing cwd. */
   repo?: string;
   /**
@@ -33,10 +33,10 @@ export interface CliArgs {
 
 export const parseCliArgs = (argv: readonly string[]): CliArgs => {
   const args: CliArgs = {
-    agent: false,
     force: false,
     json: false,
     positional: [],
+    progress: false,
   };
   const booleans = new Map<string, () => void>([
     [
@@ -52,9 +52,9 @@ export const parseCliArgs = (argv: readonly string[]): CliArgs => {
       },
     ],
     [
-      "--agent",
+      "--progress",
       () => {
-        args.agent = true;
+        args.progress = true;
       },
     ],
   ]);

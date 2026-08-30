@@ -3,6 +3,7 @@ import { diffFilePatch } from "../git/diff.ts";
 import type { GitRun } from "../git/exec.ts";
 import { readLinesAt } from "../git/files.ts";
 import {
+  type DeriveProgress,
   deriveStatus,
   type LedgerComment,
   type QueueBaseline,
@@ -124,6 +125,7 @@ export const deriveSession = async (
     targets?: readonly string[];
     config?: ResolveConfig;
     approvalsRequired?: number;
+    onProgress?: (progress: DeriveProgress) => void;
   }
 ): Promise<LedgerSession> => {
   // Always re-derive: run spans, masks, and baselines are only correct
