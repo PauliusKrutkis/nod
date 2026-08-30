@@ -511,6 +511,34 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "unknown-word",
     ],
   },
+  "ledger-row": {
+    fixtures: [
+      "chip-flood",
+      "chips-capped",
+      "delta",
+      "markup-as-text",
+      "no-chips-no-subject",
+      "overflow",
+      "selected",
+      "singular",
+      "typical",
+      "unicode",
+      "zero-counts",
+    ],
+  },
+  "ledger-topic-detail": {
+    fixtures: [
+      "delta",
+      "empty-lists",
+      "file-flood",
+      "markup-as-text",
+      "no-story",
+      "overflow",
+      "singular",
+      "typical",
+      "unicode",
+    ],
+  },
   "license-dialog": {
     dialog: true,
     fixtures: [
