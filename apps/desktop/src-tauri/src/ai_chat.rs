@@ -153,7 +153,13 @@ look up definitions, callers, and context beyond the diff.";
 const CHAT_SYSTEM_SKILLS: &str =
     "Review skills are available: list_skills names them and read_skill fetches \
 one; follow a skill's instructions when the reviewer invokes it or asks for the \
-kind of review it covers.";
+kind of review it covers. The listing labels each skill's source: [repo] skills \
+travel with the repository, [personal] skills are the reviewer's own, locally \
+installed ones — the user-level skill folders of Claude Code, Cursor and Codex \
+(~/.claude/skills and friends) are scanned, so a skill installed there already \
+works here. When the reviewer mentions a skill they have installed, look it up \
+with list_skills before asking for anything; never ask them to paste a file \
+list_skills can already see.";
 
 const CHAT_SYSTEM_DIFF: &str =
     "read_diff returns the pull request's unified diff — the whole thing, or one \
@@ -340,11 +346,22 @@ const SKILL_ROOTS: [&str; 5] = [
 /// Skills Nod ships with. `find-skill` is the one that makes the others
 /// reachable: with no skills at all, `/` would otherwise be an empty menu
 /// and nothing would tell you what a skill is or how to get one.
-const BUILTIN_SKILLS: &[(&str, &str, &str)] = &[(
-    "find-skill",
-    "Find a skill for what you are about to do, or write one",
-    "The reviewer wants a skill for a task. Work in this order.\n\n1. Call list_skills. If one already covers the task, say which, quote its description, and tell them to invoke it with a leading slash — then stop.\n2. If none fits, and you do not know what they want a skill for, ask. One question, then wait.\n3. Call search_skills with what they told you. It searches the public catalog, which is far wider than what is installed here. Show the best few hits as a short list: name, where it comes from, how many installs.\n4. When they pick one, call fetch_skill and show the instructions — the whole thing if it is short, the substance of it if it is long. A skill is instructions you will follow over their code, so they read it before it lands, never after.\n5. Save it with write_skill only once they have said yes, keeping the author's text.\n\nA skill this repository carries works here already — say so and stop, unless they want it to follow them into other repositories, which is read_skill then write_skill with the author's text. If the catalog has nothing that fits, offer to write one instead: draft a short kebab-case name, a one-line description, and instructions grounded in this repository's conventions, show the draft, and save it the same way. Never write a skill without showing it first, and never invent one that already exists under another name."
-)];
+/// `import-skill` exists because reviewers arrive with skills already
+/// installed for their other tools and expect Nod to see them — most of the
+/// time it already does, and the skill's first job is to say so instead of
+/// asking for a paste.
+const BUILTIN_SKILLS: &[(&str, &str, &str)] = &[
+    (
+        "find-skill",
+        "Find a skill for what you are about to do, or write one",
+        "The reviewer wants a skill for a task. Work in this order.\n\n1. Call list_skills. If one already covers the task, say which, quote its description, and tell them to invoke it with a leading slash — then stop.\n2. If none fits, and you do not know what they want a skill for, ask. One question, then wait.\n3. Call search_skills with what they told you. It searches the public catalog, which is far wider than what is installed here. Show the best few hits as a short list: name, where it comes from, how many installs.\n4. When they pick one, call fetch_skill and show the instructions — the whole thing if it is short, the substance of it if it is long. A skill is instructions you will follow over their code, so they read it before it lands, never after.\n5. Save it with write_skill only once they have said yes, keeping the author's text.\n\nA skill this repository carries works here already — say so and stop, unless they want it to follow them into other repositories, which is read_skill then write_skill with the author's text. If the catalog has nothing that fits, offer to write one instead: draft a short kebab-case name, a one-line description, and instructions grounded in this repository's conventions, show the draft, and save it the same way. Never write a skill without showing it first, and never invent one that already exists under another name."
+    ),
+    (
+        "import-skill",
+        "Use a skill you have installed locally, or bring one into Nod",
+        "The reviewer wants a skill that is installed on this machine — Claude Code, Cursor, Codex or another agent tool put it there — available in this chat. Work in this order.\n\n1. Call list_skills. Nod scans the user-level skill folders those tools share (~/.claude/skills, ~/.agents/skills, ~/.cursor/skills, ~/.codex/skills), and a skill found there is listed as [personal] and already works in every repository Nod opens. If the skill they mean is listed, say so, quote its description, and tell them to invoke it with a leading slash — then stop: there is nothing to import.\n2. If it is not listed, it lives somewhere Nod does not scan — another project's folder, a plugin's directory, a dotfiles repo. Nod reads no paths beyond the scanned folders, so ask the reviewer to paste the SKILL.md contents into the chat.\n3. Show what will be saved before saving: the kebab-case name, the one-line description, and the instructions exactly as the author wrote them.\n4. Once they say yes, save it with write_skill. It lands in ~/.claude/skills, the shared user-level folder, so every agent-skills tool on this machine sees it too, and /name works from the next message.\n\nNever save without showing the skill first. write_skill refuses a name that already exists — if it does, agree on another name rather than overwriting."
+    ),
+];
 
 fn builtin_skills() -> Vec<SkillInfo> {
     BUILTIN_SKILLS
@@ -364,6 +381,20 @@ fn builtin_skill_body(name: &str) -> Option<String> {
         .map(|(_, _, body)| (*body).to_string())
 }
 const MAX_SKILL_BODY_CHARS: usize = 32_000;
+
+/// A personal skill file above this size is not a skill. A SKILL.md is a
+/// page of instructions; whatever multi-megabyte file sits at that path got
+/// there by accident, and reading it whole just to truncate it would still
+/// buffer all of it. Checked against metadata, so the read stays bounded.
+const MAX_SKILL_FILE_BYTES: u64 = 256 * 1024;
+
+fn read_personal_skill_file(path: &std::path::Path) -> Option<Vec<u8>> {
+    let meta = std::fs::metadata(path).ok()?;
+    if !meta.is_file() || meta.len() > MAX_SKILL_FILE_BYTES {
+        return None;
+    }
+    std::fs::read(path).ok()
+}
 
 #[derive(Serialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -531,7 +562,7 @@ fn read_personal_skill(dirs: &[std::path::PathBuf], name: &str) -> Option<String
     personal_skill_paths(dirs)
         .into_iter()
         .find(|(found, _)| found == name)
-        .and_then(|(_, path)| std::fs::read(path).ok())
+        .and_then(|(_, path)| read_personal_skill_file(&path))
         .map(|bytes| skill_text(&bytes))
 }
 
@@ -609,7 +640,7 @@ fn discover_personal_skills(dirs: &[std::path::PathBuf]) -> Vec<SkillInfo> {
     let mut out: Vec<SkillInfo> = personal_skill_paths(dirs)
         .into_iter()
         .filter_map(|(name, path)| {
-            let bytes = std::fs::read(path).ok()?;
+            let bytes = read_personal_skill_file(&path)?;
             Some(SkillInfo {
                 description: frontmatter_description(&skill_text(&bytes)),
                 name,
@@ -828,9 +859,9 @@ fn execute_skill_tool(
                     .iter()
                     .map(|s| {
                         if s.description.is_empty() {
-                            s.name.clone()
+                            format!("{} [{}]", s.name, s.source)
                         } else {
-                            format!("{} — {}", s.name, s.description)
+                            format!("{} — {} [{}]", s.name, s.description, s.source)
                         }
                     })
                     .collect::<Vec<_>>()
@@ -874,7 +905,7 @@ fn skills_tools() -> Vec<Value> {
             "type": "function",
             "function": {
                 "name": "list_skills",
-                "description": "List the repository's review skills (.claude/skills) as 'name — description' lines.",
+                "description": "List every skill available here as 'name — description [source]' lines: [repo] skills committed in the reviewed repository, [personal] skills installed on this machine (the user-level skill folders of Claude Code, Cursor and Codex, e.g. ~/.claude/skills), and Nod's [built-in] ones.",
                 "parameters": { "type": "object", "properties": {} }
             }
         }),
