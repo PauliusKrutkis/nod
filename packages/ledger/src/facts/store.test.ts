@@ -74,6 +74,17 @@ describe("appendFacts / readFacts", () => {
     await Promise.all(facts.map((f) => appendFacts(git, [f])));
     expect(idsOf(await readFacts(git))).toEqual(idsOf(facts));
   });
+
+  it("skips a fact whose verdict this build does not know", async () => {
+    const git = await makeClone(await makeOrigin());
+    const known = fact({});
+    const future = {
+      ...fact({ subject: { kind: "topic", id: "later" } }),
+      verdict: "future-verdict",
+    } as unknown as Fact;
+    await appendFacts(git, [known, future]);
+    expect(idsOf(await readFacts(git))).toEqual(idsOf([known]));
+  });
 });
 
 describe("sync", () => {

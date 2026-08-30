@@ -175,6 +175,10 @@ export interface PrDrawerProps {
   ref?: Ref<PrDrawerHandle>;
   renderMarkdown?: (body: string) => ReactNode;
   reviews: DrawerReview[];
+  /** False drops the footer composer — hosts whose comments only live on
+   *  code (the ledger: a fact needs an anchor) have no PR-level comment
+   *  to write here, and a composer that could never post would lie. */
+  showComposer?: boolean;
   trackerBase?: string;
 }
 
@@ -211,6 +215,7 @@ export function PrDrawer({
   pr,
   renderMarkdown,
   reviews,
+  showComposer = true,
   trackerBase,
 }: PrDrawerProps) {
   const body = pr.body.trim();
@@ -351,6 +356,11 @@ export function PrDrawer({
         <DrawerConversation
           composer={composer}
           editingId={editingId}
+          emptyHint={
+            showComposer
+              ? "No discussion yet. Start one below."
+              : "No discussion yet. Comment on a line to start one."
+          }
           newestRef={revealNewestComment}
           onCancelEdit={cancelEdit}
           onDelete={callbacks.onDeleteComment}
@@ -368,6 +378,7 @@ export function PrDrawer({
           "qf-drawer-foot",
           bodyScrolls && "qf-drawer-foot-divided"
         )}
+        hidden={!showComposer}
       >
         <div hidden={!composing}>
           {composer({
@@ -463,6 +474,7 @@ function DrawerDescription({ body, renderMarkdown }: DrawerDescriptionProps) {
 interface DrawerConversationProps {
   composer: (props: DrawerComposerProps) => ReactNode;
   editingId: number | null;
+  emptyHint: string;
   newestRef: (el: HTMLDivElement | null) => void;
   onCancelEdit: () => void;
   onDelete: (a: { commentId: number }) => Promise<void>;
@@ -477,6 +489,7 @@ interface DrawerConversationProps {
 function DrawerConversation({
   composer,
   editingId,
+  emptyHint,
   newestRef,
   onCancelEdit,
   onDelete,
@@ -498,7 +511,7 @@ function DrawerConversation({
         )}
       </h3>
       {timeline.length === 0 ? (
-        <p className="qf-drawer-empty">No discussion yet. Start one below.</p>
+        <p className="qf-drawer-empty">{emptyHint}</p>
       ) : (
         <div className="qf-convo">
           {timeline.map((entry) => {

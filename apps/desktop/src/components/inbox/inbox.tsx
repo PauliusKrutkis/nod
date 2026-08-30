@@ -49,9 +49,17 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useInbox } from "../../hooks/use-inbox.ts";
+import {
+  useLedgerRepos,
+  useLedgerStatuses,
+} from "../../hooks/use-ledger-statuses.ts";
 import { prefetchPullRequest } from "../../hooks/use-pull-request-detail.ts";
 import { useSubscribed } from "../../hooks/use-subscribed.ts";
 import { useHotkeys } from "../../keyboard/use-hotkeys.ts";
+import {
+  groupQueueByProvenance,
+  newestProvenanceAt,
+} from "../../lib/ledger-session.ts";
 import { openExternal } from "../../lib/open-external.ts";
 import { openOrgApprovalDocs } from "../../lib/org-approval-docs.ts";
 import { useAppStore } from "../../store/app-store.ts";
@@ -80,7 +88,7 @@ const TABS: { key: InboxTabKey; label: string; hint: string }[] = [
     label: "Watching",
   },
   {
-    hint: "Review coverage of main — what's on tip that nobody has read.",
+    hint: "Review coverage of main: what's on tip that nobody has read.",
     key: "ledger",
     label: "Ledger",
   },
@@ -136,6 +144,39 @@ export function Inbox() {
   const setToast = useAppStore((s) => s.setToast);
 
   const { data: subscribedData } = useSubscribed();
+  const ledgerSessionOpen = useAppStore((s) => s.ledgerSessionOpen);
+  // A ledger session owns the window the way the review screen does; the
+  // tab strip stands down until escape returns to the queue.
+  const fullSurface = tab === "ledger" && ledgerSessionOpen;
+
+  // The Ledger tab's count: open, unarchived topic groups across every
+  // watched repo. Same query keys the ledger itself uses, so this rides
+  // the cache the background warm already filled; repos still deriving
+  // simply have not joined the sum yet, and the badge shows null only
+  // while nothing has loaded at all.
+  const { ledgerRepos } = useLedgerRepos();
+  const ledgerStatuses = useLedgerStatuses(ledgerRepos);
+  const ledgerAnyLoaded = ledgerStatuses.some((q) => q.data !== undefined);
+  const ledgerCount = ledgerAnyLoaded
+    ? ledgerRepos.reduce((sum, repoKey, i) => {
+        const status = ledgerStatuses[i]?.data;
+        if (!status) {
+          return sum;
+        }
+        const open = groupQueueByProvenance(status.queue).groups.filter(
+          (group) => {
+            const at = dismissed[`ledger:${repoKey}:${group.key}`];
+            const updatedAt = newestProvenanceAt(group);
+            return !(
+              at &&
+              updatedAt &&
+              new Date(updatedAt).getTime() <= new Date(at).getTime()
+            );
+          }
+        );
+        return sum + open.length;
+      }, 0)
+    : null;
   const [watchOpen, setWatchOpen] = useState(false);
 
   const buckets = {
@@ -419,8 +460,9 @@ export function Inbox() {
         tab={tab}
         tabItems={visibleTabs.map((t) => ({
           ...t,
-          count: t.key === "ledger" ? null : visibleCounts[t.key],
+          count: t.key === "ledger" ? ledgerCount : visibleCounts[t.key],
         }))}
+        tabless={fullSurface}
       />
 
       <WatchReposLoader onClose={closeWatchDialog} open={watchOpen} />
@@ -449,6 +491,7 @@ function InboxSurface({
   showArchived,
   tab,
   tabItems,
+  tabless,
 }: {
   activeTab: (typeof TABS)[number];
   archivedCount: number;
@@ -467,6 +510,7 @@ function InboxSurface({
   selectedPR: PullRequest | undefined;
   showArchived: boolean;
   tab: InboxTabKey;
+  tabless: boolean;
   tabItems: {
     count: number | null;
     hint: string;
@@ -526,15 +570,19 @@ function InboxSurface({
         selected: index === selectedIndex,
         unread: isUnread(keyFor(pr), pr.updatedAt),
       }))}
-      tabs={{
-        activeKey: tab,
-        archivedActive: showArchived,
-        archivedCount,
-        items: tabItems,
-        onSelect: onSelectTab,
-        onToggleArchived,
-        onWatch: onOpenWatch,
-      }}
+      tabs={
+        tabless
+          ? null
+          : {
+              activeKey: tab,
+              archivedActive: showArchived,
+              archivedCount,
+              items: tabItems,
+              onSelect: onSelectTab,
+              onToggleArchived,
+              onWatch: onOpenWatch,
+            }
+      }
     />
   );
 }

@@ -24,6 +24,7 @@ export const queryKeys = {
   currentUser: ["currentUser"] as const,
   inbox: ["inbox"] as const,
   ledger: (repoKey: string) => ["ledger", repoKey] as const,
+  ledgerExcluded: ["ledgerExcluded"] as const,
   ledgerSession: (repoKey: string, targets: readonly string[]) =>
     ["ledger-session", repoKey, ...targets] as const,
   licenseState: ["licenseState"] as const,

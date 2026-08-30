@@ -657,6 +657,7 @@ export const EMPTY_LEDGER = {
   tip: "e9017aa000000000000000000000000000000000",
   topics: [],
   totalLines: 0,
+  comments: [],
   unassigned: [],
 };
 
@@ -671,6 +672,9 @@ export const LEDGER = {
       path: "src/anchors/resolve.ts",
       provenance: [
         {
+          at: "2026-08-14T10:00:00.000Z",
+          author: "Amy Santiago",
+          authorEmail: "1234+amy@users.noreply.github.com",
           pr: 321,
           sha: "cafe321000000000000000000000000000000000",
           subject: "feat(ledger): anchor resolver (#321)",
@@ -692,6 +696,9 @@ export const LEDGER = {
       path: "src/facts/store.ts",
       provenance: [
         {
+          at: "2026-08-13T08:00:00.000Z",
+          author: "Rosa Diaz",
+          authorEmail: "rosa@example.com",
           pr: null,
           sha: "d1eec70000000000000000000000000000000000",
           subject: "chore: tighten CAS retry",
@@ -708,6 +715,7 @@ export const LEDGER = {
       approvals: 0,
       approvedAt: null,
       id: "d1eec70",
+      number: null,
       requiredApprovals: 1,
       reviewedLines: 0,
       totalLines: 6,
@@ -716,12 +724,14 @@ export const LEDGER = {
       approvals: 0,
       approvedAt: null,
       id: "ledger",
+      number: 1,
       requiredApprovals: 1,
       reviewedLines: 0,
       totalLines: 40,
     },
   ],
   totalLines: 46,
+  comments: [],
   unassigned: [
     {
       files: ["src/facts/store.ts"],
@@ -741,6 +751,7 @@ export const LEDGER_AFTER_REVIEW = {
   tip: "71b0000000000000000000000000000000000000",
   topics: LEDGER.topics,
   totalLines: 46,
+  comments: [],
   unassigned: LEDGER.unassigned,
 };
 
@@ -761,12 +772,14 @@ export const LEDGER_AFTER_APPROVE = {
         sha: "71b0000000000000000000000000000000000000",
       },
       id: "ledger",
+      number: 1,
       requiredApprovals: 1,
       reviewedLines: 40,
       totalLines: 40,
     },
   ],
   totalLines: 46,
+  comments: [],
   unassigned: LEDGER.unassigned,
 };
 
@@ -777,11 +790,52 @@ export const LEDGER_AFTER_APPROVE = {
  * baseline (real mixed hunk with a deletion).
  */
 export const LEDGER_SESSION = {
+  comments: [
+    {
+      actor: { id: "rosa", kind: "human" },
+      anchorStatus: "alive",
+      atSha: "71b0000000000000000000000000000000000000",
+      atTime: "2026-08-14T11:00:00.000Z",
+      body: "Should gone report which lines it lost?",
+      endLine: 4,
+      id: "aaaa111100000000",
+      parent: null,
+      path: "src/anchors/resolve.ts",
+      resolved: true,
+      startLine: 4,
+    },
+    {
+      actor: { id: "me", kind: "human" },
+      anchorStatus: "alive",
+      atSha: "71b0000000000000000000000000000000000000",
+      atTime: "2026-08-14T11:05:00.000Z",
+      body: "The caller only needs the verdict.",
+      endLine: null,
+      id: "aaaa222200000000",
+      parent: "aaaa111100000000",
+      path: "src/anchors/resolve.ts",
+      resolved: true,
+      startLine: null,
+    },
+    {
+      actor: { id: "me", kind: "human" },
+      anchorStatus: "alive",
+      atSha: "71b0000000000000000000000000000000000000",
+      atTime: "2026-08-14T11:10:00.000Z",
+      body: "Postings could be cached per tip.",
+      endLine: 2,
+      id: "bbbb333300000000",
+      parent: null,
+      path: "src/anchors/resolve.ts",
+      resolved: false,
+      startLine: 2,
+    },
+  ],
   sessions: [
     {
       baseline: null,
       patch:
-        '@@ -0,0 +1,5 @@\n+export const resolveAnchor = (index, anchor) => {\n+  const hits = postings(index, anchor.lines);\n+  if (hits.length === 0) {\n+    return { status: "gone" };\n+  }\n+};',
+        '@@ -0,0 +1,6 @@\n+export const resolveAnchor = (index, anchor) => {\n+  const hits = postings(index, anchor.lines);\n+  if (hits.length === 0) {\n+    return { status: "gone" };\n+  }\n+};',
       path: "src/anchors/resolve.ts",
       regions: [{ endLine: 40, startLine: 1 }],
     },

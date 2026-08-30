@@ -10,7 +10,7 @@ use serde_json::Value;
 use tauri::{AppHandle, Emitter};
 
 use crate::accounts;
-use crate::http::{fopt_u64, net_err};
+use crate::http::fopt_u64;
 use crate::repo_store::read as repo_read;
 use crate::repo_store::read::{FileListing, GrepResult};
 use crate::repo_store::service as repo_store_service;
@@ -18,6 +18,17 @@ use crate::repo_store::store::CommitKey;
 use crate::storage;
 
 const AI_FILE: &str = "ai.json";
+
+/// AI transport failures never touch the app's offline flag: the provider is
+/// a third-party gateway whose streams reset and time out on their own
+/// schedule, and a dropped Nexos connection says nothing about whether the
+/// forge is reachable. Routing these through `http::net_err` was why the app
+/// showed "Offline" on a working network — the ledger's background topic
+/// mapping made the misfire chronic. Connectivity is judged from forge
+/// request outcomes only (offline.rs).
+fn net_err(e: reqwest::Error) -> String {
+    format!("network error: {e}")
+}
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]

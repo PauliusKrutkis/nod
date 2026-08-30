@@ -102,8 +102,17 @@ All handlers are registered in `lib.rs`. Grouped by source file:
 
 **`ledger.rs`** — review ledger (docs/LEDGER.md)
 
-- `ledger_status`, `ledger_review` — run the tracked repo's own ledger CLI
-  as a child process and pass its JSON through; needs `node` on PATH.
+- `ledger_status`, `ledger_review` — run the bundled ledger sidecar
+  against the repo's store clone and pass its JSON through (large
+  payloads travel by `--out` file — bun-compiled binaries truncate big
+  stdout on pipes).
+
+**`ledger_identity.rs`** — commit → forge identity
+
+- `ledger_commit_authors` — batched GraphQL lookup of the GitHub account
+  linked to each provenance commit (login + avatar, matched by verified
+  email), cached forever in the ledger state dir; GitLab answers from
+  cache only until a resolver exists.
 
 TypeScript wrappers live in `apps/desktop/src/lib/api.ts`.
 

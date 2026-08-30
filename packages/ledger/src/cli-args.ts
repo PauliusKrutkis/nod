@@ -25,6 +25,12 @@ export interface CliArgs {
   /** Actor id recorded on facts; default `git config user.name`. */
   actor?: string;
   /**
+   * File to write --json payloads into instead of stdout. Large payloads
+   * through a pipe hit the compiled runtime's flush-on-exit truncation;
+   * a file write is deterministic. Human output still prints.
+   */
+  out?: string;
+  /**
    * Durable host-owned directory: a plain-file journal of the fact ref
    * (reconciled both ways on every run) plus personal-local config. For
    * hosts whose clone is disposable; without it the repo is the only copy.
@@ -90,6 +96,12 @@ export const parseCliArgs = (argv: readonly string[]): CliArgs => {
       "--state-dir",
       (value) => {
         args.stateDir = value;
+      },
+    ],
+    [
+      "--out",
+      (value) => {
+        args.out = value;
       },
     ],
   ]);

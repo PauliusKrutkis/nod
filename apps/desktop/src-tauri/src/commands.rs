@@ -104,7 +104,11 @@ pub async fn get_watched_repos(app: AppHandle) -> Result<Vec<String>, String> {
 /// Saves the watched list and deletes the repo store of anything unwatched:
 /// history for a repo nobody watches is pure disk cost, and watching again
 /// just clones again. Deletion runs off-thread so the save never waits on
-/// removing what can be gigabytes.
+/// removing what can be gigabytes. Newly watched repos warm the ledger in
+/// the background (clone, tips, first derivation) so its first open is
+/// already sub-second (docs/LEDGER.md "Productionization" item 5); repos
+/// opted out of the ledger skip the warm, because watching alone should
+/// not start derivations.
 #[tauri::command]
 pub async fn set_watched_repos(app: AppHandle, repos: Vec<String>) -> Result<(), String> {
     let account = accounts::active_account(&app).await?;
@@ -137,13 +141,38 @@ pub async fn set_watched_repos(app: AppHandle, repos: Vec<String>) -> Result<(),
             }
         });
     }
-    // Newly watched repos warm in the background — clone, tips, first
-    // derivation — so the ledger's first open is already sub-second
-    // (docs/LEDGER.md "Productionization" item 5).
-    for repo in cleaned.iter().filter(|repo| !before.contains(repo)) {
+    let excluded = storage::read_json::<Vec<String>>(&app, &ledger_excluded_name(&account.id))?
+        .unwrap_or_default();
+    for repo in cleaned
+        .iter()
+        .filter(|repo| !(before.contains(repo) || excluded.contains(repo)))
+    {
         crate::ledger::warm(&app, repo.clone());
     }
     Ok(())
+}
+
+/// Repos opted OUT of the ledger. Stored as exclusions so a newly watched
+/// repo is ledgered by default and the common case needs no setup; the
+/// toggle in the watch dialog writes here. Per account, like the watched
+/// list itself.
+fn ledger_excluded_name(account_id: &str) -> String {
+    format!("ledger_excluded_{account_id}.json")
+}
+
+#[tauri::command]
+pub async fn get_ledger_excluded(app: AppHandle) -> Result<Vec<String>, String> {
+    let account = accounts::active_account(&app).await?;
+    Ok(
+        storage::read_json::<Vec<String>>(&app, &ledger_excluded_name(&account.id))?
+            .unwrap_or_default(),
+    )
+}
+
+#[tauri::command]
+pub async fn set_ledger_excluded(app: AppHandle, repos: Vec<String>) -> Result<(), String> {
+    let account = accounts::active_account(&app).await?;
+    storage::write_json(&app, &ledger_excluded_name(&account.id), &repos)
 }
 
 #[tauri::command]

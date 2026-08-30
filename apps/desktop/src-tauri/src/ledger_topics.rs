@@ -12,11 +12,11 @@
 //! `ledger-assignments` and refetches.
 //!
 //! Paid once per repo: assignments persist as facts, so a sha never comes
-//! back once mapped. A per-process registry additionally remembers the tip
-//! each repo was last attempted at — a model that returns garbage (or maps
-//! only some shas) is not asked again until the tip moves, and two status
-//! runs can never race two tasks for one repo. Keyless stays free: no AI
-//! config, no task, and the deterministic stages stand alone.
+//! back once mapped. A per-process registry serialises attempts — two
+//! status runs can never race two tasks for one repo — and failures are
+//! logged and retried up to [`MAX_FAILURES`] per tip before the stage
+//! waits for the tip to move. Keyless stays free: no AI config, no task,
+//! and the deterministic stages stand alone.
 
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
@@ -26,6 +26,7 @@ use serde_json::Value;
 use tauri::{AppHandle, Emitter};
 
 use crate::ai;
+use crate::http::log;
 use crate::ledger::LedgerRepo;
 
 /// Commits per model call: keeps one prompt bounded.
@@ -96,28 +97,37 @@ fn topic_ids(status: &Value) -> Vec<String> {
 /// lives here. `topics` carries the current labels plus whatever earlier
 /// batches invented, framed as reusable-but-replaceable: many of the
 /// current labels are fallback buckets (component scopes, PR numbers) that
-/// the model exists to improve on.
+/// the model exists to improve on. Bucket labels never reach the prompt:
+/// shown as "known topics" the model dutifully reuses them, which is how
+/// dogfood ended up with features named "#363".
 fn build_prompt(repo_key: &str, topics: &[String], entries: &[UnassignedEntry]) -> String {
     let mut out = format!("Repository: {repo_key}\n\n");
-    if topics.is_empty() {
+    let named: Vec<&String> = topics.iter().filter(|t| !is_bucket_label(t)).collect();
+    if named.is_empty() {
         out.push_str("Known topics: none yet.\n\n");
     } else {
         out.push_str(&format!(
-            "Known topics (some are fallback bucket labels — reuse one only \
-when the work genuinely continues it): {}\n\n",
-            topics.join(", ")
+            "Known topics (reuse one only when the work genuinely continues \
+it): {}\n\n",
+            named
+                .iter()
+                .map(|topic| topic.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
         ));
     }
     out.push_str(
         "The commits below are merged work a reviewer will read one feature \
 at a time. Map every commit to the feature or workstream it belongs to. \
 Rules: a component or layer name (desktop, ui, web, app, gallery) is NOT a \
-feature — name what the work achieves, not where it lives. Stacked or \
-related PRs building one thing share one topic. Conventional-commit scopes \
-in subjects are hints at most, never answers. Otherwise invent a short \
-kebab-case feature name (never a file path, never a commit type like \
-\"fix\" or \"chore\"). Reply with one JSON object mapping the full sha of \
-every commit to its topic — every sha must appear.\n\nCommits:\n",
+feature — name what the work achieves, not where it lives. A PR number \
+(like \"#123\") or a commit sha is NEVER a topic name — every commit gets a \
+descriptive name, one-off work included. Stacked or related PRs building \
+one thing share one topic. Conventional-commit scopes in subjects are \
+hints at most, never answers. Otherwise invent a short kebab-case feature \
+name (never a file path, never a commit type like \"fix\" or \"chore\"). \
+Reply with one JSON object mapping the full sha of every commit to its \
+topic — every sha must appear.\n\nCommits:\n",
     );
     for entry in entries.iter().take(MAX_ENTRIES) {
         out.push_str(&format!(
@@ -143,11 +153,23 @@ fn extract_object(raw: &str) -> Option<Value> {
     serde_json::from_str(&raw[start..=end]).ok()
 }
 
+/// A provenance-bucket label: `#363`, or a bare sha. Assigning one adds
+/// nothing over the deterministic fallback and launders the bucket into a
+/// permanent-looking topic — dogfood's queue kept `#363`-named "features"
+/// because the model reused the labels the prompt showed it.
+pub(crate) fn is_bucket_label(topic: &str) -> bool {
+    if let Some(rest) = topic.strip_prefix('#') {
+        return !rest.is_empty() && rest.chars().all(|c| c.is_ascii_digit());
+    }
+    topic.len() >= 7 && topic.chars().all(|c| c.is_ascii_hexdigit())
+}
+
 fn clean_topic(raw: &str) -> Option<String> {
     let topic = raw.trim();
     if topic.is_empty()
         || topic.chars().count() > MAX_TOPIC_CHARS
         || topic.chars().any(char::is_control)
+        || is_bucket_label(topic)
     {
         return None;
     }
@@ -171,32 +193,72 @@ fn parse_assignments(raw: &str, requested: &[String]) -> Vec<(String, String)> {
         .collect()
 }
 
-/// Tip each repo was last attempted at; `None` while a task is in flight.
-/// Success and failure both count as attempted — only a new tip re-arms.
-fn registry() -> &'static Mutex<HashMap<String, Option<String>>> {
-    static REGISTRY: OnceLock<Mutex<HashMap<String, Option<String>>>> = OnceLock::new();
+/// Failures per tip before the stage gives up until the tip moves. A
+/// transient provider error should not leave the queue unmapped forever —
+/// dogfood hit exactly that: one silent failure, and "mapping features…"
+/// hung until the next merge.
+const MAX_FAILURES: u32 = 3;
+
+#[derive(Clone)]
+enum Attempt {
+    InFlight,
+    /// Facts written for this tip; nothing left to ask until it moves.
+    Done(String),
+    Failed { tip: String, count: u32 },
+}
+
+fn registry() -> &'static Mutex<HashMap<String, Attempt>> {
+    static REGISTRY: OnceLock<Mutex<HashMap<String, Attempt>>> = OnceLock::new();
     REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-/// Claims the (repo, tip) attempt slot. False when a task is already in
-/// flight for the repo or this tip was already attempted.
+/// Claims the (repo, tip) attempt slot. False when a task is in flight,
+/// the tip already succeeded, or it failed too many times.
 fn claim(repo_key: &str, tip: &str) -> bool {
     let Ok(mut attempts) = registry().lock() else {
         return false;
     };
-    match attempts.get(repo_key) {
-        Some(None) => false,
-        Some(Some(attempted)) if attempted == tip => false,
-        _ => {
-            attempts.insert(repo_key.to_string(), None);
-            true
+    let allowed = match attempts.get(repo_key) {
+        Some(Attempt::InFlight) => false,
+        Some(Attempt::Done(done)) => done != tip,
+        Some(Attempt::Failed { tip: failed, count }) => {
+            failed != tip || *count < MAX_FAILURES
         }
+        None => true,
+    };
+    if allowed {
+        attempts.insert(repo_key.to_string(), Attempt::InFlight);
+    }
+    allowed
+}
+
+fn settle_done(repo_key: &str, tip: &str) {
+    if let Ok(mut attempts) = registry().lock() {
+        attempts.insert(repo_key.to_string(), Attempt::Done(tip.to_string()));
     }
 }
 
-fn settle(repo_key: &str, tip: &str) {
+fn settle_failed(repo_key: &str, tip: &str, prior: u32) {
     if let Ok(mut attempts) = registry().lock() {
-        attempts.insert(repo_key.to_string(), Some(tip.to_string()));
+        attempts.insert(
+            repo_key.to_string(),
+            Attempt::Failed {
+                count: prior + 1,
+                tip: tip.to_string(),
+            },
+        );
+    }
+}
+
+/// Failures already recorded for this (repo, tip), read before the task
+/// overwrites the slot with `InFlight`.
+fn failures_so_far(repo_key: &str, tip: &str) -> u32 {
+    let Ok(attempts) = registry().lock() else {
+        return 0;
+    };
+    match attempts.get(repo_key) {
+        Some(Attempt::Failed { tip: failed, count }) if failed == tip => *count,
+        _ => 0,
     }
 }
 
@@ -208,7 +270,10 @@ struct AssignmentsPayload {
 
 /// Fire-and-forget from `ledger_status`: classify this status's unassigned
 /// commits in the background, write the facts, nudge the webview. Returns
-/// immediately; does nothing without unassigned work or an AI config.
+/// immediately; does nothing without unassigned work or an AI config. A
+/// background courtesy, but never a silent one: failures are logged and
+/// retried up to MAX_FAILURES per tip, because dogfood showed a single
+/// swallowed provider error freezes the queue's grouping.
 pub fn propose(app: &AppHandle, repo_key: String, repo: LedgerRepo, status: &Value) {
     let entries = unassigned_entries(status);
     if entries.is_empty() {
@@ -220,6 +285,7 @@ pub fn propose(app: &AppHandle, repo_key: String, repo: LedgerRepo, status: &Val
     let Some(model) = config.model.clone() else {
         return;
     };
+    let prior_failures = failures_so_far(&repo_key, repo.tip());
     if !claim(&repo_key, repo.tip()) {
         return;
     }
@@ -227,23 +293,37 @@ pub fn propose(app: &AppHandle, repo_key: String, repo: LedgerRepo, status: &Val
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         let tip = repo.tip().to_string();
-        // Errors are swallowed on purpose: this is a background courtesy, and
-        // the registry already ensures a failing provider is not hammered.
         let outcome = classify(&repo_key, repo, &config, &model, &topics, entries).await;
-        settle(&repo_key, &tip);
-        if let Ok(true) = outcome {
-            let _ = app.emit(
-                "ledger-assignments",
-                AssignmentsPayload {
-                    repo_key: repo_key.clone(),
-                },
-            );
+        match outcome {
+            Ok(true) => {
+                settle_done(&repo_key, &tip);
+                let _ = app.emit(
+                    "ledger-assignments",
+                    AssignmentsPayload {
+                        repo_key: repo_key.clone(),
+                    },
+                );
+            }
+            Ok(false) => {
+                log(&format!(
+                    "ledger mapping returned no usable assignments for {repo_key} at {tip}"
+                ));
+                settle_failed(&repo_key, &tip, prior_failures);
+            }
+            Err(e) => {
+                log(&format!("ledger mapping failed for {repo_key} at {tip}: {e}"));
+                settle_failed(&repo_key, &tip, prior_failures);
+            }
         }
     });
 }
 
 /// One model round-trip plus the sidecar write. Ok(true) means at least one
-/// assignment fact was written.
+/// assignment fact was written. The request carries no sampling params:
+/// gateways disagree on which are allowed per model (Nexos's vertex-ai
+/// route 400s on `temperature`, the bug that silently killed every mapping
+/// call in dogfood), and the chat sends none either. Determinism comes
+/// from the prompt.
 async fn classify(
     repo_key: &str,
     repo: LedgerRepo,
@@ -264,7 +344,6 @@ async fn classify(
                 { "role": "system", "content": SYSTEM_PROMPT },
                 { "role": "user", "content": prompt },
             ],
-            "temperature": 0.1,
         });
         let response = ai::post_chat(&client, &url, &config.api_key, &body).await?;
         let answer =
@@ -376,5 +455,44 @@ mod tests {
         assert!(parse_assignments("[1, 2, 3]", &requested).is_empty());
         assert!(parse_assignments("{ broken", &requested).is_empty());
         assert!(parse_assignments(&format!("{{\"{}\": 7}}", "a".repeat(40)), &requested).is_empty());
+    }
+
+    #[test]
+    fn claim_allows_retries_until_the_failure_cap() {
+        let repo = "retry-test/repo2";
+        let tip = "t1";
+        let mut prior = super::failures_so_far(repo, tip);
+        while super::claim(repo, tip) {
+            super::settle_failed(repo, tip, prior);
+            prior = super::failures_so_far(repo, tip);
+        }
+        assert_eq!(prior, super::MAX_FAILURES);
+    }
+
+    #[test]
+    fn a_new_tip_rearms_after_success_and_after_giving_up() {
+        let repo = "rearm-test/repo";
+        assert!(super::claim(repo, "t1"));
+        super::settle_done(repo, "t1");
+        assert!(!super::claim(repo, "t1"));
+        assert!(super::claim(repo, "t2"));
+        super::settle_failed(repo, "t2", super::MAX_FAILURES - 1);
+        assert!(!super::claim(repo, "t2"));
+        assert!(super::claim(repo, "t3"));
+        super::settle_done(repo, "t3");
+    }
+
+    #[test]
+    fn bucket_labels_are_rejected_as_topics_and_excluded_from_prompts() {
+        assert!(super::is_bucket_label("#363"));
+        assert!(super::is_bucket_label("c3860f8"));
+        assert!(!super::is_bucket_label("repo-store"));
+        assert!(!super::is_bucket_label("delta-review"));
+        assert!(super::clean_topic("#363").is_none());
+        assert!(super::clean_topic("c3860f8").is_none());
+        let topics = vec!["#363".to_string(), "repo-store".to_string()];
+        let prompt = super::build_prompt("a/b", &topics, &[entry(&"d".repeat(40), "x")]);
+        assert!(prompt.contains("repo-store"));
+        assert!(!prompt.contains("#363"));
     }
 }

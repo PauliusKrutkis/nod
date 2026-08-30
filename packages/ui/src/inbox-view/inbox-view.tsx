@@ -64,7 +64,9 @@ export function InboxView({
   detail = null,
   body = null,
 }: {
-  tabs: InboxViewTabs;
+  /** Null hides the strip: a full-surface state (a ledger session) owns
+   *  the window the way the review screen does, and shows no tabs. */
+  tabs: InboxViewTabs | null;
   rows: readonly InboxViewRow[];
   onOpenRow: (index: number) => void;
   onHoverRow?: (index: number) => void;
@@ -80,15 +82,17 @@ export function InboxView({
 }) {
   return (
     <div className="qiv">
-      <InboxTabs
-        activeKey={tabs.activeKey}
-        archivedActive={tabs.archivedActive}
-        archivedCount={tabs.archivedCount}
-        onSelect={tabs.onSelect}
-        onToggleArchived={tabs.onToggleArchived}
-        onWatch={tabs.onWatch}
-        tabs={tabs.items}
-      />
+      {tabs && (
+        <InboxTabs
+          activeKey={tabs.activeKey}
+          archivedActive={tabs.archivedActive}
+          archivedCount={tabs.archivedCount}
+          onSelect={tabs.onSelect}
+          onToggleArchived={tabs.onToggleArchived}
+          onWatch={tabs.onWatch}
+          tabs={tabs.items}
+        />
+      )}
       {body ?? (
         <div className="qiv-body">
           <div

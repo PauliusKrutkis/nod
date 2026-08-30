@@ -280,7 +280,8 @@ const SIDEBAR_MAX_FRACTION = 0.4;
 /** The file tree's column: the sidebar's two seatings plus the grip that
  *  sizes it. Only the inline seating resizes — an overlay is already as wide
  *  as it gets, and a grip on it would drag against the scrim. */
-function FileTreeColumn(props: {
+/** Exported for the ledger session, which wears this exact frame. */
+export function FileTreeColumn(props: {
   changed: ReadonlySet<string>;
   comments: ReviewComment[];
   compact: boolean;

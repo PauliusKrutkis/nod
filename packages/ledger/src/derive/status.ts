@@ -13,6 +13,7 @@ import { cachedBlameTree } from "../git/blame-cache.ts";
 import type { GitRun } from "../git/exec.ts";
 import { readTreeLines } from "../git/files.ts";
 import { type Assignment, assignmentsFrom } from "../topics/assign.ts";
+import { numbersFrom } from "../topics/numbers.ts";
 
 /**
  * The invariant made executable: `status = f(facts, tip)` (docs/LEDGER.md
@@ -31,6 +32,12 @@ interface Provenance {
   sha: string;
   pr: number | null;
   subject: string;
+  /** Commit author name — a group's byline when everyone agrees. */
+  author: string;
+  /** Author email; hosts derive forge identity (noreply logins) from it. */
+  authorEmail: string;
+  /** Committer date, ISO 8601 — the group's freshness. */
+  at: string;
 }
 
 /**
@@ -59,6 +66,8 @@ interface TopicApproval {
 
 interface TopicStatus {
   id: string;
+  /** Fact-minted display number (#N); null until a claim resolves. */
+  number: number | null;
   /** Post-epoch tip lines classified into this topic. */
   totalLines: number;
   reviewedLines: number;
@@ -577,22 +586,38 @@ const baselineForRun = (
     : fromAnchor;
 };
 
+interface CommitMeta {
+  author: string;
+  authorEmail: string;
+  /** Committer date, ISO 8601. */
+  at: string;
+  subject: string;
+}
+
+/** Unit separator, not tab: subjects may contain anything but newlines. */
+const META_SEP = "\u001f";
+
 const loadSubjects = async (
   git: GitRun,
   shas: readonly string[]
-): Promise<Map<string, string>> => {
-  const subjects = new Map<string, string>();
+): Promise<Map<string, CommitMeta>> => {
+  const subjects = new Map<string, CommitMeta>();
   for (let i = 0; i < shas.length; i += SUBJECT_BATCH) {
     const out = await git([
       "show",
       "-s",
-      "--format=%H%x09%s",
+      "--format=%H%x1f%an%x1f%ae%x1f%cI%x1f%s",
       ...shas.slice(i, i + SUBJECT_BATCH),
     ]);
     for (const row of out.split("\n").filter(Boolean)) {
-      const [sha, subject] = row.split("\t");
+      const [sha, author, email, at, subject] = row.split(META_SEP);
       if (sha && subject !== undefined) {
-        subjects.set(sha, subject);
+        subjects.set(sha, {
+          at: at ?? "",
+          author: author ?? "",
+          authorEmail: email ?? "",
+          subject,
+        });
       }
     }
   }
@@ -642,7 +667,7 @@ const classifyTipShas = async (
       topicBySha.set(sha, assigned.topic);
       continue;
     }
-    topicBySha.set(sha, topicOf(subjects.get(sha) ?? "", sha));
+    topicBySha.set(sha, topicOf(subjects.get(sha)?.subject ?? "", sha));
     unassignedShas.add(sha);
   }
   return { subjects, topicBySha, unassignedShas };
@@ -653,7 +678,7 @@ const UNASSIGNED_FILE_CAP = 8;
 
 const describeUnassigned = (
   blames: ReadonlyMap<string, readonly string[]>,
-  subjects: ReadonlyMap<string, string>,
+  subjects: ReadonlyMap<string, CommitMeta>,
   topicBySha: ReadonlyMap<string, string>,
   unassignedShas: ReadonlySet<string>
 ): UnassignedSha[] => {
@@ -675,7 +700,7 @@ const describeUnassigned = (
       files: [...entry.files].slice(0, UNASSIGNED_FILE_CAP),
       lines: entry.lines,
       sha,
-      subject: subjects.get(sha) ?? "",
+      subject: subjects.get(sha)?.subject ?? "",
       topic: topicBySha.get(sha) ?? sha.slice(0, 7),
     });
   }
@@ -832,9 +857,17 @@ export const deriveStatus = async (
         endLine: run.end + 1,
         newLines: run.newLines,
         provenance: [...run.shas].map((sha) => {
-          const subject = subjects.get(sha) ?? "";
+          const meta = subjects.get(sha);
+          const subject = meta?.subject ?? "";
           const match = SQUASH_SUBJECT.exec(subject);
-          return { sha, pr: match ? Number(match[1]) : null, subject };
+          return {
+            at: meta?.at ?? "",
+            author: meta?.author ?? "",
+            authorEmail: meta?.authorEmail ?? "",
+            pr: match ? Number(match[1]) : null,
+            sha,
+            subject,
+          };
         }),
         baseline: baselineForRun(
           run,
@@ -846,9 +879,11 @@ export const deriveStatus = async (
     })
     .sort(byPathThenLine);
 
+  const numbers = numbersFrom(facts);
   const topics: TopicStatus[] = [...perTopic.entries()]
     .map(([id, tally]) => ({
       id,
+      number: numbers.get(id) ?? null,
       totalLines: tally.total,
       reviewedLines: tally.reviewed,
       requiredApprovals: required,

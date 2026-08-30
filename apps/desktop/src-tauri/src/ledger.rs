@@ -97,7 +97,7 @@ pub(crate) struct LedgerRepo {
     actor: String,
 }
 
-fn split_key(repo_key: &str) -> Result<(String, String), String> {
+pub(crate) fn split_key(repo_key: &str) -> Result<(String, String), String> {
     match repo_key.split_once('/') {
         Some((owner, repo)) if !owner.is_empty() && !repo.is_empty() => {
             Ok((owner.to_string(), repo.to_string()))
@@ -217,6 +217,18 @@ impl LedgerRepo {
         self.spawn("assign", pairs, Some(actor)).map(|_| ())
     }
 
+    /// A fresh path for one --json payload. Large payloads through the
+    /// sidecar's stdout pipe hit the compiled runtime's flush-on-exit
+    /// truncation (dogfooded as a session cut at exactly 64KB), so JSON
+    /// rides a file instead; unique per call so concurrent commands never
+    /// collide.
+    fn out_path(&self) -> PathBuf {
+        static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let n = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.state_dir
+            .join(format!("out-{}-{n}.json", std::process::id()))
+    }
+
     fn spawn(
         &self,
         command: &str,
@@ -237,8 +249,13 @@ impl LedgerRepo {
         if agent_actor.is_some() {
             args.push("--agent");
         }
-        if matches!(command, "status" | "session") {
+        let json = matches!(command, "status" | "session");
+        let out = self.out_path();
+        let out_arg = out.to_str().ok_or("state path is not UTF-8")?.to_string();
+        if json {
             args.push("--json");
+            args.push("--out");
+            args.push(&out_arg);
         }
         args.push(command);
         args.push("--");
@@ -256,6 +273,12 @@ impl LedgerRepo {
                 stderr
             };
             return Err(format!("ledger {command} failed: {}", detail.trim()));
+        }
+        if json {
+            let payload = std::fs::read_to_string(&out)
+                .map_err(|e| format!("ledger {command} wrote no payload: {e}"))?;
+            let _ = std::fs::remove_file(&out);
+            return Ok(payload);
         }
         Ok(String::from_utf8_lossy(&output.stdout).into_owned())
     }
@@ -277,8 +300,16 @@ impl LedgerRepo {
         }
     }
 
+    /// Spawns `status --json --progress` and reads stderr as two languages:
+    /// NDJSON progress lines become `ledger-prep` events as they arrive,
+    /// anything else is kept as the error detail.
     fn stream_status(&self, app: &AppHandle, repo_key: &str) -> Result<Value, String> {
         let sidecar = sidecar_path()?;
+        let out = self.out_path();
+        let out_arg = out
+            .to_str()
+            .ok_or("state path is not UTF-8")?
+            .to_string();
         let mut child = Command::new(&sidecar)
             .args([
                 "--repo",
@@ -290,6 +321,8 @@ impl LedgerRepo {
                 "--state-dir",
                 self.state_dir.to_str().ok_or("state path is not UTF-8")?,
                 "--json",
+                "--out",
+                &out_arg,
                 "--progress",
                 "status",
             ])
@@ -298,10 +331,6 @@ impl LedgerRepo {
             .spawn()
             .map_err(|e| format!("could not launch the ledger sidecar: {e}"))?;
 
-        // stderr carries two languages: NDJSON progress lines while the
-        // derivation runs, plain text when something goes wrong. Progress
-        // becomes events as it arrives; everything else is kept as the
-        // error detail.
         let stderr = child
             .stderr
             .take()
@@ -346,10 +375,47 @@ impl LedgerRepo {
             };
             return Err(format!("ledger status failed: {}", detail.trim()));
         }
-        serde_json::from_str(&stdout).map_err(|e| format!("ledger returned invalid JSON: {e}"))
+        let payload = std::fs::read_to_string(&out)
+            .map_err(|e| format!("ledger status wrote no payload: {e}"))?;
+        let _ = std::fs::remove_file(&out);
+        serde_json::from_str(&payload)
+            .map_err(|e| format!("ledger returned invalid JSON: {e}"))
     }
 }
 
+/// Every named topic gets a display number (#N) the first derivation that
+/// sees it: mint `numbered` facts for the unnumbered ones and re-derive so
+/// the payload carries them (warm caches make the second pass cheap).
+/// Numbering is a nicety — any failure keeps the original status.
+fn mint_topic_numbers(repo: &LedgerRepo, status: Value) -> Value {
+    let unnumbered = unnumbered_topics(&status);
+    if unnumbered.is_empty() {
+        return status;
+    }
+    let refs: Vec<&str> = unnumbered.iter().map(String::as_str).collect();
+    if let Err(e) = repo.spawn("number", &refs, None) {
+        log(&format!("ledger number failed for {refs:?}: {e}"));
+        return status;
+    }
+    match repo
+        .spawn("status", &[], None)
+        .and_then(|out| serde_json::from_str(&out).map_err(|e| e.to_string()))
+    {
+        Ok(renumbered) => renumbered,
+        Err(e) => {
+            log(&format!("ledger re-derive after numbering failed: {e}"));
+            status
+        }
+    }
+}
+
+/// One full derivation: prepare the clone, stream the sidecar's progress,
+/// mint numbers for new topics, then persist and fan out. The last good
+/// status persists beside the fact journal (principle #6, docs/DESIGN.md:
+/// no loading states) so `ledger_status_cached` can replay it for an
+/// instant first paint while the next derivation refreshes behind; the
+/// LLM stage rides every derivation, opens and warms alike, so a newly
+/// watched repo arrives already mapped (docs/LEDGER.md item 5).
 async fn status_inner(app: &AppHandle, repo_key: &str) -> Result<Value, String> {
     let repo = match prepare(app, repo_key, true).await {
         Ok(repo) => repo,
@@ -361,7 +427,9 @@ async fn status_inner(app: &AppHandle, repo_key: &str) -> Result<Value, String> 
     let task_app = app.clone();
     let task_key = repo_key.to_string();
     let (repo, result) = tauri::async_runtime::spawn_blocking(move || {
-        let result = repo.run_status_streaming(&task_app, &task_key);
+        let result = repo
+            .run_status_streaming(&task_app, &task_key)
+            .map(|status| mint_topic_numbers(&repo, status));
         (repo, result)
     })
     .await
@@ -369,10 +437,58 @@ async fn status_inner(app: &AppHandle, repo_key: &str) -> Result<Value, String> 
     let stage = if result.is_ok() { "ready" } else { "failed" };
     emit_prep(app, repo_key, stage, None, None);
     let status = result?;
-    // The LLM stage rides every derivation — opens and warms alike — so a
-    // newly watched repo arrives already mapped (docs/LEDGER.md item 5).
+    if let Ok(bytes) = serde_json::to_vec(&status) {
+        let _ = write_atomically(&repo.state_dir.join("status.json"), &bytes);
+    }
     ledger_topics::propose(app, repo_key.to_string(), repo, &status);
     Ok(status)
+}
+
+/// The named topics in a status payload still waiting for a display
+/// number; bucket labels never get one.
+fn unnumbered_topics(status: &Value) -> Vec<String> {
+    status["topics"]
+        .as_array()
+        .map(|topics| {
+            topics
+                .iter()
+                .filter(|t| t["number"].is_null())
+                .filter_map(|t| t["id"].as_str())
+                .filter(|id| !ledger_topics::is_bucket_label(id))
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Write-to-temp-then-rename (journal.ts's own idiom) so a concurrent
+/// reader never catches a half-written file.
+pub(crate) fn write_atomically(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
+    let tmp = path.with_extension("tmp");
+    std::fs::write(&tmp, bytes)?;
+    std::fs::rename(&tmp, path)
+}
+
+/// The last derived status from disk, or null — never derives, never
+/// clones: the instant-paint half of cache-first, mirroring
+/// `get_cached_inbox`.
+#[tauri::command]
+pub async fn ledger_status_cached(
+    app: AppHandle,
+    repo_key: String,
+) -> Result<Option<Value>, String> {
+    let (owner, repo) = split_key(&repo_key)?;
+    let account = accounts::active_account(&app).await?;
+    let key = RepoKey {
+        host: account.host.clone(),
+        owner,
+        repo,
+    };
+    let path = store::ledger_state_dir(&storage::config_dir(&app)?, &key).join("status.json");
+    let Ok(bytes) = std::fs::read(path) else {
+        return Ok(None);
+    };
+    Ok(serde_json::from_slice(&bytes).ok())
 }
 
 #[tauri::command]
@@ -465,3 +581,7 @@ pub async fn ledger_resolve(
         .await
         .map_err(|e| format!("ledger resolve failed: {e}"))?
 }
+
+#[cfg(test)]
+#[path = "ledger_tests.rs"]
+mod tests;

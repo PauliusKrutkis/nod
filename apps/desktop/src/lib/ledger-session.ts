@@ -14,6 +14,7 @@ import type {
   LedgerQueueItem,
   LedgerSessionFile,
   LedgerSessionRegion,
+  LedgerStatus,
   ReviewComment,
 } from "../types.ts";
 import { parsePatch } from "./diff.ts";
@@ -61,6 +62,21 @@ export function sessionToChangedFiles(
 const numericId = (factId: string): number =>
   Number.parseInt(factId.slice(0, 13), 16);
 
+/**
+ * A fact's actor id IS the forge login for human actors (ledger.rs sets it
+ * from the account), so the avatar is a plain URL derivation — the same
+ * face the PR surface shows. Agent actors ("agent:<model>") keep the
+ * initial-letter fallback.
+ */
+export function actorAvatarUrl(actor: {
+  id: string;
+  kind: "agent" | "human";
+}): string {
+  return actor.kind === "human"
+    ? `https://avatars.githubusercontent.com/${actor.id}`
+    : "";
+}
+
 export function ledgerCommentsToReview(comments: readonly LedgerComment[]): {
   byFile: Map<string, ReviewComment[]>;
   factIdOf: Map<number, string>;
@@ -89,7 +105,7 @@ export function ledgerCommentsToReview(comments: readonly LedgerComment[]): {
       side: "RIGHT",
       threadId: comment.parent ?? comment.id,
       user: comment.actor.id,
-      userAvatarUrl: "",
+      userAvatarUrl: actorAvatarUrl(comment.actor),
     });
   }
   return { byFile, factIdOf };
@@ -207,6 +223,43 @@ export function initialAnchorFor(
   return first ? { anchor: first.anchor, fileIndex } : null;
 }
 
+/**
+ * A provenance-bucket label (`#363`, a bare sha) is a fallback, not a
+ * feature name. The queue leads with the topic when it has a real name
+ * and falls back to the commit subject when it only has a bucket —
+ * mirrors the engine's own bucket test in topics/assign.ts.
+ */
+const PR_LABEL = /^#\d+$/;
+const SHA_LABEL = /^[0-9a-f]{7,40}$/;
+
+export function isBucketTopic(topic: string): boolean {
+  return PR_LABEL.test(topic) || SHA_LABEL.test(topic);
+}
+
+/**
+ * GitHub's web-UI merges (squash included — the ledger's dominant case)
+ * author commits from a noreply address that carries the forge login, so a
+ * group authored that way gets the same identity a PR row shows: login and
+ * avatar, not the git display name. A plain email keeps the git name and
+ * gets the initial-letter avatar fallback.
+ */
+const NOREPLY_EMAIL =
+  /^(?:\d+\+)?([a-z\d](?:[a-z\d-]*[a-z\d])?)@users\.noreply\.github\.com$/i;
+
+export function forgeIdentity(
+  author: string | undefined,
+  email: string | undefined
+): { author?: string; authorAvatarUrl?: string } {
+  const login = email === undefined ? null : NOREPLY_EMAIL.exec(email)?.[1];
+  if (login) {
+    return {
+      author: login,
+      authorAvatarUrl: `https://avatars.githubusercontent.com/${login}`,
+    };
+  }
+  return { author };
+}
+
 export interface ProvenanceGroup {
   /** Distinct headline provenance labels across the group's items (#pr / sha). */
   chips: string[];
@@ -219,12 +272,60 @@ export interface ProvenanceGroup {
 }
 
 /**
+ * The group's freshness: the newest provenance commit's timestamp. Both
+ * the queue rows and the inbox tab badge judge "archived until it
+ * updates" against this same value, so the two can never disagree.
+ */
+export function newestProvenanceAt(group: ProvenanceGroup): string | undefined {
+  let newest: string | undefined;
+  for (const item of group.items) {
+    for (const p of item.provenance) {
+      if (p.at && (newest === undefined || p.at > newest)) {
+        newest = p.at;
+      }
+    }
+  }
+  return newest;
+}
+
+/**
  * The queue as feature groups keyed by the ENGINE's topic classification
  * (item.topic — conventional scope, #pr, sha fallback, derived line-level
  * in deriveStatus), in first-appearance order. The engine is the single
  * source of truth so the queue, approvals, and coverage all agree on what
  * a topic is; per docs/LEDGER.md §3 grouping is ergonomics only.
  */
+/**
+ * The group's story as description text — coverage, provenance, files —
+ * one composition shared by the queue's reading pane and the session's
+ * info drawer so the two never tell different stories.
+ */
+export function topicStory(
+  group: ProvenanceGroup,
+  status: LedgerStatus
+): string {
+  const files = new Map<string, number>();
+  const provenance = new Map<string, string>();
+  for (const item of group.items) {
+    files.set(item.path, (files.get(item.path) ?? 0) + item.newLines);
+    for (const p of item.provenance) {
+      const label = p.pr ? `#${p.pr}` : p.sha.slice(0, 7);
+      if (!provenance.has(label)) {
+        provenance.set(label, p.subject);
+      }
+    }
+  }
+  return [
+    `Coverage ${(status.coverage * 100).toFixed(1)}% · ${status.reviewedLines}/${status.totalLines} post-epoch lines · epoch ${status.epoch.slice(0, 7)} → tip ${status.tip.slice(0, 7)}`,
+    "",
+    "How it got here:",
+    ...[...provenance].map(([label, subject]) => `${label} ${subject}`),
+    "",
+    "Files:",
+    ...[...files].map(([path, lines]) => `${path} (+${lines})`),
+  ].join("\n");
+}
+
 export function groupQueueByProvenance(queue: readonly LedgerQueueItem[]): {
   flat: LedgerQueueItem[];
   groups: ProvenanceGroup[];

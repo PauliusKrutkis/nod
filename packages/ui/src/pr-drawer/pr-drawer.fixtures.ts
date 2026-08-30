@@ -325,6 +325,25 @@ export const prDrawerEntry = defineEntry(PrDrawer, {
       reviews: [],
     }),
   },
+  // The ledger session's seating: a topic instead of a PR — no number, no
+  // page to open, no composer (facts need an anchor) — with the group's
+  // story as the description and a standing approval as the one verdict.
+  "ledger-topic": {
+    props: base({
+      ci: undefined,
+      conversation: [],
+      pr: {
+        additions: 214,
+        author: "kai",
+        authorAvatarUrl: "",
+        body: "Coverage 42.0% · 214/510 post-epoch lines · epoch e9017aa → tip 71b0000\n\nHow it got here:\n#321 feat(ledger): anchor resolver (#321)\n\nFiles:\nsrc/anchors/resolve.ts (+40)",
+        deletions: 0,
+        title: "ledger",
+      },
+      reviews: [review({ id: 906, state: "APPROVED", user: "kai" })],
+      showComposer: false,
+    }),
+  },
   typical: {
     props: base({}),
   },

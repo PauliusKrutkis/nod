@@ -8,6 +8,7 @@ mod commands;
 mod http;
 mod install_format;
 mod ledger;
+mod ledger_identity;
 mod ledger_topics;
 mod license;
 mod model;
@@ -84,6 +85,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(ai_chat::ChatCancels::default())
         .manage(activation::PendingPrLink::default())
+        .manage(activation::PendingLedgerLink::default())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
@@ -155,7 +157,12 @@ pub fn run() {
             license::get_license_state,
             activation::activate_license,
             activation::take_deep_link_pr,
+            activation::take_deep_link_ledger,
+            commands::get_ledger_excluded,
+            commands::set_ledger_excluded,
             ledger::ledger_status,
+            ledger_identity::ledger_commit_authors,
+            ledger::ledger_status_cached,
             ledger::ledger_session,
             ledger::ledger_review,
             ledger::ledger_approve,

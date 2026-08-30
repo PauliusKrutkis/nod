@@ -165,7 +165,7 @@ edited or deleted. A "wrong" review is answered by a newer fact.
 | ------ | ---------- |
 | **Anchor** | A tracked region: content-hash of a hunk + path heuristics, surviving moves/renames the way git's rename detection does. The moved-vs-rewritten boundary is the hard engineering. |
 | **Fact** | `(actor, anchor \| topic, verdict, at-sha, at-time)`. Reviews, approvals, flags, topic assignments, boundary corrections — all one shape. Actor may be a human or an agent; the two are never conflated in derived metrics. |
-| **Topic** | A named set of anchors with an editable boundary (a feature, a subsystem). AI-proposed, human-corrected; corrections are facts. Approvals attach here at a sha. |
+| **Topic** | A named set of anchors with an editable boundary (a feature, a subsystem). AI-proposed, human-corrected; corrections are facts. Approvals attach here at a sha. The name is the identity (deep links use it); a `numbered` fact additionally mints a display number (#N, max+1, earliest-fact-wins on conflict) so a group is referable the way a PR is. |
 | **Delta** | Derived queue item: net diff from a topic's approval sha (or an anchor's last-reviewed sha) to tip. Spawned by change, closed by a new fact. |
 
 **The invariant: `status = f(facts, tip)`.** Every status anywhere —

@@ -1,3 +1,4 @@
+import { writeFileSync } from "node:fs";
 import process from "node:process";
 import { type CliArgs, parseCliArgs, resolveRepoRoot } from "./cli-args.ts";
 import {
@@ -23,8 +24,10 @@ import {
 } from "./derive/status.ts";
 import { syncJournal } from "./facts/journal.ts";
 import type { Actor, Fact } from "./facts/schema.ts";
-import { appendFacts, sync } from "./facts/store.ts";
+import { appendFacts, readFacts, sync } from "./facts/store.ts";
 import { type GitRun, gitIn } from "./git/exec.ts";
+import { isBucketLabel } from "./topics/assign.ts";
+import { nextNumber, numbersFrom } from "./topics/numbers.ts";
 
 /**
  * The dogfood surface for phase 3 (docs/LEDGER.md §12) and the engine the
@@ -56,6 +59,7 @@ const USAGE = `usage: ledger [--repo <dir>] [--tip <rev>] [--actor <id>] <comman
                     a topic id the queue does not currently show)
   assign <sha>=<topic>…  map commits to topics: human corrections, or
                     agent proposals with --agent (the LLM stage)
+  number <topic>…   mint display numbers (#N) for topics that lack one
   comment <target> <body>      start a thread on a region (path:line[-end])
   comment --reply <id> <body>  answer the thread rooted at fact id
   resolve <id>      close the thread rooted at fact id
@@ -74,6 +78,16 @@ const short = (sha: string): string => sha.slice(0, 7);
 
 const pct = (ratio: number): string => `${(100 * ratio).toFixed(1)}%`;
 
+/** JSON payloads go to --out when given: pipes truncate, files do not. */
+const emitJson = (out: string | undefined, payload: unknown): void => {
+  const text = JSON.stringify(payload);
+  if (out) {
+    writeFileSync(out, text);
+  } else {
+    console.log(text);
+  }
+};
+
 const die = (message: string): never => {
   console.error(message);
   process.exit(1);
@@ -89,6 +103,8 @@ interface Ctx {
   stateDir?: string;
   /** NDJSON derivation progress on stderr, or undefined when not asked. */
   onProgress?: (progress: DeriveProgress) => void;
+  /** JSON payload destination; stdout when absent. */
+  out?: string;
 }
 
 /**
@@ -139,7 +155,7 @@ const requireConfig = async (ctx: Ctx): Promise<LedgerConfig> => {
     (await readCommittedConfig(ctx.git, ctx.tip)) ??
     (ctx.stateDir ? await readLocalConfig(ctx.stateDir) : null);
   if (!config) {
-    return die("no ledger here yet — run `ledger init` to set the epoch");
+    return die("no ledger here yet. Run `ledger init` to set the epoch");
   }
   return config;
 };
@@ -178,14 +194,14 @@ const runSession = async (
     tip: ctx.tip,
   });
   if (json) {
-    console.log(JSON.stringify(session));
+    emitJson(ctx.out, session);
     return;
   }
   if (session.sessions.length === 0) {
     die(
       targets.length > 0
-        ? "nothing in the queue matches — see `ledger queue`"
-        : "queue is empty — everything post-epoch is reviewed"
+        ? "nothing in the queue matches. See `ledger queue`"
+        : "queue is empty: everything post-epoch is reviewed"
     );
   }
   for (const file of session.sessions) {
@@ -199,13 +215,15 @@ const runSession = async (
   }
 };
 
+/** Unknown topic ids are refused unless forced: the log is append-only,
+ *  so a typo'd id would be a junk fact forever. */
 const runApprove = async (
   ctx: Ctx,
   topics: readonly string[],
   force: boolean
 ): Promise<void> => {
   if (topics.length === 0) {
-    die("approve needs at least one topic — see `ledger status`");
+    die("approve needs at least one topic. See `ledger status`");
   }
   const config = await requireConfig(ctx);
   const required = config.approvalsRequired ?? 1;
@@ -217,8 +235,7 @@ const runApprove = async (
   const known = new Set(before.topics.map((t) => t.id));
   for (const topic of topics) {
     if (!(known.has(topic) || force)) {
-      // Append-only: a typo'd id would be a junk fact forever.
-      die(`unknown topic "${topic}" — see \`ledger status\`, or pass --force`);
+      die(`unknown topic "${topic}": see \`ledger status\`, or pass --force`);
     }
   }
   const actor = await getActor(ctx);
@@ -244,11 +261,11 @@ const runApprove = async (
         before.queue.filter((i) => i.topic === topic).length -
         after.queue.filter((i) => i.topic === topic).length;
       console.log(
-        `approved ${topic} at ${short(after.tip)} — coverage ${pct(before.coverage)} → ${pct(after.coverage)} · ${covered} lines · ${cleared} region(s)`
+        `approved ${topic} at ${short(after.tip)} · coverage ${pct(before.coverage)} → ${pct(after.coverage)} · ${covered} lines · ${cleared} region(s)`
       );
     } else {
       console.log(
-        `recorded approval for ${topic} (${now?.approvals ?? 1} of ${required} required) — no coverage change yet`
+        `recorded approval for ${topic} (${now?.approvals ?? 1} of ${required} required), no coverage change yet`
       );
     }
   }
@@ -277,7 +294,7 @@ const runReview = async (
     })
   );
   if (selected.length === 0) {
-    die("nothing in the queue matches — see `ledger queue`");
+    die("nothing in the queue matches. See `ledger queue`");
   }
   let signedLines = 0;
   for (const item of selected) {
@@ -351,6 +368,44 @@ const runAssign = async (
   );
 };
 
+const runNumber = async (
+  ctx: Ctx,
+  topics: readonly string[]
+): Promise<void> => {
+  if (topics.length === 0) {
+    die("number needs at least one <topic>");
+  }
+  await requireConfig(ctx);
+  const actor = await getActor(ctx);
+  const atTime = new Date().toISOString();
+  const facts = await readFacts(ctx.git);
+  const numbered = numbersFrom(facts);
+  let next = nextNumber(facts);
+  const additions: Fact[] = [];
+  for (const topic of new Set(topics)) {
+    if (isBucketLabel(topic)) {
+      return die(`a bucket label (#pr, sha) is never numbered: ${topic}`);
+    }
+    if (numbered.has(topic)) {
+      continue;
+    }
+    additions.push({
+      actor,
+      atSha: ctx.tip,
+      atTime,
+      body: String(next),
+      subject: { id: topic, kind: "topic" },
+      v: 1,
+      verdict: "numbered",
+    });
+    next += 1;
+  }
+  if (additions.length > 0) {
+    await appendFacts(ctx.git, additions);
+  }
+  console.log(`numbered ${additions.length} topic(s)`);
+};
+
 const COMMENT_TARGET = /^(.+):(\d+)(?:-(\d+))?$/;
 
 const runComment = async (ctx: Ctx, args: readonly string[]): Promise<void> => {
@@ -372,7 +427,7 @@ const runComment = async (ctx: Ctx, args: readonly string[]): Promise<void> => {
       body
     );
     if (!id) {
-      die(`no comment thread rooted at ${parent} — see \`ledger comments\``);
+      die(`no comment thread rooted at ${parent}. See \`ledger comments\``);
     }
     console.log(`replied · ${id}`);
     return;
@@ -398,7 +453,7 @@ const runComment = async (ctx: Ctx, args: readonly string[]): Promise<void> => {
     body
   );
   if (!id) {
-    die(`nothing to anchor to at ${target} — is the region on tip?`);
+    die(`nothing to anchor to at ${target}. Is the region on tip?`);
   }
   console.log(`commented on ${target} · ${id}`);
 };
@@ -406,7 +461,7 @@ const runComment = async (ctx: Ctx, args: readonly string[]): Promise<void> => {
 const runComments = async (ctx: Ctx, json: boolean) => {
   const status = await requireStatus(ctx);
   if (json) {
-    console.log(JSON.stringify(status.comments));
+    emitJson(ctx.out, status.comments);
     return;
   }
   if (status.comments.length === 0) {
@@ -450,6 +505,7 @@ const main = async (): Promise<void> => {
     actorOverride: opts.actor,
     git,
     onProgress: progressReporter(opts.progress),
+    out: opts.out,
     repoRoot,
     stateDir: opts.stateDir,
     tip: await resolveTip(git, opts.tip),
@@ -490,7 +546,7 @@ const main = async (): Promise<void> => {
     case "status": {
       const status = await requireStatus(await ctx());
       if (opts.json) {
-        console.log(JSON.stringify(status));
+        emitJson(opts.out, status);
         return;
       }
       console.log(
@@ -502,11 +558,11 @@ const main = async (): Promise<void> => {
     case "queue": {
       const status = await requireStatus(await ctx());
       if (opts.json) {
-        console.log(JSON.stringify(status));
+        emitJson(opts.out, status);
         return;
       }
       if (status.queue.length === 0) {
-        console.log("queue is empty — everything post-epoch is reviewed");
+        console.log("queue is empty: everything post-epoch is reviewed");
         return;
       }
       for (const [i, item] of status.queue.entries()) {
@@ -533,6 +589,11 @@ const main = async (): Promise<void> => {
       await journalSync();
       return;
     }
+    case "number": {
+      await runNumber(await ctx(), args);
+      await journalSync();
+      return;
+    }
     case "comment": {
       await runComment(await ctx(), args);
       await journalSync();
@@ -556,7 +617,7 @@ const main = async (): Promise<void> => {
         new Date().toISOString()
       );
       if (!id) {
-        die(`no comment thread rooted at ${args[0]} — see \`ledger comments\``);
+        die(`no comment thread rooted at ${args[0]}. See \`ledger comments\``);
       }
       console.log(`resolved · ${id}`);
       await journalSync();

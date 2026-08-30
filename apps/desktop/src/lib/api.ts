@@ -15,6 +15,8 @@ import type {
   GrepResult,
   InboxBucket,
   InboxData,
+  LedgerCommitAuthors,
+  LedgerLinkTarget,
   LedgerSession,
   LedgerStatus,
   LicenseState,
@@ -155,6 +157,7 @@ export const api = {
   fetchSitePricing: () => invoke<SitePricing>("fetch_site_pricing"),
 
   getViewedMap: () => invoke<unknown>("get_viewed_map"),
+  getLedgerExcluded: () => invoke<string[]>("get_ledger_excluded"),
   getWatchedRepos: () => invoke<string[]>("get_watched_repos"),
   hasToken: () => invoke<boolean>("has_token"),
   installUpdate: () => invoke<void>("install_update"),
@@ -163,6 +166,8 @@ export const api = {
 
   ledgerApprove: (repoKey: string, topic: string) =>
     invoke<void>("ledger_approve", { repoKey, topic }),
+  ledgerCommitAuthors: (repoKey: string, shas: string[]) =>
+    invoke<LedgerCommitAuthors>("ledger_commit_authors", { repoKey, shas }),
   ledgerComment: (
     repoKey: string,
     target: string,
@@ -183,6 +188,10 @@ export const api = {
     invoke<LedgerSession>("ledger_session", { repoKey, targets }),
   ledgerStatus: (repoKey: string) =>
     invoke<LedgerStatus>("ledger_status", { repoKey }),
+  setLedgerExcluded: (repos: string[]) =>
+    invoke<void>("set_ledger_excluded", { repos }),
+  ledgerStatusCached: (repoKey: string) =>
+    invoke<LedgerStatus | null>("ledger_status_cached", { repoKey }),
 
   listAccounts: () => invoke<AccountsInfo>("list_accounts"),
 
@@ -255,6 +264,8 @@ export const api = {
       startLine?: number;
     }[];
   }) => invoke<void>("submit_review", args),
+  takeDeepLinkLedger: () =>
+    invoke<LedgerLinkTarget | null>("take_deep_link_ledger"),
   takeDeepLinkPr: () => invoke<PrLinkTarget | null>("take_deep_link_pr"),
   updateIssueComment: (args: {
     owner: string;

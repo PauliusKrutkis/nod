@@ -437,3 +437,35 @@
     animation: none;
   }
 }
+
+/* The per-row Ledger toggle: whether this repo's review coverage derives.
+   A quiet chip, accent when on — never a focus stop (focus stays in the
+   search input, like every armed control here). */
+.qw-ledger {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  margin-right: 4px;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--faint);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  transition:
+    color 120ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.qw-ledger:hover {
+  color: var(--muted);
+  border-color: var(--line-2);
+}
+
+.qw-ledger-on,
+.qw-ledger-on:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}

@@ -61,4 +61,19 @@ describe("assignmentsFrom", () => {
     };
     expect(assignmentsFrom([stray, empty]).size).toBe(0);
   });
+
+  it("ignores agent proposals that just repeat a bucket label", () => {
+    const map = assignmentsFrom([
+      fact("assigned", SHA, "#363", "2026-08-26T10:00:00Z"),
+      fact("assigned", "b".repeat(40), "c3860f8", "2026-08-26T10:00:00Z"),
+    ]);
+    expect(map.size).toBe(0);
+  });
+
+  it("honors a human correction even when it names a bucket", () => {
+    const map = assignmentsFrom([
+      fact("corrected", SHA, "#363", "2026-08-26T10:00:00Z"),
+    ]);
+    expect(map.get(SHA)).toEqual({ corrected: true, topic: "#363" });
+  });
 });

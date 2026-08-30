@@ -24,6 +24,10 @@ export const VERDICTS = [
   "commented",
   /** Closes the thread rooted at `parent` (docs/LEDGER.md §15). */
   "resolved",
+  /** Claims a display number for a topic; `body` is the decimal number.
+   *  Numbers are minted max+1 and conflicts resolve by earliest atTime,
+   *  so concurrent mints converge without coordination. */
+  "numbered",
 ] as const;
 
 export type Verdict = (typeof VERDICTS)[number];

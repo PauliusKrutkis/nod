@@ -651,6 +651,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
       "draft-present",
       "empty-conversation",
       "foreign-comment",
+      "ledger-topic",
       "markup-as-text",
       "no-verdicts",
       "overflow",
@@ -933,6 +934,7 @@ export const catalogManifest: Record<string, ManifestEntry> = {
   "watch-repos-dialog": {
     dialog: true,
     fixtures: [
+      "ledger-toggles",
       "crowd-60",
       "crowd-60-hits",
       "empty",

@@ -158,6 +158,13 @@ export interface PrLinkTarget {
   number: number;
 }
 
+/** A ledger group named by a nod://ledger deep link — the topic is the id. */
+export interface LedgerLinkTarget {
+  owner: string;
+  repo: string;
+  topic: string;
+}
+
 export interface InboxBucket {
   count: number;
   prs: PullRequest[];
@@ -410,6 +417,12 @@ export interface ReleaseInfo {
  * `newLines` counts only unreviewed post-epoch lines inside the span.
  */
 interface LedgerProvenance {
+  /** Committer date, ISO 8601. */
+  at: string;
+  /** Commit author name. */
+  author: string;
+  /** Author email; noreply addresses carry the forge login. */
+  authorEmail: string;
   pr: number | null;
   sha: string;
   subject: string;
@@ -454,10 +467,19 @@ export interface LedgerTopicStatus {
   /** Null until the threshold is met. */
   approvedAt: LedgerTopicApproval | null;
   id: string;
+  /** Fact-minted display number (#N); null until a claim resolves. */
+  number: number | null;
   requiredApprovals: number;
   reviewedLines: number;
   totalLines: number;
 }
+
+/** A commit's linked forge account, resolved by ledger_commit_authors;
+ *  null = resolved, but the author has no linked account. */
+export type LedgerCommitAuthors = Record<
+  string,
+  { login: string; avatarUrl: string } | null
+>;
 
 export interface LedgerComment {
   actor: { id: string; kind: "agent" | "human" };
