@@ -66,7 +66,7 @@ export const CONTAINERS: Record<string, string> = {
   inbox:
     "inbox and subscribed queries, the archive ledger, tab visibility and the digit hotkeys; its views are inbox-tabs, inbox-zero, inbox-detail and pr-list-item in @nod/ui, leaving it the listbox that arranges them and the query's loading and error states",
   ledger:
-    "the ledger status query, the repo-path map in localStorage and the pick/path/queue/session state machine; its views are inbox-zero, spinner and kbd in @nod/ui, leaving it the listbox and clone-path form (dogfood-grade by design, docs/LEDGER.md)",
+    "the ledger status query and the pick/queue/session state machine, mounted as the inbox's Ledger tab against the app-owned store clone; its views are inbox-zero, spinner and kbd in @nod/ui, leaving it the listbox and the staged prep view (docs/LEDGER.md)",
   "ledger-prep":
     "the staged cold-open view: maps ledger-prep progress events onto three honest rows with a live blame counter, falling back to the spinner until the first event so warm loads never flash stages; its views are spinner in @nod/ui, leaving it the stage list",
   "ledger-session":

@@ -22,6 +22,7 @@ const EMPTY_INBOX: InboxFixture = {
 const REVIEW_REQUESTS = /Review requests/;
 const ASSIGNED = /Assigned/;
 const CREATED = /Created/;
+const LEDGER_TAB = /Ledger/;
 const INVOLVED = /Involved/;
 const WATCHING = /Watching/;
 const WATCH_A_REPOSITORY = /Watch a repository/;
@@ -73,7 +74,9 @@ test("digits address the visible tabs, and cannot summon a hidden one", async ({
   );
   await expect(page.getByRole("button", { name: ASSIGNED })).toHaveCount(0);
 
-  await page.keyboard.press("3");
+  // 3 is the Ledger — always visible, a surface rather than a bucket —
+  // and 4 addresses nothing: the hidden buckets stay unreachable.
+  await page.keyboard.press("4");
   await expect(page.getByRole("button", { name: CREATED })).toHaveAttribute(
     "data-state",
     "active"
@@ -118,6 +121,11 @@ test("the docked Watch button opens the dialog regardless of tab state", async (
 test("tab and the digits agree on the same visible list", async ({ page }) => {
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: CREATED })).toHaveAttribute(
+    "data-state",
+    "active"
+  );
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: LEDGER_TAB })).toHaveAttribute(
     "data-state",
     "active"
   );

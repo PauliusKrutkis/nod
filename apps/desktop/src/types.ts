@@ -170,7 +170,7 @@ export interface InboxData {
   reviewRequested: InboxBucket;
 }
 
-export type InboxTabKey = keyof InboxData | "subscribed";
+export type InboxTabKey = keyof InboxData | "subscribed" | "ledger";
 
 export type ReviewEvent = "COMMENT" | "APPROVE" | "REQUEST_CHANGES";
 

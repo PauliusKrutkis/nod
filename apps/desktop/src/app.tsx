@@ -9,7 +9,6 @@ import { GlobalSearch } from "./components/global-search.tsx";
 import { Inbox } from "./components/inbox/inbox.tsx";
 import { IssueTrackerSettings } from "./components/issue-tracker-settings.tsx";
 import { KeyboardHelp } from "./components/keyboard-help.tsx";
-import { Ledger } from "./components/ledger/ledger.tsx";
 import { LicenseDialogLoader } from "./components/license-dialog-loader.tsx";
 import { NotificationCenterLoader } from "./components/notification-center-loader.tsx";
 import { OfflineBarLoader } from "./components/offline-bar-loader.tsx";
@@ -26,14 +25,10 @@ import { api } from "./lib/api.ts";
 import { applyZoom, loadZoom } from "./lib/zoom.ts";
 import { loadLastRoute, type Route, useAppStore } from "./store/app-store.ts";
 
-const CHROME_ROUTES: ReadonlySet<Route["name"]> = new Set([
-  "inbox",
-  "ledger",
-  "review",
-]);
+const CHROME_ROUTES: ReadonlySet<Route["name"]> = new Set(["inbox", "review"]);
 
-function baseScopeFor(name: Route["name"]): "inbox" | "ledger" | "review" {
-  return name === "review" || name === "ledger" ? name : "inbox";
+function baseScopeFor(name: Route["name"]): "inbox" | "review" {
+  return name === "review" ? name : "inbox";
 }
 
 export default function App() {
@@ -161,7 +156,7 @@ export default function App() {
   });
 
   const baseScope =
-    route.name === "ledger" && ledgerSessionOpen
+    route.name === "inbox" && ledgerSessionOpen
       ? "ledger-session"
       : baseScopeFor(route.name);
   const showRouteChrome = CHROME_ROUTES.has(route.name);
@@ -183,7 +178,6 @@ export default function App() {
         )}
         {route.name === "token" && <TokenGateFlow />}
         {route.name === "inbox" && <Inbox />}
-        {route.name === "ledger" && <Ledger />}
         {route.name === "review" && (
           <ReviewScreen
             key={`${route.owner}/${route.repo}#${route.number}`}

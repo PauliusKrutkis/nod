@@ -23,9 +23,7 @@ import type { Page } from "./types.ts";
  */
 
 const openLedger = (page: Page) =>
-  page.keyboard.press(
-    process.platform === "darwin" ? "Meta+Shift+l" : "Control+Shift+l"
-  );
+  page.getByRole("button", { name: "Ledger" }).click();
 
 const seedLastRepo = (page: Page) =>
   page.addInitScript(() => {
@@ -43,7 +41,6 @@ test("the queue lists one session per feature group; r signs nothing here", asyn
   await expect(page.getByRole("option").first()).toBeVisible();
 
   await openLedger(page);
-  await expect(page.locator('[data-route="ledger"]')).toBeVisible();
   await expect(page.getByRole("option")).toHaveCount(2);
   await expect(page.getByText("0.0%")).toBeVisible();
   // #321 carries scope "ledger"; the direct push falls back to its sha.
@@ -263,7 +260,7 @@ test("a multi-file group shows the file tree; clicking a file jumps to it", asyn
   await expect(page.getByText("makeAnchor")).toBeVisible();
 });
 
-test("escape steps out of the queue to the picker, then to the inbox", async ({
+test("escape steps out of the queue to the picker, then to the PR tabs", async ({
   page,
 }) => {
   await seedLastRepo(page);
@@ -282,5 +279,8 @@ test("escape steps out of the queue to the picker, then to the inbox", async ({
   ).toBeVisible();
 
   await page.keyboard.press("Escape");
-  await expect(page.locator('[data-route="inbox"]')).toBeVisible();
+  await expect(
+    page.getByRole("listbox", { name: "Watched repositories" })
+  ).toBeHidden();
+  await expect(page.getByRole("option").first()).toBeVisible();
 });

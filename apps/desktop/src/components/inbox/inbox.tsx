@@ -57,6 +57,7 @@ import { openOrgApprovalDocs } from "../../lib/org-approval-docs.ts";
 import { useAppStore } from "../../store/app-store.ts";
 import type { InboxData, InboxTabKey, PullRequest } from "../../types.ts";
 import { prKey } from "../../types.ts";
+import { Ledger } from "../ledger/ledger.tsx";
 import { Markdown } from "../markdown-loader.tsx";
 import { WatchReposLoader } from "./watch-repos-loader.tsx";
 
@@ -77,6 +78,11 @@ const TABS: { key: InboxTabKey; label: string; hint: string }[] = [
     hint: "Every open PR in the repositories you watch, involved or not.",
     key: "subscribed",
     label: "Watching",
+  },
+  {
+    hint: "Review coverage of main — what's on tip that nobody has read.",
+    key: "ledger",
+    label: "Ledger",
   },
 ];
 
@@ -134,6 +140,8 @@ export function Inbox() {
 
   const buckets = {
     ...(data ?? EMPTY),
+    // The ledger tab is a surface, not a bucket: no PRs, no count badge.
+    ledger: { count: 0, prs: [] },
     subscribed: subscribedData ?? { count: 0, prs: [] },
   };
 
@@ -158,7 +166,11 @@ export function Inbox() {
 
   const tabsLoaded = data !== null;
   const visibleTabs = TABS.filter(
-    (t) => !tabsLoaded || visibleCounts[t.key] > 0 || t.key === tab
+    (t) =>
+      t.key === "ledger" ||
+      !tabsLoaded ||
+      visibleCounts[t.key] > 0 ||
+      t.key === tab
   );
 
   const inboxDataLoaded = data !== undefined && subscribedData !== undefined;
@@ -167,7 +179,8 @@ export function Inbox() {
       return;
     }
     autoTabSelected = true;
-    if (visibleCounts[tab] > 0) {
+    // The ledger counts nothing by design; resuming on it is deliberate.
+    if (tab === "ledger" || visibleCounts[tab] > 0) {
       return;
     }
     const firstNonEmpty = TABS.find((t) => visibleCounts[t.key] > 0);
@@ -315,6 +328,9 @@ export function Inbox() {
     archiveSelected: archiveOrRestoreSelected,
     copySelectedLink,
     cycleTab,
+    // The ledger tab owns j/k/enter/esc itself (same scope, only mounted
+    // there); the PR-list keys stand down so the two never race.
+    listActive: tab !== "ledger",
     next,
     openSelected,
     openWatchDialog,
@@ -356,20 +372,30 @@ export function Inbox() {
   }, [paneVisible, setInboxPaneVisible]);
   useEffect(() => () => setInboxPaneVisible(false), [setInboxPaneVisible]);
 
-  const body = inboxBody({
-    activeTab,
-    onOpenWatch: openWatchDialog,
-    onRetry: handleRetry,
-    showArchived,
-    tab,
-    view: inboxMainView(
-      isLoading,
-      isError,
-      data !== null,
-      filtered.length,
-      error
-    ),
-  });
+  const leaveLedger = () => {
+    const first = visibleTabs.find((t) => t.key !== "ledger");
+    selectTab(first?.key ?? "reviewRequested");
+  };
+
+  const body =
+    tab === "ledger" ? (
+      <Ledger onLeave={leaveLedger} />
+    ) : (
+      inboxBody({
+        activeTab,
+        onOpenWatch: openWatchDialog,
+        onRetry: handleRetry,
+        showArchived,
+        tab,
+        view: inboxMainView(
+          isLoading,
+          isError,
+          data !== null,
+          filtered.length,
+          error
+        ),
+      })
+    );
 
   return (
     <div className="flex h-full flex-col">
@@ -393,7 +419,7 @@ export function Inbox() {
         tab={tab}
         tabItems={visibleTabs.map((t) => ({
           ...t,
-          count: visibleCounts[t.key],
+          count: t.key === "ledger" ? null : visibleCounts[t.key],
         }))}
       />
 
@@ -441,7 +467,12 @@ function InboxSurface({
   selectedPR: PullRequest | undefined;
   showArchived: boolean;
   tab: InboxTabKey;
-  tabItems: { count: number; hint: string; key: string; label: string }[];
+  tabItems: {
+    count: number | null;
+    hint: string;
+    key: string;
+    label: string;
+  }[];
 }) {
   const handleListMouseMove = () => {
     if (listMode !== "mouse") {
@@ -477,7 +508,9 @@ function InboxSurface({
         )
       }
       hint={
-        showArchived || filtered.length > SHORT_INBOX_MAX ? null : (
+        showArchived ||
+        tab === "ledger" ||
+        filtered.length > SHORT_INBOX_MAX ? null : (
           <OrgAccessHint onOrgAccessHelp={openOrgApprovalDocs} />
         )
       }
@@ -515,6 +548,7 @@ function useInboxHotkeys({
   toggleArchived,
   copySelectedLink,
   cycleTab,
+  listActive,
   selectTab,
   openWatchDialog,
   visibleTabs,
@@ -527,6 +561,7 @@ function useInboxHotkeys({
   toggleArchived: () => void;
   copySelectedLink: () => void;
   cycleTab: (dir: number) => void;
+  listActive: boolean;
   selectTab: (key: InboxTabKey) => void;
   openWatchDialog: () => void;
   visibleTabs: typeof TABS;
@@ -535,56 +570,62 @@ function useInboxHotkeys({
     cycleTab(e.shiftKey ? -1 : 1);
   };
 
+  const listBindings = listActive
+    ? [
+        {
+          description: "Next PR",
+          group: "Navigation",
+          icon: ArrowDown,
+          keys: ["j", "down"],
+          run: next,
+        },
+        {
+          description: "Previous PR",
+          group: "Navigation",
+          icon: ArrowUp,
+          keys: ["k", "up"],
+          run: prev,
+        },
+        {
+          description: "Open PR",
+          group: "Navigation",
+          icon: CornerDownLeft,
+          keys: "enter",
+          run: openSelected,
+        },
+        {
+          description: "Archive until it updates",
+          group: "Navigation",
+          icon: Archive,
+          keys: "e",
+          run: archiveSelected,
+        },
+        {
+          description: "Undo archive",
+          group: "Navigation",
+          icon: Undo2,
+          keys: "z",
+          run: undoArchive,
+        },
+        {
+          description: "Show archived / back",
+          group: "Navigation",
+          icon: ArchiveRestore,
+          keys: "u",
+          run: toggleArchived,
+        },
+        {
+          description: "Copy PR link",
+          group: "Navigation",
+          icon: Link,
+          keys: "y",
+          run: copySelectedLink,
+        },
+      ]
+    : [];
+
   useHotkeys("inbox", [
-    {
-      description: "Next PR",
-      group: "Navigation",
-      icon: ArrowDown,
-      keys: ["j", "down"],
-      run: next,
-    },
-    {
-      description: "Previous PR",
-      group: "Navigation",
-      icon: ArrowUp,
-      keys: ["k", "up"],
-      run: prev,
-    },
-    {
-      description: "Open PR",
-      group: "Navigation",
-      icon: CornerDownLeft,
-      keys: "enter",
-      run: openSelected,
-    },
-    {
-      description: "Archive until it updates",
-      group: "Navigation",
-      icon: Archive,
-      keys: "e",
-      run: archiveSelected,
-    },
-    {
-      description: "Undo archive",
-      group: "Navigation",
-      icon: Undo2,
-      keys: "z",
-      run: undoArchive,
-    },
-    {
-      description: "Show archived / back",
-      group: "Navigation",
-      icon: ArchiveRestore,
-      keys: "u",
-      run: toggleArchived,
-    },
-    {
-      description: "Copy PR link",
-      group: "Navigation",
-      icon: Link,
-      keys: "y",
-      run: copySelectedLink,
-    },
+    ...listBindings,
     {
       description: "Next / previous tab",
       group: "Tabs",
