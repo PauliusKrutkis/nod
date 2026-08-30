@@ -59,6 +59,8 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      - uses: oven-sh/setup-bun@v2
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.rust-targets }}
@@ -69,6 +71,12 @@ jobs:
 
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile --trust-lockfile
+
+      # bundle.externalBin wants binaries/ledger-<target triple>; the script
+      # maps the rust triple to bun's --target, so the x86_64 mac leg
+      # cross-compiles on the arm64 runner. Empty rust-targets = host triple.
+      - name: Build ledger sidecar
+        run: node scripts/build-ledger-sidecar.mjs ${{ matrix.rust-targets }}
 
       - name: Build and publish
         uses: tauri-apps/tauri-action@v0
