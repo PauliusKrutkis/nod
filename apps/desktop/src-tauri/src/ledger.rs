@@ -18,7 +18,7 @@
 //! launched through tauri (cargo test) fall back to the as-built
 //! `binaries/ledger-<triple>` under the crate root.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use serde_json::Value;
