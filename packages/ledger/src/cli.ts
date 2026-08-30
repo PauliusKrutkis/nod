@@ -1,8 +1,12 @@
 import process from "node:process";
+import { type CliArgs, parseCliArgs, resolveRepoRoot } from "./cli-args.ts";
 import {
   type LedgerConfig,
+  readCommittedConfig,
   readLedgerConfig,
+  readLocalConfig,
   writeLedgerConfig,
+  writeLocalConfig,
 } from "./config.ts";
 import { approveTopic } from "./derive/approve.ts";
 import {
@@ -13,14 +17,15 @@ import {
 import { deriveSession } from "./derive/session.ts";
 import { signRegion } from "./derive/sign.ts";
 import { deriveStatus, type LedgerStatus } from "./derive/status.ts";
+import { syncJournal } from "./facts/journal.ts";
 import type { Actor } from "./facts/schema.ts";
 import { sync } from "./facts/store.ts";
 import { type GitRun, gitIn } from "./git/exec.ts";
 
 /**
- * The dogfood surface for phase 3 (docs/LEDGER.md §12) and, later, the
- * engine the desktop app ships as a Tauri sidecar. Runs under plain Node
- * (type stripping; hence the .ts import extensions across this package).
+ * The dogfood surface for phase 3 (docs/LEDGER.md §12) and the engine the
+ * desktop app ships as a Tauri sidecar. Runs under plain Node (type
+ * stripping; hence the .ts import extensions across this package).
  *
  *   ledger init [rev]        adopt: set the epoch (default HEAD)
  *   ledger status            coverage + queue size
@@ -28,9 +33,15 @@ import { type GitRun, gitIn } from "./git/exec.ts";
  *   ledger session [target]… queued files as unified net-diff patches
  *   ledger review <target>   sign regions; target is path or path:start-end
  *   ledger sync [remote]     exchange facts through the remote
+ *
+ * Global flags make the engine host-drivable: `--repo` frees it from cwd
+ * (and accepts a bare store clone), `--tip` frees it from HEAD (a bare
+ * clone's branches stop moving after the clone; the host passes the
+ * remote-tracking ref), `--actor` frees identity from git config (the
+ * desktop app passes the signed-in login).
  */
 
-const USAGE = `usage: ledger <command>
+const USAGE = `usage: ledger [--repo <dir>] [--tip <rev>] [--actor <id>] <command>
 
   init [rev]        set the epoch to rev (default HEAD) and start the ledger
   status            coverage of post-epoch code on tip
@@ -44,6 +55,13 @@ const USAGE = `usage: ledger <command>
   resolve <id>      close the thread rooted at fact id
   comments          every thread, positioned on tip
   sync [remote]     push/pull facts via git (default origin)
+
+  --repo <dir>      operate on this repo (worktree or bare) instead of cwd
+  --tip <rev>       derive against this rev instead of HEAD
+  --actor <id>      record facts as this actor instead of git user.name
+  --state-dir <dir> durable fact journal + local config, for hosts whose
+                    clone is disposable
+  --                end of flags; everything after is positional
 `;
 
 const short = (sha: string): string => sha.slice(0, 7);
@@ -55,32 +73,46 @@ const die = (message: string): never => {
   process.exit(1);
 };
 
-const getActor = async (git: GitRun): Promise<Actor> => {
+/** Everything a tip-addressed command needs, resolved once per invocation. */
+interface Ctx {
+  git: GitRun;
+  repoRoot: string;
+  /** Tip commit sha (never a symbolic name). */
+  tip: string;
+  actorOverride?: string;
+  stateDir?: string;
+}
+
+const getActor = async (ctx: Ctx): Promise<Actor> => {
+  if (ctx.actorOverride) {
+    return { id: ctx.actorOverride, kind: "human" };
+  }
   let id = "unknown";
   try {
-    id = (await git(["config", "user.name"])).trim() || "unknown";
+    id = (await ctx.git(["config", "user.name"])).trim() || "unknown";
   } catch {
     // fall through to "unknown"
   }
-  return { kind: "human", id };
+  return { id, kind: "human" };
 };
 
-const requireConfig = async (repoRoot: string): Promise<LedgerConfig> => {
-  const config = await readLedgerConfig(repoRoot);
+const requireConfig = async (ctx: Ctx): Promise<LedgerConfig> => {
+  const config =
+    (await readLedgerConfig(ctx.repoRoot)) ??
+    (await readCommittedConfig(ctx.git, ctx.tip)) ??
+    (ctx.stateDir ? await readLocalConfig(ctx.stateDir) : null);
   if (!config) {
     return die("no ledger here yet — run `ledger init` to set the epoch");
   }
   return config;
 };
 
-const requireStatus = async (
-  git: GitRun,
-  repoRoot: string
-): Promise<LedgerStatus> => {
-  const config = await requireConfig(repoRoot);
-  return await deriveStatus(git, {
+const requireStatus = async (ctx: Ctx): Promise<LedgerStatus> => {
+  const config = await requireConfig(ctx);
+  return await deriveStatus(ctx.git, {
     approvalsRequired: config.approvalsRequired,
     epoch: config.epoch,
+    tip: ctx.tip,
   });
 };
 
@@ -95,16 +127,16 @@ const describeItem = (item: LedgerStatus["queue"][number]): string => {
 const TARGET = /^(.+):(\d+)-(\d+)$/;
 
 const runSession = async (
-  git: GitRun,
-  repoRoot: string,
+  ctx: Ctx,
   targets: readonly string[],
   json: boolean
 ): Promise<void> => {
-  const config = await requireConfig(repoRoot);
-  const session = await deriveSession(git, {
+  const config = await requireConfig(ctx);
+  const session = await deriveSession(ctx.git, {
     approvalsRequired: config.approvalsRequired,
     epoch: config.epoch,
     targets,
+    tip: ctx.tip,
   });
   if (json) {
     console.log(JSON.stringify(session));
@@ -129,19 +161,19 @@ const runSession = async (
 };
 
 const runApprove = async (
-  git: GitRun,
-  repoRoot: string,
+  ctx: Ctx,
   topics: readonly string[],
   force: boolean
 ): Promise<void> => {
   if (topics.length === 0) {
     die("approve needs at least one topic — see `ledger status`");
   }
-  const config = await requireConfig(repoRoot);
+  const config = await requireConfig(ctx);
   const required = config.approvalsRequired ?? 1;
-  const before = await deriveStatus(git, {
+  const before = await deriveStatus(ctx.git, {
     approvalsRequired: required,
     epoch: config.epoch,
+    tip: ctx.tip,
   });
   const known = new Set(before.topics.map((t) => t.id));
   for (const topic of topics) {
@@ -150,17 +182,19 @@ const runApprove = async (
       die(`unknown topic "${topic}" — see \`ledger status\`, or pass --force`);
     }
   }
-  const actor = await getActor(git);
+  const actor = await getActor(ctx);
   for (const topic of topics) {
-    await approveTopic(git, {
+    await approveTopic(ctx.git, {
       actor,
       atTime: new Date().toISOString(),
+      tip: ctx.tip,
       topic,
     });
   }
-  const after = await deriveStatus(git, {
+  const after = await deriveStatus(ctx.git, {
     approvalsRequired: required,
     epoch: config.epoch,
+    tip: ctx.tip,
   });
   for (const topic of topics) {
     const now = after.topics.find((t) => t.id === topic);
@@ -182,15 +216,14 @@ const runApprove = async (
 };
 
 const runReview = async (
-  git: GitRun,
-  repoRoot: string,
+  ctx: Ctx,
   targets: readonly string[]
 ): Promise<void> => {
   if (targets.length === 0) {
     die("review needs at least one target: path or path:start-end");
   }
-  const status = await requireStatus(git, repoRoot);
-  const actor = await getActor(git);
+  const status = await requireStatus(ctx);
+  const actor = await getActor(ctx);
   const selected = status.queue.filter((item) =>
     targets.some((target) => {
       const range = TARGET.exec(target);
@@ -210,7 +243,7 @@ const runReview = async (
   let signedLines = 0;
   for (const item of selected) {
     const factId = await signRegion(
-      git,
+      ctx.git,
       status.tip,
       item,
       actor,
@@ -229,14 +262,9 @@ const runReview = async (
 
 const COMMENT_TARGET = /^(.+):(\d+)(?:-(\d+))?$/;
 
-const runComment = async (
-  git: GitRun,
-  repoRoot: string,
-  args: readonly string[]
-): Promise<void> => {
-  await requireConfig(repoRoot);
-  const tip = (await git(["rev-parse", "HEAD"])).trim();
-  const actor = await getActor(git);
+const runComment = async (ctx: Ctx, args: readonly string[]): Promise<void> => {
+  await requireConfig(ctx);
+  const actor = await getActor(ctx);
   const atTime = new Date().toISOString();
 
   if (args[0] === "--reply") {
@@ -244,7 +272,14 @@ const runComment = async (
     if (!(parent && body)) {
       die("usage: ledger comment --reply <fact-id> <body>");
     }
-    const id = await replyToComment(git, tip, parent, actor, atTime, body);
+    const id = await replyToComment(
+      ctx.git,
+      ctx.tip,
+      parent,
+      actor,
+      atTime,
+      body
+    );
     if (!id) {
       die(`no comment thread rooted at ${parent} — see \`ledger comments\``);
     }
@@ -259,19 +294,26 @@ const runComment = async (
     return;
   }
   const region = {
+    endLine: Number(range[3] ?? range[2]),
     path: range[1],
     startLine: Number(range[2]),
-    endLine: Number(range[3] ?? range[2]),
   };
-  const id = await commentOnRegion(git, tip, region, actor, atTime, body);
+  const id = await commentOnRegion(
+    ctx.git,
+    ctx.tip,
+    region,
+    actor,
+    atTime,
+    body
+  );
   if (!id) {
     die(`nothing to anchor to at ${target} — is the region on tip?`);
   }
   console.log(`commented on ${target} · ${id}`);
 };
 
-const runComments = async (git: GitRun, repoRoot: string, json: boolean) => {
-  const status = await requireStatus(git, repoRoot);
+const runComments = async (ctx: Ctx, json: boolean) => {
+  const status = await requireStatus(ctx);
   if (json) {
     console.log(JSON.stringify(status.comments));
     return;
@@ -298,32 +340,64 @@ const runComments = async (git: GitRun, repoRoot: string, json: boolean) => {
   }
 };
 
+/** `^{commit}` peels refs and rejects non-commits in one probe. */
+const resolveTip = async (git: GitRun, tip?: string): Promise<string> =>
+  (await git(["rev-parse", `${tip ?? "HEAD"}^{commit}`])).trim();
+
 const main = async (): Promise<void> => {
-  const argv = process.argv.slice(2);
-  const json = argv.includes("--json");
-  const force = argv.includes("--force");
-  const [command, ...args] = argv.filter(
-    (arg) => arg !== "--json" && arg !== "--force"
-  );
-  const repoRoot = (
-    await gitIn(process.cwd())(["rev-parse", "--show-toplevel"])
-  ).trim();
+  let opts: CliArgs;
+  let repoRoot: string;
+  try {
+    opts = parseCliArgs(process.argv.slice(2));
+    repoRoot = await resolveRepoRoot(opts.repo);
+  } catch (error) {
+    return die(error instanceof Error ? error.message : String(error));
+  }
+  const [command, ...args] = opts.positional;
   const git = gitIn(repoRoot);
+  const ctx = async (): Promise<Ctx> => ({
+    actorOverride: opts.actor,
+    git,
+    repoRoot,
+    stateDir: opts.stateDir,
+    tip: await resolveTip(git, opts.tip),
+  });
+  // Reconcile the durable journal with the ref before any read (a wiped
+  // clone gets its facts back) and again after any append (a new fact
+  // lands in the journal the moment it exists).
+  const journalSync = async (): Promise<void> => {
+    if (opts.stateDir && command) {
+      await syncJournal(git, opts.stateDir);
+    }
+  };
+  await journalSync();
 
   switch (command) {
     case "init": {
       const epoch = (await git(["rev-parse", args[0] ?? "HEAD"])).trim();
-      // Read-merge: re-init moves only the epoch, never drops other settings.
-      const existing = await readLedgerConfig(repoRoot).catch(() => null);
-      await writeLedgerConfig(repoRoot, { ...existing, version: 1, epoch });
+      if (opts.stateDir) {
+        // Zero-commit adoption: the epoch lives in host state, and the
+        // repo never learns the ledger exists.
+        const existing = await readLocalConfig(opts.stateDir).catch(() => null);
+        await writeLocalConfig(opts.stateDir, {
+          ...existing,
+          epoch,
+          version: 1,
+        });
+      } else {
+        // Read-merge: re-init moves only the epoch, never drops other
+        // settings.
+        const existing = await readLedgerConfig(repoRoot).catch(() => null);
+        await writeLedgerConfig(repoRoot, { ...existing, epoch, version: 1 });
+      }
       console.log(
         `ledger initialized · epoch ${short(epoch)} · everything before it is grandfathered`
       );
       return;
     }
     case "status": {
-      const status = await requireStatus(git, repoRoot);
-      if (json) {
+      const status = await requireStatus(await ctx());
+      if (opts.json) {
         console.log(JSON.stringify(status));
         return;
       }
@@ -334,8 +408,8 @@ const main = async (): Promise<void> => {
       return;
     }
     case "queue": {
-      const status = await requireStatus(git, repoRoot);
-      if (json) {
+      const status = await requireStatus(await ctx());
+      if (opts.json) {
         console.log(JSON.stringify(status));
         return;
       }
@@ -349,47 +423,52 @@ const main = async (): Promise<void> => {
       return;
     }
     case "session": {
-      await runSession(git, repoRoot, args, json);
+      await runSession(await ctx(), args, opts.json);
       return;
     }
     case "review": {
-      await runReview(git, repoRoot, args);
+      await runReview(await ctx(), args);
+      await journalSync();
       return;
     }
     case "approve": {
-      await runApprove(git, repoRoot, args, force);
+      await runApprove(await ctx(), args, opts.force);
+      await journalSync();
       return;
     }
     case "comment": {
-      await runComment(git, repoRoot, args);
+      await runComment(await ctx(), args);
+      await journalSync();
       return;
     }
     case "comments": {
-      await runComments(git, repoRoot, json);
+      await runComments(await ctx(), opts.json);
       return;
     }
     case "resolve": {
       if (!args[0]) {
         die("usage: ledger resolve <fact-id>");
       }
-      await requireConfig(repoRoot);
-      const tip = (await git(["rev-parse", "HEAD"])).trim();
+      const resolveCtx = await ctx();
+      await requireConfig(resolveCtx);
       const id = await resolveComment(
         git,
-        tip,
+        resolveCtx.tip,
         args[0],
-        await getActor(git),
+        await getActor(resolveCtx),
         new Date().toISOString()
       );
       if (!id) {
         die(`no comment thread rooted at ${args[0]} — see \`ledger comments\``);
       }
       console.log(`resolved · ${id}`);
+      await journalSync();
       return;
     }
     case "sync": {
       await sync(git, args[0] ?? "origin");
       console.log("ledger synced");
+      await journalSync();
       return;
     }
     default: {
