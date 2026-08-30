@@ -30,5 +30,10 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: apps/desktop/src-tauri
+      - uses: oven-sh/setup-bun@v2
+      # tauri-build resolves bundle.externalBin at compile time — the crate
+      # will not even type-check without the sidecar binary in place.
+      - name: Build ledger sidecar
+        run: node scripts/build-ledger-sidecar.mjs
       - name: Unit tests
         run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml

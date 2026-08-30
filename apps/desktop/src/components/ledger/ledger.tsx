@@ -1,23 +1,23 @@
 /**
- * The review-ledger surface (docs/LEDGER.md §6, phase 3 dogfood): pick a
- * watched repository, land in its queue of review sessions — unreviewed
+ * The review-ledger surface (docs/LEDGER.md §6): pick a watched
+ * repository, land in its queue of review sessions — unreviewed
  * post-epoch regions pooled by feature-ish provenance (conventional-commit
- * scope, PR fallback) — and enter one to read and sign. Four modes — pick
- * (watched repos), path (one-time "where is this cloned?" for a repo
- * without a known working copy), queue, session — j/k/enter walk whichever
- * list is active, escape steps out one level (session → queue → picker →
- * inbox). Signing lives only inside the session, where the code is on
- * screen: a queue-level sign would be the rubber-stamp §13 warns about.
+ * scope, PR fallback) — and enter one to read and sign. Three modes —
+ * pick (watched repos), queue, session — j/k/enter walk whichever list is
+ * active, escape steps out one level (session → queue → picker → inbox).
+ * Signing lives only inside the session, where the code is on screen: a
+ * queue-level sign would be the rubber-stamp §13 warns about.
  *
- * Local clone locations live in nod:repoPaths:v1, a repo-key → absolute-path
- * map that is deliberately not ledger-private: go-to-definition and
- * whole-repo AI need the same mapping, so the ledger only reads and seeds
- * it. The last opened repo (nod:ledgerLastRepo:v1) short-circuits straight
- * to its queue on return visits. Status derivation runs the repo's own
- * ledger CLI through Rust — a full blame pass, so a cold load takes seconds
- * and the spinner says what it is waiting on. Selection clamps at read rather
- * than in an effect, because signing shrinks the group list under the cursor
- * and a clamping effect would cost a second render on every refetch.
+ * Repos are addressed as owner/repo keys; Rust resolves everything else —
+ * the store's bare clone (cloning on first open), the tip, the actor, the
+ * durable fact journal. Nothing is asked of the user and nothing touches
+ * the target repo. The last opened repo (nod:ledgerLastRepo:v1)
+ * short-circuits straight to its queue on return visits. Status
+ * derivation runs the bundled engine through Rust — a full blame pass, so
+ * a cold load takes seconds and the spinner says what it is waiting on; a
+ * first-ever open also clones. Selection clamps at read rather than in an
+ * effect, because signing shrinks the group list under the cursor and a
+ * clamping effect would cost a second render on every refetch.
  */
 import { InboxZero } from "@nod/ui/inbox-zero";
 import { Kbd } from "@nod/ui/kbd";
@@ -41,38 +41,16 @@ import type {
 } from "../../types.ts";
 import { LedgerSession } from "./ledger-session.tsx";
 
-const PATHS_KEY = "nod:repoPaths:v1";
 const LAST_REPO_KEY = "nod:ledgerLastRepo:v1";
 
-function loadRepoPaths(): Record<string, string> {
-  try {
-    const v = JSON.parse(localStorage.getItem(PATHS_KEY) ?? "{}");
-    if (typeof v !== "object" || v === null || Array.isArray(v)) {
-      return {};
-    }
-    const out: Record<string, string> = {};
-    for (const [key, value] of Object.entries(v)) {
-      if (typeof value === "string") {
-        out[key] = value;
-      }
-    }
-    return out;
-  } catch {
-    return {};
-  }
-}
-
-function savedRepoPaths(paths: Record<string, string>) {
-  try {
-    localStorage.setItem(PATHS_KEY, JSON.stringify(paths));
-  } catch {
-    /* ignore quota / private-mode errors */
-  }
-}
+/** owner/repo, and nothing that could be an absolute path from the era
+ * when this key stored clone locations. */
+const REPO_KEY_SHAPE = /^[^/\s]+\/[^/\s]+$/;
 
 function loadLastRepo(): string {
   try {
-    return localStorage.getItem(LAST_REPO_KEY) ?? "";
+    const stored = localStorage.getItem(LAST_REPO_KEY) ?? "";
+    return REPO_KEY_SHAPE.test(stored) ? stored : "";
   } catch {
     return "";
   }
@@ -96,12 +74,10 @@ function targetOf(item: LedgerQueueItem): string {
 
 type LedgerView =
   | { kind: "pick" }
-  | { kind: "path"; repoKey: string }
-  | { kind: "queue"; repoKey: string; path: string }
+  | { kind: "queue"; repoKey: string }
   | {
       kind: "session";
       repoKey: string;
-      path: string;
       group: { label: string; subject: string };
       targets: string[];
       initialTarget: string;
@@ -109,9 +85,8 @@ type LedgerView =
 
 function initialView(): LedgerView {
   const last = loadLastRepo();
-  const path = last ? loadRepoPaths()[last] : undefined;
-  if (last && path) {
-    return { kind: "queue", path, repoKey: last };
+  if (last) {
+    return { kind: "queue", repoKey: last };
   }
   return { kind: "pick" };
 }
@@ -119,7 +94,6 @@ function initialView(): LedgerView {
 export function Ledger() {
   const goInbox = useAppStore((s) => s.goInbox);
   const [view, setView] = useState<LedgerView>(initialView);
-  const [paths, setPaths] = useState(loadRepoPaths);
   const [selectedIndex, setSelected] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -132,8 +106,8 @@ export function Ledger() {
   const inRepo = view.kind === "queue" || view.kind === "session";
   const status = useQuery({
     enabled: inRepo,
-    queryFn: () => api.ledgerStatus(inRepo ? view.path : ""),
-    queryKey: queryKeys.ledger(inRepo ? view.path : ""),
+    queryFn: () => api.ledgerStatus(inRepo ? view.repoKey : ""),
+    queryKey: queryKeys.ledger(inRepo ? view.repoKey : ""),
   });
   const queue = status.data?.queue ?? [];
   const { groups } = groupQueueByProvenance(queue);
@@ -166,21 +140,7 @@ export function Ledger() {
   const openRepo = (repoKey: string) => {
     saveLastRepo(repoKey);
     setSelected(0);
-    const path = paths[repoKey];
-    setView(
-      path ? { kind: "queue", path, repoKey } : { kind: "path", repoKey }
-    );
-  };
-
-  const savePathFor = (repoKey: string, form: FormData) => {
-    const path = String(form.get("path") ?? "").trim();
-    if (!path) {
-      return;
-    }
-    const next = { ...paths, [repoKey]: path };
-    setPaths(next);
-    savedRepoPaths(next);
-    setView({ kind: "queue", path, repoKey });
+    setView({ kind: "queue", repoKey });
   };
 
   const stepOut = () => {
@@ -205,7 +165,6 @@ export function Ledger() {
       group: { label: group.label, subject: group.subject },
       initialTarget: targetOf(first),
       kind: "session",
-      path: view.path,
       repoKey: view.repoKey,
       targets: group.items.map(targetOf),
     });
@@ -229,7 +188,6 @@ export function Ledger() {
     {
       description: view.kind === "pick" ? "Open repository" : "Open session",
       group: "Queue",
-      hidden: view.kind === "path",
       keys: "enter",
       run: () => {
         if (view.kind === "pick" && repos[selected]) {
@@ -253,19 +211,8 @@ export function Ledger() {
       <RepoPicker
         listRef={listRef}
         onOpen={openRepo}
-        paths={paths}
         repos={repos}
         selected={selected}
-      />
-    );
-  }
-
-  if (view.kind === "path") {
-    return (
-      <ClonePathForm
-        onBack={stepOut}
-        onSubmit={(form) => savePathFor(view.repoKey, form)}
-        repoKey={view.repoKey}
       />
     );
   }
@@ -275,9 +222,7 @@ export function Ledger() {
       <LedgerSession
         group={view.group}
         initialTarget={view.initialTarget}
-        onExit={() =>
-          setView({ kind: "queue", path: view.path, repoKey: view.repoKey })
-        }
+        onExit={() => setView({ kind: "queue", repoKey: view.repoKey })}
         onSigned={(target) =>
           setView((v) =>
             v.kind === "session"
@@ -285,7 +230,7 @@ export function Ledger() {
               : v
           )
         }
-        repoPath={view.path}
+        repoKey={view.repoKey}
         targets={view.targets}
       />
     );
@@ -317,9 +262,6 @@ export function Ledger() {
             </span>
           </>
         )}
-        <span className="ml-auto max-w-64 truncate text-faint text-xs">
-          {view.path}
-        </span>
       </header>
 
       <QueueBody
@@ -352,13 +294,11 @@ export function Ledger() {
 function RepoPicker({
   listRef,
   onOpen,
-  paths,
   repos,
   selected,
 }: {
   listRef: React.RefObject<HTMLDivElement | null>;
   onOpen: (repoKey: string) => void;
-  paths: Record<string, string>;
   repos: string[];
   selected: number;
 }) {
@@ -389,7 +329,6 @@ function RepoPicker({
             index={i}
             key={repoKey}
             onOpen={onOpen}
-            path={paths[repoKey]}
             repoKey={repoKey}
             selected={i === selected}
           />
@@ -413,13 +352,11 @@ function RepoPicker({
 function PickerRow({
   index,
   onOpen,
-  path,
   repoKey,
   selected,
 }: {
   index: number;
   onOpen: (repoKey: string) => void;
-  path: string | undefined;
   repoKey: string;
   selected: boolean;
 }) {
@@ -440,9 +377,6 @@ function PickerRow({
       type="button"
     >
       <span className="shrink-0 font-medium text-fg text-sm">{repoKey}</span>
-      <span className="truncate font-mono text-faint text-xs">
-        {path ?? "no local clone yet — enter sets one"}
-      </span>
     </button>
   );
 }
@@ -616,57 +550,4 @@ function otherChips(group: { chips: string[]; label: string }): string[] {
     }
   }
   return rest;
-}
-
-function ClonePathForm({
-  onBack,
-  onSubmit,
-  repoKey,
-}: {
-  onBack: () => void;
-  onSubmit: (form: FormData) => void;
-  repoKey: string;
-}) {
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    onSubmit(new FormData(e.currentTarget));
-  };
-  return (
-    <div className="flex h-full items-center justify-center">
-      <form
-        className="flex w-full max-w-md flex-col gap-3"
-        onSubmit={handleSubmit}
-      >
-        <h2 className="font-medium text-fg">Where is {repoKey} cloned?</h2>
-        <p className="text-muted text-sm">
-          Absolute path to your local working copy. Set once — go-to-definition
-          and repo-wide AI will use the same location.
-        </p>
-        <input
-          aria-label="Repository path"
-          // react-doctor-disable-next-line no-autofocus -- the form opens on a deliberate click and holds one field; focusing it is the whole point, and nothing else on screen wants the caret
-          autoFocus
-          className="rounded border border-line bg-surface px-3 py-2 font-mono text-fg text-sm"
-          name="path"
-          placeholder="/path/to/clone"
-          spellCheck={false}
-        />
-        <div className="flex gap-2">
-          <button
-            className="rounded border border-line bg-surface-2 px-4 py-1.5 text-fg text-sm hover:bg-elevated"
-            type="submit"
-          >
-            Save
-          </button>
-          <button
-            className="rounded px-4 py-1.5 text-muted text-sm hover:text-fg"
-            onClick={onBack}
-            type="button"
-          >
-            Back
-          </button>
-        </div>
-      </form>
-    </div>
-  );
 }
