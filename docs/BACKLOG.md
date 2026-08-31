@@ -2046,6 +2046,45 @@ quietly fixed.
       (#232), so the strongest practical argument for merging is gone. What
       remains is the ergonomic one, which is real: two inputs, two hotkeys and
       two skins for "write something about these lines".
+- [ ] 🔴 ❓ **An agent window (`mod+i`) — run a skill over the whole PR** —
+      a second surface where you delegate rather than read: pick one of the
+      repo's own skills, give it multi-file context, and get **inline comments
+      proposed across many files**. Explicitly *not* a drawer, and it must
+      leave the diff selectable and copyable while it is open.
+      *Permitted by the position, and not new capability.* AI.md rule 2
+      governs the trigger, not the size of the answer — "a feature that reviews
+      an entire PR is fine if you asked it to" — and the output half is already
+      specced as **review-by-prompt** in § AI surfaces. What this adds is a
+      home for it, skills as the unit of work, and multi-file context.
+      *The architecture is closer than it looks (verified 2026-08-09):*
+      `tauri.conf.json` already carries a `windows` array, and `ai_ask` already
+      streams by emitting a **global** Tauri event (`app.emit("ai-ask-delta")`)
+      that any window can subscribe to. The session already lives in Rust,
+      because the key was never allowed in the webview. A second window
+      subscribing to that stream is the shape the code already has; the real
+      cost is two React roots, so Rust must own the session outright.
+      *Designed 2026-08-09:* [the agent window](https://claude.ai/code/artifact/92900361-eec4-4a14-8374-183d0b38e353). Load-bearing choices:
+      findings land **in the diff, never in the chat** (a code review read as a
+      chat log loses the line, the hunk, and accept-in-place); the agent gets
+      `read`/`grep`/`propose_comment` and **never** `post_comment`,
+      `submit_review`, `merge`, `write_file` or `run_command`, because sending
+      is the user's act and Nod does no git operations; and skills are read
+      from the reviewed repo's own `skills/` directory via the snapshot, which
+      is better than anything Nod could ship — but a skill modified **in the PR
+      under review** must be flagged in the picker rather than silently used.
+      *Do not merge it with the info drawer.* Opposite jobs and opposite
+      lifetimes: the drawer is glanced at for seconds with the code still on
+      screen, an agent run lasts minutes and wants its own space.
+      *The decision that actually matters is one phrase.* It was proposed as
+      "the primary place" to run skills. AI.md rule 3 says the app must be
+      complete with no key, because the review loop is the product. **A** place
+      is consistent with that; **the primary** place is a different product
+      that makes the review surface an agent's output pane. The mock works
+      either way, but the answer changes the roadmap and the landing page.
+      **Recommendation: build it as a strong optional surface, keep `a` and
+      `c` primary, and let usage argue for promotion** — repositioning first
+      and discovering nobody delegates is the expensive order.
+
 - [ ] 🟡 **Commercial use — say plainly what a company may do** — the licence
       is FSL-1.1-Apache-2.0 and the README explains it correctly ("read it,
       build it, change it, use it internally… the one thing you may not do is
