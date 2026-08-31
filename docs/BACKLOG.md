@@ -145,6 +145,7 @@ that keeps getting re-asked. Anything not listed was implementation detail;
 
 | Item | Section | When |
 | --- | --- | --- |
+| **Linux AppImage with the ledger sidecar** | release.yml | Dropped in v0.9.3: linuxdeploy patchelfs every AppDir binary and a patchelf'd bun binary dies with SIGILL (verified in a container); its gtk plugin also aborts running ldd over the sidecar. deb+rpm ship instead, which costs Linux auto-update (Tauri updates via AppImage only). Fix candidates: ship the sidecar as a resource and mark it executable at runtime, or an upstream linuxdeploy exclude flag. |
 | **Commercial launch** | §11c | Blocked on live accounts, not code |
 | `nod://pr/...` routing | §11a | With the Stage 2 extension |
 | Simple **"Open in Nod"** extension | §11a Stage 2 | After daily-use users |

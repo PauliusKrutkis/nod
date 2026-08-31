@@ -34,7 +34,11 @@ jobs:
             args: --target x86_64-apple-darwin
             rust-targets: x86_64-apple-darwin
           - platform: ubuntu-22.04
-            args: ""
+            # No AppImage: linuxdeploy's patchelf pass corrupts the
+            # bun-compiled ledger sidecar (SIGILL at runtime) and its gtk
+            # plugin aborts on it; deb and rpm carry Linux until the
+            # sidecar can be packaged around linuxdeploy (BACKLOG).
+            args: --bundles deb,rpm
             rust-targets: ""
           - platform: windows-latest
             args: ""
