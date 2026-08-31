@@ -89,6 +89,10 @@ jobs:
           NOD_GITLAB_CLIENT_ID: ${{ vars.NOD_GITLAB_CLIENT_ID }}
           NOD_LICENSE_PUBKEY: ${{ vars.NOD_LICENSE_PUBKEY }}
           NOD_CHECKOUT_URL: ${{ vars.NOD_CHECKOUT_URL }}
+          # linuxdeploy strips every AppDir binary and chokes on the
+          # bun-compiled ledger sidecar (bun binaries embed data strip
+          # mangles); v0.9.0's AppImage died on exactly this.
+          NO_STRIP: true
         with:
           projectPath: apps/desktop
           tagName: ${{ github.ref_name }}
