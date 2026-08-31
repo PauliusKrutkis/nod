@@ -48,9 +48,11 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
+          # libfuse2 died out of the runner image after v0.8.0; linuxdeploy
+          # is itself an AppImage and cannot start without it.
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl \
             wget file libxdo-dev libssl-dev libayatana-appindicator3-dev \
-            librsvg2-dev
+            librsvg2-dev libfuse2
 
       - uses: pnpm/action-setup@v4
 
